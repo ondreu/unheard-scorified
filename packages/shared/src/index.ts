@@ -7,3 +7,6 @@ export * from './data/races';
 export * from './data/classes';
 export * from './data/zones';
 export * from './data/quests';
+export * from './loot';
+export * from './data/items';
+export * from './data/talents';

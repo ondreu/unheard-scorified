@@ -10,6 +10,7 @@
  */
 import { QUESTS, type QuestDef } from './data/quests';
 import { SeededRng, seedFromString } from './rng';
+import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET } from './loot';
 
 /** Typ idle aktivity. Zatím jen quest; rozšiřitelné o profese/dungeony. */
 export type ActivityType = 'quest';
@@ -37,6 +38,7 @@ export interface ActivityState {
 export interface ActivityReward {
   xp: number;
   gold: number;
+  items: string[];
 }
 
 /** Průběh aktivity v daném okamžiku. */
@@ -82,9 +84,13 @@ export function computeQuestReward(quest: QuestDef, seed: number): ActivityRewar
   const rng = new SeededRng(seed);
   const roll = rng.next(); // [0,1)
   const factor = 1 - quest.goldVariance + roll * 2 * quest.goldVariance;
+  const bracket = ZONE_TO_BRACKET[quest.zoneId];
+  const lootTable = bracket !== undefined ? ZONE_LOOT_TABLES[bracket] : undefined;
+  const items = lootTable !== undefined ? rollLoot(lootTable, rng) : [];
   return {
     xp: quest.baseXp,
     gold: Math.max(0, Math.round(quest.baseGold * factor)),
+    items,
   };
 }
 
