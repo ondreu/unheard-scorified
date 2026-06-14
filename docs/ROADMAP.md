@@ -1,4 +1,4 @@
-# Plán: Idle RPG (WoW-inspired) — kompletní roadmapa
+# AFK to 60 — kompletní roadmapa (idle RPG, WoW-inspired)
 
 > Living document. Po každém milníku se aktualizuje (odškrtnutí hotového, doplnění detailů další fáze).
 > Toto je **single source of truth** roadmapy projektu.

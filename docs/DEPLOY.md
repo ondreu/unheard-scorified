@@ -111,6 +111,29 @@ docker compose -f docker-compose.prod.yml logs -f api   # log API (uvidíš "Mig
 
 ---
 
+## Vlastní doména přes Cloudflare Tunnel (doporučeno pro domácí NAS)
+
+Tunnel vystaví hru na tvé doméně **bez otevírání portů** na routeru (funguje i za CGNAT). HTTPS řeší Cloudflare na svém edge — vyřeší i požadavek na HTTPS pro push notifikace (M3). Tunnel směruje na Caddy, který dál routuje `/api` vs web.
+
+1. **Vytvoř tunnel** v [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → **Networks → Tunnels → Create a tunnel** → typ **Cloudflared** → pojmenuj (např. `afk-to-60`).
+2. Cloudflare ti ukáže **token** (dlouhý řetězec za `--token`). Zkopíruj ho do `.env`:
+   ```dotenv
+   TUNNEL_TOKEN=eyJ... (tvůj token)
+   DOMAIN=:80
+   ```
+3. V tunnelu přidej **Public Hostname**:
+   - Subdomain/Domain: např. `hra.tvojedomena.cz`
+   - Service: **HTTP** → `caddy:80`
+4. Spusť stack **s profilem `cloudflare`**:
+   ```bash
+   docker compose --profile cloudflare -f docker-compose.prod.yml up -d
+   ```
+5. Hotovo — hra běží na `https://hra.tvojedomena.cz`. V Cloudflare nech SSL/TLS mód **Full**.
+
+> Tunnel je v compose ve **vlastním profilu**, takže bez `--profile cloudflare` se nespustí (lokální/LAN běh tím není ovlivněn). Porty 80/443 přes Caddy můžeš nechat pro přístup z LAN, nebo je v `docker-compose.prod.yml` u `caddy` odebrat, pokud chceš jen tunnel.
+
+---
+
 ## Aktualizace
 
 - **Automaticky:** nic neděláš. Po `git push` → CI postaví nový `latest` → Watchtower ho do ~5 min nasadí a restartuje `api`/`web`.

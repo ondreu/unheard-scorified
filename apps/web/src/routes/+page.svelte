@@ -3,8 +3,8 @@
 </script>
 
 <main class="mx-auto max-w-2xl px-6 py-16">
-  <h1 class="text-4xl font-bold tracking-tight text-amber-200">Idle RPG</h1>
-  <p class="mt-2 text-amber-100/70">WoW-inspired idle RPG.</p>
+  <h1 class="text-4xl font-bold tracking-tight text-amber-200">AFK to 60</h1>
+  <p class="mt-2 text-amber-100/70">WoW-inspired idle RPG. Dojdi na 60 — i když jsi AFK.</p>
 
   <div class="mt-10 flex gap-3">
     {#if $tokens}

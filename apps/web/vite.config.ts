@@ -10,9 +10,9 @@ export default defineConfig({
     SvelteKitPWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Idle RPG',
-        short_name: 'IdleRPG',
-        description: 'WoW-inspired idle RPG',
+        name: 'AFK to 60',
+        short_name: 'AFK to 60',
+        description: 'WoW-inspired idle RPG — AFK to 60',
         theme_color: '#1a1410',
         background_color: '#1a1410',
         display: 'standalone',
