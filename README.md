@@ -1,6 +1,6 @@
-# Idle RPG (WoW-inspired)
+# AFK to 60
 
-Webová idle RPG hra inspirovaná vanilla World of Warcraft. Převážně textová, místy pixel art. PWA s push notifikacemi. Idle (kontrola párkrát denně) i krátká aktivní sezení.
+Webová idle RPG hra inspirovaná vanilla World of Warcraft. Dojdi na level 60 — i když jsi AFK. Převážně textová, místy pixel art. PWA s push notifikacemi. Idle (kontrola párkrát denně) i krátká aktivní sezení.
 
 > **Roadmapa a vize:** [`docs/ROADMAP.md`](docs/ROADMAP.md) · **Orientace pro vývoj:** [`CLAUDE.md`](CLAUDE.md)
 

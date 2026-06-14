@@ -85,3 +85,17 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Pro PRIVATE GHCR packages odkomentuj (po `docker login ghcr.io` na serveru):
       # - ${HOME}/.docker/config.json:/config.json:ro
+
+  # Volitelné: vystavení přes vlastní doménu Cloudflare Tunnelem (bez otevírání portů).
+  # Spustí se jen s profilem: `docker compose --profile cloudflare -f docker-compose.prod.yml up -d`
+  # V Cloudflare Zero Trust namapuj public hostname → http://caddy:80. Viz docs/DEPLOY.md.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ['cloudflare']
+    command: tunnel --no-autoupdate run
+    # TUNNEL_TOKEN z .env (Cloudflare Zero Trust). Nutný jen při běhu s profilem `cloudflare`.
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      - caddy

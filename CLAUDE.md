@@ -4,7 +4,7 @@ Tento projekt staví AI agenti, PM (uživatel) řídí a schvaluje. Tenhle soubo
 
 ## Co to je
 
-Webová **idle RPG hra inspirovaná vanilla WoW**. Převážně textová + pixel art. Idle (kontrola párkrát denně), ale i krátká aktivní sezení. PWA s push notifikacemi. Singleplayer-first s MP prvky (Areny PVP, Dungeony SP PVE, Raidy MP PVE).
+**AFK to 60** — webová **idle RPG hra inspirovaná vanilla WoW** (dojdi na level 60 i v AFK). Převážně textová + pixel art. Idle (kontrola párkrát denně), ale i krátká aktivní sezení. PWA s push notifikacemi. Singleplayer-first s MP prvky (Areny PVP, Dungeony SP PVE, Raidy MP PVE).
 
 ## Architektura (stručně)
 
