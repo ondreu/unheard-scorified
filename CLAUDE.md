@@ -6,6 +6,8 @@ Tento projekt staví AI agenti, PM (uživatel) řídí a schvaluje. Tenhle soubo
 
 **AFK to 60** — webová **idle RPG hra inspirovaná vanilla WoW** (dojdi na level 60 i v AFK). Převážně textová + pixel art. Idle (kontrola párkrát denně), ale i krátká aktivní sezení. PWA s push notifikacemi. Singleplayer-first s MP prvky (Areny PVP, Dungeony SP PVE, Raidy MP PVE).
 
+**Jazyk hry = angličtina.** Veškerý uživatelsky viditelný herní obsah a UI (texty, názvy ras/class/itemů/questů, hlášky, notifikace) piš **anglicky**. Dokumentace a komentáře zůstávají česky. UI stringy drž oddělené od logiky (snazší pozdější i18n).
+
 ## Architektura (stručně)
 
 Full-stack TypeScript monorepo (pnpm + turbo):
