@@ -43,7 +43,20 @@ Stáhni si tři soubory z GitHubu (tlačítko **Raw** → uložit) a nahraj je p
 
 ---
 
-## Krok 2 — Vyplnit `.env`
+## Krok 2 — Vytvořit Cloudflare Tunnel
+
+Hra se vystavuje **výhradně přes Cloudflare Tunnel** — žádné otevírání portů na routeru ani NASu (funguje i za CGNAT) a HTTPS řeší Cloudflare na svém edge (potřeba pro Web Push v M3). Tunnel se připojuje vnitřní docker sítí na `caddy:80`, který dál routuje `/api` na API a zbytek na web. Porty 80/443 na NASu si tak v klidu nechá jeho admin UI.
+
+1. **Vytvoř tunnel** v [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → **Networks → Tunnels → Create a tunnel** → typ **Cloudflared** → pojmenuj (např. `afk-to-60`).
+2. Cloudflare ti ukáže **token** (dlouhý řetězec za `--token`). Ulož si ho — patří do `.env` v dalším kroku.
+3. V tunnelu přidej **Public Hostname**:
+   - Subdomain/Domain: např. `hra.tvojedomena.cz`
+   - Service: **HTTP** → `caddy:80`
+4. V **SSL/TLS** nech mód **Full**.
+
+---
+
+## Krok 3 — Vyplnit `.env`
 
 Otevři `.env` a nastav minimálně:
 
@@ -51,10 +64,10 @@ Otevři `.env` a nastav minimálně:
 # Silné náhodné heslo! (např. `openssl rand -base64 32`)
 JWT_SECRET=zmen-me-na-nahodny-retezec
 
-# Přístup k webu (viz Krok 3 – sítě & HTTPS)
+# Cloudflare Tunnel — token z Kroku 2 (Zero Trust).
+TUNNEL_TOKEN=eyJ... (tvůj token)
+# Caddy poslouchá interně na HTTP :80 (tunnel zajistí HTTPS na edge).
 DOMAIN=:80
-HTTP_PORT=80
-HTTPS_PORT=443
 
 # Databáze (klidně ponech, data jsou jen lokálně na NASu)
 POSTGRES_USER=game
@@ -69,15 +82,17 @@ IMAGE_TAG=latest
 
 ---
 
-## Krok 3 — Spustit
+## Krok 4 — Spustit
+
+Stack se spouští **s profilem `cloudflare`** (ten přidá službu `cloudflared`):
 
 ### Varianta A — SSH
 
 ```bash
 cd ~/idlerpg
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml ps        # stav služeb
-docker compose -f docker-compose.prod.yml logs -f api   # log API (uvidíš "Migrace aplikovány")
+docker compose --profile cloudflare -f docker-compose.prod.yml up -d
+docker compose --profile cloudflare -f docker-compose.prod.yml ps        # stav služeb
+docker compose --profile cloudflare -f docker-compose.prod.yml logs -f api   # log API (uvidíš "Migrace aplikovány")
 ```
 
 ### Varianta B — UGREEN Docker GUI
@@ -85,52 +100,20 @@ docker compose -f docker-compose.prod.yml logs -f api   # log API (uvidíš "Mig
 1. Otevři appku **Docker** → sekci **Projekt** (Compose / Stacks).
 2. **Vytvořit projekt** → cesta ke složce `/volume1/docker/idlerpg` (kde leží `docker-compose.prod.yml`), nebo vlož obsah compose ručně.
 3. UGREEN načte `.env` ze stejné složky. Zkontroluj proměnné a **Spustit**.
-4. Sleduj logy kontejneru `api` — má vypsat `Migrace aplikovány` a `API běží na portu 3000`.
+4. Sleduj logy kontejneru `api` — má vypsat `Migrace aplikovány` a `API běží na portu 3000`. V logu `cloudflared` uvidíš `Registered tunnel connection`.
+
+> GUI nemusí umět zadat compose profil. Pokud `cloudflared` nenaběhne, spusť stack přes SSH (Varianta A), nebo dočasně odeber `profiles: ['cloudflare']` u služby `cloudflared` v compose.
 
 ---
 
 ## Ověření
 
-- **Web:** otevři `http://<IP-NASu>/` (nebo tvoji doménu). Uvidíš úvodní stránku → Registrace → vytvoř postavu.
-- **API health:** `http://<IP-NASu>/api/health` → JSON se `status:"ok"` a `deps.postgres/redis: up`.
+- **Web:** otevři `https://hra.tvojedomena.cz/`. Uvidíš úvodní stránku → Registrace → vytvoř postavu.
+- **API health:** `https://hra.tvojedomena.cz/api/health` → JSON se `status:"ok"` a `deps.postgres/redis: up`.
 
-(`/api/*` Caddy směruje na API, vše ostatní na web.)
-
----
-
-## Sítě & HTTPS (Caddy)
-
-`Caddyfile` používá proměnnou `DOMAIN`:
-
-- **LAN / jen IP (HTTP):** `DOMAIN=:80` → Caddy poslouchá na HTTP, přístup přes `http://<IP-NASu>`. Pro lokální zkoušení ideální. (Push notifikace v M3 budou chtít HTTPS — viz níže.)
-- **Vlastní doména (auto-HTTPS):** `DOMAIN=hra.mojedomena.cz` + nasměruj DNS A-záznam na veřejnou IP a **probrojuj porty 80 a 443** na NAS. Caddy si sám vyřídí Let's Encrypt certifikát.
-
-**Konflikt portů:** pokud NAS už používá 80/443 (admin UI), změň v `.env` `HTTP_PORT`/`HTTPS_PORT` (např. `8080`/`8443`) a přistupuj přes `http://<IP>:8080`.
+(`/api/*` Caddy směruje na API, vše ostatní na web. Caddy nepublikuje žádné hostové porty — je dostupný jen tunnelu přes vnitřní síť.)
 
 **Data:** Postgres/Redis/Caddy si ukládají data do `./.data/` ve složce projektu (persistentní mezi restarty). Zálohuj tuto složku.
-
----
-
-## Vlastní doména přes Cloudflare Tunnel (doporučeno pro domácí NAS)
-
-Tunnel vystaví hru na tvé doméně **bez otevírání portů** na routeru (funguje i za CGNAT). HTTPS řeší Cloudflare na svém edge — vyřeší i požadavek na HTTPS pro push notifikace (M3). Tunnel směruje na Caddy, který dál routuje `/api` vs web.
-
-1. **Vytvoř tunnel** v [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → **Networks → Tunnels → Create a tunnel** → typ **Cloudflared** → pojmenuj (např. `afk-to-60`).
-2. Cloudflare ti ukáže **token** (dlouhý řetězec za `--token`). Zkopíruj ho do `.env`:
-   ```dotenv
-   TUNNEL_TOKEN=eyJ... (tvůj token)
-   DOMAIN=:80
-   ```
-3. V tunnelu přidej **Public Hostname**:
-   - Subdomain/Domain: např. `hra.tvojedomena.cz`
-   - Service: **HTTP** → `caddy:80`
-4. Spusť stack **s profilem `cloudflare`**:
-   ```bash
-   docker compose --profile cloudflare -f docker-compose.prod.yml up -d
-   ```
-5. Hotovo — hra běží na `https://hra.tvojedomena.cz`. V Cloudflare nech SSL/TLS mód **Full**.
-
-> Tunnel je v compose ve **vlastním profilu**, takže bez `--profile cloudflare` se nespustí (lokální/LAN běh tím není ovlivněn). Porty 80/443 přes Caddy můžeš nechat pro přístup z LAN, nebo je v `docker-compose.prod.yml` u `caddy` odebrat, pokud chceš jen tunnel.
 
 ---
 
