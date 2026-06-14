@@ -256,4 +256,5 @@ Pro implementační fáze platí obecný postup aplikovaný na konci každého m
 
 - **M0+**: `docker compose up` → appka naběhne, healthcheck zelený, PWA instalovatelná v prohlížeči.
 - **Per-fáze**: ruční end-to-end průchod hlavní novou smyčkou + unit testy herních vzorců v `packages/shared` + integrační testy API modulu dané fáze.
-- Po dokončení každého milníku: commit + push na `claude/great-albattani-kclq98`, aktualizace tohoto plánu.
+- Po dokončení každého milníku: commit + push na **vývojovou větev `main`** a aktualizace tohoto plánu.
+  - ℹ️ **Jediné místo, kde je vývojová větev uvedena** — pro změnu cíle pushů (např. zpět na feature větev) uprav jen tento řádek.
