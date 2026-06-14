@@ -153,7 +153,7 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 - CI → **GHCR** → **Watchtower** (server si sám stahuje, žádný příchozí přístup). Viz `docs/adr/0004-deployment.md`.
 - `.github/workflows/release.yml` (build & push image api+web), `docker-compose.prod.yml` (registry image + Watchtower).
-- [ ] Ověřit první běh CI → image v GHCR (po pushi).
+- [x] Ověřeno: CI i Release workflow zelené, image `api`+`web` nahrány do GHCR.
 
 ### M1 — Účty & postava
 
