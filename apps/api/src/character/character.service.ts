@@ -22,6 +22,7 @@ export interface CharacterView {
   race: string;
   class: string;
   faction: string;
+  gold: number;
   sheet: CharacterSheet;
 }
 
@@ -81,6 +82,7 @@ export class CharacterService {
       race: c.race,
       class: c.class,
       faction: c.faction,
+      gold: c.gold,
       sheet: buildCharacterSheet(c.race, c.class, c.totalXp),
     };
   }

@@ -7,7 +7,45 @@ export interface CharacterView {
   race: string;
   class: string;
   faction: string;
+  gold: number;
   sheet: CharacterSheet;
+}
+
+export interface QuestView {
+  id: string;
+  name: string;
+  description: string;
+  zoneId: string;
+  kind: string;
+  requiredLevel: number;
+  durationSec: number;
+  baseXp: number;
+  baseGold: number;
+}
+
+export interface ActivityView {
+  id: string;
+  activityType: string;
+  questId: string;
+  startAt: string;
+  durationSec: number;
+  quest: { id: string; name: string; zoneId: string; kind: string };
+  progress: {
+    elapsedSec: number;
+    remainingSec: number;
+    progress: number;
+    completed: boolean;
+    finishesAt: string;
+  };
+}
+
+export interface ClaimResult {
+  reward: { xp: number; gold: number };
+  levelBefore: number;
+  levelAfter: number;
+  leveledUp: boolean;
+  levelsGained: number;
+  character: CharacterView;
 }
 
 export class ApiError extends Error {
@@ -96,4 +134,23 @@ export function createCharacter(input: {
   class: string;
 }): Promise<CharacterView> {
   return request<CharacterView>('/characters', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function listAvailableQuests(characterId: string): Promise<QuestView[]> {
+  return request<QuestView[]>(`/characters/${characterId}/quests`);
+}
+
+export function getActivity(characterId: string): Promise<ActivityView | null> {
+  return request<ActivityView | null>(`/characters/${characterId}/activity`);
+}
+
+export function startActivity(characterId: string, questId: string): Promise<ActivityView> {
+  return request<ActivityView>(`/characters/${characterId}/activity`, {
+    method: 'POST',
+    body: JSON.stringify({ activityType: 'quest', questId }),
+  });
+}
+
+export function claimActivity(characterId: string): Promise<ClaimResult> {
+  return request<ClaimResult>(`/characters/${characterId}/activity/claim`, { method: 'POST' });
 }
