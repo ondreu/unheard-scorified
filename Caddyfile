@@ -1,0 +1,11 @@
+# Reverzní proxy: web (SvelteKit) na rootu, API pod /api/*.
+# HTTPS automaticky (potřeba pro Web Push). Pro lokální běh nech DOMAIN=localhost.
+{$DOMAIN} {
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

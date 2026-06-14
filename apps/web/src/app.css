@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-[#1a1410] text-amber-50 antialiased;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
