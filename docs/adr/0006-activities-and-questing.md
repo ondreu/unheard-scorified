@@ -45,10 +45,16 @@ Statový výpočet per-level už řeší `baseStatsFor(race, klass, level)` z M1
 
 ### 5. Rozsah obsahu MVP (rozhodnutí PM)
 
-- **3 zóny**: Northshire Valley (1–10), Westfall (10–25), Duskwood (25–40).
-  Zóna gateuje questy přes `requiredLevel`.
+- **3 level brackety na frakci** (frakce kosmetická, viz ADR 0003 — paralelní
+  zóny se stejnými level reqy, dobami i odměnami, liší se jen lore/názvy):
+  - **Alliance**: Northshire Valley (1–10), Westfall (10–25), Duskwood (25–40).
+  - **Horde**: Durotar (1–10), The Barrens (10–25), Thousand Needles (25–40).
+- Zóna má atribut `faction`; frakce questu se **odvozuje z jeho zóny**
+  (`ZONES[zoneId].faction`) — žádná duplicita. Postava vidí jen questy své frakce.
+- Zóna gateuje questy přes `requiredLevel`; `isQuestAvailable`/`availableQuests`
+  berou frakci postavy jako parametr.
 - **Lineární questline** (story chain napříč zónami přes `requiresQuest`,
-  jednorázové) **+ repeatable** filler questy (gated jen levelem/zónou).
+  jednorázové) **+ repeatable** filler questy (gated levelem/zónou/frakcí).
 - Statická data v `packages/shared/src/data/{zones,quests}.ts` = jediný zdroj pravdy.
 
 ## Důsledky

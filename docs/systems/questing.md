@@ -39,10 +39,15 @@ finishesAt }`.
 
 ## Zóny & questy (`packages/shared/src/data/{zones,quests}.ts`)
 
-- **3 zóny**: Northshire Valley (1–10), Westfall (10–25), Duskwood (25–40).
+- **3 level brackety na frakci** (frakce kosmetická — paralelní obsah, stejný balanc):
+  - Alliance: Northshire Valley (1–10), Westfall (10–25), Duskwood (25–40).
+  - Horde: Durotar (1–10), The Barrens (10–25), Thousand Needles (25–40).
+- Zóna má `faction`; frakce questu se odvozuje ze zóny (`questFaction` /
+  `ZONES[zoneId].faction`). Postava vidí jen questy své frakce.
 - **Questy**: `story` (lineární chain přes `requiresQuest`, jednorázové) + `repeatable`
-  (gated jen levelem/zónou). Balanc (doba, odměny) se ladí v datech.
-- `availableQuests(level, completedIds)` / `isQuestAvailable(...)` — gating.
+  (gated levelem/zónou/frakcí). Balanc (doba, odměny) se ladí v datech.
+- `availableQuests(level, completedIds, faction)` / `isQuestAvailable(..., faction)` — gating.
+- `zonesForFaction(faction)` — zóny dané frakce (pro UI).
 
 ## API moduly
 

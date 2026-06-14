@@ -96,7 +96,7 @@ export class ActivityService {
     const quest = QUESTS[input.questId]!;
     const level = levelFromXp(character.totalXp);
     const completedIds = await this.completed.completedIds(characterId);
-    if (!isQuestAvailable(quest, level, completedIds)) {
+    if (!isQuestAvailable(quest, level, completedIds, character.faction)) {
       throw new BadRequestException('Quest is not available for this character');
     }
 

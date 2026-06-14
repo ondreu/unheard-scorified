@@ -142,6 +142,25 @@ describe('M2 flow: leveling & idle smyčka', () => {
     expect(r.character.sheet.level).toBe(2);
   });
 
+  it('frakce vidí jen své questy (Horde ≠ Alliance)', async () => {
+    const tokens = await auth.register('m2h', 'password123');
+    const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
+    const horde = await characters.create(accountId, {
+      name: 'Grommash',
+      race: 'orc',
+      class: 'shaman',
+    });
+
+    const ids = (await quests.listAvailable(accountId, horde.id)).map((q) => q.id);
+    expect(ids).toContain('dt_scorpid_sting'); // Durotar (horde)
+    expect(ids.every((id) => !id.startsWith('ns_'))).toBe(true);
+
+    // Hordák nemůže spustit alliance quest.
+    await expect(
+      activity.start(accountId, horde.id, { activityType: 'quest', questId: KOBOLD.id }),
+    ).rejects.toThrow();
+  });
+
   it('cizí účet nemůže manipulovat s aktivitou postavy', async () => {
     const owner = await newCharacter('m2f', 'Aegwynn');
     const other = await newCharacter('m2g', 'Medivh');

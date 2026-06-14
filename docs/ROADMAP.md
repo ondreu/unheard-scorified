@@ -174,7 +174,8 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - [x] XP/level systém ve `@game/shared`: XP křivka (cap 60, pomalá), `xpForLevel`/`levelFromXp`,
       `applyXpGain` (level-up); per-level staty z M1 (`baseStatsFor`). Unit testy vzorců.
 - [x] **Questing v1**: obecný activity model (`activity_type` + `params`), zatím jen `quest`.
-      3 zóny (Northshire 1–10, Westfall 10–25, Duskwood 25–40), lineární questline + repeatable.
+      3 level brackety na frakci (Alliance: Northshire/Westfall/Duskwood, Horde: Durotar/Barrens/Thousand Needles),
+      lineární questline + repeatable; frakce kosmetická (paralelní obsah, stejný balanc).
       Idle aktivita s `start_at` + **deterministický dopočet odměn** (XP/zlato přes `SeededRng`,
       server-authoritative, anti-cheat). NestJS moduly `quest/` + `activity/`.
 - [x] DB: `gold` na characters, tabulky `character_activities` + `completed_quests`
@@ -244,7 +245,7 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 - Hloubka profesí v MVP. → M6
 - Síla PVP vs PVE balancu. → M5/M7
-- ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 zóny (1–10, 10–25, 25–40), lineární questline + repeatable.
+- ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
 - Sezónní model (reset ladderu) pro PVP. → M7
 
 ---

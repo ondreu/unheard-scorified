@@ -6,10 +6,15 @@
  *               `requiresQuest`); po dokončení už nejsou dostupné.
  * - `repeatable` = filler aktivity, lze opakovat libovolně (gated jen levelem/zónou).
  *
+ * Frakce questu se ODVOZUJE z jeho zóny (`ZONES[zoneId].faction`) — žádná
+ * duplicita. Aliance a horda mají paralelní questline se stejnými level reqy,
+ * dobami i odměnami (frakce kosmetická, viz ADR 0003).
+ *
  * Odměny: XP je fixní (předvídatelný leveling), zlato má deterministickou
  * varianci přes SeededRng (viz `activity.ts` → `computeQuestReward`).
  */
-import type { ZoneId } from './zones';
+import type { Faction } from './races';
+import { ZONES, type ZoneId } from './zones';
 
 export type QuestKind = 'story' | 'repeatable';
 
@@ -36,6 +41,7 @@ export interface QuestDef {
 }
 
 export const QUESTS: Record<string, QuestDef> = {
+  // ╔══ ALLIANCE ════════════════════════════════════════════════════════════╗
   // ── Northshire Valley (1–10) ─────────────────────────────────────────────
   ns_kobold_culling: {
     id: 'ns_kobold_culling',
@@ -154,6 +160,126 @@ export const QUESTS: Record<string, QuestDef> = {
     baseGold: 90,
     goldVariance: 0.3,
   },
+
+  // ╔══ HORDE ═══════════════════════════════════════════════════════════════╗
+  // ── Durotar (1–10) ───────────────────────────────────────────────────────
+  dt_scorpid_sting: {
+    id: 'dt_scorpid_sting',
+    name: 'Cutting Teeth',
+    description: 'Prove yourself by slaying the scorpids prowling the Valley of Trials.',
+    zoneId: 'durotar',
+    kind: 'story',
+    requiredLevel: 1,
+    durationSec: 60,
+    baseXp: 60,
+    baseGold: 5,
+    goldVariance: 0.3,
+  },
+  dt_burning_blade: {
+    id: 'dt_burning_blade',
+    name: 'Shadows of the Burning Blade',
+    description: 'Root out the Burning Blade cultists hiding in the coastal caves.',
+    zoneId: 'durotar',
+    kind: 'story',
+    requiredLevel: 4,
+    requiresQuest: 'dt_scorpid_sting',
+    durationSec: 300,
+    baseXp: 180,
+    baseGold: 12,
+    goldVariance: 0.3,
+  },
+  dt_boar_hides: {
+    id: 'dt_boar_hides',
+    name: 'Tusks and Hides',
+    description: 'Hunt the razormane boars and gather their tough hides.',
+    zoneId: 'durotar',
+    kind: 'repeatable',
+    requiredLevel: 1,
+    durationSec: 180,
+    baseXp: 45,
+    baseGold: 4,
+    goldVariance: 0.4,
+  },
+
+  // ── The Barrens (10–25) ──────────────────────────────────────────────────
+  ba_quilboar_war: {
+    id: 'ba_quilboar_war',
+    name: 'War on the Quilboar',
+    description: 'Break the Bristleback quilboar raids threatening the Crossroads.',
+    zoneId: 'barrens',
+    kind: 'story',
+    requiredLevel: 10,
+    requiresQuest: 'dt_burning_blade',
+    durationSec: 900,
+    baseXp: 600,
+    baseGold: 30,
+    goldVariance: 0.25,
+  },
+  ba_centaur_menace: {
+    id: 'ba_centaur_menace',
+    name: 'The Centaur Menace',
+    description: 'Push back the centaur clans roaming the southern Barrens.',
+    zoneId: 'barrens',
+    kind: 'story',
+    requiredLevel: 16,
+    requiresQuest: 'ba_quilboar_war',
+    durationSec: 1800,
+    baseXp: 1100,
+    baseGold: 55,
+    goldVariance: 0.25,
+  },
+  ba_plainstrider_meat: {
+    id: 'ba_plainstrider_meat',
+    name: 'Plainstrider Hunt',
+    description: 'Bring down plainstriders and harvest their meat for the caravans.',
+    zoneId: 'barrens',
+    kind: 'repeatable',
+    requiredLevel: 12,
+    durationSec: 600,
+    baseXp: 350,
+    baseGold: 20,
+    goldVariance: 0.35,
+  },
+
+  // ── Thousand Needles (25–40) ─────────────────────────────────────────────
+  tn_grimtotem: {
+    id: 'tn_grimtotem',
+    name: 'The Grimtotem Threat',
+    description: 'Drive the treacherous Grimtotem tauren from the high mesas.',
+    zoneId: 'thousand_needles',
+    kind: 'story',
+    requiredLevel: 25,
+    requiresQuest: 'ba_centaur_menace',
+    durationSec: 2700,
+    baseXp: 3000,
+    baseGold: 120,
+    goldVariance: 0.2,
+  },
+  tn_galak_ogres: {
+    id: 'tn_galak_ogres',
+    name: 'Ogres of the Needles',
+    description: 'Crush the Galak ogres fortified in Roguefeather Den.',
+    zoneId: 'thousand_needles',
+    kind: 'story',
+    requiredLevel: 32,
+    requiresQuest: 'tn_grimtotem',
+    durationSec: 3600,
+    baseXp: 5200,
+    baseGold: 200,
+    goldVariance: 0.2,
+  },
+  tn_salt_flats: {
+    id: 'tn_salt_flats',
+    name: 'Salt of the Shimmering Flats',
+    description: 'Scavenge salvage and salt from the dried Shimmering Flats.',
+    zoneId: 'thousand_needles',
+    kind: 'repeatable',
+    requiredLevel: 27,
+    durationSec: 1200,
+    baseXp: 2200,
+    baseGold: 90,
+    goldVariance: 0.3,
+  },
 };
 
 export const QUEST_IDS = Object.keys(QUESTS);
@@ -162,8 +288,14 @@ export function isQuestId(value: string): value is string {
   return value in QUESTS;
 }
 
+/** Frakce questu — odvozená z jeho zóny (jediný zdroj pravdy). */
+export function questFaction(quest: QuestDef): Faction {
+  return ZONES[quest.zoneId].faction;
+}
+
 /**
- * Je quest dostupný pro daný level a sadu dokončených story questů?
+ * Je quest dostupný pro danou frakci, level a sadu dokončených story questů?
+ *  - quest patří frakci postavy (kosmetické dělení)
  *  - level >= requiredLevel
  *  - story prerekvizita (pokud je) je dokončená
  *  - story quest už není dokončený (jednorázový); repeatable je vždy dostupný
@@ -172,7 +304,9 @@ export function isQuestAvailable(
   quest: QuestDef,
   level: number,
   completedQuestIds: ReadonlySet<string> | readonly string[],
+  faction: Faction,
 ): boolean {
+  if (questFaction(quest) !== faction) return false;
   const completed =
     completedQuestIds instanceof Set ? completedQuestIds : new Set(completedQuestIds);
   if (level < quest.requiredLevel) return false;
@@ -181,14 +315,15 @@ export function isQuestAvailable(
   return true;
 }
 
-/** Seznam dostupných questů (seřazený podle zóny → requiredLevel). */
+/** Seznam dostupných questů pro frakci (seřazený podle requiredLevel). */
 export function availableQuests(
   level: number,
   completedQuestIds: ReadonlySet<string> | readonly string[],
+  faction: Faction,
 ): QuestDef[] {
   const completed =
     completedQuestIds instanceof Set ? completedQuestIds : new Set(completedQuestIds);
   return QUEST_IDS.map((id) => QUESTS[id]!)
-    .filter((q) => isQuestAvailable(q, level, completed))
+    .filter((q) => isQuestAvailable(q, level, completed, faction))
     .sort((a, b) => a.requiredLevel - b.requiredLevel);
 }
