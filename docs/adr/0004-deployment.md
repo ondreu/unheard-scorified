@@ -29,7 +29,9 @@ Hra běží na self-hosted Dockeru PM. Dev je řízený AI agenty s častými pu
 
 ## Vystavení / vlastní doména
 
-Produkce se vystavuje **výhradně přes Cloudflare Tunnel** (služba `cloudflared` v compose profilu `cloudflare`). Důvod: NAS PM má 80/443 obsazené admin UI a tunnel funguje i za CGNAT bez port-forwardingu; HTTPS řeší Cloudflare edge (potřeba pro Web Push v M3).
+Produkce se vystavuje **výhradně přes Cloudflare Tunnel** (služba `cloudflared`). Důvod: NAS PM má 80/443 obsazené admin UI a tunnel funguje i za CGNAT bez port-forwardingu; HTTPS řeší Cloudflare edge (potřeba pro Web Push v M3).
+
+Protože je to jediná prod varianta, `cloudflared` **běží vždy** — žádné `profiles:` gatování (compose profil GUI nasazení neumí předat a tunnel by tiše nenaběhl). `TUNNEL_TOKEN` je proto povinný guard (`${TUNNEL_TOKEN:?…}`), symetricky s `JWT_SECRET`. Dev `docker-compose.yml` `cloudflared` nemá, takže lokální běh to neovlivní.
 
 Proto **Caddy nepublikuje žádné hostové porty** (`expose: 80`, ne `ports:`) — je dostupný jen vnitřní docker sítí na `caddy:80`, kam míří tunnel. Žádný konflikt portů na hostu, nic se neotvírá. Caddy dál routuje `/api` na API a zbytek na web. Postup viz `docs/DEPLOY.md`.
 
