@@ -88,16 +88,16 @@ services:
       # Pro PRIVATE GHCR packages odkomentuj (po `docker login ghcr.io` na serveru):
       # - ${HOME}/.docker/config.json:/config.json:ro
 
-  # Volitelné: vystavení přes vlastní doménu Cloudflare Tunnelem (bez otevírání portů).
-  # Spustí se jen s profilem: `docker compose --profile cloudflare -f docker-compose.prod.yml up -d`
+  # Vystavení hry přes vlastní doménu Cloudflare Tunnelem (jediná prod varianta —
+  # bez otevírání portů, HTTPS na Cloudflare edge). Běží vždy, žádný profil.
   # V Cloudflare Zero Trust namapuj public hostname → http://caddy:80. Viz docs/DEPLOY.md.
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    profiles: ['cloudflare']
     command: tunnel --no-autoupdate run
-    # TUNNEL_TOKEN z .env (Cloudflare Zero Trust). Nutný jen při běhu s profilem `cloudflare`.
     environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+      # Token z Cloudflare Zero Trust. Povinný (stejná pojistka jako JWT_SECRET) —
+      # bez něj nemá produkční běh smysl, ať to spadne hlasitě místo tichého nenaběhnutí.
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?nastav TUNNEL_TOKEN v .env}
     depends_on:
       - caddy
