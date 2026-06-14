@@ -154,6 +154,7 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - CI → **GHCR** → **Watchtower** (server si sám stahuje, žádný příchozí přístup). Viz `docs/adr/0004-deployment.md`.
 - `.github/workflows/release.yml` (build & push image api+web), `docker-compose.prod.yml` (registry image + Watchtower).
 - [x] Ověřeno: CI i Release workflow zelené, image `api`+`web` nahrány do GHCR.
+- [x] NAS-friendly deploy návod (UGREEN GUI + SSH, bez gitu): `docs/DEPLOY.md`.
 
 ### M1 — Účty & postava — ✅ hotovo
 
