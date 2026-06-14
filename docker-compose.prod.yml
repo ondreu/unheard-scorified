@@ -64,11 +64,13 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
-    ports:
-      - '${HTTP_PORT:-80}:80'
-      - '${HTTPS_PORT:-443}:443'
+    # Žádné publikované hostové porty: provoz jde výhradně přes Cloudflare Tunnel,
+    # který se připojuje vnitřní docker sítí na `caddy:80`. Tím se nic neotvírá na hostu
+    # (žádný konflikt s admin UI NASu na 80/443). Viz docs/DEPLOY.md.
+    expose:
+      - '80'
     environment:
-      DOMAIN: ${DOMAIN:-localhost}
+      DOMAIN: ${DOMAIN:-:80}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./.data/caddy:/data

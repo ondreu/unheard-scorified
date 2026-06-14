@@ -27,9 +27,11 @@ Hra běží na self-hosted Dockeru PM. Dev je řízený AI agenty s častými pu
 - **Default: private.** Watchtower potřebuje creds → na serveru `docker login ghcr.io` (PAT s `read:packages`) a odkomentovat mount `~/.docker/config.json:/config.json:ro` v `docker-compose.prod.yml`.
 - **Public** (jednodušší, bez auth): nastavit viditelnost balíčku na public v GitHub Packages; mount configu pak netřeba.
 
-## Vlastní doména
+## Vystavení / vlastní doména
 
-Podporováno přes **Cloudflare Tunnel** (volitelná služba `cloudflared` v compose profilu `cloudflare`) — vystavení na doméně bez otevírání portů, HTTPS na Cloudflare edge. Tunnel míří na `caddy:80`. Postup viz `docs/DEPLOY.md`. Alternativa (port forwarding + Caddy Let's Encrypt) zůstává také možná.
+Produkce se vystavuje **výhradně přes Cloudflare Tunnel** (služba `cloudflared` v compose profilu `cloudflare`). Důvod: NAS PM má 80/443 obsazené admin UI a tunnel funguje i za CGNAT bez port-forwardingu; HTTPS řeší Cloudflare edge (potřeba pro Web Push v M3).
+
+Proto **Caddy nepublikuje žádné hostové porty** (`expose: 80`, ne `ports:`) — je dostupný jen vnitřní docker sítí na `caddy:80`, kam míří tunnel. Žádný konflikt portů na hostu, nic se neotvírá. Caddy dál routuje `/api` na API a zbytek na web. Postup viz `docs/DEPLOY.md`.
 
 ## Důsledky
 
