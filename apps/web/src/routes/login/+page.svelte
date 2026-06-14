@@ -24,10 +24,10 @@
 </script>
 
 <main class="mx-auto max-w-sm px-6 py-16">
-  <h1 class="text-2xl font-bold text-amber-200">Přihlášení</h1>
+  <h1 class="text-2xl font-bold text-amber-200">Log in</h1>
   <form class="mt-6 space-y-4" onsubmit={submit}>
     <label class="block">
-      <span class="text-sm text-amber-100/70">Uživatelské jméno</span>
+      <span class="text-sm text-amber-100/70">Username</span>
       <input
         bind:value={username}
         required
@@ -35,7 +35,7 @@
       />
     </label>
     <label class="block">
-      <span class="text-sm text-amber-100/70">Heslo</span>
+      <span class="text-sm text-amber-100/70">Password</span>
       <input
         type="password"
         bind:value={password}
@@ -48,10 +48,10 @@
       disabled={busy}
       class="w-full rounded bg-amber-700 px-4 py-2 font-semibold text-amber-50 hover:bg-amber-600 disabled:opacity-50"
     >
-      {busy ? 'Přihlašuji…' : 'Přihlásit'}
+      {busy ? 'Logging in…' : 'Log in'}
     </button>
   </form>
   <p class="mt-4 text-sm text-amber-100/60">
-    Nemáš účet? <a href="/register" class="text-amber-300 underline">Zaregistruj se</a>
+    No account? <a href="/register" class="text-amber-300 underline">Register</a>
   </p>
 </main>

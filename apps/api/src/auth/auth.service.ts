@@ -34,7 +34,7 @@ export class AuthService {
       .where(eq(accounts.username, username))
       .limit(1);
     if (existing.length > 0) {
-      throw new ConflictException('Uživatelské jméno je obsazené');
+      throw new ConflictException('Username is already taken');
     }
 
     const passwordHash = await hash(password, SALT_ROUNDS);
@@ -54,7 +54,7 @@ export class AuthService {
       .limit(1);
 
     if (!account || !(await compare(password, account.passwordHash))) {
-      throw new UnauthorizedException('Špatné jméno nebo heslo');
+      throw new UnauthorizedException('Invalid username or password');
     }
 
     return this.issueTokens({ sub: account.id, username: account.username });
@@ -67,7 +67,7 @@ export class AuthService {
         secret: this.config.jwtSecret,
       });
     } catch {
-      throw new UnauthorizedException('Neplatný refresh token');
+      throw new UnauthorizedException('Invalid refresh token');
     }
     return this.issueTokens({ sub: payload.sub, username: payload.username });
   }
@@ -76,7 +76,7 @@ export class AuthService {
     try {
       return this.jwt.verify<JwtPayload>(token, { secret: this.config.jwtSecret });
     } catch {
-      throw new UnauthorizedException('Neplatný token');
+      throw new UnauthorizedException('Invalid token');
     }
   }
 

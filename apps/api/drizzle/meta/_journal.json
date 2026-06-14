@@ -8,6 +8,13 @@
       "when": 1781444116665,
       "tag": "0000_faithful_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781463082895,
+      "tag": "0001_right_reavers",
+      "breakpoints": true
     }
   ]
 }

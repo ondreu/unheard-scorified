@@ -44,11 +44,11 @@
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
-  <h1 class="text-2xl font-bold text-amber-200">Nová postava</h1>
+  <h1 class="text-2xl font-bold text-amber-200">New character</h1>
 
   <form class="mt-6 space-y-6" onsubmit={submit}>
     <label class="block">
-      <span class="text-sm text-amber-100/70">Jméno (2–16 písmen)</span>
+      <span class="text-sm text-amber-100/70">Name (2–16 letters)</span>
       <input
         bind:value={name}
         required
@@ -57,7 +57,7 @@
     </label>
 
     <div>
-      <span class="text-sm text-amber-100/70">Rasa</span>
+      <span class="text-sm text-amber-100/70">Race</span>
       <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {#each RACE_IDS as r (r)}
           <button
@@ -77,7 +77,7 @@
     </div>
 
     <div>
-      <span class="text-sm text-amber-100/70">Classa</span>
+      <span class="text-sm text-amber-100/70">Class</span>
       <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {#each allowedClasses as c (c)}
           <button
@@ -101,7 +101,7 @@
       disabled={!canSubmit || busy}
       class="w-full rounded bg-amber-700 px-4 py-2 font-semibold hover:bg-amber-600 disabled:opacity-40"
     >
-      {busy ? 'Vytvářím…' : 'Vytvořit postavu'}
+      {busy ? 'Creating…' : 'Create character'}
     </button>
   </form>
 </main>

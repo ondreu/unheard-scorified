@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { ActivityModule } from './activity/activity.module';
 import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
+import { QuestModule } from './quest/quest.module';
 import { RedisModule } from './redis/redis.module';
 
 /**
@@ -10,6 +12,14 @@ import { RedisModule } from './redis/redis.module';
  * (viz apps/api/CLAUDE.md). Globální infrastruktura: DB, Redis.
  */
 @Module({
-  imports: [DbModule, RedisModule, HealthModule, AuthModule, CharacterModule],
+  imports: [
+    DbModule,
+    RedisModule,
+    HealthModule,
+    AuthModule,
+    CharacterModule,
+    QuestModule,
+    ActivityModule,
+  ],
 })
 export class AppModule {}

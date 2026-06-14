@@ -25,21 +25,21 @@
 
 <main class="mx-auto max-w-2xl px-6 py-12">
   <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-amber-200">Tvé postavy</h1>
+    <h1 class="text-2xl font-bold text-amber-200">Your characters</h1>
     <a
       href="/characters/new"
       class="rounded bg-amber-700 px-3 py-1.5 text-sm font-semibold hover:bg-amber-600"
     >
-      + Nová postava
+      + New character
     </a>
   </div>
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Načítám…</p>
+    <p class="mt-6 text-amber-100/50">Loading…</p>
   {:else if error}
     <p class="mt-6 text-red-400">{error}</p>
   {:else if characters.length === 0}
-    <p class="mt-6 text-amber-100/60">Zatím nemáš žádnou postavu. Vytvoř si první!</p>
+    <p class="mt-6 text-amber-100/60">You don't have any characters yet. Create your first one!</p>
   {:else}
     <ul class="mt-6 space-y-2">
       {#each characters as c (c.id)}

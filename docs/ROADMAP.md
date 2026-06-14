@@ -169,12 +169,25 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Výstup:** vytvořím si účet i postavu a vidím její staty. ✅
 - **Zbývá doladit:** balanc statů (M9), httpOnly cookie místo localStorage, refresh rotace/revokace (ADR 0005 follow-up).
 
-### M2 — Leveling & jádro idle smyčky
+### M2 — Leveling & jádro idle smyčky — ✅ hotovo
 
-- XP/level systém, statový výpočet ze základů + per-level.
-- **Questing v1**: idle aktivita s `start_at` + deterministický dopočet odměn (XP/zlato).
-- BullMQ dokončení aktivity, lazy dopočet při návratu.
-- **Výstup:** pošlu postavu questovat, ona levluje na pozadí.
+- [x] XP/level systém ve `@game/shared`: XP křivka (cap 60, pomalá), `xpForLevel`/`levelFromXp`,
+      `applyXpGain` (level-up); per-level staty z M1 (`baseStatsFor`). Unit testy vzorců.
+- [x] **Questing v1**: obecný activity model (`activity_type` + `params`), zatím jen `quest`.
+      3 level brackety na frakci (Alliance: Northshire/Westfall/Duskwood, Horde: Durotar/Barrens/Thousand Needles),
+      lineární questline + repeatable; frakce kosmetická (paralelní obsah, stejný balanc).
+      Idle aktivita s `start_at` + **deterministický dopočet odměn** (XP/zlato přes `SeededRng`,
+      server-authoritative, anti-cheat). NestJS moduly `quest/` + `activity/`.
+- [x] DB: `gold` na characters, tabulky `character_activities` + `completed_quests`
+      (Drizzle migrace `0001_right_reavers`, auto-migrace při startu).
+- [x] **BullMQ** delayed job na dokončení aktivity (best-effort hook pro M3 push);
+      **lazy dopočet** odměn při claimu (jediný zdroj pravdy, offline progres).
+- [x] Web: seznam questů, poslat questovat, běžící aktivita + odpočet, claim + level-up.
+      Herní texty anglicky, oddělené od logiky.
+- [x] Testy: shared unit + API integrační flow přes **pglite** (bez Dockeru/Redisu). Vše zelené.
+- Detail: `docs/systems/questing.md`, ADR `docs/adr/0006-activities-and-questing.md`.
+- **Výstup:** pošlu postavu questovat, ona levluje na pozadí (i offline). ✅
+- **Zbývá doladit:** balanc XP křivky a odměn (M9); push notifikace při dokončení (M3).
 
 ### M3 — PWA notifikace & offline progres
 
@@ -232,7 +245,7 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 - Hloubka profesí v MVP. → M6
 - Síla PVP vs PVE balancu. → M5/M7
-- Konkrétní rozsah questline a počet zón v MVP. → M2
+- ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
 - Sezónní model (reset ladderu) pro PVP. → M7
 
 ---
@@ -243,4 +256,5 @@ Pro implementační fáze platí obecný postup aplikovaný na konci každého m
 
 - **M0+**: `docker compose up` → appka naběhne, healthcheck zelený, PWA instalovatelná v prohlížeči.
 - **Per-fáze**: ruční end-to-end průchod hlavní novou smyčkou + unit testy herních vzorců v `packages/shared` + integrační testy API modulu dané fáze.
-- Po dokončení každého milníku: commit + push na `claude/great-albattani-kclq98`, aktualizace tohoto plánu.
+- Po dokončení každého milníku: commit + push na **vývojovou větev `main`** a aktualizace tohoto plánu.
+  - ℹ️ **Jediné místo, kde je vývojová větev uvedena** — pro změnu cíle pushů (např. zpět na feature větev) uprav jen tento řádek.

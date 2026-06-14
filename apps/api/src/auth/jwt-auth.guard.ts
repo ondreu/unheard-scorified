@@ -15,7 +15,7 @@ export class JwtAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<AuthedRequest>();
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Chybí Bearer token');
+      throw new UnauthorizedException('Missing Bearer token');
     }
     const payload = this.auth.verifyAccessToken(header.slice('Bearer '.length));
     req.user = { accountId: payload.sub, username: payload.username };
