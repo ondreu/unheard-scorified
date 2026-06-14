@@ -1,6 +1,7 @@
 /**
  * Drizzle schéma. Roste po milnících.
  * M0: health_log. M1: accounts + characters. M2: character_activities + completed_quests.
+ * M3: push_subscriptions.
  */
 import { relations } from 'drizzle-orm';
 import {
@@ -78,8 +79,24 @@ export const completedQuests = pgTable(
   (t) => [primaryKey({ columns: [t.characterId, t.questId] })],
 );
 
+/**
+ * Web Push subscriptions (M3). Per-účet; jeden účet může mít více
+ * subscriptions (různé prohlížeče/zařízení). Endpoint je unikátní identifikátor.
+ */
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  accountId: uuid('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dhKey: text('p256dh_key').notNull(),
+  authKey: text('auth_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const accountsRelations = relations(accounts, ({ many }) => ({
   characters: many(characters),
+  pushSubscriptions: many(pushSubscriptions),
 }));
 
 export const charactersRelations = relations(characters, ({ one, many }) => ({
@@ -102,6 +119,13 @@ export const completedQuestsRelations = relations(completedQuests, ({ one }) => 
   }),
 }));
 
+export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
+  account: one(accounts, {
+    fields: [pushSubscriptions.accountId],
+    references: [accounts.id],
+  }),
+}));
+
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type Character = typeof characters.$inferSelect;
@@ -110,3 +134,5 @@ export type CharacterActivity = typeof characterActivities.$inferSelect;
 export type NewCharacterActivity = typeof characterActivities.$inferInsert;
 export type CompletedQuest = typeof completedQuests.$inferSelect;
 export type NewCompletedQuest = typeof completedQuests.$inferInsert;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;

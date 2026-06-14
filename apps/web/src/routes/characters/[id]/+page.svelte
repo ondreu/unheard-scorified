@@ -11,6 +11,7 @@
     type CharacterView,
     type ClaimResult,
   } from '$lib/api';
+  import { getPushState, isPushSupported, subscribePush, unsubscribePush } from '$lib/push';
   import { RACES, CLASSES } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -26,6 +27,13 @@
     gold: 'Gold',
     levelUp: 'Level up!',
     gained: 'Gained',
+    notifications: 'Notifications',
+    enableNotifications: 'Enable notifications',
+    disableNotifications: 'Disable notifications',
+    notificationsOn: 'Notifications enabled',
+    notificationsDenied: 'Notifications blocked by browser',
+    notificationsUnsupported: 'Push not supported in this browser',
+    offlineFor: 'Away for',
   };
 
   let character = $state<CharacterView | null>(null);
@@ -36,6 +44,10 @@
   let claimResult = $state<ClaimResult | null>(null);
   let now = $state(Date.now());
 
+  // Push state
+  let pushState = $state<'subscribed' | 'denied' | 'default' | 'unsupported'>('unsupported');
+  let pushPending = $state(false);
+
   const characterId = $derived($page.params.id ?? '');
 
   let ticker: ReturnType<typeof setInterval> | undefined;
@@ -43,6 +55,9 @@
   onMount(async () => {
     await load();
     ticker = setInterval(() => (now = Date.now()), 1000);
+    if (isPushSupported()) {
+      pushState = await getPushState();
+    }
   });
 
   onDestroy(() => clearInterval(ticker));
@@ -85,6 +100,23 @@
     }
   }
 
+  async function togglePush(): Promise<void> {
+    pushPending = true;
+    try {
+      if (pushState === 'subscribed') {
+        await unsubscribePush();
+        pushState = 'default';
+      } else {
+        const result = await subscribePush();
+        pushState = result === 'subscribed' ? 'subscribed' : result;
+      }
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      pushPending = false;
+    }
+  }
+
   function formatRemaining(ms: number): string {
     const total = Math.ceil(ms / 1000);
     const h = Math.floor(total / 3600);
@@ -92,6 +124,14 @@
     const s = total % 60;
     const pad = (n: number): string => n.toString().padStart(2, '0');
     return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+  }
+
+  function formatOfflineDuration(sec: number): string {
+    if (sec < 60) return `${sec}s`;
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
   }
 
   const stats: { key: keyof CharacterView['sheet']['primary']; label: string }[] = [
@@ -112,12 +152,40 @@
     <p class="mt-6 text-red-400">{error}</p>
   {:else if character}
     {@const c = character}
-    <h1 class="mt-4 text-3xl font-bold text-amber-200">{c.name}</h1>
-    <p class="mt-1 text-amber-100/70">
-      {RACES[c.race as keyof typeof RACES]?.name} ·
-      {CLASSES[c.class as keyof typeof CLASSES]?.name} ·
-      {c.faction === 'horde' ? 'Horde' : 'Alliance'}
-    </p>
+    <div class="mt-4 flex items-start justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-amber-200">{c.name}</h1>
+        <p class="mt-1 text-amber-100/70">
+          {RACES[c.race as keyof typeof RACES]?.name} ·
+          {CLASSES[c.class as keyof typeof CLASSES]?.name} ·
+          {c.faction === 'horde' ? 'Horde' : 'Alliance'}
+        </p>
+      </div>
+
+      <!-- Push toggle -->
+      {#if pushState !== 'unsupported'}
+        <div class="mt-1 text-right">
+          {#if pushState === 'denied'}
+            <p class="text-xs text-amber-100/40">{ui.notificationsDenied}</p>
+          {:else}
+            <button
+              onclick={togglePush}
+              disabled={pushPending}
+              class="rounded border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40
+                {pushState === 'subscribed'
+                ? 'border-emerald-700/60 text-emerald-400 hover:border-red-700/60 hover:text-red-400'
+                : 'border-amber-700/60 text-amber-400 hover:border-emerald-700/60 hover:text-emerald-400'}"
+            >
+              {pushPending
+                ? '…'
+                : pushState === 'subscribed'
+                  ? ui.notificationsOn
+                  : ui.enableNotifications}
+            </button>
+          {/if}
+        </div>
+      {/if}
+    </div>
 
     <section class="mt-6 rounded-lg border border-amber-900/40 bg-black/20 p-5">
       <div class="flex items-center justify-between">
@@ -153,6 +221,11 @@
     {#if claimResult}
       {@const r = claimResult}
       <section class="mt-4 rounded-lg border border-emerald-700/50 bg-emerald-900/20 p-4">
+        {#if r.offlineDurationSec > 60}
+          <p class="mb-2 text-xs text-amber-100/50">
+            🌙 {ui.offlineFor} {formatOfflineDuration(r.offlineDurationSec)}
+          </p>
+        {/if}
         <p class="font-semibold text-emerald-300">
           {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold}
           {ui.gold}

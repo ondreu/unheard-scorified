@@ -12,6 +12,11 @@ export interface AppConfig {
   refreshTokenTtl: string;
   /** Spustit Drizzle migrace při startu (default true; vypni `AUTO_MIGRATE=false`). */
   autoMigrate: boolean;
+  /** VAPID klíče pro Web Push (M3). V produkci MUSÍ být nastaveny přes env. */
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
+  /** Mailto pro VAPID „sub" claim (RFC 8292). */
+  vapidEmail: string;
 }
 
 export function loadConfig(): AppConfig {
@@ -25,6 +30,13 @@ export function loadConfig(): AppConfig {
     accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? '15m',
     refreshTokenTtl: process.env.REFRESH_TOKEN_TTL ?? '30d',
     autoMigrate: process.env.AUTO_MIGRATE !== 'false',
+    // VAPID dev klíče — vygenerovat nové pro produkci: `npx web-push generate-vapid-keys`.
+    vapidPublicKey:
+      process.env.VAPID_PUBLIC_KEY ??
+      'BD4MxhV-quKSxofwn3RA_iM7r7DI1hfQcKM7aMJDxNBUtFq54BGAqXmUSNK09GTpysFufxrtOakaK3zrZ6J9HaU',
+    vapidPrivateKey:
+      process.env.VAPID_PRIVATE_KEY ?? '-d1-ZqhlXcILCrZnCAqgEueXramSBMgo8MdVU2v3bOQ',
+    vapidEmail: process.env.VAPID_EMAIL ?? 'mailto:admin@afkto60.local',
   };
 }
 
