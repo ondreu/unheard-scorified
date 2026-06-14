@@ -95,19 +95,19 @@
   }
 
   const stats: { key: keyof CharacterView['sheet']['primary']; label: string }[] = [
-    { key: 'strength', label: 'Síla' },
-    { key: 'agility', label: 'Obratnost' },
-    { key: 'stamina', label: 'Výdrž' },
-    { key: 'intellect', label: 'Inteligence' },
-    { key: 'spirit', label: 'Duch' },
+    { key: 'strength', label: 'Strength' },
+    { key: 'agility', label: 'Agility' },
+    { key: 'stamina', label: 'Stamina' },
+    { key: 'intellect', label: 'Intellect' },
+    { key: 'spirit', label: 'Spirit' },
   ];
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
-  <a href="/characters" class="text-sm text-amber-300 underline">← Zpět na postavy</a>
+  <a href="/characters" class="text-sm text-amber-300 underline">← Back to characters</a>
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Načítám…</p>
+    <p class="mt-6 text-amber-100/50">Loading…</p>
   {:else if error && !character}
     <p class="mt-6 text-red-400">{error}</p>
   {:else if character}
@@ -116,7 +116,7 @@
     <p class="mt-1 text-amber-100/70">
       {RACES[c.race as keyof typeof RACES]?.name} ·
       {CLASSES[c.class as keyof typeof CLASSES]?.name} ·
-      {c.faction === 'horde' ? 'Horda' : 'Aliance'}
+      {c.faction === 'horde' ? 'Horde' : 'Alliance'}
     </p>
 
     <section class="mt-6 rounded-lg border border-amber-900/40 bg-black/20 p-5">
@@ -129,7 +129,7 @@
 
       <dl class="mt-4 grid grid-cols-2 gap-2 text-sm">
         <div class="flex justify-between">
-          <dt class="text-amber-100/70">Život</dt>
+          <dt class="text-amber-100/70">Health</dt>
           <dd>{c.sheet.derived.health}</dd>
         </div>
         <div class="flex justify-between">

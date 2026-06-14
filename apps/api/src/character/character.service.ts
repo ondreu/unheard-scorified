@@ -37,13 +37,13 @@ export class CharacterService {
     const { name, race, class: klass } = input;
 
     if (!isValidCharacterName(name)) {
-      throw new BadRequestException('Neplatné jméno postavy');
+      throw new BadRequestException('Invalid character name');
     }
     if (!isRaceId(race) || !isClassId(klass)) {
-      throw new BadRequestException('Neznámá rasa nebo classa');
+      throw new BadRequestException('Unknown race or class');
     }
     if (!isValidRaceClass(race, klass)) {
-      throw new BadRequestException(`Kombinace ${race}/${klass} není povolená`);
+      throw new BadRequestException(`The ${race}/${klass} combination is not allowed`);
     }
 
     try {
@@ -58,7 +58,7 @@ export class CharacterService {
     } catch (err) {
       // Unikátní index na jméno → 23505 (Postgres unique_violation).
       if (isUniqueViolation(err)) {
-        throw new ConflictException('Jméno postavy je obsazené');
+        throw new ConflictException('Character name is already taken');
       }
       throw err;
     }
@@ -71,7 +71,7 @@ export class CharacterService {
 
   async getOwned(accountId: string, id: string): Promise<CharacterView> {
     const row = await this.repo.findOwned(accountId, id);
-    if (!row) throw new NotFoundException('Postava nenalezena');
+    if (!row) throw new NotFoundException('Character not found');
     return this.toView(row);
   }
 

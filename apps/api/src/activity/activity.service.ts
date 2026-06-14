@@ -81,23 +81,23 @@ export class ActivityService {
     input: StartActivityInput,
   ): Promise<ActivityView> {
     const character = await this.characters.findOwned(accountId, characterId);
-    if (!character) throw new NotFoundException('Postava nenalezena');
+    if (!character) throw new NotFoundException('Character not found');
 
     if (input.activityType !== 'quest') {
-      throw new BadRequestException('Nepodporovaný typ aktivity');
+      throw new BadRequestException('Unsupported activity type');
     }
     if (!isQuestId(input.questId)) {
-      throw new BadRequestException('Neznámý quest');
+      throw new BadRequestException('Unknown quest');
     }
 
     const existing = await this.activities.findByCharacter(characterId);
-    if (existing) throw new ConflictException('Postava už má běžící aktivitu');
+    if (existing) throw new ConflictException('Character already has an active activity');
 
     const quest = QUESTS[input.questId]!;
     const level = levelFromXp(character.totalXp);
     const completedIds = await this.completed.completedIds(characterId);
     if (!isQuestAvailable(quest, level, completedIds)) {
-      throw new BadRequestException('Quest není pro tuto postavu dostupný');
+      throw new BadRequestException('Quest is not available for this character');
     }
 
     const startAt = new Date();
@@ -118,7 +118,7 @@ export class ActivityService {
   /** Aktuální běžící aktivita postavy (s lazy dopočtem průběhu), nebo null. */
   async getCurrent(accountId: string, characterId: string): Promise<ActivityView | null> {
     const character = await this.characters.findOwned(accountId, characterId);
-    if (!character) throw new NotFoundException('Postava nenalezena');
+    if (!character) throw new NotFoundException('Character not found');
 
     const row = await this.activities.findByCharacter(characterId);
     return row ? this.toActivityView(row, Date.now()) : null;
@@ -130,14 +130,14 @@ export class ActivityService {
    */
   async claim(accountId: string, characterId: string): Promise<ClaimResult> {
     const character = await this.characters.findOwned(accountId, characterId);
-    if (!character) throw new NotFoundException('Postava nenalezena');
+    if (!character) throw new NotFoundException('Character not found');
 
     const row = await this.activities.findByCharacter(characterId);
-    if (!row) throw new BadRequestException('Žádná běžící aktivita');
+    if (!row) throw new BadRequestException('No active activity');
 
     const state = toActivityState(row);
     const reward = computeActivityReward(state, Date.now());
-    if (!reward) throw new BadRequestException('Aktivita ještě neskončila');
+    if (!reward) throw new BadRequestException('Activity has not finished yet');
 
     const gain = applyXpGain(character.totalXp, reward.xp);
     const updated = await this.characters.addRewards(character.id, reward.xp, reward.gold);

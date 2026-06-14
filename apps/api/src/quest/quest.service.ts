@@ -25,7 +25,7 @@ export class QuestService {
   /** Dostupné questy pro postavu (gated levelem, zónou a story prerekvizitami). */
   async listAvailable(accountId: string, characterId: string): Promise<QuestView[]> {
     const character = await this.characters.findOwned(accountId, characterId);
-    if (!character) throw new NotFoundException('Postava nenalezena');
+    if (!character) throw new NotFoundException('Character not found');
 
     const level = levelFromXp(character.totalXp);
     const completedIds = await this.completed.completedIds(characterId);

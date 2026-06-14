@@ -4,7 +4,7 @@ export class RegisterDto {
   @IsString()
   @MinLength(3)
   @MaxLength(32)
-  @Matches(/^[A-Za-z0-9_]+$/, { message: 'username smí obsahovat jen písmena, čísla a _' })
+  @Matches(/^[A-Za-z0-9_]+$/, { message: 'username may only contain letters, numbers and _' })
   username!: string;
 
   @IsString()
