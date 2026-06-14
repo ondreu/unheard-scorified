@@ -373,3 +373,56 @@ export function pointsInTree(
   if (!tree) return 0;
   return tree.nodes.reduce((sum, node) => sum + (talentAllocations[node.id] ?? 0), 0);
 }
+
+/** Combat tag s počtem alokovaných ranků (pro combat engine M5). */
+export interface TalentTag {
+  tag: string;
+  ranks: number;
+}
+
+/**
+ * Agregovaný dopad alokovaných talentů: přímé stat bonusy (M4) + HP bonus +
+ * seznam combat tagů s ranky (M5). Jediný zdroj pravdy pro „jak talenty mění
+ * postavu" — používá character sheet i combat engine.
+ */
+export interface AggregatedTalentEffects {
+  statBonus: Partial<Record<'strength' | 'agility' | 'stamina' | 'intellect' | 'spirit', number>>;
+  healthBonus: number;
+  tags: TalentTag[];
+}
+
+/** Sečte efekty všech alokovaných talentů postavy (talentId → ranks). */
+export function aggregateTalentEffects(
+  classId: ClassId,
+  allocations: Record<string, number>,
+): AggregatedTalentEffects {
+  const statBonus: AggregatedTalentEffects['statBonus'] = {};
+  let healthBonus = 0;
+  const tagRanks = new Map<string, number>();
+
+  for (const tree of CLASS_TALENTS[classId]) {
+    for (const node of tree.nodes) {
+      const ranks = allocations[node.id] ?? 0;
+      if (ranks <= 0) continue;
+      const { statPerRank, healthPerRank, combatTags } = node.effect;
+      if (statPerRank) {
+        for (const [stat, val] of Object.entries(statPerRank) as [
+          keyof AggregatedTalentEffects['statBonus'],
+          number,
+        ][]) {
+          statBonus[stat] = (statBonus[stat] ?? 0) + val * ranks;
+        }
+      }
+      if (healthPerRank) healthBonus += healthPerRank * ranks;
+      if (combatTags) {
+        for (const tag of combatTags) tagRanks.set(tag, (tagRanks.get(tag) ?? 0) + ranks);
+      }
+    }
+  }
+
+  return {
+    statBonus,
+    healthBonus,
+    tags: [...tagRanks.entries()].map(([tag, ranks]) => ({ tag, ranks })),
+  };
+}

@@ -12,7 +12,7 @@
     type ClaimResult,
   } from '$lib/api';
   import { getPushState, isPushSupported, subscribePush, unsubscribePush } from '$lib/push';
-  import { RACES, CLASSES } from '@game/shared';
+  import { RACES, CLASSES, ITEMS } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -142,11 +142,14 @@
     { key: 'spirit', label: 'Spirit' },
   ];
 
-  // Extra UI strings for M4 links
+  // Extra UI strings for M4/M5 links
   const uiM4 = {
     inventory: 'Inventory & Equipment',
     talents: 'Talents',
+    dungeons: 'Dungeons',
   };
+
+  const isDungeon = $derived(activity?.activityType === 'dungeon');
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
@@ -236,6 +239,13 @@
           {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold}
           {ui.gold}
         </p>
+        {#if r.items.length > 0}
+          <p class="mt-1 text-sm text-amber-200">
+            🎁 Loot: {r.items
+              .map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id)
+              .join(', ')}
+          </p>
+        {/if}
         {#if r.leveledUp}
           <p class="mt-1 text-amber-300">
             ⭐ {ui.levelUp}
@@ -259,6 +269,12 @@
       >
         {uiM4.talents}
       </a>
+      <a
+        href={`/characters/${characterId}/dungeons`}
+        class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
+      >
+        {uiM4.dungeons}
+      </a>
     </div>
 
     <!-- Activity panel -->
@@ -270,15 +286,27 @@
 
       {#if activity}
         {@const a = activity}
-        <p class="mt-2 text-amber-100/80">{ui.onQuest}: <strong>{a.quest.name}</strong></p>
+        <p class="mt-2 text-amber-100/80">
+          {isDungeon ? '⚔️ In dungeon' : ui.onQuest}: <strong>{a.title}</strong>
+        </p>
         <div class="mt-3 h-2 w-full overflow-hidden rounded bg-black/40">
           <div
-            class="h-full bg-amber-500 transition-all"
+            class="h-full {isDungeon ? 'bg-red-500' : 'bg-amber-500'} transition-all"
             style={`width: ${Math.min(100, (1 - remainingMs / (a.durationSec * 1000)) * 100)}%`}
           ></div>
         </div>
+        {#if isDungeon && !completed}
+          <a
+            href={`/characters/${characterId}/dungeon`}
+            class="mt-3 inline-block rounded bg-red-700/60 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-red-600/60"
+          >
+            Watch fight →
+          </a>
+        {/if}
         {#if completed}
-          <p class="mt-3 font-medium text-emerald-300">{ui.completed}</p>
+          <p class="mt-3 font-medium text-emerald-300">
+            {isDungeon ? 'Dungeon complete!' : ui.completed}
+          </p>
           <button
             onclick={claim}
             disabled={claiming}

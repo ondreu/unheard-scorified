@@ -10,3 +10,5 @@ export * from './data/quests';
 export * from './loot';
 export * from './data/items';
 export * from './data/talents';
+export * from './combat';
+export * from './data/dungeons';

@@ -89,6 +89,58 @@ export const ZONE_TO_BRACKET: Record<string, string> = {
 };
 
 /**
+ * Boss loot tabulky per dungeon (M5). Vyšší šance na drop než questy +
+ * dungeon-only itemy. Klíč = dungeonId.
+ */
+export const DUNGEON_LOOT_TABLES: Record<string, LootTable> = {
+  ragefire_chasm: {
+    anyDropChance: 0.8,
+    entries: [
+      { itemId: 'taragaman_hammer', dropChance: 0.25 },
+      { itemId: 'iron_shortsword', dropChance: 0.15 },
+      { itemId: 'scout_vest', dropChance: 0.2 },
+      { itemId: 'adventurer_ring', dropChance: 0.2 },
+      { itemId: 'runed_staff', dropChance: 0.2 },
+    ],
+  },
+  deadmines: {
+    anyDropChance: 0.85,
+    entries: [
+      { itemId: 'smites_mace', dropChance: 0.18 },
+      { itemId: 'cookies_stirring_rod', dropChance: 0.18 },
+      { itemId: 'soldier_helm', dropChance: 0.16 },
+      { itemId: 'chain_leggings', dropChance: 0.16 },
+      { itemId: 'stormfury_blade', dropChance: 0.16 },
+      { itemId: 'defender_shield', dropChance: 0.16 },
+    ],
+  },
+  shadowfang_keep: {
+    anyDropChance: 0.9,
+    entries: [
+      { itemId: 'fang_of_the_deeps', dropChance: 0.16 },
+      { itemId: 'belremil_band', dropChance: 0.16 },
+      { itemId: 'spellweave_robe', dropChance: 0.18 },
+      { itemId: 'marauder_shoulders', dropChance: 0.16 },
+      { itemId: 'ranger_gloves', dropChance: 0.16 },
+      { itemId: 'crusader_belt', dropChance: 0.18 },
+    ],
+  },
+  scarlet_monastery: {
+    anyDropChance: 0.95,
+    entries: [
+      { itemId: 'commanders_crest', dropChance: 0.1 },
+      { itemId: 'whitemane_chapeau', dropChance: 0.1 },
+      { itemId: 'herod_shoulder', dropChance: 0.1 },
+      { itemId: 'warlord_plate', dropChance: 0.16 },
+      { itemId: 'shadow_cowl', dropChance: 0.16 },
+      { itemId: 'crusader_blade', dropChance: 0.16 },
+      { itemId: 'titan_boots', dropChance: 0.16 },
+      { itemId: 'arcane_robes', dropChance: 0.06 },
+    ],
+  },
+};
+
+/**
  * Roluje loot z tabulky. Vrátí pole itemId (obvykle 0 nebo 1 item).
  * Seeduje se z aktivity → deterministické.
  */

@@ -189,6 +189,48 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     rarity: 'rare', itemLevel: 34, vendorGold: 28,
     stats: { intellect: 8, stamina: 5, spell_power: 6 },
   },
+
+  // --- M5: Dungeon boss loot (vyšší ilvl, instance-only) ---
+  taragaman_hammer: {
+    id: 'taragaman_hammer', name: 'Taragaman\'s Hammer', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 16, vendorGold: 18,
+    stats: { strength: 6, stamina: 4, attack_power: 8 },
+  },
+  smites_mace: {
+    id: 'smites_mace', name: 'Smite\'s Reaver', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 22, vendorGold: 24,
+    stats: { strength: 8, stamina: 5, attack_power: 12 },
+  },
+  cookies_stirring_rod: {
+    id: 'cookies_stirring_rod', name: 'Cookie\'s Stirring Rod', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 23, vendorGold: 24,
+    stats: { intellect: 9, spirit: 5, spell_power: 12 },
+  },
+  fang_of_the_deeps: {
+    id: 'fang_of_the_deeps', name: 'Fang of the Deeps', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 26, vendorGold: 28,
+    stats: { agility: 10, stamina: 5, crit_rating: 6 },
+  },
+  belremil_band: {
+    id: 'belremil_band', name: 'Band of Belremil', slot: 'finger',
+    rarity: 'rare', itemLevel: 28, vendorGold: 26,
+    stats: { intellect: 7, stamina: 5, spell_power: 8 },
+  },
+  commanders_crest: {
+    id: 'commanders_crest', name: 'Commander\'s Crest', slot: 'off_hand',
+    rarity: 'epic', itemLevel: 36, vendorGold: 55,
+    stats: { stamina: 14, strength: 8, armor: 70 },
+  },
+  whitemane_chapeau: {
+    id: 'whitemane_chapeau', name: 'Whitemane\'s Chapeau', slot: 'head',
+    rarity: 'epic', itemLevel: 38, vendorGold: 60,
+    stats: { intellect: 16, spirit: 10, spell_power: 16 },
+  },
+  herod_shoulder: {
+    id: 'herod_shoulder', name: 'Herod\'s Shoulder', slot: 'shoulder',
+    rarity: 'epic', itemLevel: 37, vendorGold: 58,
+    stats: { strength: 14, stamina: 11, attack_power: 18 },
+  },
 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
