@@ -149,6 +149,12 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
   - [ ] První Drizzle migrace (`pnpm db:generate`) proti běžícímu Postgresu.
   - [ ] (Volitelně) SessionStart hook pro web sezení — vyžaduje souhlas PM se zápisem do `.claude/settings.json`.
 
+### Deployment pipeline (průřezově, mimo herní milníky) — ✅ zavedeno
+
+- CI → **GHCR** → **Watchtower** (server si sám stahuje, žádný příchozí přístup). Viz `docs/adr/0004-deployment.md`.
+- `.github/workflows/release.yml` (build & push image api+web), `docker-compose.prod.yml` (registry image + Watchtower).
+- [ ] Ověřit první běh CI → image v GHCR (po pushi).
+
 ### M1 — Účty & postava
 
 - Auth (registrace/login, JWT).

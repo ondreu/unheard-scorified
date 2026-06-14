@@ -26,6 +26,24 @@ docker compose up --build
 - Web: http://localhost (přes Caddy) nebo http://localhost:5173 (vite dev)
 - API health: http://localhost:3000/health
 
+## Produkční nasazení (server)
+
+Image se staví v CI a pushují do **GHCR**; na serveru se jen táhnou. **Watchtower** automaticky aktualizuje `api`+`web` při nové verzi (viz [`docs/adr/0004-deployment.md`](docs/adr/0004-deployment.md)).
+
+```bash
+# 1. (jednorázově) přihlášení k GHCR — jen pokud jsou packages private
+#    PAT s oprávněním read:packages:
+docker login ghcr.io -u <github-user>
+
+# 2. konfigurace + start
+cp .env.example .env        # nastav DOMAIN, hesla, IMAGE_TAG
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Aktualizace pak probíhá sama: `git push` → CI postaví a nahraje image → Watchtower je do ~5 min stáhne a restartuje. Ruční update: `docker compose -f docker-compose.prod.yml pull && up -d`.
+
+> Pro **private** packages odkomentuj v `docker-compose.prod.yml` u služby `watchtower` mount `~/.docker/config.json`. Jednodušší alternativa: nastav viditelnost GHCR balíčků na **public**.
+
 ## Příkazy
 
 | Příkaz                         | Co dělá                      |

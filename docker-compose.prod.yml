@@ -1,0 +1,86 @@
+# Produkční nasazení: image se TÁHNOU z GHCR (nebuildí se lokálně).
+# Watchtower hlídá api+web a automaticky stahuje nové verze (tag :latest).
+#
+# Server (jednorázově): docker login ghcr.io   (PAT s read:packages)
+# Start:                 docker compose -f docker-compose.prod.yml up -d
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-game}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-game}
+      POSTGRES_DB: ${POSTGRES_DB:-game}
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-game}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - ./.data/redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ghcr.io/ondreu/unheard-scorified-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    pull_policy: always
+    labels:
+      com.centurylinklabs.watchtower.enable: 'true'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-game}:${POSTGRES_PASSWORD:-game}@postgres:5432/${POSTGRES_DB:-game}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/ondreu/unheard-scorified-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    pull_policy: always
+    labels:
+      com.centurylinklabs.watchtower.enable: 'true'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./.data/caddy:/data
+    depends_on:
+      - api
+      - web
+
+  watchtower:
+    image: containrrr/watchtower
+    restart: unless-stopped
+    # --label-enable: hlídá jen kontejnery s labelem výše (api, web), ne DB/redis/caddy.
+    command: --interval 300 --cleanup --label-enable
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Pro PRIVATE GHCR packages odkomentuj (po `docker login ghcr.io` na serveru):
+      # - ${HOME}/.docker/config.json:/config.json:ro
