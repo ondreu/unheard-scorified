@@ -1,7 +1,7 @@
 /**
  * Drizzle schéma. Roste po milnících.
  * M0: health_log. M1: accounts + characters. M2: character_activities + completed_quests.
- * M3: push_subscriptions.
+ * M3: push_subscriptions. M4: character_inventory + character_equipment + character_talents + character_skins.
  */
 import { relations } from 'drizzle-orm';
 import {
@@ -94,15 +94,80 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * Inventář postavy (M4). Každý řádek = jeden typ itemu s počtem kusů.
+ */
+export const characterInventory = pgTable(
+  'character_inventory',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    itemId: varchar('item_id', { length: 64 }).notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    grantedAt: timestamp('granted_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.itemId] })],
+);
+
+/**
+ * Equipnuté itemy postavy (M4). Jeden řádek per slot.
+ */
+export const characterEquipment = pgTable(
+  'character_equipment',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    slot: varchar('slot', { length: 32 }).notNull(),
+    itemId: varchar('item_id', { length: 64 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.slot] })],
+);
+
+/**
+ * Alokované talent body postavy (M4). Jeden řádek per talent uzel.
+ */
+export const characterTalents = pgTable(
+  'character_talents',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    talentId: varchar('talent_id', { length: 64 }).notNull(),
+    points: integer('points').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.talentId] })],
+);
+
+/**
+ * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
+ */
+export const characterSkins = pgTable(
+  'character_skins',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    skinId: varchar('skin_id', { length: 64 }).notNull(),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.skinId] })],
+);
+
 export const accountsRelations = relations(accounts, ({ many }) => ({
   characters: many(characters),
   pushSubscriptions: many(pushSubscriptions),
+  skins: many(characterSkins),
 }));
 
 export const charactersRelations = relations(characters, ({ one, many }) => ({
   account: one(accounts, { fields: [characters.accountId], references: [accounts.id] }),
   activity: one(characterActivities),
   completedQuests: many(completedQuests),
+  inventory: many(characterInventory),
+  equipment: many(characterEquipment),
+  talents: many(characterTalents),
 }));
 
 export const characterActivitiesRelations = relations(characterActivities, ({ one }) => ({
@@ -126,6 +191,34 @@ export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one })
   }),
 }));
 
+export const characterInventoryRelations = relations(characterInventory, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterInventory.characterId],
+    references: [characters.id],
+  }),
+}));
+
+export const characterEquipmentRelations = relations(characterEquipment, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterEquipment.characterId],
+    references: [characters.id],
+  }),
+}));
+
+export const characterTalentsRelations = relations(characterTalents, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterTalents.characterId],
+    references: [characters.id],
+  }),
+}));
+
+export const characterSkinsRelations = relations(characterSkins, ({ one }) => ({
+  account: one(accounts, {
+    fields: [characterSkins.accountId],
+    references: [accounts.id],
+  }),
+}));
+
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type Character = typeof characters.$inferSelect;
@@ -136,3 +229,11 @@ export type CompletedQuest = typeof completedQuests.$inferSelect;
 export type NewCompletedQuest = typeof completedQuests.$inferInsert;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
+export type CharacterInventory = typeof characterInventory.$inferSelect;
+export type NewCharacterInventory = typeof characterInventory.$inferInsert;
+export type CharacterEquipment = typeof characterEquipment.$inferSelect;
+export type NewCharacterEquipment = typeof characterEquipment.$inferInsert;
+export type CharacterTalent = typeof characterTalents.$inferSelect;
+export type NewCharacterTalent = typeof characterTalents.$inferInsert;
+export type CharacterSkin = typeof characterSkins.$inferSelect;
+export type NewCharacterSkin = typeof characterSkins.$inferInsert;

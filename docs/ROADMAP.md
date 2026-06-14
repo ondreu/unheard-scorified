@@ -205,12 +205,27 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Výstup:** zavřu appku → přijde push o dokončení → po návratu vidím souhrn. ✅
 - **Zbývá doladit:** per-postavová granularita push (M-future); push ikona 192/512 (M0 TODO).
 
-### M4 — Gear, inventář, talenty
+### M4 — Gear, inventář, talenty — ✅ hotovo
 
-- Item systém, inventář, equip, vliv na staty; loot z aktivit.
-- Talent stromy (3/classu), alokace bodů, vliv na combat chování.
-- Kosmetická vrstva (základ): ownership skinů oddělený od statů (transmog).
-- **Výstup:** sbírám a oblékám gear, rozdávám talenty; vizuál nezávislý na statech.
+- [x] Item systém (`packages/shared/src/data/items.ts`): 30 itemů ve 3 tier brackety (ilvl 4–42),
+      typy slotů, rarity, stat systém. Jediný zdroj pravdy pro API i web.
+- [x] Loot systém (`packages/shared/src/loot.ts`): deterministický roll přes `SeededRng`, loot tabulky
+      per zone bracket, integrace do `computeQuestReward` → `ActivityReward.items`.
+- [x] Inventář & equipment DB (`character_inventory`, `character_equipment`, Drizzle migrace `0003_petite_chimera`).
+- [x] `InventoryModule` (NestJS): list inventáře, list equipment + staty, equip, unequip; validace slotu/vlastnictví.
+- [x] Talent stromy: 9 class × 3 stromy × 5 nodů (`packages/shared/src/data/talents.ts`);
+      tier requirements, direct stat efekty (M4), combat tagy pro M5.
+- [x] `TalentModule` (NestJS): list talent stromů, alokace bodů, reset; validace tier req/max rank/dostupnost.
+- [x] Loot přidán do inventáře při claimu aktivity (`ActivityService`).
+- [x] `CharacterSheet.equipmentStats` — staty z equipnutých itemů.
+- [x] Kosmetická vrstva: `character_skins` tabulka (accountId, skinId) — ownership skinů oddělený od statů.
+- [x] Web stránky: `/characters/[id]/inventory` (inventář grid + equipment sloty), `/characters/[id]/talents`
+      (3 talent stromy s alokací); navigation links na character page.
+- [x] Integrační testy: `inventory.flow.test.ts` (7 testů), `talent.flow.test.ts` (8 testů). 81 testů celkem.
+- [x] Typecheck, lint, testy zelené. Dokumentace: `docs/systems/items.md`, `docs/systems/talents.md`.
+- Detail: `docs/systems/items.md`, `docs/systems/talents.md`.
+- **Výstup:** sbírám gear z questů, oblékám ho, rozdávám talent body, vidím equipment staty. ✅
+- **Zbývá na M5:** combat tagy z talentů použít v combat enginu; set bonusy; zbraňové typy.
 
 ### M5 — Combat engine & Dungeony (SP PVE)
 

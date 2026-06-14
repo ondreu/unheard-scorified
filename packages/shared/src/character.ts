@@ -5,6 +5,7 @@
 import { CLASSES, type ClassId, type ResourceType } from './data/classes';
 import { RACES, type Faction, type RaceId } from './data/races';
 import { levelFromTotalXp } from './leveling';
+import type { ItemStats } from './data/items';
 
 export type { ClassId, ResourceType, Role } from './data/classes';
 export type { Faction, RaceId } from './data/races';
@@ -88,10 +89,16 @@ export interface CharacterSheet {
   faction: Faction;
   primary: PrimaryStats;
   derived: DerivedStats;
+  equipmentStats: ItemStats;
 }
 
 /** Sestaví character sheet z minimálních perzistovaných dat. */
-export function buildCharacterSheet(race: RaceId, klass: ClassId, totalXp: number): CharacterSheet {
+export function buildCharacterSheet(
+  race: RaceId,
+  klass: ClassId,
+  totalXp: number,
+  equippedItemStats?: ItemStats,
+): CharacterSheet {
   const { level, xpIntoLevel, xpForNext } = levelFromTotalXp(totalXp);
   const primary = baseStatsFor(race, klass, level);
   return {
@@ -101,6 +108,7 @@ export function buildCharacterSheet(race: RaceId, klass: ClassId, totalXp: numbe
     faction: factionOf(race),
     primary,
     derived: deriveStats(primary, level, klass),
+    equipmentStats: equippedItemStats ?? {},
   };
 }
 

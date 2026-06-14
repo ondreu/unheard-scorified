@@ -4,9 +4,11 @@ import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { PushModule } from './push/push.module';
 import { QuestModule } from './quest/quest.module';
 import { RedisModule } from './redis/redis.module';
+import { TalentModule } from './talent/talent.module';
 
 /**
  * Kořenový modul. Každý herní systém je vlastní feature modul
@@ -22,6 +24,8 @@ import { RedisModule } from './redis/redis.module';
     QuestModule,
     PushModule,
     ActivityModule,
+    InventoryModule,
+    TalentModule,
   ],
 })
 export class AppModule {}

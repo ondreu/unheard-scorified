@@ -20,6 +20,7 @@ import {
   type CharacterSheet,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
+import { InventoryRepository } from '../inventory/inventory.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import type { Character, CharacterActivity } from '../db/schema';
 import { ActivityRepository } from './activity.repository';
@@ -60,6 +61,8 @@ export interface ClaimResult {
   character: CharacterStateView;
   /** Počet sekund, po které aktivita čekala na claim (offline progres). 0 = okamžitý claim. */
   offlineDurationSec: number;
+  /** Itemy přidané do inventáře při claimu. */
+  items: string[];
 }
 
 export interface StartActivityInput {
@@ -73,6 +76,7 @@ export class ActivityService {
     private readonly characters: CharacterRepository,
     private readonly activities: ActivityRepository,
     private readonly completed: CompletedQuestRepository,
+    private readonly inventoryRepo: InventoryRepository,
     @Inject(ACTIVITY_SCHEDULER) private readonly scheduler: ActivityScheduler,
   ) {}
 
@@ -152,6 +156,13 @@ export class ActivityService {
       await this.completed.markCompleted(characterId, row.params.questId);
     }
 
+    // Přidá loot do inventáře
+    const grantedItems: string[] = [];
+    for (const itemId of reward.items) {
+      await this.inventoryRepo.addItem(characterId, itemId);
+      grantedItems.push(itemId);
+    }
+
     await this.activities.deleteById(row.id);
     await this.scheduler.cancel(row.id);
 
@@ -163,6 +174,7 @@ export class ActivityService {
       levelsGained: gain.levelsGained,
       character: toCharacterStateView(updated),
       offlineDurationSec,
+      items: grantedItems,
     };
   }
 

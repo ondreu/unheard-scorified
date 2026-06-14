@@ -141,6 +141,12 @@
     { key: 'intellect', label: 'Intellect' },
     { key: 'spirit', label: 'Spirit' },
   ];
+
+  // Extra UI strings for M4 links
+  const uiM4 = {
+    inventory: 'Inventory & Equipment',
+    talents: 'Talents',
+  };
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
@@ -238,6 +244,22 @@
         {/if}
       </section>
     {/if}
+
+    <!-- M4: Inventory & Talents links -->
+    <div class="mt-4 flex gap-3">
+      <a
+        href={`/characters/${characterId}/inventory`}
+        class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
+      >
+        {uiM4.inventory}
+      </a>
+      <a
+        href={`/characters/${characterId}/talents`}
+        class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
+      >
+        {uiM4.talents}
+      </a>
+    </div>
 
     <!-- Activity panel -->
     <section class="mt-4 rounded-lg border border-amber-900/40 bg-black/20 p-5">
