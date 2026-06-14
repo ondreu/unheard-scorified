@@ -1,14 +1,18 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { Queue, Worker, type ConnectionOptions } from 'bullmq';
+import { QUESTS } from '@game/shared';
 import { loadConfig } from '../config/config';
+import { CharacterRepository } from '../character/character.repository';
+import { PushService } from '../push/push.service';
+import { ActivityRepository } from './activity.repository';
 
 /**
  * Plánovač dokončení idle aktivit (BullMQ). Job „nastane" v čase dokončení
- * i bez hráče — hook pro odměny/push notifikace (push až M3). Odměny samotné
- * se ale počítají LAZY při claimu (jediný zdroj pravdy), takže scheduler je
- * best-effort: když Redis neběží, aktivita stále funguje přes lazy dopočet.
+ * i bez hráče — odesílá push notifikaci (M3). Odměny samotné se počítají
+ * LAZY při claimu (jediný zdroj pravdy), takže scheduler je best-effort:
+ * když Redis neběží, aktivita stále funguje přes lazy dopočet.
  *
- * Viz docs/adr/0002 (idle model) a 0006 (aktivity/questing).
+ * Viz docs/adr/0002 (idle model), 0006 (aktivity/questing), 0007 (push).
  */
 export const ACTIVITY_SCHEDULER = Symbol('ACTIVITY_SCHEDULER');
 
@@ -32,6 +36,12 @@ export class BullMqActivityScheduler implements ActivityScheduler, OnModuleInit,
   private queue?: Queue<ActivityCompletionJob>;
   private worker?: Worker<ActivityCompletionJob>;
 
+  constructor(
+    private readonly characters: CharacterRepository,
+    private readonly activities: ActivityRepository,
+    private readonly push: PushService,
+  ) {}
+
   onModuleInit(): void {
     // BullMQ si spravuje vlastní Redis connection; předáme jen options odvozené
     // z redisUrl (maxRetriesPerRequest: null je pro BullMQ povinné).
@@ -41,16 +51,29 @@ export class BullMqActivityScheduler implements ActivityScheduler, OnModuleInit,
 
     this.worker = new Worker<ActivityCompletionJob>(
       QUEUE_NAME,
-      (job) => {
-        // M2: jen log; M3 zde vznikne push notifikace „aktivita dokončena".
-        this.logger.log(
-          `Aktivita dokončena: ${job.data.activityId} (char ${job.data.characterId})`,
-        );
-        return Promise.resolve();
-      },
+      (job) => this.processJob(job.data),
       { connection },
     );
     this.worker.on('error', (err) => this.logger.warn(`BullMQ worker: ${err.message}`));
+  }
+
+  private async processJob(data: ActivityCompletionJob): Promise<void> {
+    this.logger.log(`Aktivita dokončena: ${data.activityId} (char ${data.characterId})`);
+
+    const character = await this.characters.findById(data.characterId);
+    if (!character) return;
+
+    // Aktivita mohla být mezidoby claimnutá — pak není co notifikovat.
+    const activity = await this.activities.findByCharacter(data.characterId);
+    if (!activity) return;
+
+    const questName = QUESTS[activity.params.questId]?.name ?? 'your quest';
+
+    await this.push.sendToAccount(character.accountId, {
+      title: 'Quest Complete!',
+      body: `${character.name} has finished "${questName}". Return to claim your rewards.`,
+      characterId: character.id,
+    });
   }
 
   async schedule(activityId: string, characterId: string, delayMs: number): Promise<void> {

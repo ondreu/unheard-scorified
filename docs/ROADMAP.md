@@ -189,11 +189,21 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Výstup:** pošlu postavu questovat, ona levluje na pozadí (i offline). ✅
 - **Zbývá doladit:** balanc XP křivky a odměn (M9); push notifikace při dokončení (M3).
 
-### M3 — PWA notifikace & offline progres
+### M3 — PWA notifikace & offline progres — ✅ hotovo
 
-- Web Push (VAPID), notifikace při dokončení aktivity.
-- Offline progress shrnutí, fronta aktivit.
-- **Výstup:** zavřu appku, přijde notifikace, po návratu vidím souhrn.
+- [x] Web Push (VAPID): `push_subscriptions` tabulka (Drizzle migrace `0002_medical_maverick`),
+      `PushModule` (subscribe/unsubscribe/vapid-public-key endpointy), auto-mazání prošlých subscriptions (410).
+- [x] Notifikace při dokončení aktivity: BullMQ worker injektuje `PushService` + `CharacterRepository`,
+      odesílá push po dokončení questu (best-effort; lazy dopočet je zdroj pravdy).
+- [x] Souhrn offline progresu: `ClaimResult.offlineDurationSec` (čas od dokončení do claimu);
+      web zobrazí „🌙 Away for Xh Ym" při návratu.
+- [x] Service worker: přechod z `generateSW` na `injectManifest`, vlastní `src/service-worker.ts`
+      s handlery `push` (showNotification) + `notificationclick` (open/focus záložka s postavou).
+- [x] Web: push toggle tlačítko na character page, `$lib/push.ts` klientská logika.
+- [x] Testy: integrační testy push service (pglite + `vi.mock('web-push')`), 20 API testů zelených.
+- Detail: `docs/adr/0007-push-notifications.md`, `docs/systems/push-notifications.md`.
+- **Výstup:** zavřu appku → přijde push o dokončení → po návratu vidím souhrn. ✅
+- **Zbývá doladit:** per-postavová granularita push (M-future); push ikona 192/512 (M0 TODO).
 
 ### M4 — Gear, inventář, talenty
 

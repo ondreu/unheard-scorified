@@ -46,6 +46,8 @@ export interface ClaimResult {
   leveledUp: boolean;
   levelsGained: number;
   character: CharacterView;
+  /** Počet sekund, po které aktivita čekala na claim (offline progres). 0 = okamžitý claim. */
+  offlineDurationSec: number;
 }
 
 export class ApiError extends Error {
@@ -153,4 +155,19 @@ export function startActivity(characterId: string, questId: string): Promise<Act
 
 export function claimActivity(characterId: string): Promise<ClaimResult> {
   return request<ClaimResult>(`/characters/${characterId}/activity/claim`, { method: 'POST' });
+}
+
+export function getVapidPublicKey(): Promise<{ key: string }> {
+  return request<{ key: string }>('/push/vapid-public-key', {}, false);
+}
+
+export function subscribePushApi(payload: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}): Promise<void> {
+  return request<void>('/push/subscribe', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function unsubscribePushApi(endpoint: string): Promise<void> {
+  return request<void>('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) });
 }

@@ -8,6 +8,11 @@ export default defineConfig({
     tailwindcss(),
     sveltekit(),
     SvelteKitPWA({
+      // injectManifest = vlastní service worker (src/service-worker.ts)
+      // s precache manifestem injektovaným pluginem — nutné pro push event handlery.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'service-worker.ts',
       registerType: 'autoUpdate',
       manifest: {
         name: 'AFK to 60',

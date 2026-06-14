@@ -58,6 +58,8 @@ export interface ClaimResult {
   leveledUp: boolean;
   levelsGained: number;
   character: CharacterStateView;
+  /** Počet sekund, po které aktivita čekala na claim (offline progres). 0 = okamžitý claim. */
+  offlineDurationSec: number;
 }
 
 export interface StartActivityInput {
@@ -135,9 +137,13 @@ export class ActivityService {
     const row = await this.activities.findByCharacter(characterId);
     if (!row) throw new BadRequestException('No active activity');
 
+    const claimAt = Date.now();
     const state = toActivityState(row);
-    const reward = computeActivityReward(state, Date.now());
+    const reward = computeActivityReward(state, claimAt);
     if (!reward) throw new BadRequestException('Activity has not finished yet');
+
+    const finishesAt = state.startAt + state.durationSec * 1000;
+    const offlineDurationSec = Math.max(0, Math.floor((claimAt - finishesAt) / 1000));
 
     const gain = applyXpGain(character.totalXp, reward.xp);
     const updated = await this.characters.addRewards(character.id, reward.xp, reward.gold);
@@ -156,6 +162,7 @@ export class ActivityService {
       leveledUp: gain.leveledUp,
       levelsGained: gain.levelsGained,
       character: toCharacterStateView(updated),
+      offlineDurationSec,
     };
   }
 
