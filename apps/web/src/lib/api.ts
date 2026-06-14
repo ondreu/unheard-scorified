@@ -69,7 +69,8 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
     fetch(`/api${path}`, {
       ...init,
       headers: {
-        'Content-Type': 'application/json',
+        // Content-Type jen s tělem — Fastify odmítá prázdné tělo s JSON content-type.
+        ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init.headers,
       },
