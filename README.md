@@ -26,23 +26,22 @@ docker compose up --build
 - Web: http://localhost (přes Caddy) nebo http://localhost:5173 (vite dev)
 - API health: http://localhost:3000/health
 
-## Produkční nasazení (server)
+## Produkční nasazení (server / NAS)
 
-Image se staví v CI a pushují do **GHCR**; na serveru se jen táhnou. **Watchtower** automaticky aktualizuje `api`+`web` při nové verzi (viz [`docs/adr/0004-deployment.md`](docs/adr/0004-deployment.md)).
+Image se staví v CI a pushují do **GHCR**; na serveru se jen táhnou a **Watchtower** je automaticky aktualizuje. Schéma DB se vytvoří samo (auto-migrace při startu API). Na serveru **není potřeba git** — stačí pár souborů.
+
+➡️ **Kompletní návod (vč. UGREEN NAS GUI i SSH): [`docs/DEPLOY.md`](docs/DEPLOY.md).** Architektura: [`docs/adr/0004-deployment.md`](docs/adr/0004-deployment.md).
+
+Quickstart (SSH, packages public):
 
 ```bash
-# 1. (jednorázově) přihlášení k GHCR — jen pokud jsou packages private
-#    PAT s oprávněním read:packages:
-docker login ghcr.io -u <github-user>
-
-# 2. konfigurace + start
-cp .env.example .env        # nastav DOMAIN, hesla, IMAGE_TAG
+mkdir idlerpg && cd idlerpg
+curl -fsSL -o docker-compose.prod.yml https://raw.githubusercontent.com/ondreu/unheard-scorified/main/docker-compose.prod.yml
+curl -fsSL -o Caddyfile https://raw.githubusercontent.com/ondreu/unheard-scorified/main/Caddyfile
+curl -fsSL -o .env https://raw.githubusercontent.com/ondreu/unheard-scorified/main/.env.example
+# uprav .env (hlavně JWT_SECRET, DOMAIN), pak:
 docker compose -f docker-compose.prod.yml up -d
 ```
-
-Aktualizace pak probíhá sama: `git push` → CI postaví a nahraje image → Watchtower je do ~5 min stáhne a restartuje. Ruční update: `docker compose -f docker-compose.prod.yml pull && up -d`.
-
-> Pro **private** packages odkomentuj v `docker-compose.prod.yml` u služby `watchtower` mount `~/.docker/config.json`. Jednodušší alternativa: nastav viditelnost GHCR balíčků na **public**.
 
 ## Příkazy
 

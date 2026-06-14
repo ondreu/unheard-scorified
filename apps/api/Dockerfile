@@ -23,6 +23,8 @@ COPY apps/api/package.json apps/api/
 RUN pnpm install --frozen-lockfile --prod
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/apps/api/dist apps/api/dist
+# Migrace pro auto-migrate při startu (viz src/db/migrate.ts).
+COPY apps/api/drizzle apps/api/drizzle
 WORKDIR /repo/apps/api
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

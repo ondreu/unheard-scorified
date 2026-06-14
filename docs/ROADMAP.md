@@ -154,13 +154,19 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - CI → **GHCR** → **Watchtower** (server si sám stahuje, žádný příchozí přístup). Viz `docs/adr/0004-deployment.md`.
 - `.github/workflows/release.yml` (build & push image api+web), `docker-compose.prod.yml` (registry image + Watchtower).
 - [x] Ověřeno: CI i Release workflow zelené, image `api`+`web` nahrány do GHCR.
+- [x] NAS-friendly deploy návod (UGREEN GUI + SSH, bez gitu): `docs/DEPLOY.md`.
 
-### M1 — Účty & postava
+### M1 — Účty & postava — ✅ hotovo
 
-- Auth (registrace/login, JWT).
-- Tvorba postavy: výběr rasy + classy, jméno.
-- Datový model postavy, persistence, základní "character sheet" UI.
-- **Výstup:** vytvořím si postavu, vidím její staty.
+- [x] Auth: registrace/login/refresh (JWT access+refresh, bcryptjs), `JwtAuthGuard`, `GET /auth/me`. Viz `docs/adr/0005-auth.md`.
+- [x] 8 ras + 9 class + vanilla race-class matice + 5 primárních statů ve `@game/shared` (`src/data/`, `src/character.ts`).
+- [x] DB model `accounts` + `characters` (Drizzle), **auto-migrace při startu** API (NAS-friendly, bez ručního zásahu).
+- [x] API: `POST/GET /characters` (chráněné, vázané na účet), staty se dopočítávají ze `shared`.
+- [x] Web (SvelteKit): `/register`, `/login`, `/characters`, `/characters/new` (rasa→classa→jméno), `/characters/[id]` (character sheet).
+- [x] Testy: shared unit + API integrační flow přes **pglite** (bez Dockeru). Build/test/lint/typecheck zelené.
+- Detail: `docs/systems/character.md`.
+- **Výstup:** vytvořím si účet i postavu a vidím její staty. ✅
+- **Zbývá doladit:** balanc statů (M9), httpOnly cookie místo localStorage, refresh rotace/revokace (ADR 0005 follow-up).
 
 ### M2 — Leveling & jádro idle smyčky
 
