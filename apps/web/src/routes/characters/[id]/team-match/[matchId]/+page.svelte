@@ -5,7 +5,6 @@
   import { ApiError, getTeamMatch, type TeamMatchView } from '$lib/api';
 
   const ui = {
-    back: '← Back to team arena',
     title: 'Arena Match',
     myTeam: 'Your team',
     enemyTeam: 'Enemy team',
@@ -44,46 +43,45 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}/group`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+<div class="space-y-6">
+  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
 
   {#if error}
-    <p class="mt-6 text-red-400">{error}</p>
+    <p class="text-[var(--danger)]">{error}</p>
   {:else if match}
     {@const m = match}
-    <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
-      <div class="rounded border border-emerald-900/40 bg-black/20 p-3">
-        <h2 class="font-semibold text-emerald-300">{ui.myTeam}</h2>
-        <ul class="mt-1 text-amber-100/80">
+    <div class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+      <div class="panel panel-pad">
+        <h2 class="panel-title">{ui.myTeam}</h2>
+        <ul class="mt-2 space-y-1 text-[var(--text-dim)]">
           {#each m.myTeam as p (p.name)}<li>{p.name}</li>{/each}
         </ul>
       </div>
-      <div class="rounded border border-red-900/40 bg-black/20 p-3">
-        <h2 class="font-semibold text-red-300">{ui.enemyTeam}</h2>
-        <ul class="mt-1 text-amber-100/80">
+      <div class="panel panel-pad">
+        <h2 class="panel-title">{ui.enemyTeam}</h2>
+        <ul class="mt-2 space-y-1 text-[var(--text-dim)]">
           {#each m.enemyTeam as p (p.name)}<li>{p.name}</li>{/each}
         </ul>
       </div>
     </div>
 
     {#if m.outcome}
-      <p class="mt-4 text-lg font-semibold {m.outcome === 'win' ? 'text-emerald-300' : 'text-red-400'}">
+      <p class="text-lg font-semibold {m.outcome === 'win' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}">
         {m.outcome === 'win' ? ui.win : ui.loss}
       </p>
     {:else}
-      <p class="mt-4 text-sm text-amber-300">{ui.fighting}</p>
+      <p class="text-sm text-[var(--text-dim)]">{ui.fighting}</p>
     {/if}
 
-    <section class="mt-4 max-h-96 overflow-y-auto rounded border border-amber-900/40 bg-black/30 p-3 text-xs">
+    <section class="panel panel-pad max-h-96 overflow-y-auto text-xs">
       {#each [...m.events].reverse() as e, i (m.events.length - 1 - i)}
-        <p class="text-amber-100/80">
-          <span class="text-amber-100/30">[{e.t.toFixed(1)}s]</span>
+        <p class="text-[var(--text-dim)]">
+          <span class="text-[var(--text-faint)]">[{e.t.toFixed(1)}s]</span>
           {e.message}
         </p>
       {/each}
     </section>
   {:else}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {/if}
-</main>
+</div>

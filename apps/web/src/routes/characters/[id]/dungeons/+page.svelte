@@ -7,7 +7,6 @@
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Dungeons',
-    back: '← Back to character',
     empty: 'No dungeons known.',
     enter: 'Enter',
     entering: 'Entering…',
@@ -65,40 +64,32 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+<div class="space-y-6">
+  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
 
   {#if error}
-    <p class="mt-4 text-red-400">{error}</p>
+    <p class="text-[var(--danger)]">{error}</p>
   {/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if dungeons.length === 0}
-    <p class="mt-6 text-amber-100/60">{ui.empty}</p>
+    <p class="text-[var(--text-dim)]">{ui.empty}</p>
   {:else}
-    <ul class="mt-6 space-y-4">
+    <ul class="space-y-3">
       {#each dungeons as d (d.id)}
-        <li
-          class="rounded-lg border p-5 {d.unlocked
-            ? 'border-amber-900/40 bg-black/20'
-            : 'border-stone-800/60 bg-black/10 opacity-60'}"
-        >
+        <li class="panel panel-pad {d.unlocked ? '' : 'opacity-60'}">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="flex items-center gap-2 font-semibold text-amber-200">
+              <h2 class="panel-title flex items-center gap-2">
                 {d.name}
                 {#if d.lockedOut}
-                  <span
-                    title={ui.savedHint}
-                    class="rounded border border-amber-700/50 bg-amber-900/30 px-1.5 py-0.5 text-xs font-medium text-amber-300"
-                  >
+                  <span title={ui.savedHint} class="chip">
                     {ui.savedThisWeek}
                   </span>
                 {/if}
               </h2>
-              <p class="text-xs uppercase tracking-wide text-amber-100/40">
+              <p class="text-xs uppercase tracking-wide text-[var(--text-faint)]">
                 {ui.reqLevel}
                 {d.requiredLevel} · {d.encounterCount}
                 {ui.encounters} · {ui.boss}: {d.bossName}
@@ -107,32 +98,24 @@
             {#if d.unlocked}
               <div class="flex shrink-0 items-center gap-2">
                 <label class="sr-only" for={`size-${d.id}`}>{ui.party}</label>
-                <select
-                  id={`size-${d.id}`}
-                  bind:value={sizeById[d.id]}
-                  class="rounded border border-amber-900/50 bg-black/40 px-2 py-1.5 text-sm text-amber-100"
-                >
+                <select id={`size-${d.id}`} bind:value={sizeById[d.id]} class="input w-auto">
                   {#each d.sizes as s (s)}
                     <option value={s}>{sizeLabel(s)}</option>
                   {/each}
                 </select>
-                <button
-                  onclick={() => enter(d)}
-                  disabled={enteringId !== null}
-                  class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
-                >
+                <button onclick={() => enter(d)} disabled={enteringId !== null} class="btn btn-primary btn-sm">
                   {enteringId === d.id ? ui.entering : ui.enter}
                 </button>
               </div>
             {:else}
-              <span class="shrink-0 rounded border border-stone-700 px-3 py-1.5 text-xs text-stone-400">
+              <span class="chip shrink-0">
                 {ui.locked} · {ui.reqLevel} {d.requiredLevel}
               </span>
             {/if}
           </div>
-          <p class="mt-2 text-sm text-amber-100/70">{d.description}</p>
+          <p class="mt-2 text-sm text-[var(--text-dim)]">{d.description}</p>
         </li>
       {/each}
     </ul>
   {/if}
-</main>
+</div>

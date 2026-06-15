@@ -3,10 +3,14 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { GuildRank } from '@game/shared';
 import { DB, type Database } from '../db/db.module';
 import {
+  guildCharterSignatures,
+  guildCharters,
   guildInvites,
   guildMembers,
   guilds,
   type Guild,
+  type GuildCharter,
+  type GuildCharterSignature,
   type GuildInvite,
   type GuildMember,
 } from '../db/schema';
@@ -134,5 +138,121 @@ export class GuildRepository {
 
   async deleteInvite(id: string): Promise<void> {
     await this.db.delete(guildInvites).where(eq(guildInvites.id, id));
+  }
+
+  // ── Charters (vanilla-WoW založení: poplatek + podpisy) ────────────────────
+
+  async createCharter(name: string, founderCharacterId: string): Promise<GuildCharter> {
+    const [row] = await this.db
+      .insert(guildCharters)
+      .values({ name, founderCharacterId })
+      .returning();
+    return row!;
+  }
+
+  async findCharterById(id: string): Promise<GuildCharter | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(guildCharters)
+      .where(eq(guildCharters.id, id))
+      .limit(1);
+    return row;
+  }
+
+  async findCharterByName(name: string): Promise<GuildCharter | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(guildCharters)
+      .where(eq(guildCharters.name, name))
+      .limit(1);
+    return row;
+  }
+
+  /** Charter založený danou postavou (postava má nejvýše jeden). */
+  async charterOf(founderCharacterId: string): Promise<GuildCharter | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(guildCharters)
+      .where(eq(guildCharters.founderCharacterId, founderCharacterId))
+      .limit(1);
+    return row;
+  }
+
+  async deleteCharter(id: string): Promise<void> {
+    await this.db.delete(guildCharters).where(eq(guildCharters.id, id));
+  }
+
+  /** Vytvoří žádost o podpis (signed=false) pro danou postavu. */
+  async createSignatureRequest(
+    charterId: string,
+    characterId: string,
+  ): Promise<GuildCharterSignature> {
+    const [row] = await this.db
+      .insert(guildCharterSignatures)
+      .values({ charterId, characterId })
+      .returning();
+    return row!;
+  }
+
+  async findSignature(
+    charterId: string,
+    characterId: string,
+  ): Promise<GuildCharterSignature | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(guildCharterSignatures)
+      .where(
+        and(
+          eq(guildCharterSignatures.charterId, charterId),
+          eq(guildCharterSignatures.characterId, characterId),
+        ),
+      )
+      .limit(1);
+    return row;
+  }
+
+  listSignatures(charterId: string): Promise<GuildCharterSignature[]> {
+    return this.db
+      .select()
+      .from(guildCharterSignatures)
+      .where(eq(guildCharterSignatures.charterId, charterId));
+  }
+
+  /** Počet potvrzených (signed=true) podpisů charteru. */
+  async countSignatures(charterId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(guildCharterSignatures)
+      .where(
+        and(
+          eq(guildCharterSignatures.charterId, charterId),
+          eq(guildCharterSignatures.signed, true),
+        ),
+      );
+    return row?.count ?? 0;
+  }
+
+  /** Čekající žádosti o podpis pro danou postavu (signed=false). */
+  listPendingSignaturesForCharacter(characterId: string): Promise<GuildCharterSignature[]> {
+    return this.db
+      .select()
+      .from(guildCharterSignatures)
+      .where(
+        and(
+          eq(guildCharterSignatures.characterId, characterId),
+          eq(guildCharterSignatures.signed, false),
+        ),
+      );
+  }
+
+  async markSigned(id: string): Promise<void> {
+    await this.db
+      .update(guildCharterSignatures)
+      .set({ signed: true })
+      .where(eq(guildCharterSignatures.id, id));
+  }
+
+  async deleteSignature(id: string): Promise<void> {
+    await this.db.delete(guildCharterSignatures).where(eq(guildCharterSignatures.id, id));
   }
 }

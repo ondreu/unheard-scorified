@@ -8,7 +8,6 @@
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Available Quests',
-    back: '← Back to character',
     empty: 'No quests available right now. Level up to unlock more.',
     send: 'Send',
     sending: 'Sending…',
@@ -64,26 +63,25 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+<div class="space-y-6">
+  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
 
   {#if error}
-    <p class="mt-4 text-red-400">{error}</p>
+    <p class="text-[var(--danger)]">{error}</p>
   {/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if quests.length === 0}
-    <p class="mt-6 text-amber-100/60">{ui.empty}</p>
+    <p class="text-[var(--text-dim)]">{ui.empty}</p>
   {:else}
-    <ul class="mt-6 space-y-4">
+    <ul class="space-y-3">
       {#each quests as q (q.id)}
-        <li class="rounded-lg border border-amber-900/40 bg-black/20 p-5">
+        <li class="panel panel-pad">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="font-semibold text-amber-200">{q.name}</h2>
-              <p class="text-xs uppercase tracking-wide text-amber-100/40">
+              <h2 class="panel-title">{q.name}</h2>
+              <p class="text-xs uppercase tracking-wide text-[var(--text-faint)]">
                 {zoneName(q.zoneId)} · {q.kind} · {ui.level}
                 {q.requiredLevel}
               </p>
@@ -91,13 +89,13 @@
             <button
               onclick={() => send(q)}
               disabled={sendingId !== null}
-              class="shrink-0 rounded bg-amber-600 px-3 py-1.5 text-sm font-medium text-black hover:bg-amber-500 disabled:opacity-50"
+              class="btn btn-primary btn-sm shrink-0"
             >
               {sendingId === q.id ? ui.sending : ui.send}
             </button>
           </div>
-          <p class="mt-2 text-sm text-amber-100/70">{q.description}</p>
-          <p class="mt-2 text-xs text-amber-100/60">
+          <p class="mt-2 text-sm text-[var(--text-dim)]">{q.description}</p>
+          <p class="mt-2 text-xs text-[var(--text-faint)]">
             {ui.duration}: {formatDuration(q.durationSec)} · {ui.reward}: {q.baseXp} XP, ~{q.baseGold}
             gold
           </p>
@@ -105,4 +103,4 @@
       {/each}
     </ul>
   {/if}
-</main>
+</div>

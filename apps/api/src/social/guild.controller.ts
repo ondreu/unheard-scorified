@@ -3,9 +3,12 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateGuildDto,
+  InviteCharterSignDto,
   InviteToGuildDto,
+  RespondCharterSignDto,
   RespondGuildInviteDto,
   SetGuildRankDto,
+  StartGuildCharterDto,
 } from './dto/social.dto';
 import { GuildService, type GuildState } from './guild.service';
 
@@ -35,6 +38,54 @@ export class GuildController {
     @Body() dto: CreateGuildDto,
   ): Promise<GuildState> {
     return this.guild.create(user.accountId, characterId, dto.name);
+  }
+
+  /** Založí guild charter (poplatek + rezervace jména). */
+  @Post('charter')
+  startCharter(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Body() dto: StartGuildCharterDto,
+  ): Promise<GuildState> {
+    return this.guild.startCharter(user.accountId, characterId, dto.name);
+  }
+
+  /** Pozve postavu (dle jména) k podpisu vlastního charteru. */
+  @Post('charter/invite')
+  inviteSign(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Body() dto: InviteCharterSignDto,
+  ): Promise<GuildState> {
+    return this.guild.inviteSign(user.accountId, characterId, dto.name);
+  }
+
+  /** Odpoví na žádost o podpis cizího charteru. */
+  @Post('charter/sign')
+  respondSign(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Body() dto: RespondCharterSignDto,
+  ): Promise<GuildState> {
+    return this.guild.respondSign(user.accountId, characterId, dto.charterId, dto.accept);
+  }
+
+  /** Založí guildu z charteru (dost podpisů). */
+  @Post('charter/found')
+  found(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+  ): Promise<GuildState> {
+    return this.guild.found(user.accountId, characterId);
+  }
+
+  /** Zruší vlastní charter. */
+  @Delete('charter')
+  cancelCharter(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+  ): Promise<GuildState> {
+    return this.guild.cancelCharter(user.accountId, characterId);
   }
 
   /** Pozve postavu dle jména (officer+). */

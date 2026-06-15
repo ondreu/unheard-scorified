@@ -6,6 +6,7 @@
 import { relations } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   integer,
   jsonb,
   pgTable,
@@ -569,6 +570,44 @@ export const guildInvites = pgTable(
 );
 
 /**
+ * Guild charter (vanilla-WoW styl založení). Zakladatel vytvoří charter (zaplatí
+ * zlatý poplatek), pak sbírá podpisy od jiných postav. S dostatkem podpisů (viz
+ * `@game/shared` GUILD_CHARTER_SIGNATURES_REQUIRED) může guildu založit → charter
+ * se smaže (cascade podpisy). `founderCharacterId` unikátní = jeden charter na
+ * postavu; `name` unikátní (rezervuje jméno guildy stejně jako `guilds.name`).
+ */
+export const guildCharters = pgTable('guild_charters', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 24 }).notNull().unique(),
+  founderCharacterId: uuid('founder_character_id')
+    .notNull()
+    .unique()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Podpis charteru (M9). Řádek = pozvánka k podpisu pro postavu (`characterId`);
+ * `signed=false` = čekající žádost, `signed=true` = podepsáno. Unikátní pár
+ * (charter, character) brání duplicitám. Počítají se jen `signed=true`.
+ */
+export const guildCharterSignatures = pgTable(
+  'guild_charter_signatures',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    charterId: uuid('charter_id')
+      .notNull()
+      .references(() => guildCharters.id, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    signed: boolean('signed').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.charterId, t.characterId)],
+);
+
+/**
  * Nárokované achievementy postavy (M9). Jeden řádek = postava si vyzvedla odměnu
  * za achievement (`achievementId` z `@game/shared` katalogu). Splnění se odvozuje
  * lazy z herního stavu; tady se drží jen fakt vyzvednutí (jednorázová odměna).
@@ -805,3 +844,7 @@ export type GuildMember = typeof guildMembers.$inferSelect;
 export type NewGuildMember = typeof guildMembers.$inferInsert;
 export type GuildInvite = typeof guildInvites.$inferSelect;
 export type NewGuildInvite = typeof guildInvites.$inferInsert;
+export type GuildCharter = typeof guildCharters.$inferSelect;
+export type NewGuildCharter = typeof guildCharters.$inferInsert;
+export type GuildCharterSignature = typeof guildCharterSignatures.$inferSelect;
+export type NewGuildCharterSignature = typeof guildCharterSignatures.$inferInsert;

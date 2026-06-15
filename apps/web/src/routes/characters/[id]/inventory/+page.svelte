@@ -4,12 +4,12 @@
   import { onMount } from 'svelte';
   import { ApiError } from '$lib/api';
   import { currentTokens } from '$lib/auth';
-  import type { ItemDef, EquipmentSlot, ItemRarity } from '@game/shared';
+  import { RARITY_COLOR } from '$lib/cosmetics';
+  import type { ItemDef, EquipmentSlot } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Inventory & Equipment',
-    back: '← Back to character',
     inventory: 'Inventory',
     equipment: 'Equipment',
     noItems: 'Your inventory is empty.',
@@ -40,14 +40,6 @@
     'head', 'neck', 'shoulder', 'chest', 'waist', 'legs', 'feet', 'wrist',
     'hands', 'back', 'main_hand', 'off_hand', 'finger1', 'finger2', 'trinket1', 'trinket2',
   ];
-
-  const RARITY_COLORS: Record<ItemRarity, string> = {
-    common: 'text-gray-300',
-    uncommon: 'text-green-400',
-    rare: 'text-blue-400',
-    epic: 'text-purple-400',
-    legendary: 'text-orange-400',
-  };
 
   let inventory = $state<InventoryItem[]>([]);
   let equipment = $state<EquipmentSlotsView>({ equipped: [], equipmentStats: {} });
@@ -164,41 +156,40 @@
   }
 </script>
 
-<main class="mx-auto max-w-4xl px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+<div class="space-y-6">
+  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
 
   {#if error}
-    <p class="mt-4 text-red-400">{error}</p>
+    <p class="text-[var(--danger)]">{error}</p>
   {/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else}
-    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+    <div class="grid gap-6 lg:grid-cols-2">
       <!-- Equipment Slots -->
-      <section>
-        <h2 class="mb-3 text-xl font-semibold text-amber-200">{ui.equipment}</h2>
-        <div class="space-y-2">
+      <section class="panel panel-pad">
+        <h2 class="panel-title">{ui.equipment}</h2>
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
           {#each ALL_SLOTS as slot (slot)}
             {@const entry = getEquippedInSlot(slot)}
-            <div class="flex items-center justify-between rounded border border-amber-900/40 bg-black/20 px-3 py-2">
+            <div class="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
               <div class="min-w-0">
-                <span class="text-xs text-amber-100/50">{SLOT_LABELS[slot] ?? slot}</span>
+                <span class="text-xs text-[var(--text-faint)]">{SLOT_LABELS[slot] ?? slot}</span>
                 {#if entry}
-                  <p class="truncate text-sm font-medium {RARITY_COLORS[entry.item.rarity as ItemRarity]}">
+                  <p class="truncate text-sm font-medium" style={`color:${RARITY_COLOR[entry.item.rarity] ?? 'var(--text)'}`}>
                     {entry.item.name}
-                    <span class="ml-1 text-xs text-amber-100/40">{ui.ilvl} {entry.item.itemLevel}</span>
+                    <span class="ml-1 text-xs text-[var(--text-faint)]">{ui.ilvl} {entry.item.itemLevel}</span>
                   </p>
                 {:else}
-                  <p class="text-sm text-amber-100/30">{ui.empty}</p>
+                  <p class="text-sm text-[var(--text-faint)]">{ui.empty}</p>
                 {/if}
               </div>
               {#if entry}
                 <button
                   onclick={() => doUnequip(slot)}
                   disabled={pendingSlot !== null}
-                  class="ml-3 shrink-0 rounded border border-red-800/60 px-2 py-1 text-xs text-red-400 hover:border-red-600/60 disabled:opacity-40"
+                  class="btn btn-danger btn-sm shrink-0"
                 >
                   {pendingSlot === slot ? ui.unequipping : ui.unequip}
                 </button>
@@ -209,13 +200,13 @@
 
         <!-- Equipment Stats Summary -->
         {#if Object.keys(equipment.equipmentStats).length > 0}
-          <div class="mt-4 rounded border border-amber-900/40 bg-black/20 p-4">
-            <h3 class="mb-2 text-sm font-semibold text-amber-300">{ui.stats}</h3>
-            <dl class="grid grid-cols-2 gap-1 text-xs">
+          <div class="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+            <h3 class="panel-title text-sm">{ui.stats}</h3>
+            <dl class="mt-2 grid grid-cols-2 gap-1 text-xs">
               {#each Object.entries(equipment.equipmentStats) as [key, val] (key)}
                 <div class="flex justify-between">
-                  <dt class="text-amber-100/60">{statLabel(key)}</dt>
-                  <dd class="text-amber-200">+{val}</dd>
+                  <dt class="text-[var(--text-dim)]">{statLabel(key)}</dt>
+                  <dd class="text-[var(--gold-bright)]">+{val}</dd>
                 </div>
               {/each}
             </dl>
@@ -224,34 +215,34 @@
       </section>
 
       <!-- Inventory -->
-      <section>
-        <h2 class="mb-3 text-xl font-semibold text-amber-200">{ui.inventory}</h2>
+      <section class="panel panel-pad">
+        <h2 class="panel-title">{ui.inventory}</h2>
         {#if inventory.length === 0}
-          <p class="text-amber-100/60">{ui.noItems}</p>
+          <p class="mt-2 text-[var(--text-dim)]">{ui.noItems}</p>
         {:else}
-          <div class="space-y-2">
+          <div class="mt-3 space-y-2">
             {#each inventory as inv (inv.itemId)}
               <div
-                class="rounded border border-amber-900/40 bg-black/20 p-3 {selectedItem?.itemId === inv.itemId ? 'border-amber-500/60' : ''}"
+                class="rounded-lg border bg-[var(--surface-2)] p-3 {selectedItem?.itemId === inv.itemId ? 'border-[var(--border-strong)]' : 'border-[var(--border)]'}"
               >
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <p class="truncate text-sm font-medium {RARITY_COLORS[inv.item.rarity as ItemRarity]}">
+                    <p class="truncate text-sm font-medium" style={`color:${RARITY_COLOR[inv.item.rarity] ?? 'var(--text)'}`}>
                       {inv.item.name}
                       {#if inv.quantity > 1}
-                        <span class="ml-1 text-amber-100/50">{ui.qty}{inv.quantity}</span>
+                        <span class="ml-1 text-[var(--text-faint)]">{ui.qty}{inv.quantity}</span>
                       {/if}
                     </p>
-                    <p class="text-xs text-amber-100/40">
+                    <p class="text-xs text-[var(--text-faint)]">
                       {inv.item.slot} · {ui.ilvl} {inv.item.itemLevel} · {ui.vendorGold} {inv.item.vendorGold}{ui.gold}
                     </p>
-                    <p class="mt-1 text-xs text-amber-100/50">
+                    <p class="mt-1 text-xs text-[var(--text-dim)]">
                       {Object.entries(inv.item.stats).map(([k, v]) => `+${v} ${statLabel(k)}`).join(', ')}
                     </p>
                   </div>
                   <button
                     onclick={() => { selectedItem = selectedItem?.itemId === inv.itemId ? null : inv; equipTargetSlot = null; }}
-                    class="shrink-0 rounded bg-amber-700/60 px-2 py-1 text-xs font-medium hover:bg-amber-600/60"
+                    class="btn btn-sm shrink-0"
                   >
                     {ui.equip}
                   </button>
@@ -274,7 +265,7 @@
                       <button
                         onclick={() => doEquip(inv.itemId, vslot)}
                         disabled={pendingSlot !== null}
-                        class="rounded bg-amber-600 px-3 py-1 text-xs font-medium text-black hover:bg-amber-500 disabled:opacity-50"
+                        class="btn btn-primary btn-sm"
                       >
                         {pendingSlot === vslot ? ui.equippping : `→ ${SLOT_LABELS[vslot]}`}
                       </button>
@@ -288,4 +279,4 @@
       </section>
     </div>
   {/if}
-</main>
+</div>

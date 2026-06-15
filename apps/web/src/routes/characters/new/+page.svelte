@@ -10,6 +10,8 @@
     type ClassId,
   } from '@game/shared';
   import { createCharacter } from '$lib/api';
+  import { factionLabel } from '$lib/cosmetics';
+  import Avatar from '$lib/components/Avatar.svelte';
 
   let name = $state('');
   let race = $state<RaceId>('human');
@@ -43,51 +45,59 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <h1 class="text-2xl font-bold text-amber-200">New character</h1>
+<main class="mx-auto max-w-2xl px-6 py-12">
+  <a href="/characters" class="text-sm text-[var(--gold)] hover:underline">← Back to characters</a>
 
-  <form class="mt-6 space-y-6" onsubmit={submit}>
+  <div class="mt-4 mb-6 text-center">
+    <div class="text-4xl" aria-hidden="true">🛡️</div>
+    <h1 class="mt-2 font-display text-3xl font-bold text-[var(--gold-bright)]">Create your hero</h1>
+    <p class="mt-1 text-sm text-[var(--text-dim)]">Choose a race, a class and a name to begin.</p>
+  </div>
+
+  <form class="panel panel-pad space-y-6" onsubmit={submit}>
+    <!-- Preview -->
+    <div class="flex items-center gap-4">
+      <Avatar name={name || '?'} {race} klass={klass ?? 'warrior'} size={72} />
+      <div class="min-w-0">
+        <p class="truncate font-display text-lg font-semibold text-[var(--gold-bright)]">{name || 'Unnamed hero'}</p>
+        <p class="text-sm text-[var(--text-dim)]">
+          {RACES[race].name}{#if klass} · {CLASSES[klass].name}{/if}
+        </p>
+      </div>
+    </div>
+
     <label class="block">
-      <span class="text-sm text-amber-100/70">Name (2–16 letters)</span>
-      <input
-        bind:value={name}
-        required
-        class="mt-1 w-full rounded border border-amber-900/40 bg-black/30 px-3 py-2"
-      />
+      <span class="field-label">Name (2–16 letters)</span>
+      <input bind:value={name} required class="input mt-1" />
     </label>
 
     <div>
-      <span class="text-sm text-amber-100/70">Race</span>
+      <span class="field-label">Race</span>
       <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {#each RACE_IDS as r (r)}
           <button
             type="button"
             onclick={() => (race = r)}
-            class={`rounded border px-2 py-2 text-sm ${
-              race === r
-                ? 'border-amber-500 bg-amber-700/40'
-                : 'border-amber-900/40 bg-black/20 hover:border-amber-700'
-            }`}
+            class="card flex-col !items-center !gap-1 !p-2 text-center"
+            style={race === r ? 'border-color:var(--border-strong)' : ''}
           >
-            <span class="block">{RACES[r].name}</span>
-            <span class="block text-xs text-amber-100/50">{RACES[r].faction}</span>
+            <Avatar name={RACES[r].name} race={r} klass={klass ?? 'warrior'} size={40} showEmblem={false} />
+            <span class="block text-sm">{RACES[r].name}</span>
+            <span class="block text-xs text-[var(--text-faint)]">{factionLabel(RACES[r].faction)}</span>
           </button>
         {/each}
       </div>
     </div>
 
     <div>
-      <span class="text-sm text-amber-100/70">Class</span>
+      <span class="field-label">Class</span>
       <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {#each allowedClasses as c (c)}
           <button
             type="button"
             onclick={() => (klass = c)}
-            class={`rounded border px-2 py-2 text-sm ${
-              klass === c
-                ? 'border-amber-500 bg-amber-700/40'
-                : 'border-amber-900/40 bg-black/20 hover:border-amber-700'
-            }`}
+            class="card !p-2 !justify-center text-center text-sm"
+            style={klass === c ? 'border-color:var(--border-strong)' : ''}
           >
             {CLASSES[c].name}
           </button>
@@ -95,12 +105,9 @@
       </div>
     </div>
 
-    {#if error}<p class="text-sm text-red-400">{error}</p>{/if}
+    {#if error}<p class="text-sm text-[var(--danger)]">{error}</p>{/if}
 
-    <button
-      disabled={!canSubmit || busy}
-      class="w-full rounded bg-amber-700 px-4 py-2 font-semibold hover:bg-amber-600 disabled:opacity-40"
-    >
+    <button disabled={!canSubmit || busy} class="btn btn-primary w-full">
       {busy ? 'Creating…' : 'Create character'}
     </button>
   </form>
