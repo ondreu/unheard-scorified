@@ -489,10 +489,11 @@ per-boss iterace + boss-easing + reward/loot curve + hard fail ✅, (2) sjednoce
 dungeon/raid run modelu (+ SP/3/5 módy), (3) arena 3v3/5v5, (4) ekonomika (M8.6).
 Guild-vázané části čekají na M9 social.
 
-### M8.6 — Ekonomika: soulbound/BoP & weekly lockout
+### M8.6 — Ekonomika: soulbound/BoP & weekly lockout 🚧
 
-> Status: **naplánováno** (vyčleněno z M8.5-E). Soudržný ekonomický balíček, který
-> chrání AH a progresi před zaplavením idle farmením. Ortogonální k bojovým módům.
+> Status: **🚧 aktuální milník** (další implementovatelný — nezávisí na M9 social).
+> Vyčleněno z M8.5-E. Soudržný ekonomický balíček, který chrání AH a progresi
+> před zaplavením idle farmením. Ortogonální k bojovým módům.
 
 - **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Nový atribut itemů v
   `@game/shared` (`none` | `bop` | `boe`); dnes je vše volně obchodovatelné. Raid/
