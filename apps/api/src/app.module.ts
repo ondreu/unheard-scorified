@@ -10,6 +10,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { ProfessionModule } from './profession/profession.module';
 import { PushModule } from './push/push.module';
 import { QuestModule } from './quest/quest.module';
+import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
 import { TalentModule } from './talent/talent.module';
 
@@ -32,6 +33,7 @@ import { TalentModule } from './talent/talent.module';
     DungeonModule,
     ProfessionModule,
     ArenaModule,
+    RaidModule,
   ],
 })
 export class AppModule {}

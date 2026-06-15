@@ -27,6 +27,8 @@ import type {
   FactionId,
   ProfessionId,
   RaceId,
+  RaidActor,
+  RaidRole,
 } from '@game/shared';
 
 export const healthLog = pgTable('health_log', {
@@ -254,6 +256,49 @@ export const arenaSeasonRewards = pgTable(
 );
 
 /**
+ * Odehraný raid run (M8, MP PVE). Jako arena match: ukládá snapshot celé party
+ * (`RaidActor[]`, vč. NPC backfillu) + seed → timeline se přepočítá deterministicky
+ * (anti-cheat). Resolve je okamžitý (idle-first), `durationSec` slouží k reveal
+ * combat logu při sledování. Účast a odměny jsou v `raid_run_participants`.
+ */
+export const raidRuns = pgTable('raid_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  raidId: varchar('raid_id', { length: 32 }).notNull(),
+  /** Snapshot celé party (pořadí = pořadí v simulaci). */
+  party: jsonb('party').$type<RaidActor[]>().notNull(),
+  seed: bigint('seed', { mode: 'number' }).notNull(),
+  victory: integer('victory').notNull(),
+  durationSec: integer('duration_sec').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Účast postavy v raid runu + udělená odměna (M8). Jeden řádek per (run, postava).
+ * Reální hráči (iniciátor + vytažení z fronty); NPC backfill se zde NEukládá.
+ * Odměna se uděluje při resolve (okamžitě, deterministicky) — `rewardClaimedAt`
+ * je čas udělení (pro „nově získáno" banner v UI).
+ */
+export const raidRunParticipants = pgTable(
+  'raid_run_participants',
+  {
+    raidRunId: uuid('raid_run_id')
+      .notNull()
+      .references(() => raidRuns.id, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 8 }).$type<RaidRole>().notNull(),
+    /** True, pokud postava raid sama iniciovala (vs vytažena z fronty). */
+    initiator: integer('initiator').notNull().default(0),
+    rewardXp: integer('reward_xp').notNull().default(0),
+    rewardGold: integer('reward_gold').notNull().default(0),
+    rewardItems: jsonb('reward_items').$type<string[]>().notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.raidRunId, t.characterId] })],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -284,6 +329,18 @@ export const charactersRelations = relations(characters, ({ one, many }) => ({
   professions: many(characterProfessions),
   reputation: many(characterReputation),
   arenaRatings: many(arenaRatings),
+}));
+
+export const raidRunsRelations = relations(raidRuns, ({ many }) => ({
+  participants: many(raidRunParticipants),
+}));
+
+export const raidRunParticipantsRelations = relations(raidRunParticipants, ({ one }) => ({
+  run: one(raidRuns, { fields: [raidRunParticipants.raidRunId], references: [raidRuns.id] }),
+  character: one(characters, {
+    fields: [raidRunParticipants.characterId],
+    references: [characters.id],
+  }),
 }));
 
 export const arenaRatingsRelations = relations(arenaRatings, ({ one }) => ({
@@ -384,3 +441,7 @@ export type ArenaMatch = typeof arenaMatches.$inferSelect;
 export type NewArenaMatch = typeof arenaMatches.$inferInsert;
 export type ArenaSeasonReward = typeof arenaSeasonRewards.$inferSelect;
 export type NewArenaSeasonReward = typeof arenaSeasonRewards.$inferInsert;
+export type RaidRun = typeof raidRuns.$inferSelect;
+export type NewRaidRun = typeof raidRuns.$inferInsert;
+export type RaidRunParticipant = typeof raidRunParticipants.$inferSelect;
+export type NewRaidRunParticipant = typeof raidRunParticipants.$inferInsert;

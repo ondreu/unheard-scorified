@@ -1,0 +1,404 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  aggregateTalentEffects,
+  baseStatsFor,
+  buildCompanionBase,
+  buildRaidBoss,
+  COMPANION_NAMES,
+  computeRaidReward,
+  deriveCombatProfile,
+  deriveRaidActor,
+  isRaidId,
+  isRaidRole,
+  isRaidUnlocked,
+  levelFromXp,
+  RAID_COMPOSITION,
+  RAID_ROLES,
+  RAIDS,
+  seedFromString,
+  simulateRaidRun,
+  type ClassId,
+  type CombatActor,
+  type CombatEvent,
+  type RaceId,
+  type RaidActor,
+  type RaidReward,
+  type RaidRole,
+} from '@game/shared';
+import { CharacterRepository } from '../character/character.repository';
+import { InventoryService } from '../inventory/inventory.service';
+import { InventoryRepository } from '../inventory/inventory.repository';
+import { TalentRepository } from '../talent/talent.repository';
+import { CompletedQuestRepository } from '../quest/quest.repository';
+import { PushService } from '../push/push.service';
+import type { Character, RaidRun } from '../db/schema';
+import { RaidRepository } from './raid.repository';
+import { RaidEventsRelay } from './raid.events';
+import { RAID_QUEUE, type RaidQueue, type RaidQueueEntry } from './raid.matchmaking';
+
+const RECENT_RUNS_LIMIT = 8;
+
+export interface RaidListItem {
+  id: string;
+  name: string;
+  description: string;
+  requiredLevel: number;
+  attunementQuests: string[];
+  bossNames: string[];
+  unlocked: boolean;
+  /** Role, ve které postava čeká ve frontě (nebo null). */
+  queuedRole: RaidRole | null;
+}
+
+export interface RaidRewardView {
+  xp: number;
+  gold: number;
+  items: string[];
+}
+
+export interface RaidRunView {
+  runId: string;
+  raidId: string;
+  raidName: string;
+  startAt: string;
+  durationSec: number;
+  progress: {
+    elapsedSec: number;
+    remainingSec: number;
+    progress: number;
+    completed: boolean;
+    finishesAt: string;
+  };
+  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  bosses: { name: string }[];
+  events: CombatEvent[];
+  /** null dokud se boj „neodehraje" (reveal dle času); pak true/false. */
+  victory: boolean | null;
+  /** Odměna postavy (perspektiva volajícího). */
+  myReward: RaidRewardView | null;
+  myRole: RaidRole | null;
+}
+
+export interface RaidRunSummary {
+  runId: string;
+  raidId: string;
+  raidName: string;
+  role: RaidRole;
+  victory: boolean;
+  reward: RaidRewardView;
+  createdAt: string;
+}
+
+/**
+ * Raid (M8, MP PVE). Idle-first jako arena: hráč buď čeká ve frontě v dané roli
+ * (k vytažení do cizí party), nebo raid sám spustí (`enter`) — chybějící role
+ * doplní vytažením čekajících hráčů, zbytek NPC backfillem → raid jde vyřešit
+ * i sólo. Combat recykluje engine z M5 (party vs boss). Realtime watch přes WS
+ * (recykluje vrstvu z M7). Viz ADR 0011.
+ */
+@Injectable()
+export class RaidService {
+  constructor(
+    private readonly characters: CharacterRepository,
+    private readonly inventory: InventoryService,
+    private readonly inventoryRepo: InventoryRepository,
+    private readonly talents: TalentRepository,
+    private readonly completed: CompletedQuestRepository,
+    private readonly push: PushService,
+    private readonly repo: RaidRepository,
+    private readonly events: RaidEventsRelay,
+    @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
+  ) {}
+
+  /** Seznam raidů s flagem unlocked (level + attunement) a stavem fronty. */
+  async listRaids(accountId: string, characterId: string): Promise<RaidListItem[]> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+
+    const level = levelFromXp(character.totalXp);
+    const completedIds = await this.completed.completedIds(characterId);
+    const result: RaidListItem[] = [];
+    for (const raid of Object.values(RAIDS).sort(
+      (a, b) => a.attunement.requiredLevel - b.attunement.requiredLevel,
+    )) {
+      const queuedRole = await this.queue.queuedRole(raid.id, characterId);
+      result.push({
+        id: raid.id,
+        name: raid.name,
+        description: raid.description,
+        requiredLevel: raid.attunement.requiredLevel,
+        attunementQuests: raid.attunement.questAnyOf,
+        bossNames: raid.bosses.map((b) => b.name),
+        unlocked: isRaidUnlocked(raid.id, level, completedIds),
+        queuedRole,
+      });
+    }
+    return result;
+  }
+
+  /** Zařadí postavu do fronty raidu v dané roli (čeká na vytažení do party). */
+  async queueForRaid(
+    accountId: string,
+    characterId: string,
+    raidId: string,
+    role: string,
+  ): Promise<{ queued: true; role: RaidRole }> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+    if (!isRaidId(raidId)) throw new BadRequestException('Unknown raid');
+    if (!isRaidRole(role)) throw new BadRequestException('Invalid role');
+
+    const level = levelFromXp(character.totalXp);
+    const completedIds = await this.completed.completedIds(characterId);
+    if (!isRaidUnlocked(raidId, level, completedIds)) {
+      throw new BadRequestException('Raid is not unlocked (level / attunement)');
+    }
+
+    const snapshot = await this.buildRaidActor(character, level, role);
+    await this.queue.enqueue(raidId, {
+      characterId,
+      accountId,
+      name: character.name,
+      role,
+      snapshot,
+      queuedAt: Date.now(),
+    });
+    return { queued: true, role };
+  }
+
+  /** Opustí frontu raidu. */
+  async leaveQueue(
+    accountId: string,
+    characterId: string,
+    raidId: string,
+  ): Promise<{ left: boolean }> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+    if (!isRaidId(raidId)) throw new BadRequestException('Unknown raid');
+    const wasQueued = await this.queue.isQueued(raidId, characterId);
+    await this.queue.remove(raidId, characterId);
+    return { left: wasQueued };
+  }
+
+  /**
+   * Spustí raid: postava se zařadí v dané roli a okamžitě se sestaví party
+   * (vytažení čekajících hráčů pro chybějící role + NPC backfill) a deterministicky
+   * vyřeší. Odměny se udělí všem reálným účastníkům (offline soupeři dostanou push).
+   */
+  async enter(
+    accountId: string,
+    characterId: string,
+    raidId: string,
+    role: string,
+  ): Promise<RaidRunView> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+    if (!isRaidId(raidId)) throw new BadRequestException('Unknown raid');
+    if (!isRaidRole(role)) throw new BadRequestException('Invalid role');
+
+    const level = levelFromXp(character.totalXp);
+    const completedIds = await this.completed.completedIds(characterId);
+    if (!isRaidUnlocked(raidId, level, completedIds)) {
+      throw new BadRequestException('Raid is not unlocked (level / attunement)');
+    }
+
+    const raid = RAIDS[raidId]!;
+    // Vstupuji-li, opustím případnou frontu (nečekám, hraju teď).
+    await this.queue.remove(raidId, characterId);
+
+    const myActor = await this.buildRaidActor(character, level, role);
+    const party: RaidActor[] = [myActor];
+    const pulled: RaidQueueEntry[] = [];
+
+    // Kolik kterých rolí ještě potřebujeme (po odečtení mé).
+    const need: Record<RaidRole, number> = { ...RAID_COMPOSITION };
+    need[role] -= 1;
+
+    for (const r of RAID_ROLES) {
+      let npcIndex = 1;
+      for (let i = 0; i < need[r]; i++) {
+        const candidate = await this.queue.takeByRole(raidId, r, characterId);
+        if (candidate) {
+          party.push(candidate.snapshot);
+          pulled.push(candidate);
+        } else {
+          const name = `${COMPANION_NAMES[r]} ${npcIndex++}`;
+          party.push(deriveRaidActor(buildCompanionBase(raid, name), r));
+        }
+      }
+    }
+
+    const seed = seedFromString(`${raidId}:${characterId}:${Date.now()}`);
+    const bosses = raid.bosses.map(buildRaidBoss);
+    const result = simulateRaidRun(party, bosses, seed);
+
+    const run = await this.repo.createRun({
+      raidId,
+      party,
+      seed,
+      victory: result.victory ? 1 : 0,
+      durationSec: result.durationSec,
+    });
+
+    // Odměny všem reálným účastníkům (deterministicky per postava).
+    const myReward = await this.grantParticipant(run.id, character, role, true, raidId, result.victory);
+    for (const p of pulled) {
+      const pc = await this.characters.findById(p.characterId);
+      if (!pc) continue;
+      await this.grantParticipant(run.id, pc, p.role, false, raidId, result.victory);
+      this.events.raidResolved(run.id, raidId, p.characterId);
+      await this.push.sendToAccount(p.accountId, {
+        title: 'Raid Complete!',
+        body: `${pc.name} joined ${character.name}'s ${raid.name} and the raid ${result.victory ? 'was victorious' : 'wiped'}.`,
+        characterId: p.characterId,
+      });
+    }
+
+    return this.toRunView(run, characterId, Date.now(), myReward, role);
+  }
+
+  /** Detail/přehrání raid runu z perspektivy postavy (reveal dle času). */
+  async getRun(accountId: string, characterId: string, runId: string): Promise<RaidRunView> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+
+    const run = await this.repo.findRun(runId);
+    if (!run) throw new NotFoundException('Raid run not found');
+    const participants = await this.repo.listParticipants(runId);
+    const mine = participants.find((p) => p.characterId === characterId);
+    if (!mine) throw new ForbiddenException('Not a participant of this raid run');
+
+    return this.toRunView(
+      run,
+      characterId,
+      Date.now(),
+      { xp: mine.rewardXp, gold: mine.rewardGold, items: mine.rewardItems },
+      mine.role,
+    );
+  }
+
+  /** Nedávné raid runy postavy. */
+  async recentRuns(accountId: string, characterId: string): Promise<RaidRunSummary[]> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+
+    const rows = await this.repo.listRecentForCharacter(characterId, RECENT_RUNS_LIMIT);
+    return rows.map(({ run, participant }) => ({
+      runId: run.id,
+      raidId: run.raidId,
+      raidName: RAIDS[run.raidId]?.name ?? run.raidId,
+      role: participant.role,
+      victory: run.victory === 1,
+      reward: { xp: participant.rewardXp, gold: participant.rewardGold, items: participant.rewardItems },
+      createdAt: run.createdAt.toISOString(),
+    }));
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private async grantParticipant(
+    runId: string,
+    character: Character,
+    role: RaidRole,
+    initiator: boolean,
+    raidId: string,
+    victory: boolean,
+  ): Promise<RaidReward> {
+    const raid = RAIDS[raidId]!;
+    const rewardSeed = seedFromString(`${runId}:${character.id}`);
+    const reward = computeRaidReward(raid, victory, rewardSeed);
+    await this.characters.addRewards(character.id, reward.xp, reward.gold);
+    for (const itemId of reward.items) {
+      await this.inventoryRepo.addItem(character.id, itemId);
+    }
+    await this.repo.addParticipant({
+      raidRunId: runId,
+      characterId: character.id,
+      role,
+      initiator: initiator ? 1 : 0,
+      rewardXp: reward.xp,
+      rewardGold: reward.gold,
+      rewardItems: reward.items,
+    });
+    return reward;
+  }
+
+  /** Bojový profil postavy (jako dungeon/arena) převedený na RaidActor dle role. */
+  private async buildRaidActor(
+    character: Character,
+    level: number,
+    role: RaidRole,
+  ): Promise<RaidActor> {
+    const base = await this.buildCombatProfile(character, level);
+    return deriveRaidActor(base, role);
+  }
+
+  private async buildCombatProfile(character: Character, level: number): Promise<CombatActor> {
+    const primary = baseStatsFor(character.race as RaceId, character.class as ClassId, level);
+    const equipment = await this.inventory.getEquipmentStats(character.id);
+    const talentRows = await this.talents.listTalents(character.id);
+    const allocations: Record<string, number> = {};
+    for (const r of talentRows) allocations[r.talentId] = r.points;
+    const talents = aggregateTalentEffects(character.class as ClassId, allocations);
+
+    return deriveCombatProfile({
+      name: character.name,
+      level,
+      klass: character.class as ClassId,
+      primary,
+      equipment,
+      talents,
+    });
+  }
+
+  private toRunView(
+    run: RaidRun,
+    viewerId: string,
+    now: number,
+    myReward: RaidReward | null,
+    myRole: RaidRole | null,
+  ): RaidRunView {
+    const raid = RAIDS[run.raidId];
+    const startMs = run.createdAt.getTime();
+    const elapsedSec = Math.max(0, Math.floor((now - startMs) / 1000));
+    const remainingSec = Math.max(0, run.durationSec - elapsedSec);
+    const completed = now >= startMs + run.durationSec * 1000;
+    const progress = run.durationSec <= 0 ? 1 : Math.min(1, elapsedSec / run.durationSec);
+
+    const bosses = (raid?.bosses ?? []).map(buildRaidBoss);
+    const result = simulateRaidRun(run.party, bosses, run.seed);
+    const visible = result.events.filter((e) => e.t <= elapsedSec);
+
+    return {
+      runId: run.id,
+      raidId: run.raidId,
+      raidName: raid?.name ?? run.raidId,
+      startAt: run.createdAt.toISOString(),
+      durationSec: run.durationSec,
+      progress: {
+        elapsedSec,
+        remainingSec,
+        progress,
+        completed,
+        finishesAt: new Date(startMs + run.durationSec * 1000).toISOString(),
+      },
+      party: run.party.map((a) => ({
+        name: a.name,
+        role: a.role,
+        maxHealth: a.maxHealth,
+        isNpc: a.name.startsWith('Mercenary '),
+      })),
+      bosses: (raid?.bosses ?? []).map((b) => ({ name: b.name })),
+      events: visible,
+      victory: completed ? run.victory === 1 : null,
+      myReward: myReward ? { xp: myReward.xp, gold: myReward.gold, items: myReward.items } : null,
+      myRole,
+    };
+  }
+}

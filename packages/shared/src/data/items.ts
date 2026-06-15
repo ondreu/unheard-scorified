@@ -253,6 +253,60 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     rarity: 'epic', itemLevel: 40, vendorGold: 40,
     stats: { strength: 16, agility: 6, attack_power: 22, crit_rating: 6 },
   },
+
+  // --- M8: Raid loot (epic/legendary, raid-only) ---
+  // Tier 1 raid (Molten Core, ~lvl 40)
+  earthshaker: {
+    id: 'earthshaker', name: 'Earthshaker', slot: 'main_hand',
+    rarity: 'epic', itemLevel: 50, vendorGold: 80,
+    stats: { strength: 20, stamina: 14, attack_power: 28, crit_rating: 8 },
+  },
+  robe_of_volatile_power: {
+    id: 'robe_of_volatile_power', name: 'Robe of Volatile Power', slot: 'chest',
+    rarity: 'epic', itemLevel: 50, vendorGold: 80,
+    stats: { intellect: 22, spirit: 14, spell_power: 26 },
+  },
+  aged_core_leather_gloves: {
+    id: 'aged_core_leather_gloves', name: 'Aged Core Leather Gloves', slot: 'hands',
+    rarity: 'epic', itemLevel: 48, vendorGold: 70,
+    stats: { agility: 18, stamina: 12, crit_rating: 10 },
+  },
+  sabatons_of_the_flamewalker: {
+    id: 'sabatons_of_the_flamewalker', name: 'Sabatons of the Flamewalker', slot: 'feet',
+    rarity: 'epic', itemLevel: 49, vendorGold: 72,
+    stats: { strength: 16, stamina: 16, armor: 80 },
+  },
+  choker_of_enlightenment: {
+    id: 'choker_of_enlightenment', name: 'Choker of Enlightenment', slot: 'neck',
+    rarity: 'epic', itemLevel: 48, vendorGold: 70,
+    stats: { intellect: 14, spirit: 10, spell_power: 12 },
+  },
+  // Tier 2 raid (Blackwing Lair, ~lvl 55)
+  ashkandi: {
+    id: 'ashkandi', name: 'Ashkandi, Greatsword of the Brotherhood', slot: 'main_hand',
+    rarity: 'legendary', itemLevel: 66, vendorGold: 200,
+    stats: { strength: 34, stamina: 22, attack_power: 44, crit_rating: 12 },
+  },
+  netherwind_crown: {
+    id: 'netherwind_crown', name: 'Netherwind Crown', slot: 'head',
+    rarity: 'epic', itemLevel: 64, vendorGold: 150,
+    stats: { intellect: 30, spirit: 18, spell_power: 34, crit_rating: 10 },
+  },
+  drake_talon_pauldrons: {
+    id: 'drake_talon_pauldrons', name: 'Drake Talon Pauldrons', slot: 'shoulder',
+    rarity: 'epic', itemLevel: 63, vendorGold: 145,
+    stats: { strength: 26, stamina: 22, armor: 120 },
+  },
+  ringo_drakefire: {
+    id: 'ringo_drakefire', name: 'Band of Drakefire', slot: 'finger',
+    rarity: 'epic', itemLevel: 62, vendorGold: 140,
+    stats: { agility: 22, stamina: 16, crit_rating: 14 },
+  },
+  cloak_of_draconic_might: {
+    id: 'cloak_of_draconic_might', name: 'Cloak of Draconic Might', slot: 'back',
+    rarity: 'epic', itemLevel: 62, vendorGold: 140,
+    stats: { strength: 18, stamina: 14, attack_power: 20 },
+  },
 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];

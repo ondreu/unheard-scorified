@@ -43,6 +43,13 @@
       "when": 1781496611690,
       "tag": "0005_normal_donald_blake",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781499205919,
+      "tag": "0006_premium_risque",
+      "breakpoints": true
     }
   ]
 }

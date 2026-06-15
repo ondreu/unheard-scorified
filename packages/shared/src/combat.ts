@@ -130,6 +130,7 @@ export type CombatEventType =
   | 'encounter_start'
   | 'attack'
   | 'ability'
+  | 'heal'
   | 'enemy_defeated'
   | 'player_defeated'
   | 'victory'

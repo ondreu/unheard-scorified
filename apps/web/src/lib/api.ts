@@ -406,6 +406,95 @@ export function getArenaMatch(characterId: string, matchId: string): Promise<Are
   return request<ArenaMatchView>(`/characters/${characterId}/arena/match/${matchId}`);
 }
 
+// ── Raids (M8, MP PVE) ───────────────────────────────────────────────────────
+
+export type RaidRole = 'tank' | 'healer' | 'dps';
+
+export interface RaidListItem {
+  id: string;
+  name: string;
+  description: string;
+  requiredLevel: number;
+  attunementQuests: string[];
+  bossNames: string[];
+  unlocked: boolean;
+  queuedRole: RaidRole | null;
+}
+
+export interface RaidReward {
+  xp: number;
+  gold: number;
+  items: string[];
+}
+
+export interface RaidRunView {
+  runId: string;
+  raidId: string;
+  raidName: string;
+  startAt: string;
+  durationSec: number;
+  progress: ActivityProgress;
+  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  bosses: { name: string }[];
+  events: CombatEvent[];
+  victory: boolean | null;
+  myReward: RaidReward | null;
+  myRole: RaidRole | null;
+}
+
+export interface RaidRunSummary {
+  runId: string;
+  raidId: string;
+  raidName: string;
+  role: RaidRole;
+  victory: boolean;
+  reward: RaidReward;
+  createdAt: string;
+}
+
+export function listRaids(characterId: string): Promise<RaidListItem[]> {
+  return request<RaidListItem[]>(`/characters/${characterId}/raids`);
+}
+
+export function recentRaidRuns(characterId: string): Promise<RaidRunSummary[]> {
+  return request<RaidRunSummary[]>(`/characters/${characterId}/raids/runs`);
+}
+
+export function getRaidRun(characterId: string, runId: string): Promise<RaidRunView> {
+  return request<RaidRunView>(`/characters/${characterId}/raids/run/${runId}`);
+}
+
+export function enterRaid(
+  characterId: string,
+  raidId: string,
+  role: RaidRole,
+): Promise<RaidRunView> {
+  return request<RaidRunView>(`/characters/${characterId}/raids/${raidId}/enter`, {
+    method: 'POST',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function queueRaid(
+  characterId: string,
+  raidId: string,
+  role: RaidRole,
+): Promise<{ queued: true; role: RaidRole }> {
+  return request<{ queued: true; role: RaidRole }>(
+    `/characters/${characterId}/raids/${raidId}/queue`,
+    { method: 'POST', body: JSON.stringify({ role }) },
+  );
+}
+
+export function leaveRaidQueue(
+  characterId: string,
+  raidId: string,
+): Promise<{ left: boolean }> {
+  return request<{ left: boolean }>(`/characters/${characterId}/raids/${raidId}/leave`, {
+    method: 'POST',
+  });
+}
+
 export function getVapidPublicKey(): Promise<{ key: string }> {
   return request<{ key: string }>('/push/vapid-public-key', {}, false);
 }

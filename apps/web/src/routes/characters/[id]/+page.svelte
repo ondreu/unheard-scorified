@@ -149,6 +149,7 @@
     dungeons: 'Dungeons',
     professions: 'Professions',
     arena: 'Arena (PVP)',
+    raids: 'Raids (MP PVE)',
   };
 
   const isDungeon = $derived(activity?.activityType === 'dungeon');
@@ -307,6 +308,12 @@
         class="rounded bg-red-800/40 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-700/50"
       >
         {uiM4.arena}
+      </a>
+      <a
+        href={`/characters/${characterId}/raids`}
+        class="rounded bg-red-800/40 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-700/50"
+      >
+        {uiM4.raids}
       </a>
     </div>
 

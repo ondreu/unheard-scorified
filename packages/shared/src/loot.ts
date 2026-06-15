@@ -141,6 +141,39 @@ export const DUNGEON_LOOT_TABLES: Record<string, LootTable> = {
 };
 
 /**
+ * Raid loot tabulky per raid (M8). Vyšší šance na drop než dungeony + epic/
+ * legendary raid-only itemy. Klíč = raidId. Loot se rolluje per účastník při
+ * vítězství (deterministicky, seed odvozený z runu + postavy).
+ */
+export const RAID_LOOT_TABLES: Record<string, LootTable> = {
+  molten_core: {
+    anyDropChance: 0.95,
+    entries: [
+      { itemId: 'earthshaker', dropChance: 0.16 },
+      { itemId: 'robe_of_volatile_power', dropChance: 0.16 },
+      { itemId: 'aged_core_leather_gloves', dropChance: 0.18 },
+      { itemId: 'sabatons_of_the_flamewalker', dropChance: 0.18 },
+      { itemId: 'choker_of_enlightenment', dropChance: 0.18 },
+      // Vyšší ilvl gear ze základních tier 3 zón jako „útěcha"
+      { itemId: 'arcane_robes', dropChance: 0.07 },
+    ],
+  },
+  blackwing_lair: {
+    anyDropChance: 1.0,
+    entries: [
+      { itemId: 'netherwind_crown', dropChance: 0.16 },
+      { itemId: 'drake_talon_pauldrons', dropChance: 0.18 },
+      { itemId: 'ringo_drakefire', dropChance: 0.18 },
+      { itemId: 'cloak_of_draconic_might', dropChance: 0.18 },
+      { itemId: 'earthshaker', dropChance: 0.1 },
+      { itemId: 'robe_of_volatile_power', dropChance: 0.1 },
+      // Legendary (vzácný)
+      { itemId: 'ashkandi', dropChance: 0.04 },
+    ],
+  },
+};
+
+/**
  * Roluje loot z tabulky. Vrátí pole itemId (obvykle 0 nebo 1 item).
  * Seeduje se z aktivity → deterministické.
  */
