@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ActivityModule } from './activity/activity.module';
+import { ArenaModule } from './arena/arena.module';
 import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { DbModule } from './db/db.module';
@@ -30,6 +31,7 @@ import { TalentModule } from './talent/talent.module';
     TalentModule,
     DungeonModule,
     ProfessionModule,
+    ArenaModule,
   ],
 })
 export class AppModule {}

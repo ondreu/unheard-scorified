@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { characters, type Character, type NewCharacter } from '../db/schema';
 
@@ -28,6 +28,12 @@ export class CharacterRepository {
   async findById(id: string): Promise<Character | undefined> {
     const [row] = await this.db.select().from(characters).where(eq(characters.id, id)).limit(1);
     return row;
+  }
+
+  /** Načte více postav podle id najednou (např. pro žebříček arény). */
+  findByIds(ids: string[]): Promise<Character[]> {
+    if (ids.length === 0) return Promise.resolve([]);
+    return this.db.select().from(characters).where(inArray(characters.id, ids));
   }
 
   /** Připíše XP a zlato postavě (odměny z aktivity). Vrací aktualizovaný řádek. */

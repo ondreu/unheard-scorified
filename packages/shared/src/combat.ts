@@ -258,13 +258,17 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
 
 // ── Simulace ────────────────────────────────────────────────────────────────
 
-interface HitResult {
+export interface HitResult {
   amount: number;
   crit: boolean;
 }
 
-/** Spočítá poškození jednoho zásahu (variance + crit + armor mitigace). */
-function computeHit(
+/**
+ * Spočítá poškození jednoho zásahu (variance + crit + armor mitigace).
+ * Exportováno, aby PVP duel (M7) počítal zásahy identicky jako PVE (žádná
+ * duplikace bojových vzorců — viz CLAUDE.md).
+ */
+export function computeHit(
   attacker: CombatActor,
   defender: CombatActor,
   rng: SeededRng,
@@ -420,6 +424,6 @@ export function simulateDungeonRun(
   };
 }
 
-function round1(n: number): number {
+export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

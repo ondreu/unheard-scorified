@@ -148,6 +148,7 @@
     talents: 'Talents',
     dungeons: 'Dungeons',
     professions: 'Professions',
+    arena: 'Arena (PVP)',
   };
 
   const isDungeon = $derived(activity?.activityType === 'dungeon');
@@ -300,6 +301,12 @@
         class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
       >
         {uiM4.professions}
+      </a>
+      <a
+        href={`/characters/${characterId}/arena`}
+        class="rounded bg-red-800/40 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-700/50"
+      >
+        {uiM4.arena}
       </a>
     </div>
 
