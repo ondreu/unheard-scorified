@@ -321,6 +321,91 @@ export function startCraft(characterId: string, recipeId: string): Promise<Profe
   });
 }
 
+// ── Arena (M7, PVP) ──────────────────────────────────────────────────────────
+
+export interface LeaderboardRow {
+  rank: number;
+  characterId: string;
+  name: string;
+  rating: number;
+  tier: string;
+  tierName: string;
+  isSelf: boolean;
+}
+
+export interface MatchSummary {
+  matchId: string;
+  opponentName: string;
+  won: boolean;
+  ratingDelta: number;
+  ratingAfter: number;
+  createdAt: string;
+}
+
+export interface SeasonRewardView {
+  seasonId: string;
+  seasonName: string;
+  finalRating: number;
+  finalTier: string;
+  rewardGold: number;
+}
+
+export interface ArenaView {
+  season: { id: string; name: string; endsAt: string };
+  bracket: string;
+  minLevel: number;
+  eligible: boolean;
+  rating: number;
+  tier: string;
+  tierName: string;
+  nextTierAt: number | null;
+  wins: number;
+  losses: number;
+  rank: number | null;
+  queued: boolean;
+  leaderboard: LeaderboardRow[];
+  recentMatches: MatchSummary[];
+  newSeasonRewards: SeasonRewardView[];
+}
+
+export interface QueueResult {
+  status: 'queued' | 'matched';
+  matchId?: string;
+  arena: ArenaView;
+}
+
+export interface ArenaMatchView {
+  matchId: string;
+  seasonId: string;
+  bracket: string;
+  startAt: string;
+  durationSec: number;
+  progress: ActivityProgress;
+  me: { characterId: string; name: string; maxHealth: number };
+  opponent: { characterId: string; name: string; maxHealth: number };
+  events: CombatEvent[];
+  outcome: 'win' | 'loss' | null;
+  ratingBefore: number;
+  ratingAfter: number;
+  ratingDelta: number;
+}
+
+export function getArena(characterId: string): Promise<ArenaView> {
+  return request<ArenaView>(`/characters/${characterId}/arena`);
+}
+
+export function queueArena(characterId: string): Promise<QueueResult> {
+  return request<QueueResult>(`/characters/${characterId}/arena/queue`, { method: 'POST' });
+}
+
+export function leaveArenaQueue(characterId: string): Promise<{ left: boolean }> {
+  return request<{ left: boolean }>(`/characters/${characterId}/arena/leave`, { method: 'POST' });
+}
+
+export function getArenaMatch(characterId: string, matchId: string): Promise<ArenaMatchView> {
+  return request<ArenaMatchView>(`/characters/${characterId}/arena/match/${matchId}`);
+}
+
 export function getVapidPublicKey(): Promise<{ key: string }> {
   return request<{ key: string }>('/push/vapid-public-key', {}, false);
 }

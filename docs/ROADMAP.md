@@ -283,12 +283,41 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Zbývá doladit:** „use" consumables/buffy (M9); prodej materiálů (vendor/AH, M8);
   reputace i z questů/dungeonů (retrofit); balanc (M9).
 
-### M7 — Multiplayer infra & Areny (MP PVP)
+### M7 — Multiplayer infra & Areny (MP PVP) — ✅ hotovo
 
-- Matchmaking (Redis fronta), rating/ladder, deterministický PVP auto-resolve.
-- Škálovatelná realtime vrstva: WebSocket s Redis pub/sub adaptérem (multi-instance).
-- Leaderboardy, sezónní odměny.
-- **Výstup:** zařadím se do arény, soupeřím, stoupám v žebříčku.
+- [x] **Matchmaking** (Redis fronta, abstrahováno za `MatchmakingQueue` →
+      Redis impl + in-memory pro testy). Idle-first: fronta drží **snapshot**
+      bojového profilu → spárování i s offline soupeřem; atomické „nárokování"
+      přes `HDEL` (žádné dvojité párování mezi instancemi).
+- [x] **Deterministický 1v1 PVP auto-resolve** (`packages/shared/src/pvp.ts::
+      simulatePvpDuel`) — recykluje combat engine z M5 (`computeHit`, `CombatActor`),
+      symetrický duel + rampage proti stalemate. Rozhodnutí PM: MVP jen bracket `1v1`.
+- [x] **Elo rating + sezónní ladder** (start 1500, K=32). Sezóny = data v shared;
+      rating per `(postava, bracket, sezóna)` → **reset** novou sezónou. **Lazy
+      idempotentní rollover**: archiv finálního standingu + **sezónní odměna**
+      dle tieru (`arena_season_rewards`).
+- [x] **Leaderboardy** přes Redis **sorted set** (`ArenaLeaderboard` rozhraní;
+      durable zdroj pravdy = `arena_ratings`, DB fallback).
+- [x] **Škálovatelná realtime vrstva**: WebSocket (Socket.IO) s **Redis pub/sub
+      adaptérem** (`RedisIoAdapter`, multi-instance, stateless API — žádné sticky
+      sessions). `arena:match_found` (cross-instance notifikace fronty) +
+      `arena:watch` (živé streamování předpočítaného combat logu); REST je
+      autoritativní fallback. **První reálný realtime transport v projektu.**
+- [x] DB: `arena_ratings` + `arena_matches` + `arena_season_rewards`
+      (migrace `0005_normal_donald_blake`, auto-migrace při startu).
+- [x] `ArenaModule` (NestJS): controller + service + gateway + repository;
+      `ArenaEventsRelay` rozplétá service↔gateway (žádný DI cyklus).
+- [x] Web: `/characters/[id]/arena` (rating, žebříček, fronta s live „match
+      found", historie, banner sezónní odměny), `/arena/match/[matchId]`
+      (živé sledování přes WS). `$lib/arena-socket.ts`. Texty anglicky, oddělené.
+- [x] Testy: shared unit (`pvp.test.ts`, +15) + API integrační flow
+      (`arena.flow.test.ts` přes pglite, in-memory fronta/žebříček, +7).
+      Build/test/lint/typecheck zelené (140 testů: 84 shared + 56 API).
+      DI graf (vč. WS gateway + Redis adaptér) ověřen reálným bootem.
+- Detail: `docs/systems/arenas-pvp.md`, ADR `docs/adr/0010-arena-pvp-and-realtime.md`.
+- **Výstup:** zařadím se do arény, soupeřím, stoupám v žebříčku. ✅
+- **Zbývá doladit:** PVP-specifický balanc vs PVE (M9); rating-window matchmaking,
+  2v2/3v3 brackety, sezónní cosmetic odměny (M8/M9).
 
 ### M8 — Raidy (MP PVE) & Auction House
 
@@ -314,9 +343,10 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 ### Menší rozhodnutí do dalších fází
 
 - ~~Hloubka profesí v MVP. → M6~~ ✅ vyřešeno v M6: 2 gathering + 2 crafting (Mining→Blacksmithing, Herbalism→Alchemy) + 3 frakce s rep-gated recepty.
-- Síla PVP vs PVE balancu. → M5/M7
+- Síla PVP vs PVE balancu. → M5/**M9** (M7 používá společný `deriveCombatProfile`; samostatný PVP balanc + rampage tuning je v M9 balanc passu).
 - ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
-- Sezónní model (reset ladderu) pro PVP. → M7
+- ~~Sezónní model (reset ladderu) pro PVP. → M7~~ ✅ vyřešeno v M7: sezóny = data v shared, rating per sezóna (reset), lazy idempotentní rollover + sezónní odměny dle tieru.
+- ~~Rozsah Aren MVP (kolik bracketů, realtime watch). → M7~~ ✅ vyřešeno v M7: jen `1v1`, live watch přes WebSocket (Redis pub/sub).
 
 ---
 

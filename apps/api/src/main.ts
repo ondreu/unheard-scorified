@@ -5,6 +5,7 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { AppModule } from './app.module';
 import { loadConfig } from './config/config';
 import { runMigrations } from './db/migrate';
+import { RedisIoAdapter } from './redis/redis-io.adapter';
 
 async function bootstrap(): Promise<void> {
   const config = loadConfig();
@@ -22,6 +23,12 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
+
+  // WebSocket (M7): Redis pub/sub adaptér pro multi-instance fan-out.
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
+
   app.enableShutdownHooks();
   await app.listen(config.port, '0.0.0.0');
   Logger.log(`API běží na portu ${config.port} (${config.nodeEnv})`, 'Bootstrap');

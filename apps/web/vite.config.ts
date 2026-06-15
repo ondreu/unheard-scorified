@@ -28,10 +28,12 @@ export default defineConfig({
   ] as PluginOption[],
   server: {
     // V dev proxy na API, ať frontend volá /api/* bez CORS.
+    // `ws: true` → proxy i WebSocket upgrade (Areny, M7) přes /api/socket.io.
     proxy: {
       '/api': {
         target: process.env.API_URL ?? 'http://localhost:3000',
         changeOrigin: true,
+        ws: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },

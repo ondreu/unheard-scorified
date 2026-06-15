@@ -16,3 +16,5 @@ export * from './data/factions';
 export * from './data/materials';
 export * from './data/professions';
 export * from './professions';
+export * from './data/arenas';
+export * from './pvp';

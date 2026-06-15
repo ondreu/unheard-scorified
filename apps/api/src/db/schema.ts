@@ -18,8 +18,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import type {
   ActivityParams,
-  ActivityType,
+  ArenaBracket,
   ClassId,
+  CombatActor,
+  ActivityType,
+  DuelSide,
   Faction,
   FactionId,
   ProfessionId,
@@ -181,6 +184,76 @@ export const characterReputation = pgTable(
 );
 
 /**
+ * Arena rating per (postava, bracket, sezóna) (M7). Rating se resetuje každou
+ * sezónu (nový seasonId → nový řádek s STARTING_RATING). Durable zdroj pravdy
+ * pro ladder; Redis sorted set je jen rychlá cache (viz ADR 0010).
+ */
+export const arenaRatings = pgTable(
+  'arena_ratings',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    bracket: varchar('bracket', { length: 8 }).$type<ArenaBracket>().notNull(),
+    seasonId: varchar('season_id', { length: 32 }).notNull(),
+    rating: integer('rating').notNull().default(1500),
+    wins: integer('wins').notNull().default(0),
+    losses: integer('losses').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.bracket, t.seasonId] })],
+);
+
+/**
+ * Odehraný arénový zápas (M7). Ukládá snapshoty bojových profilů obou stran
+ * (anti-cheat + determinismus — timeline se přepočítá z `seed` + snapshotů,
+ * stejně jako dungeon). Perspektiva „já vs soupeř" se odvodí podle toho, zda je
+ * postava strana A nebo B.
+ */
+export const arenaMatches = pgTable('arena_matches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  seasonId: varchar('season_id', { length: 32 }).notNull(),
+  bracket: varchar('bracket', { length: 8 }).$type<ArenaBracket>().notNull(),
+  aCharacterId: uuid('a_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  bCharacterId: uuid('b_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  aSnapshot: jsonb('a_snapshot').$type<CombatActor>().notNull(),
+  bSnapshot: jsonb('b_snapshot').$type<CombatActor>().notNull(),
+  seed: bigint('seed', { mode: 'number' }).notNull(),
+  winner: varchar('winner', { length: 1 }).$type<DuelSide>().notNull(),
+  durationSec: integer('duration_sec').notNull(),
+  aRatingBefore: integer('a_rating_before').notNull(),
+  aRatingAfter: integer('a_rating_after').notNull(),
+  bRatingBefore: integer('b_rating_before').notNull(),
+  bRatingAfter: integer('b_rating_after').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Archivovaný výsledek sezóny + udělená odměna (M7). Vzniká LAZY při prvním
+ * dotazu postavy po skončení sezóny (idempotentní díky PK → žádné dvojité
+ * udělení). Reset ratingu = nový řádek v `arena_ratings` pro novou sezónu.
+ */
+export const arenaSeasonRewards = pgTable(
+  'arena_season_rewards',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    seasonId: varchar('season_id', { length: 32 }).notNull(),
+    bracket: varchar('bracket', { length: 8 }).$type<ArenaBracket>().notNull(),
+    finalRating: integer('final_rating').notNull(),
+    finalTier: varchar('final_tier', { length: 16 }).notNull(),
+    rewardGold: integer('reward_gold').notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.seasonId, t.bracket] })],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -210,6 +283,14 @@ export const charactersRelations = relations(characters, ({ one, many }) => ({
   talents: many(characterTalents),
   professions: many(characterProfessions),
   reputation: many(characterReputation),
+  arenaRatings: many(arenaRatings),
+}));
+
+export const arenaRatingsRelations = relations(arenaRatings, ({ one }) => ({
+  character: one(characters, {
+    fields: [arenaRatings.characterId],
+    references: [characters.id],
+  }),
 }));
 
 export const characterActivitiesRelations = relations(characterActivities, ({ one }) => ({
@@ -297,3 +378,9 @@ export type CharacterProfession = typeof characterProfessions.$inferSelect;
 export type NewCharacterProfession = typeof characterProfessions.$inferInsert;
 export type CharacterReputation = typeof characterReputation.$inferSelect;
 export type NewCharacterReputation = typeof characterReputation.$inferInsert;
+export type ArenaRating = typeof arenaRatings.$inferSelect;
+export type NewArenaRating = typeof arenaRatings.$inferInsert;
+export type ArenaMatch = typeof arenaMatches.$inferSelect;
+export type NewArenaMatch = typeof arenaMatches.$inferInsert;
+export type ArenaSeasonReward = typeof arenaSeasonRewards.$inferSelect;
+export type NewArenaSeasonReward = typeof arenaSeasonRewards.$inferInsert;
