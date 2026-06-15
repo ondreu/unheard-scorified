@@ -342,6 +342,28 @@ export const auctions = pgTable('auctions', {
 });
 
 /**
+ * Týdenní lockout per postava (M8.6, ekonomika). Jeden řádek = postava je „saved"
+ * pro daný obsah (`lockoutId`, např. `raid:molten_core`) v daném UTC týdnu
+ * (`weekId`, `YYYY-MM-DD` pondělí). Řádek vzniká při **prvním vítězném** runu
+ * obsahu v týdnu; další clear téhož obsahu v témže týdnu pak odměnu nedá. Reset
+ * = nový `weekId` (deterministicky dle UTC týdne). Viz ADR 0015.
+ */
+export const characterLockouts = pgTable(
+  'character_lockouts',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    /** Klíč obsahu: `"<typ>:<contentId>"` (raid/dungeon namespace). */
+    lockoutId: varchar('lockout_id', { length: 48 }).notNull(),
+    /** UTC týden (`YYYY-MM-DD` pondělí). */
+    weekId: varchar('week_id', { length: 16 }).notNull(),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.lockoutId, t.weekId] })],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -490,3 +512,5 @@ export type RaidRunParticipant = typeof raidRunParticipants.$inferSelect;
 export type NewRaidRunParticipant = typeof raidRunParticipants.$inferInsert;
 export type Auction = typeof auctions.$inferSelect;
 export type NewAuction = typeof auctions.$inferInsert;
+export type CharacterLockout = typeof characterLockouts.$inferSelect;
+export type NewCharacterLockout = typeof characterLockouts.$inferInsert;

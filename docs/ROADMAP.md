@@ -489,26 +489,37 @@ per-boss iterace + boss-easing + reward/loot curve + hard fail ✅, (2) sjednoce
 dungeon/raid run modelu (+ SP/3/5 módy), (3) arena 3v3/5v5, (4) ekonomika (M8.6).
 Guild-vázané části čekají na M9 social.
 
-### M8.6 — Ekonomika: soulbound/BoP & weekly lockout 🚧
+### M8.6 — Ekonomika: soulbound/BoP & weekly lockout — ✅ hotovo
 
-> Status: **🚧 aktuální milník** (další implementovatelný — nezávisí na M9 social).
 > Vyčleněno z M8.5-E. Soudržný ekonomický balíček, který chrání AH a progresi
 > před zaplavením idle farmením. Ortogonální k bojovým módům.
 
-- **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Nový atribut itemů v
-  `@game/shared` (`none` | `bop` | `boe`); dnes je vše volně obchodovatelné. Raid/
-  dungeon personal loot je **BoP**: na AH **neprodejný** (filtr v AH listingu +
-  validace), obchodovatelný jen v **trade-window** (krátce po dropu, jen účastníkům
-  daného runu — závisí na P2P trade z M8.5-D, tj. M9).
-- **Weekly lockout / raid ID.** Loot z raidu (a vyššího dungeonu) limitován
-  **týdenním lockoutem per postava** (reset deterministicky dle UTC týdne) →
-  opakované idle farmení nezaplaví AH a drží progresi. DB: lockout tabulka +
-  kontrola při claimu/grantu.
+- [x] **Soulbound / Bind-on-Pickup (`bindType` na itemu).** `ItemDef.bindType`
+      (`none` | `bop` | `boe`) ve `@game/shared`, naplněný z katalogových seznamů
+      `BIND_ON_PICKUP` / `BIND_ON_EQUIP` (jediný zdroj pravdy). Raid/dungeon
+      **personal loot je BoP**; high-end craft/world gear BoE; zbytek none.
+      Helpery `itemBindType` / `isSoulbound` / `isAuctionable`.
+- [x] **AH: BoP neprodejný.** `isAuctionable` = známý & ne-BoP; `createListing`
+      odmítne soulbound („Soulbound items cannot be auctioned"), sell UI je
+      filtruje. (Trade-window soulbound itemů závisí na P2P trade → **M9**.)
+- [x] **Weekly lockout / raid ID.** Deterministicky dle **UTC týdne**
+      (`@game/shared/lockout.ts`: `weeklyLockoutId` = pondělí `YYYY-MM-DD`,
+      `lockoutIdForContent`). Všechny raidy + vyšší dungeon (Scarlet Monastery);
+      první vítězný run v týdnu zamkne, další clear týž týden = 0 odměny. DB
+      `character_lockouts` (migrace `0010`) + `LockoutModule`/`LockoutRepository`,
+      kontrola při grantu odměn (raid i dungeon). Run view vystaví `myLockedOut`.
+- [x] **Testy:** shared unit (`economy.test.ts`, +13: bindType/isAuctionable/
+      weekly lockout/lockoutIdForContent) + API flow (raid lockout + reset, dungeon
+      scarlet lockout vs ragefire farm, AH BoP odmítnut). Build/test/lint/typecheck
+      zelené (142 shared + 77 API). Migrace přes `db:generate`.
+- Detail: **ADR 0015**, `docs/systems/items.md`, `auction-house.md`, `raids.md`,
+  `combat-dungeons.md`.
 - **Výstup:** epic/raid loot je vázaný (BoP) a omezený weekly lockoutem; AH zobrazí
-  jen obchodovatelné itemy.
-- Zbývá doladit: délka trade-window, které dungeony spadají pod lockout, BoE chování.
+  jen obchodovatelné itemy. ✅
+- **Zbývá doladit (M9):** délka + escrow trade-window (P2P trade), které další
+  dungeony pod lockout, BoE equip-bind tracking.
 
-### M9 — Polish, balanc, pixel grafika, sociální
+### M9 — Polish, balanc, pixel grafika, sociální 🚧
 
 - PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
 - Friends, chat/guild základ; achievementy, denní/týdenní cíle.

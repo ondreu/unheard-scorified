@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { LockoutModule } from '../lockout/lockout.module';
 import { PushModule } from '../push/push.module';
 import { QuestModule } from '../quest/quest.module';
 import { TalentModule } from '../talent/talent.module';
@@ -19,7 +20,15 @@ import { RaidService } from './raid.service';
  * adaptér (recykluje vrstvu z M7, viz main.ts, ADR 0011).
  */
 @Module({
-  imports: [AuthModule, CharacterModule, InventoryModule, TalentModule, QuestModule, PushModule],
+  imports: [
+    AuthModule,
+    CharacterModule,
+    InventoryModule,
+    TalentModule,
+    QuestModule,
+    PushModule,
+    LockoutModule,
+  ],
   controllers: [RaidController],
   providers: [
     RaidService,

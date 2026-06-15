@@ -33,6 +33,12 @@ export interface DungeonDef {
   baseGold: number;
   /** Variance zlata (0..1). */
   goldVariance: number;
+  /**
+   * Spadá dungeon pod **týdenní lockout** (M8.6)? Jen „vyšší" dungeony s epic
+   * lootem — opakované idle farmení nezaplaví AH. Nižší dungeony zůstávají volně
+   * farmitelné (idle-friendly). Chybí ⇒ false. Viz ADR 0015.
+   */
+  weeklyLockout?: boolean;
 }
 
 function enemy(
@@ -110,6 +116,7 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseXp: 4200,
     baseGold: 140,
     goldVariance: 0.2,
+    weeklyLockout: true,
     encounters: [
       enemy('sm_zealot', 'Scarlet Zealot', 460, 30, 2.5),
       enemy('sm_monk', 'Scarlet Monk', 500, 33, 2.6),

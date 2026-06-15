@@ -137,6 +137,15 @@ Combat log zobrazí retry pully
 (`encounter_start (pull N, weakened)` + opakované `player_defeated`); dungeon log
 view vystaví `wipes` po dokončení. Detail: ADR 0013.
 
+## Weekly lockout (M8.6)
+
+Vyšší dungeony (`DungeonDef.weeklyLockout`, zatím jen **Scarlet Monastery**)
+podléhají **týdennímu lockoutu per postava** — stejná mechanika jako raidy (první
+vítězný run v UTC týdnu zamkne, další clear týž týden nedá odměnu). Nižší dungeony
+zůstávají volně farmitelné (idle-friendly). Vzorce `@game/shared/lockout.ts`
+(`lockoutIdForContent('dungeon', id)`); run view vystaví `myLockedOut`. Detail:
+**ADR 0015**.
+
 ## Co zbývá / navazuje
 
 - **Balanc** (HP/AP nepřátel, loot šance, XP, weaponPower model, determination

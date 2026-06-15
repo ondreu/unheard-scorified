@@ -14,7 +14,7 @@
     type AuctionView,
     type InventoryItemView,
   } from '$lib/api';
-  import { itemDisplayName } from '@game/shared';
+  import { isAuctionable, itemDisplayName } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -65,6 +65,9 @@
 
   const characterId = $derived($page.params.id ?? '');
 
+  // Soulbound (BoP) items can't be auctioned (M8.6) → hide them from the sell list.
+  const sellable = $derived(inventory.filter((inv) => isAuctionable(inv.itemId)));
+
   onMount(load);
 
   async function load(): Promise<void> {
@@ -76,7 +79,7 @@
         myAuctions(characterId),
         listInventory(characterId),
       ]);
-      if (!sellItemId && inventory.length > 0) sellItemId = inventory[0]!.itemId;
+      if (!sellItemId && sellable.length > 0) sellItemId = sellable[0]!.itemId;
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
@@ -182,14 +185,14 @@
   {#if loading}
     <p class="mt-6 text-amber-100/50">Loading…</p>
   {:else if tab === 'sell'}
-    {#if inventory.length === 0}
+    {#if sellable.length === 0}
       <p class="mt-6 text-amber-100/60">{ui.none}</p>
     {:else}
       <section class="mt-6 space-y-3 rounded-lg border border-amber-900/40 bg-black/20 p-5">
         <label class="block text-sm text-amber-100/70">
           {ui.item}
           <select bind:value={sellItemId} class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100">
-            {#each inventory as inv (inv.itemId)}
+            {#each sellable as inv (inv.itemId)}
               <option value={inv.itemId}>{itemName(inv.itemId)} (x{inv.quantity})</option>
             {/each}
           </select>

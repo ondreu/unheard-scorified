@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { LockoutModule } from '../lockout/lockout.module';
 import { TalentModule } from '../talent/talent.module';
 import { PushModule } from '../push/push.module';
 import { RaidModule } from '../raid/raid.module';
@@ -15,7 +16,15 @@ import { DungeonService } from './dungeon.service';
  * Personal loot per účastník. Viz ADR 0014.
  */
 @Module({
-  imports: [AuthModule, CharacterModule, InventoryModule, TalentModule, PushModule, RaidModule],
+  imports: [
+    AuthModule,
+    CharacterModule,
+    InventoryModule,
+    TalentModule,
+    PushModule,
+    RaidModule,
+    LockoutModule,
+  ],
   controllers: [DungeonController],
   providers: [DungeonService],
 })

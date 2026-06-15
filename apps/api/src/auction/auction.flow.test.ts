@@ -99,6 +99,22 @@ describe('M8 flow: auction house', () => {
     expect(browse[0]!.minBid).toBe(100);
   });
 
+  it('soulbound (BoP) item nelze vypsat na AH (M8.6)', async () => {
+    // `ashkandi` je raid loot = BoP. Item je v inventáři, ale výpis musí selhat.
+    const s = await trader('ah_bop', 'Bound', 1000, [{ id: 'ashkandi', qty: 1 }]);
+    await expect(
+      ah.createListing(s.accountId, s.id, {
+        itemId: 'ashkandi',
+        quantity: 1,
+        startBid: 100,
+        duration: 'short',
+      }),
+    ).rejects.toThrow(/soulbound/i);
+    // Item i zlato zůstaly netknuté (deposit se nestrhl).
+    expect(await qty(s.id, 'ashkandi')).toBe(1);
+    expect(await gold(s.id)).toBe(1000);
+  });
+
   it('nedostatek zlata na deposit → výpis selže, item zůstává', async () => {
     const s = await trader('ah_s2', 'Pauper', 0, [{ id: 'mithril_ore', qty: 50 }]);
     await expect(

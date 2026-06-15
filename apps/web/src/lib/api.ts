@@ -116,6 +116,8 @@ export interface DungeonRunView {
   wipes: number | null;
   myReward: { xp: number; gold: number; items: string[] } | null;
   myRole: RaidRole | null;
+  /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
+  myLockedOut: boolean;
 }
 
 export interface DungeonRunSummary {
@@ -497,6 +499,8 @@ export interface RaidRunView {
   wipes: number | null;
   myReward: RaidReward | null;
   myRole: RaidRole | null;
+  /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
+  myLockedOut: boolean;
 }
 
 export interface RaidRunSummary {

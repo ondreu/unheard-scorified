@@ -10,6 +10,7 @@ import {
   AUCTION_DURATIONS,
   auctionDeposit,
   isAuctionDurationId,
+  isSoulbound,
   isTradeableItem,
   itemDisplayName,
   minNextBid,
@@ -104,6 +105,10 @@ export class AuctionService {
     const buyout = input.buyout != null ? Math.floor(input.buyout) : null;
 
     if (!isTradeableItem(input.itemId)) throw new BadRequestException('Item cannot be auctioned');
+    // Soulbound (BoP) loot je neprodejné na AH (M8.6).
+    if (isSoulbound(input.itemId)) {
+      throw new BadRequestException('Soulbound items cannot be auctioned');
+    }
     if (!isAuctionDurationId(input.duration)) throw new BadRequestException('Invalid duration');
     if (quantity <= 0) throw new BadRequestException('Quantity must be positive');
     if (startBid <= 0) throw new BadRequestException('Start bid must be positive');

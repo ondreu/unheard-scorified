@@ -85,8 +85,17 @@ se party resetuje na plnou HP. Vyčerpání pokusů = **hard fail** (0 odměny, 
 wipes)` → odměna všech účastníků škálovaná `wipeRewardMultiplier` (XP, zlato, loot
 šance). Run view vystaví `wipes` po dokončení. Detail: ADR 0013.
 
+## Weekly lockout (M8.6)
+
+Každý raid podléhá **týdennímu lockoutu per postava** (deterministicky dle UTC
+týdne). První **vítězný** run raidu v týdnu postavu „saved" (`character_lockouts`);
+další clear téhož raidu v témže UTC týdnu pak **odměnu nedá** (XP, zlato i loot =
+0). Wipe/hard fail nelockuje. Reset v pondělí 00:00 UTC (čistý dopočet, žádný
+scheduler). Run view vystaví `myLockedOut`. Vzorce: `@game/shared/lockout.ts`
+(`lockoutIdForContent('raid', id)`, `weeklyLockoutId`). Detail: **ADR 0015**.
+
 ## Zbývá doladit (M9)
 
 Balanc (boss HP/AP, role tuning, loot, size scaling faktor, determination
-křivka/strop pokusů), 40-player velikost, per-role gating dle classy, weekly raid
-lockout.
+křivka/strop pokusů), 40-player velikost, per-role gating dle classy, délka
+trade-window pro BoP loot.

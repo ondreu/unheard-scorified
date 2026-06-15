@@ -65,3 +65,20 @@ DEL  /characters/:id/equipment/:slot — unequip ze slotu
 
 `sumEquipmentStats(items: ItemDef[]): ItemStats` — sečte staty všech equipnutých itemů.
 `CharacterSheet.equipmentStats` obsahuje výsledek (prázdný objekt pokud nic equipnuto).
+
+## Vazba itemu — `bindType` (M8.6)
+
+`ItemDef.bindType: 'none' | 'bop' | 'boe'` (volitelné, chybí ⇒ `none`). Naplňuje
+se z katalogových seznamů `BIND_ON_PICKUP` / `BIND_ON_EQUIP` v `data/items.ts`
+(jediný zdroj pravdy). Viz **ADR 0015**.
+
+| bindType | Význam | AH | Co spadá |
+| --- | --- | --- | --- |
+| `none` | volně obchodovatelný | ✅ prodejný | běžný gear, materiály, spotřebáky |
+| `bop` | Bind-on-Pickup (soulbound) | ❌ neprodejný | dungeon boss loot (M5) + raid epic/legendary (M8) |
+| `boe` | Bind-on-Equip | ✅ prodejný (equip-bind tracking = M9) | high-end craft/world gear (`masterwork_blade`, `arcane_robes`) |
+
+Helpery: `itemBindType(id)`, `isSoulbound(id)` (= `bop`), `isAuctionable(id)`
+(= známý a ne-BoP). Raid/dungeon **personal loot je BoP** → na AH se nedá vypsat
+(filtr v sell UI + server validace). Trade-window soulbound itemů = M9 (závisí na
+P2P trade).

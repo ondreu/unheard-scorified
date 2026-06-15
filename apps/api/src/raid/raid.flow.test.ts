@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { PushRepository } from '../push/push.repository';
@@ -60,6 +61,7 @@ describe('M8 flow: raids (MP PVE)', () => {
       new PushService(new PushRepository(db)),
       new RaidRepository(db),
       new RaidEventsRelay(),
+      new LockoutRepository(db),
       new InMemoryRaidQueue(),
     );
   });
@@ -110,6 +112,43 @@ describe('M8 flow: raids (MP PVE)', () => {
     const recent = await raid.recentRuns(a.accountId, a.id);
     expect(recent).toHaveLength(1);
     expect(recent[0]!.runId).toBe(run.runId);
+  });
+
+  it('weekly lockout: druhý clear v témže týdnu nedá odměnu (M8.6)', async () => {
+    const a = await raider('rd_lock2', 'Lockme', { attune: 'tn_galak_ogres', weapon: 'ashkandi' });
+
+    const first = await raid.enter(a.accountId, a.id, 'molten_core', 'dps');
+    expect(first.myReward!.xp).toBeGreaterThan(0); // první clear → plná odměna
+    expect(first.myLockedOut).toBe(false);
+    const xpAfterFirst = (await charRepo.findById(a.id))!.totalXp;
+
+    // Druhý vstup do stejného raidu týž týden (čas zamrzlý) → lockout.
+    const second = await raid.enter(a.accountId, a.id, 'molten_core', 'dps');
+    expect(second.myReward!.xp).toBe(0);
+    expect(second.myReward!.gold).toBe(0);
+    expect(second.myReward!.items).toHaveLength(0);
+    expect(second.myLockedOut).toBe(true);
+    // Žádné XP/gold/loot navíc.
+    expect((await charRepo.findById(a.id))!.totalXp).toBe(xpAfterFirst);
+
+    // getRun perspektiva také hlásí lockout.
+    vi.setSystemTime(T0 + (second.durationSec + 1) * 1000);
+    const replay = await raid.getRun(a.accountId, a.id, second.runId);
+    expect(replay.victory).toBe(true);
+    expect(replay.myLockedOut).toBe(true);
+  });
+
+  it('weekly lockout se resetuje dalším UTC týdnem (M8.6)', async () => {
+    const a = await raider('rd_lock3', 'Weeklyreset', { attune: 'tn_galak_ogres', weapon: 'ashkandi' });
+
+    const first = await raid.enter(a.accountId, a.id, 'molten_core', 'dps');
+    expect(first.myReward!.xp).toBeGreaterThan(0);
+
+    // Posuň čas o týden dopředu → nový lockout týden → odměna zase plná.
+    vi.setSystemTime(T0 + 7 * 24 * 3600 * 1000);
+    const nextWeek = await raid.enter(a.accountId, a.id, 'molten_core', 'dps');
+    expect(nextWeek.myReward!.xp).toBeGreaterThan(0);
+    expect(nextWeek.myLockedOut).toBe(false);
   });
 
   it('reveal odhaluje combat log podle času, výsledek po dokončení', async () => {
