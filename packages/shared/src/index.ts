@@ -24,3 +24,4 @@ export * from './group';
 export * from './lockout';
 export * from './auction';
 export * from './social';
+export * from './guild';

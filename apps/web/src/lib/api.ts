@@ -733,6 +733,100 @@ export function sendChatMessage(characterId: string, body: string): Promise<Chat
   });
 }
 
+// Guild (M9)
+
+export type GuildRankName = 'member' | 'officer' | 'leader';
+
+export interface GuildMemberView {
+  characterId: string;
+  name: string;
+  level: number;
+  race: string;
+  class: string;
+  faction: string;
+  rank: GuildRankName;
+  joinedAt: string;
+}
+
+export interface GuildView {
+  id: string;
+  name: string;
+  leaderCharacterId: string;
+  memberCount: number;
+  myRank: GuildRankName;
+  members: GuildMemberView[];
+}
+
+export interface GuildInviteView {
+  inviteId: string;
+  guildId: string;
+  guildName: string;
+  invitedBy: string | null;
+  sentAt: string;
+}
+
+export interface GuildState {
+  guild: GuildView | null;
+  invites: GuildInviteView[];
+}
+
+export function getGuild(characterId: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild`);
+}
+
+export function createGuild(characterId: string, name: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function inviteToGuild(characterId: string, name: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/invites`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function respondGuildInvite(
+  characterId: string,
+  inviteId: string,
+  accept: boolean,
+): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/invites/${inviteId}/respond`, {
+    method: 'POST',
+    body: JSON.stringify({ accept }),
+  });
+}
+
+export function leaveGuild(characterId: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/leave`, { method: 'POST' });
+}
+
+export function disbandGuild(characterId: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild`, { method: 'DELETE' });
+}
+
+export function kickGuildMember(
+  characterId: string,
+  targetCharacterId: string,
+): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/members/${targetCharacterId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function setGuildRank(
+  characterId: string,
+  targetCharacterId: string,
+  rank: 'member' | 'officer',
+): Promise<GuildState> {
+  return request<GuildState>(
+    `/characters/${characterId}/guild/members/${targetCharacterId}/rank`,
+    { method: 'POST', body: JSON.stringify({ rank }) },
+  );
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

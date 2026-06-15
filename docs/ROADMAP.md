@@ -535,7 +535,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       adaptér z M7; REST (`/chat`) autoritativní fallback. Sdílená normalizace
       (`sanitizeChatMessage`). Web chat panel na `/characters/[id]/social` + live
       friend notifikace (`social:subscribe`). Testy: API `chat.flow.test.ts` (+4).
-- [ ] Guild základ; achievementy, denní/týdenní cíle.
+- [x] **Guild základ**: per-postava členství (nejvýše jedna guilda), ranky
+      member/officer/leader, pozvánky (accept/decline), kick/promote/demote,
+      leave s auto-předáním vedení (nebo disband posledního). Tabulky `guilds` +
+      `guild_members` + `guild_invites` (migrace `0013`), `GuildModule` v rámci
+      `SocialModule`. Web `/characters/[id]/guild` + realtime `guild:invite`.
+      Testy: shared `guild.test.ts` (+5) + API `guild.flow.test.ts` (+9). Detail:
+      **ADR 0017**, `docs/systems/social.md`. Odemyká M8.5-B/C (ruční formace).
+- [ ] Achievementy, denní/týdenní cíle.
 - [ ] PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
 - **Výstup:** vyladěná, vizuálně oživená hra.
 

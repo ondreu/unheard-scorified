@@ -4,6 +4,9 @@ import { CharacterModule } from '../character/character.module';
 import { ChatController } from './chat.controller';
 import { ChatRepository } from './chat.repository';
 import { ChatService } from './chat.service';
+import { GuildController } from './guild.controller';
+import { GuildRepository } from './guild.repository';
+import { GuildService } from './guild.service';
 import { SocialController } from './social.controller';
 import { SocialEventsRelay } from './social.events';
 import { SocialGateway } from './social.gateway';
@@ -18,12 +21,14 @@ import { SocialService } from './social.service';
  */
 @Module({
   imports: [AuthModule, CharacterModule],
-  controllers: [SocialController, ChatController],
+  controllers: [SocialController, ChatController, GuildController],
   providers: [
     SocialService,
     SocialRepository,
     ChatService,
     ChatRepository,
+    GuildService,
+    GuildRepository,
     SocialEventsRelay,
     SocialGateway,
   ],

@@ -42,6 +42,11 @@ export class SocialEventsRelay {
     this.emit(SocialEventsRelay.CHAT_GLOBAL, 'chat:message', message);
   }
 
+  /** Oznámí postavě pozvánku do guildy. */
+  guildInvite(toCharacterId: string, guildName: string, byName: string): void {
+    this.emit(SocialEventsRelay.room(toCharacterId), 'guild:invite', { guildName, byName });
+  }
+
   private emit(room: string, event: string, payload: unknown): void {
     if (!this.server) return;
     try {

@@ -153,6 +153,7 @@
     raids: 'Raids (MP PVE)',
     auctions: 'Auction House',
     social: 'Friends',
+    guild: 'Guild',
   };
 
   const isDungeon = $derived(activity?.activityType === 'dungeon');
@@ -329,6 +330,12 @@
         class="rounded bg-sky-800/40 px-4 py-2 text-sm font-medium text-sky-200 hover:bg-sky-700/50"
       >
         {uiM4.social}
+      </a>
+      <a
+        href={`/characters/${characterId}/guild`}
+        class="rounded bg-sky-800/40 px-4 py-2 text-sm font-medium text-sky-200 hover:bg-sky-700/50"
+      >
+        {uiM4.guild}
       </a>
     </div>
 

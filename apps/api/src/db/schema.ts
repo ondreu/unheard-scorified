@@ -30,6 +30,7 @@ import type {
   Faction,
   FactionId,
   FriendRequestStatus,
+  GuildRank,
   ProfessionId,
   RaceId,
   RaidActor,
@@ -412,6 +413,59 @@ export const chatMessages = pgTable('chat_messages', {
 });
 
 /**
+ * Guilda (M9 social). Per-postava (jako friends). Jméno globálně unikátní.
+ * `leaderCharacterId` je redundantní s `guild_members.rank='leader'`, ale drží
+ * rychlý odkaz na vůdce. Disband = smazání řádku (cascade members + invites).
+ */
+export const guilds = pgTable('guilds', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 24 }).notNull().unique(),
+  leaderCharacterId: uuid('leader_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Členství v guildě (M9 social). `characterId` je **unikátní** → postava je
+ * nejvýše v jedné guildě. Rank member/officer/leader (viz `@game/shared/guild`).
+ */
+export const guildMembers = pgTable('guild_members', {
+  guildId: uuid('guild_id')
+    .notNull()
+    .references(() => guilds.id, { onDelete: 'cascade' }),
+  characterId: uuid('character_id')
+    .notNull()
+    .unique()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  rank: varchar('rank', { length: 8 }).$type<GuildRank>().notNull().default('member'),
+  joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Pozvánka do guildy (M9 social). Čekající pozvánka pro postavu (`characterId`);
+ * přijetí ji smaže a založí členství, odmítnutí jen smaže. Unikátní pár
+ * (guild, character) brání duplicitám.
+ */
+export const guildInvites = pgTable(
+  'guild_invites',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    invitedByCharacterId: uuid('invited_by_character_id').references(() => characters.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.guildId, t.characterId)],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -566,3 +620,9 @@ export type Friendship = typeof friendships.$inferSelect;
 export type NewFriendship = typeof friendships.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type Guild = typeof guilds.$inferSelect;
+export type NewGuild = typeof guilds.$inferInsert;
+export type GuildMember = typeof guildMembers.$inferSelect;
+export type NewGuildMember = typeof guildMembers.$inferInsert;
+export type GuildInvite = typeof guildInvites.$inferSelect;
+export type NewGuildInvite = typeof guildInvites.$inferInsert;
