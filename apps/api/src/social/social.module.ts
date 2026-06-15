@@ -1,20 +1,32 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
+import { ChatController } from './chat.controller';
+import { ChatRepository } from './chat.repository';
+import { ChatService } from './chat.service';
 import { SocialController } from './social.controller';
 import { SocialEventsRelay } from './social.events';
+import { SocialGateway } from './social.gateway';
 import { SocialRepository } from './social.repository';
 import { SocialService } from './social.service';
 
 /**
- * Sociální systém (M9): friends (per-postava, vanilla-WoW styl) + chat (přidán
- * samostatně, recykluje realtime vrstvu z M7 — Redis pub/sub adaptér). Gateway
- * a relay jsou oddělené (žádný DI cyklus service↔gateway), viz `SocialEventsRelay`.
+ * Sociální systém (M9): friends (per-postava, vanilla-WoW styl) + jednoduchý
+ * globální chat. Realtime recykluje vrstvu z M7 (socket.io + Redis pub/sub
+ * adaptér). Gateway a relay jsou oddělené (žádný DI cyklus service↔gateway),
+ * viz `SocialEventsRelay`. Viz ADR 0016.
  */
 @Module({
   imports: [AuthModule, CharacterModule],
-  controllers: [SocialController],
-  providers: [SocialService, SocialRepository, SocialEventsRelay],
+  controllers: [SocialController, ChatController],
+  providers: [
+    SocialService,
+    SocialRepository,
+    ChatService,
+    ChatRepository,
+    SocialEventsRelay,
+    SocialGateway,
+  ],
   exports: [SocialEventsRelay],
 })
 export class SocialModule {}

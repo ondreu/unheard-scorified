@@ -713,6 +713,26 @@ export function removeFriend(characterId: string, otherCharacterId: string): Pro
   });
 }
 
+export interface ChatMessageView {
+  id: string;
+  channel: string;
+  characterId: string | null;
+  name: string;
+  body: string;
+  at: string;
+}
+
+export function getChatHistory(characterId: string): Promise<ChatMessageView[]> {
+  return request<ChatMessageView[]>(`/characters/${characterId}/chat`);
+}
+
+export function sendChatMessage(characterId: string, body: string): Promise<ChatMessageView> {
+  return request<ChatMessageView>(`/characters/${characterId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

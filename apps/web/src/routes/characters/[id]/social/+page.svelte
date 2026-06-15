@@ -1,15 +1,20 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
+  import type { Socket } from 'socket.io-client';
   import {
     ApiError,
+    getChatHistory,
     getSocial,
     removeFriend,
     respondFriendRequest,
+    sendChatMessage,
     sendFriendRequest,
+    type ChatMessageView,
     type SocialView,
   } from '$lib/api';
+  import { connectSocial, joinChat, sendChat, subscribeSocial } from '$lib/social-socket';
   import { CLASSES } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -30,6 +35,11 @@
     nowFriends: 'You are now friends!',
     requestSent: 'Friend request sent.',
     level: 'Lv',
+    chat: 'Global chat',
+    chatPlaceholder: 'Say something…',
+    send: 'Send',
+    newRequest: (name: string): string => `${name} sent you a friend request.`,
+    accepted: (name: string): string => `${name} accepted your friend request.`,
   };
 
   let social = $state<SocialView | null>(null);
@@ -39,9 +49,83 @@
   let addName = $state('');
   let busy = $state(false);
 
+  // Chat
+  let messages = $state<ChatMessageView[]>([]);
+  let chatInput = $state('');
+  let chatError = $state<string | null>(null);
+  let chatList = $state<HTMLUListElement | null>(null);
+
   const characterId = $derived($page.params.id ?? '');
 
-  onMount(load);
+  let socket: Socket | undefined;
+  let unsubSocial: (() => void) | undefined;
+  let unsubChat: (() => void) | undefined;
+
+  onMount(async () => {
+    await load();
+    socket = connectSocial();
+    unsubSocial = subscribeSocial(socket, characterId, {
+      onFriendRequest: (e) => {
+        notice = ui.newRequest(e.fromName);
+        void loadSocialOnly();
+      },
+      onFriendAccepted: (e) => {
+        notice = ui.accepted(e.byName);
+        void loadSocialOnly();
+      },
+    });
+    unsubChat = joinChat(
+      socket,
+      characterId,
+      (m) => void appendMessage(m),
+      (history) => {
+        messages = history;
+        void scrollChat();
+      },
+    );
+  });
+
+  onDestroy(() => {
+    unsubSocial?.();
+    unsubChat?.();
+    socket?.disconnect();
+  });
+
+  async function appendMessage(m: ChatMessageView): Promise<void> {
+    if (messages.some((x) => x.id === m.id)) return;
+    messages = [...messages, m];
+    await scrollChat();
+  }
+
+  async function scrollChat(): Promise<void> {
+    await tick();
+    if (chatList) chatList.scrollTop = chatList.scrollHeight;
+  }
+
+  async function send(): Promise<void> {
+    const body = chatInput.trim();
+    if (!body) return;
+    chatError = null;
+    const text = chatInput;
+    chatInput = '';
+    try {
+      if (socket?.connected) {
+        await sendChat(socket, characterId, body);
+      } else {
+        // REST fallback (no live socket): send + refresh history.
+        await sendChatMessage(characterId, body);
+        messages = await getChatHistory(characterId);
+        await scrollChat();
+      }
+    } catch (err) {
+      chatError = (err as Error).message;
+      chatInput = text;
+    }
+  }
+
+  async function loadSocialOnly(): Promise<void> {
+    social = await getSocial(characterId);
+  }
 
   async function load(): Promise<void> {
     loading = true;
@@ -231,6 +315,48 @@
         </ul>
       </section>
     {/if}
+    <!-- Global chat -->
+    <section class="mt-8">
+      <h2 class="text-lg font-semibold text-amber-200">{ui.chat}</h2>
+      <ul
+        bind:this={chatList}
+        class="mt-2 h-64 space-y-1 overflow-y-auto rounded border border-amber-900/40 bg-black/30 p-3 text-sm"
+      >
+        {#each messages as m (m.id)}
+          <li>
+            <span class="font-medium text-sky-300">{m.name}</span>
+            <span class="text-amber-100/90">{m.body}</span>
+          </li>
+        {/each}
+        {#if messages.length === 0}
+          <li class="text-amber-100/40">No messages yet. Say hello!</li>
+        {/if}
+      </ul>
+      <form
+        class="mt-2 flex gap-2"
+        onsubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <input
+          bind:value={chatInput}
+          maxlength="256"
+          placeholder={ui.chatPlaceholder}
+          class="flex-1 rounded border border-amber-900/50 bg-black/30 px-3 py-2 text-sm text-amber-100 placeholder:text-amber-100/30"
+        />
+        <button
+          type="submit"
+          disabled={chatInput.trim().length === 0}
+          class="rounded bg-sky-700/70 px-4 py-2 text-sm font-medium text-sky-100 hover:bg-sky-600/70 disabled:opacity-40"
+        >
+          {ui.send}
+        </button>
+      </form>
+      {#if chatError}
+        <p class="mt-2 text-sm text-red-400">{chatError}</p>
+      {/if}
+    </section>
   {:else if error}
     <p class="mt-6 text-red-400">{error}</p>
   {/if}

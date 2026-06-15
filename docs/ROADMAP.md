@@ -530,8 +530,11 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       realtime relay (recykluje WS vrstvu z M7). Web `/characters/[id]/social`.
       Testy: shared `social.test.ts` (+7) + API `social.flow.test.ts` (+9).
       Detail: **ADR 0016**, `docs/systems/social.md`.
-- [ ] **Chat**: jednoduchý globální kanál (persistence + realtime přes Redis
-      pub/sub adaptér z M7). Sdílené normalizační helpery už hotové.
+- [x] **Chat**: jednoduchý globální kanál — persistence (`chat_messages`, migrace
+      `0012`) + realtime přes WS gateway (`SocialGateway`) recyklující Redis pub/sub
+      adaptér z M7; REST (`/chat`) autoritativní fallback. Sdílená normalizace
+      (`sanitizeChatMessage`). Web chat panel na `/characters/[id]/social` + live
+      friend notifikace (`social:subscribe`). Testy: API `chat.flow.test.ts` (+4).
 - [ ] Guild základ; achievementy, denní/týdenní cíle.
 - [ ] PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
 - **Výstup:** vyladěná, vizuálně oživená hra.

@@ -26,6 +26,7 @@ import type {
   CombatActor,
   ActivityType,
   DuelSide,
+  ChatChannel,
   Faction,
   FactionId,
   FriendRequestStatus,
@@ -393,6 +394,24 @@ export const friendships = pgTable(
 );
 
 /**
+ * Chat zprávy (M9 social). Jednoduchý persistovaný chat: jeden řádek = jedna
+ * zpráva v kanálu (zatím jen `global`). Jméno odesílatele je **denormalizované**
+ * (`senderName`), aby historie šla vykreslit bez joinu i po smazání postavy
+ * (`senderCharacterId` → set null). Realtime fan-out přes Redis pub/sub adaptér
+ * (M7); tato tabulka je durable historie. Viz ADR 0016.
+ */
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  channel: varchar('channel', { length: 16 }).$type<ChatChannel>().notNull(),
+  senderCharacterId: uuid('sender_character_id').references(() => characters.id, {
+    onDelete: 'set null',
+  }),
+  senderName: varchar('sender_name', { length: 16 }).notNull(),
+  body: varchar('body', { length: 256 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -545,3 +564,5 @@ export type CharacterLockout = typeof characterLockouts.$inferSelect;
 export type NewCharacterLockout = typeof characterLockouts.$inferInsert;
 export type Friendship = typeof friendships.$inferSelect;
 export type NewFriendship = typeof friendships.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
