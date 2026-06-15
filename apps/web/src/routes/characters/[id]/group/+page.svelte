@@ -14,6 +14,7 @@
     leaveGroup,
     listDungeons,
     listRaids,
+    getTeamArena,
     promoteGroupMember,
     respondGroupInvite,
     setGroupRole,
@@ -21,6 +22,7 @@
     type GroupState,
     type RaidListItem,
     type RaidRole,
+    type TeamArenaView,
   } from '$lib/api';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -53,6 +55,7 @@
   let gs = $state<GroupState | null>(null);
   let dungeons = $state<DungeonListItem[]>([]);
   let raids = $state<RaidListItem[]>([]);
+  let teamArena = $state<TeamArenaView | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let busy = $state(false);
@@ -87,6 +90,7 @@
     raids = r.filter((x) => x.unlocked);
     dungeonId = dungeons[0]?.id ?? '';
     raidId = raids[0]?.id ?? '';
+    teamArena = await getTeamArena(characterId).catch(() => null);
     // Light polling for invites / members joining (no WS for groups).
     poller = setInterval(() => void load(true), 4000);
   });
@@ -280,6 +284,13 @@
               </span>
               <button disabled={busy || !arenaBracket} onclick={() => launch('arena')} class="rounded bg-purple-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-purple-600 disabled:opacity-50">{ui.arena} {ui.launch}</button>
             </div>
+            {#if teamArena}
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-100/50">
+                {#each teamArena.brackets as br (br.bracket)}
+                  <span>{br.bracket}: <span class="text-amber-200/80">{br.rating}</span> ({br.tier}) · {br.wins}W/{br.losses}L</span>
+                {/each}
+              </div>
+            {/if}
           </div>
         </section>
       {/if}
