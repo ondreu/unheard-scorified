@@ -606,6 +606,13 @@ lobby) a M8.5-D (P2P trade) — staví se první.
     vznikne gear pro tank/melee-dps/caster-dps/heal bez nové mechaniky. Balanc
     zůstává v `@game/shared` (jeden zdroj). Riziko nízké: čistě data + jedna
     equip validace; combat dopad přes existující `deriveCombatProfile`.
+- [ ] 🧑‍💼 **Omezený inventář + craftovatelné batohy** (WoW styl). Konečný počet
+      slotů v základním batohu + další **bag sloty**, do nichž se vkládají batohy
+      o N slotech. Batohy se **craftí** (tailoring/leatherworking → gating
+      profesí/levelem; vzácnější materiály = větší batoh). Itemy mají velikost
+      „1 slot" (vanilla), stackovatelné dle `maxStack`. Návaznosti: vendor odkup,
+      bank (úložiště mimo batoh), loot „bag full" stav. Vyžaduje **systém
+      profesí/craftingu** (nový podsystém — kandidát na vlastní ADR).
 - [ ] 🤖 Vendoři (NPC odkup/prodej) + „use" consumables/buffů (zbytek z M6).
 - [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid, 2v2 bracket.
 
