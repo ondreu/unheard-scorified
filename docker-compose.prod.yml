@@ -43,6 +43,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-game}:${POSTGRES_PASSWORD:-game}@postgres:5432/${POSTGRES_DB:-game}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?nastav JWT_SECRET v .env}
+      DEV_SECRET: ${DEV_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
