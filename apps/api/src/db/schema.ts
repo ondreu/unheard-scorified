@@ -66,6 +66,9 @@ export const characters = pgTable('characters', {
   faction: varchar('faction', { length: 16 }).$type<Faction>().notNull(),
   totalXp: integer('total_xp').notNull().default(0),
   gold: integer('gold').notNull().default(0),
+  // Kosmeticky zvolený („active") mount (M10+). Power je odvozený z vlastněných
+  // mountů (character_mounts), tahle volba je čistě vizuál → monetizace skinů.
+  activeMountId: varchar('active_mount_id', { length: 64 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -631,6 +634,7 @@ export const charactersRelations = relations(characters, ({ one, many }) => ({
   professions: many(characterProfessions),
   reputation: many(characterReputation),
   arenaRatings: many(arenaRatings),
+  mounts: many(characterMounts),
 }));
 
 export const raidRunsRelations = relations(raidRuns, ({ many }) => ({
@@ -701,6 +705,30 @@ export const characterSkinsRelations = relations(characterSkins, ({ one }) => ({
   }),
 }));
 
+/**
+ * Vlastněné mounty per postava (M10+ FEAT). Mount dává speed bonus (zkrácení
+ * pohybových aktivit) — viz `@game/shared/data/mounts`. Power je odvozený z
+ * vlastnictví; `characters.active_mount_id` je jen kosmetická volba vizuálu.
+ */
+export const characterMounts = pgTable(
+  'character_mounts',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    mountId: varchar('mount_id', { length: 64 }).notNull(),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.mountId] })],
+);
+
+export const characterMountsRelations = relations(characterMounts, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterMounts.characterId],
+    references: [characters.id],
+  }),
+}));
+
 export const characterProfessionsRelations = relations(characterProfessions, ({ one }) => ({
   character: one(characters, {
     fields: [characterProfessions.characterId],
@@ -733,6 +761,8 @@ export type CharacterTalent = typeof characterTalents.$inferSelect;
 export type NewCharacterTalent = typeof characterTalents.$inferInsert;
 export type CharacterSkin = typeof characterSkins.$inferSelect;
 export type NewCharacterSkin = typeof characterSkins.$inferInsert;
+export type CharacterMount = typeof characterMounts.$inferSelect;
+export type NewCharacterMount = typeof characterMounts.$inferInsert;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;
 export type NewCharacterProfession = typeof characterProfessions.$inferInsert;
 export type CharacterReputation = typeof characterReputation.$inferSelect;

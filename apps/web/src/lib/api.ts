@@ -1159,6 +1159,44 @@ export interface DevProfessionDef {
   name: string;
 }
 
+export interface MountView {
+  id: string;
+  name: string;
+  description: string;
+  tier: 'basic' | 'epic';
+  requiredLevel: number;
+  cost: number;
+  speedBonus: number;
+  owned: boolean;
+  active: boolean;
+  affordable: boolean;
+  meetsLevel: boolean;
+}
+
+export interface MountsView {
+  characterLevel: number;
+  gold: number;
+  speedBonus: number;
+  activeMountId: string | null;
+  mounts: MountView[];
+}
+
+export function listMounts(characterId: string): Promise<MountsView> {
+  return request<MountsView>(`/characters/${characterId}/mounts`);
+}
+
+export function buyMount(characterId: string, mountId: string): Promise<MountsView> {
+  return request<MountsView>(`/characters/${characterId}/mounts/${mountId}/buy`, {
+    method: 'POST',
+  });
+}
+
+export function selectMount(characterId: string, mountId: string): Promise<MountsView> {
+  return request<MountsView>(`/characters/${characterId}/mounts/${mountId}/select`, {
+    method: 'POST',
+  });
+}
+
 export interface DevAccountView {
   id: string;
   username: string;

@@ -6,9 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  applyMountSpeed,
   CONSUMABLES,
   FACTIONS,
   GATHERING_NODES,
+  mountSpeedBonus,
   MATERIALS,
   MAX_PROFESSION_SKILL,
   PROFESSIONS,
@@ -30,6 +32,7 @@ import {
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { MountRepository } from '../mount/mount.repository';
 import { ActivityRepository } from '../activity/activity.repository';
 import { ACTIVITY_SCHEDULER, type ActivityScheduler } from '../activity/activity.scheduler';
 import { ProfessionRepository, ReputationRepository } from './profession.repository';
@@ -123,6 +126,7 @@ export class ProfessionService {
     private readonly professions: ProfessionRepository,
     private readonly reputation: ReputationRepository,
     private readonly activities: ActivityRepository,
+    private readonly mounts: MountRepository,
     @Inject(ACTIVITY_SCHEDULER) private readonly scheduler: ActivityScheduler,
   ) {}
 
@@ -248,15 +252,18 @@ export class ProfessionService {
     const startAt = new Date();
     const seed = seedFromString(`${characterId}:${nodeId}:${startAt.getTime()}`);
     const params: GatherActivityParams = { nodeId };
+    // Mount speed (M10+): gathering je pohybová aktivita → zkracuje se durationSec.
+    const ownedMounts = await this.mounts.ownedIds(characterId);
+    const durationSec = applyMountSpeed(node.durationSec, mountSpeedBonus(ownedMounts));
     const row = await this.activities.create({
       characterId,
       activityType: 'gather',
       params,
       startAt,
-      durationSec: node.durationSec,
+      durationSec,
       seed,
     });
-    await this.scheduler.schedule(row.id, characterId, node.durationSec * 1000);
+    await this.scheduler.schedule(row.id, characterId, durationSec * 1000);
   }
 
   /**

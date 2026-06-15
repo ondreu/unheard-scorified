@@ -48,6 +48,11 @@ export class DevController {
     return this.dev.addGold(characterId, body.amount);
   }
 
+  @Post('grant-mounts')
+  grantMounts(@Param('characterId') characterId: string) {
+    return this.dev.grantAllMounts(characterId);
+  }
+
   @Post('add-item')
   addItem(@Param('characterId') characterId: string, @Body() body: AddItemDto) {
     return this.dev.addItem(characterId, body.itemId, body.quantity);

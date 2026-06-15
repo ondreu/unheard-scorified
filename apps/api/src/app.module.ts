@@ -10,6 +10,7 @@ import { DungeonModule } from './dungeon/dungeon.module';
 import { GroupModule } from './group/group.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { MountModule } from './mount/mount.module';
 import { ProfessionModule } from './profession/profession.module';
 import { ProgressionModule } from './progression/progression.module';
 import { PushModule } from './push/push.module';
@@ -48,6 +49,7 @@ const devModules =
     TradeModule,
     ProgressionModule,
     GroupModule,
+    MountModule,
     ...devModules,
   ],
 })

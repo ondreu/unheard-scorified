@@ -617,9 +617,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
   - [ ] Příběhové (story) questlinky.
   - [ ] Questy s **combatem** (kill/clear cíl řešený combat enginem, ne jen idle timer).
   - [ ] Každý dungeon má vlastní **questlinku** (attunement/lore → odemykání).
-- [ ] 🧑‍💼 **Mounty** — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
+- [x] 🧑‍💼 **Mounty** ✅ — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
       questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
-      (skin) od bonusu (speed) → kompatibilní s monetizací.
+      (skin) od bonusu (speed) → kompatibilní s monetizací. 2 tiery (basic
+      lvl 30/+30 %, epic lvl 50/+50 %), víc kosmetických variant per tier se
+      stejným bonusem; **speed odvozený z vlastněného mountu, ne z aktivního
+      vizuálu** → monetizace bez refaktoru. `@game/shared/data/mounts.ts`,
+      `MountModule`, tabulka `character_mounts` + `characters.active_mount_id`
+      (migrace `0021`), web `/characters/[id]/mounts`. Testy: shared (+10) +
+      API flow (+8). Detail: `docs/systems/mounts.md`, **ADR 0023**.
 - [ ] 🧑‍💼 **Admin panel**: u seznamu účtů rozkliknout jejich postavy (drill-down
       account → characters → inspect). Rozšiřuje stávající `/dev/mod`.
 - [ ] 🧑‍💼 **Více gearu + armor typy** (cloth / leather / mail / plate).

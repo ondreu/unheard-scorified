@@ -157,6 +157,7 @@
     guild: 'Guild',
     trade: 'Trade',
     achievements: 'Achievements',
+    mounts: 'Mounts',
   };
 
   const isProfession = $derived(
@@ -352,6 +353,12 @@
         class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
       >
         {uiM4.achievements}
+      </a>
+      <a
+        href={`/characters/${characterId}/mounts`}
+        class="rounded bg-emerald-800/40 px-4 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-700/50"
+      >
+        {uiM4.mounts}
       </a>
     </div>
 
