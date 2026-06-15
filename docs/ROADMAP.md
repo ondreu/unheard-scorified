@@ -575,8 +575,106 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       odměna za období (`character_goal_claims`, migrace `0018`). Sdílené
       `@game/shared/goals.ts`. Web: sekce na `/characters/[id]/achievements`.
       Testy: shared `goals.test.ts` (+5) + API (+2). ADR 0021.
-- [ ] PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
+- [ ] PixiJS pixel scénky, nahrazení placeholderů; tutoriál/onboarding.
+- [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
+
+---
+
+## M10+ — Backlog & refinements (živý seznam)
+
+> Sběrný, **priorizovatelný** seznam dalšího směřování (PM zadání + návrhy agenta).
+> Položky se časem přesouvají do vlastních milníků/ADR, jakmile se rozpracují.
+> Legenda: 🧑‍💼 = zadáno PM, 🤖 = návrh agenta.
+
+### FEAT — obsah & systémy
+
+- [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
+  - [ ] Příběhové (story) questlinky.
+  - [ ] Questy s **combatem** (kill/clear cíl řešený combat enginem, ne jen idle timer).
+  - [ ] Každý dungeon má vlastní **questlinku** (attunement/lore → odemykání).
+- [ ] 🧑‍💼 **Mounty** — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
+      questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
+      (skin) od bonusu (speed) → kompatibilní s monetizací.
+- [ ] 🧑‍💼 **Admin panel**: u seznamu účtů rozkliknout jejich postavy (drill-down
+      account → characters → inspect). Rozšiřuje stávající `/dev/mod`.
+- [ ] 🧑‍💼 **Více gearu + armor typy** (cloth / leather / mail / plate).
+  - **Posouzení agenta (🤖): ano, realizovatelné a NE moc složité.** Návrh: přidat
+    `ItemDef.armorClass` + mapování `class → povolené armor typy` (gate při equipu,
+    rozšiřuje stávající `SLOT_TO_ITEM_SLOT` validaci). **Itemizace** přes stat
+    afinitu (str/agi/int/stam/spirit), kterou už staty itemů mají → podtextově
+    vznikne gear pro tank/melee-dps/caster-dps/heal bez nové mechaniky. Balanc
+    zůstává v `@game/shared` (jeden zdroj). Riziko nízké: čistě data + jedna
+    equip validace; combat dopad přes existující `deriveCombatProfile`.
+- [ ] 🤖 Vendoři (NPC odkup/prodej) + „use" consumables/buffů (zbytek z M6).
+- [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid, 2v2 bracket.
+
+### MIL — combat overhaul (WoW-like log + rotace/priority)
+
+> 🧑‍💼 Gigantický zásah do všech faktorů hry. Cíl: divácky zajímavý combat
+> (arény/dungeony/raidy) + hloubka pro min-max. **Mana zatím ne — jen cooldowny.**
+
+- [ ] **WoW-like combat log** — bohaté události („*X* cast Healing Touch, healed
+      *self* for N" / „*X* cast Drain Life on *Y* for N, healed for N"). Stávající
+      `CombatEvent[]` se rozšíří o `heal`/`drain`/`absorb` typy a strukturovaný text.
+- [ ] **Deklarativní rotace / spell priority** (idle-friendly, deterministické).
+  - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
+    postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
+    levným, deterministickým stavem actora (self HP%, target HP%, ability ready
+    (cooldown), počet nepřátel, role). Combat tick (už event-driven + seeded)
+    místo fixních signature abilit **vyhodnotí první splněné pravidlo** → zvolí
+    ability/úder. Tím zůstává **plně deterministické a server-authoritative**
+    (lze přehrát ze snapshotu+seedu jako dnes) a zároveň konfigurovatelné.
+  - [ ] Kontextové rotace (raid healer rotuje heal, ne dmg; tank threat/mitigace…).
+  - [ ] **Rebalance talentů**: na lvl 60 jde teď utratit ~vše + zbývají body →
+        cíl ~1,5 stromu. Přidat víc nodů + **stromová** struktura (ne seznam) pro
+        min-maxing.
+  - [ ] **Drobná náhoda** do combatu (už máme `SeededRng` — rozšířit varianci
+        hitů/proc šancí, stále reprodukovatelně).
+  - [ ] **Testovací target / healing dummy** (sandbox sim pro ladění rotací bez
+        soupeře) — využije idle sim engine.
+- [ ] 🧑‍💼 **Email login** (potvrzení e-mailu).
+- [ ] 🧑‍💼 **Monetizace** (návrh připraven od M0 — kosmetika oddělená od statů):
+      skiny, profilové obrázky, zrychlení, gold, volitelné reklamy.
+
+### CHORE
+
+- [ ] 🧑‍💼 Agresivní upozornění na nový update (verze klienta vs server → výzva
+      k reloadu; service worker už máme z M3).
+
+### BALANCE
+
+- [ ] 🧑‍💼 Délka všech aktivit — teď příliš rychlé (přeladit `durationSec`/křivky).
+- [ ] 🧑‍💼 Revize drop rate (loot tabulky napříč zónami/dungeony/raidy).
+- [ ] 🧑‍💼 Revize rychlosti progrese (XP křivka vs cílová doba na cap 60).
+- [ ] 🤖 PVP vs PVE balanc (společný `deriveCombatProfile` → samostatné ladění),
+      role tuning (tank/healer/dps), boss HP/AP, Elo K/rampage.
+
+### FIX
+
+- [ ] 🧑‍💼 Otočit combat log — **nejnovější události nahoře**.
+- [ ] 🧑‍💼 **Equip bug**: jeden prsten lze nasadit do dvou slotů zároveň.
+  - [ ] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje).
+  - [ ] Equip přes **drag & drop**.
+- [ ] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
+- [ ] 🧑‍💼 **Odstranit legacy** (single-actor `simulateDungeonRun`/`computeDungeonReward`/
+      `DungeonActivityParams` + větev `'dungeon'` v activity modelu; pozor na sdílené
+      combat helpery `determinationFactor`/`easeActor` — ty zůstávají).
+- [ ] 🧑‍💼 **Odstranit NPC backfill** pro dungeony a pro raidy > 5 (jen 5-man smí
+      NPC fill; větší obsah vyžaduje reálné hráče přes lobby). _Pozn.: mění
+      idle-first rozhodnutí pro velký obsah — potvrzeno PM._
+
+### Známé follow-upy (konsolidace „zbývá doladit", 🤖)
+
+- [ ] Auth: httpOnly cookie místo localStorage + refresh rotace/revokace (ADR 0005).
+- [ ] WS realtime tam, kde je teď REST polling: watch týmových arén, trade okno,
+      lobby pozvánky (recyklovat Redis pub/sub vrstvu z M7).
+- [ ] **Trade-window pro BoP loot** (výměna mezi účastníky téhož runu v okně) +
+      **BoE equip-bind tracking** (M8.6 follow-up).
+- [ ] Guild chat kanál + MOTD + (později) banka/perky.
+- [ ] PWA ikony 192/512, per-postavová push granularita, `docker compose up`
+      ověřit s běžícím daemonem.
+- [ ] (Nepovinné) konvergence `RaidService`/`DungeonService` → `GroupRunService`.
 
 ---
 
