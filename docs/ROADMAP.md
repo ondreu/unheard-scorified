@@ -423,11 +423,18 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 - **Raid leader + lobby**: leader sestaví, zve hráče, ručně spustí; realtime
   obsazení přes WS (recykluje M7/M8 vrstvu). Pozvánky/výběr **v guildě → po M9**.
 
-#### C) Arény — rozšíření o 3v3 a 5v5 + ruční sestavení týmů
+#### C) Arény — rozšíření o 3v3 a 5v5 (ruční týmy) → **závisí na M9 social**
 
 Upřesnění PM: v PVP **NEjde o wipe/retry**, ale o **nové brackety 3v3 a 5v5** vedle
-1v1 a **ruční sestavení týmu** (vybrat parťáky). Matchmaking týmů recykluje M7
-(snapshot fronta); ruční výběr týmu **po M9 social**.
+1v1. **Rozhodnutí PM:** **idle (NPC backfill / auto-matchmaking) zůstává jen u 1v1**;
+**týmové arény (3v3/5v5) se MUSÍ skládat ručně** (hráč si vybere parťáky). Ruční
+sestavení týmu vyžaduje **friends/guild → celá C tedy spadá až za M9 social.**
+Žádný idle team-matchmaking s NPC backfillem se nestaví (na rozdíl od raidů/group
+dungeonů, kde idle NPC backfill zůstává).
+
+> Důsledek: C **není pre-M9** (původní „C-matchmaking" v Pořadí padá). Bojový engine
+> tým-vs-tým + brackety se přidají až s M9 manuálním sestavením (žádné předčasné
+> half-feature v `ArenaBracket`).
 
 **Rating model — rozhodnutí (PM přenechal na mně): per hráč per bracket, ad-hoc týmy.**
 Žádná perzistentní „arena team" entita (jako vanilla 2v2 týmy), ale **ad-hoc tým per
@@ -452,9 +459,10 @@ Perzistentní týmy lze přidat později bez refaktoru (bracket je datový atrib
 
 #### Pořadí (doporučení) & zbývající rozhodnutí
 
-Doporučené pořadí kvůli závislosti na social:
-`M8 → M8.5-A (wipe/retry) + M8.5-C-matchmaking + M8.5-D-personal-loot + M8.6
-→ M9 (social) → M8.5-B (guild formace) + M8.5-C-ruční-týmy + M8.5-D-trade`.
+Doporučené pořadí kvůli závislosti na social (aktualizováno — týmové arény jsou
+ruční, tedy až po M9):
+`M8 → M8.5-A (wipe/retry) ✅ + M8.5-B-group-PVE (idle) + M8.5-D-personal-loot + M8.6
+→ M9 (social) → M8.5-B (guild ruční formace) + M8.5-C (3v3/5v5 ruční týmy) + M8.5-D-trade`.
 
 Vyřešeno PM: rozsah módů (SP+3/5+raid, vše iterativní), boss-easing per wipe + hard
 fail bez útěchy, klesá XP/zlato/loot-šance, arena 3v3/5v5 + ad-hoc rating per hráč,
