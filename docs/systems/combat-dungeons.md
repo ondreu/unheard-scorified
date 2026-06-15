@@ -107,13 +107,14 @@ aktivity = délka předpočítaného boje.
 
 `simulateDungeonRun` je teď **orchestrátor per-encounter pullů** (helper
 `fightEncounter` = jeden pull). Wipe na encounteru → retry téhož encounteru
-(`ENCOUNTER_ATTEMPT_CAP`× max), encounter se **zlehčí** (determination, HP/dmg
-×`factor(attempt)` s dolní hranicí `DETERMINATION_FLOOR`). Vyčištěné encountery
-zůstávají; po wipu se postava resetuje na plnou HP. Vyčerpání pokusů = **hard
-fail** (0 odměny, žádná útěcha).
+(`ENCOUNTER_ATTEMPT_CAP` = 7 pullů), encounter se **zlehčí** (`determinationFactor`,
+HP/dmg ×factor). První wipe je „zdarma"; křivka obtížnosti
+`1 → 1 → 0.95 → 0.9 → 0.85 → 0.8 → 0.75`, pak **hard fail** (0 odměny, žádná
+útěcha). Vyčištěné encountery zůstávají; po wipu se postava resetuje na plnou HP.
 
-`DungeonCombatResult.wipes` řídí odměnu přes `wipeRewardMultiplier` (XP, zlato i
-loot šance; maximum za 0 wipů, dno 0.25). Combat log zobrazí retry pully
+`DungeonCombatResult.wipes` řídí odměnu přes `wipeRewardMultiplier`, která sleduje
+obtížnost (XP, zlato i loot šance; plná za 0–1 wipe, dno 0.3 na obtížnosti 0.75).
+Combat log zobrazí retry pully
 (`encounter_start (pull N, weakened)` + opakované `player_defeated`); dungeon log
 view vystaví `wipes` po dokončení. Detail: ADR 0013.
 

@@ -45,12 +45,15 @@ const MAX_ITERATIONS = 4000;
 /**
  * Max počet pokusů na JEDEN encounter (1 initiální + retry). Po vyčerpání bez
  * clearu = **hard fail** (run končí, žádná útěcha). Viz ADR 0013.
+ * Křivka obtížnosti: 1 → 1 → 0.95 → 0.9 → 0.85 → 0.8 → 0.75 (7 pullů), pak fail.
  */
-const ENCOUNTER_ATTEMPT_CAP = 6;
-/** O kolik se encounter zlehčí za každý dosavadní wipe na něm (HP i dmg). */
-const DETERMINATION_PER_WIPE = 0.07;
-/** Dolní hranice zlehčení — nikdy pod tento podíl originálu. */
-const DETERMINATION_FLOOR = 0.5;
+const ENCOUNTER_ATTEMPT_CAP = 7;
+/** Pokles obtížnosti za wipe (po prvním „zdarma" wipu) až k podlaze. */
+const DETERMINATION_PER_WIPE = 0.05;
+/** Dolní hranice zlehčení — nejlehčí obtížnost (podíl originálu). */
+const DETERMINATION_FLOOR = 0.75;
+/** Odměna na nejlehčí obtížnosti (FLOOR) — XP/zlato/loot až sem klesnou. */
+const REWARD_FLOOR = 0.3;
 /** Prodleva (s), než se postava po wipu sebere a pullne znovu. */
 const REGROUP_AFTER_WIPE_SEC = 5;
 
@@ -178,17 +181,26 @@ export interface DungeonCombatResult {
 }
 
 /**
- * Násobitel odměny (XP/zlato/loot-šance) podle počtu wipů (M8.5-A). Maximum při
- * 0 wipech, klesá s každým wipem až k dolní hranici → clean run je nejvýhodnější,
- * ale odhodlaný hráč po wipech pořád něco dostane (na rozdíl od hard failu = 0).
+ * Zlehčení encounteru po `attempt` wipech (HP i dmg ×factor). První wipe je
+ * „zdarma" (obtížnost 1.0 → 1.0), pak klesá o `DETERMINATION_PER_WIPE` za wipe
+ * až k `DETERMINATION_FLOOR`: 1 → 1 → 0.95 → 0.9 → 0.85 → 0.8 → 0.75. Exportováno,
+ * aby raid (party-vs-boss) sdílel identickou křivku (žádná duplikace).
  */
-export function wipeRewardMultiplier(wipes: number): number {
-  return Math.max(0.25, 1 - 0.15 * Math.max(0, wipes));
+export function determinationFactor(attempt: number): number {
+  return Math.max(DETERMINATION_FLOOR, 1 - DETERMINATION_PER_WIPE * Math.max(0, attempt - 1));
 }
 
-/** Zlehčení encounteru po `attempt` wipech (HP i dmg ×factor, s dolní hranicí). */
-function determinationFactor(attempt: number): number {
-  return Math.max(DETERMINATION_FLOOR, 1 - DETERMINATION_PER_WIPE * attempt);
+/**
+ * Násobitel odměny (XP/zlato/loot-šance) podle počtu wipů (M8.5-A). **Sleduje
+ * obtížnost**: mapuje determination `[FLOOR..1]` lineárně na odměnu
+ * `[REWARD_FLOOR..1]`. 0–1 wipe = plná odměna (1.0), pak klesá až k `REWARD_FLOOR`
+ * (0.3) na nejlehčí obtížnosti. Hard fail (run nevyčistěn) řeší volající = 0
+ * (žádná útěcha).
+ */
+export function wipeRewardMultiplier(wipes: number): number {
+  const d = determinationFactor(Math.max(0, wipes));
+  const t = (d - DETERMINATION_FLOOR) / (1 - DETERMINATION_FLOOR);
+  return REWARD_FLOOR + t * (1 - REWARD_FLOOR);
 }
 
 /** Vrátí zlehčenou kopii aktéra (×factor na HP i attack power). */

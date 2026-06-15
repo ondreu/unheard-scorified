@@ -374,11 +374,12 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - [x] **Per-encounter (per-boss) pully** ve sdíleném enginu: `combat.ts` extrahoval
       `fightEncounter` + orchestrátor `simulateDungeonRun`; `raid.ts` `fightBoss` +
       orchestrátor `simulateRaidRun`. Žádná duplikace per-hit vzorců (`computeHit`).
-- [x] **Determination**: encounter/boss se za každý wipe zlehčí (HP i dmg
-      ×`factor(attempt)`, dolní hranice `*_DETERMINATION_FLOOR`); poražené encountery
-      zůstávají, po wipu reset HP na plnou, auto-retry do `*_ATTEMPT_CAP`.
-- [x] **Odměny škálované wipy** (`wipeRewardMultiplier`, max za 0 wipů, dno 0.25):
-      klesá XP, zlato i šance na loot (`rollLoot` má `dropChanceMult`).
+- [x] **Determination** (sdílená křivka dungeon+raid, první wipe „zdarma"):
+      obtížnost `1 → 1 → 0.95 → 0.9 → 0.85 → 0.8 → 0.75` (7 pullů), HP i dmg
+      ×factor; poražené encountery zůstávají, po wipu reset HP na plnou.
+- [x] **Odměny sledují obtížnost** (`wipeRewardMultiplier`): plná za 0–1 wipe,
+      lineárně dolů až k 0.3 na obtížnosti 0.75. Klesá XP, zlato i šance na loot
+      (`rollLoot` má `dropChanceMult`). Hodnoty: `1, 1, 0.86, 0.72, 0.58, 0.44, 0.3`.
 - [x] **Hard fail** (vyčerpání pokusů bez clearu) = 0 odměny, žádná útěcha
       (ruší dosavadní 10% útěchu z M5/M8).
 - [x] Idle auto-retry; live combat log zobrazí retry pully (`(pull N, weakened)`).

@@ -169,14 +169,20 @@ describe('computeDungeonReward', () => {
 });
 
 describe('wipeRewardMultiplier', () => {
-  it('je maximální (1) při 0 wipech a klesá s wipy', () => {
+  it('první wipe je „zdarma" (plná odměna při 0 i 1 wipu)', () => {
     expect(wipeRewardMultiplier(0)).toBe(1);
-    expect(wipeRewardMultiplier(1)).toBeLessThan(1);
-    expect(wipeRewardMultiplier(2)).toBeLessThan(wipeRewardMultiplier(1));
+    expect(wipeRewardMultiplier(1)).toBe(1);
   });
 
-  it('nikdy neklesne pod dolní hranici 0.25', () => {
-    expect(wipeRewardMultiplier(100)).toBe(0.25);
+  it('po druhém wipu klesá monotónně až k podlaze 0.3', () => {
+    expect(wipeRewardMultiplier(2)).toBeLessThan(1);
+    expect(wipeRewardMultiplier(3)).toBeLessThan(wipeRewardMultiplier(2));
+    // 0.75 obtížnost (6 wipů) ↔ 0.3 odměna.
+    expect(wipeRewardMultiplier(6)).toBeCloseTo(0.3);
+  });
+
+  it('nikdy neklesne pod podlahu 0.3', () => {
+    expect(wipeRewardMultiplier(100)).toBeCloseTo(0.3);
     expect(wipeRewardMultiplier(-5)).toBe(1);
   });
 });

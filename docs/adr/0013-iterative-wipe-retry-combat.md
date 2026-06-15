@@ -49,26 +49,43 @@ hodnoty RNG. Live combat log = stále jen reveal předpočítaného timeline dle
 
 ### Determination (zlehčování)
 
-`factor(attempt) = max(FLOOR, 1 − PER_WIPE · attempt)`, aplikováno na `maxHealth`
-i `attackPower` nepřítele/bosse. Laditelné konstanty (vyladí se v M9):
+`determinationFactor(attempt) = max(FLOOR, 1 − PER_WIPE · max(0, attempt − 1))`,
+aplikováno na `maxHealth` i `attackPower` nepřítele/bosse. **První wipe je „zdarma"**
+(obtížnost ani odměna neklesnou). Sdíleno dungeonem i raidem (jediná funkce,
+exportovaná z `combat.ts`). Křivka obtížnosti per pull:
 
-| Konstanta                  | Dungeon | Raid |
-| -------------------------- | ------- | ---- |
-| `*_ATTEMPT_CAP`            | 6       | 6    |
-| `*_DETERMINATION_PER_WIPE` | 0.07    | 0.07 |
-| `*_DETERMINATION_FLOOR`    | 0.50    | 0.50 |
-| regroup mezi pully (s)     | 5       | 8    |
+```
+1.0 → 1.0 → 0.95 → 0.90 → 0.85 → 0.80 → 0.75 → (poté hard fail)
+attempt: 0     1      2      3      4      5      6        7
+```
+
+Laditelné konstanty (vyladí se v M9), společné pro dungeon i raid:
+
+| Konstanta               | Hodnota |
+| ----------------------- | ------- |
+| `ENCOUNTER/BOSS_ATTEMPT_CAP` | 7  |
+| `DETERMINATION_PER_WIPE` | 0.05   |
+| `DETERMINATION_FLOOR`    | 0.75    |
+| `REWARD_FLOOR`           | 0.30    |
+| regroup mezi pully (s)   | 5 / 8   |
 
 Po wipu se HP postavy/party resetuje na plnou (party doběhla); **mezi vyčištěnými**
 encountery se nese částečně doléčená HP jako dřív (attrition v rámci clean runu).
 
 ### Odměny — `wipeRewardMultiplier`
 
+Odměna **sleduje obtížnost**: determination `[0.75..1]` se lineárně mapuje na
+odměnu `[0.30..1]`.
+
 ```
-wipeRewardMultiplier(wipes) = max(0.25, 1 − 0.15 · wipes)
+d = determinationFactor(wipes)
+wipeRewardMultiplier(wipes) = 0.30 + (d − 0.75) / (1 − 0.75) · (1 − 0.30)
 ```
 
-- Maximum (1.0) za 0 wipů, klesá s každým wipem, dno 0.25.
+Výsledné hodnoty per počet wipů: `1.0, 1.0, 0.86, 0.72, 0.58, 0.44, 0.30`.
+
+- 0–1 wipe = plná odměna (1.0), pak klesá až k `REWARD_FLOOR` (0.30) na nejlehčí
+  obtížnosti (0.75).
 - Aplikuje se na **XP, zlato i šanci na loot** (`rollLoot(..., dropChanceMult)`).
 - **Hard fail (run nevyčistěn) → `{ xp: 0, gold: 0, items: [] }`** (žádná útěcha).
 

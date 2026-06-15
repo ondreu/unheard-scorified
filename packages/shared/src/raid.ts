@@ -18,6 +18,7 @@
 import { SeededRng } from './rng';
 import {
   computeHit,
+  determinationFactor,
   round1,
   type CombatActor,
   type CombatEvent,
@@ -111,18 +112,13 @@ const RAID_MIN_DURATION_SEC = 8;
 const RAID_MAX_ITERATIONS = 40000;
 
 // ── Iterativní wipe/retry (M8.5-A) ──────────────────────────────────────────
-/** Max počet pokusů na jednoho bosse; po vyčerpání bez killu = hard fail. */
-const BOSS_ATTEMPT_CAP = 6;
-/** Zlehčení bosse za každý wipe na něm (HP i dmg dolů). */
-const BOSS_DETERMINATION_PER_WIPE = 0.07;
-/** Dolní hranice zlehčení — nikdy pod tento podíl originálu. */
-const BOSS_DETERMINATION_FLOOR = 0.5;
+/**
+ * Max počet pokusů na jednoho bosse; po vyčerpání bez killu = hard fail. Sdílí
+ * křivku obtížnosti s dungeonem (`determinationFactor`): 1 → 1 → 0.95 → … → 0.75.
+ */
+const BOSS_ATTEMPT_CAP = 7;
 /** Prodleva (s), než se party po wipu sebere a pullne znovu. */
 const RAID_REGROUP_AFTER_WIPE_SEC = 8;
-
-function bossDeterminationFactor(attempt: number): number {
-  return Math.max(BOSS_DETERMINATION_FLOOR, 1 - BOSS_DETERMINATION_PER_WIPE * attempt);
-}
 
 /** Zlehčená kopie bosse (×factor na HP i attack power). */
 function easeBoss(boss: CombatActor, factor: number): CombatActor {
@@ -416,7 +412,7 @@ export function simulateRaidRun(
     let hpAfter = carriedHp;
 
     while (attempt < BOSS_ATTEMPT_CAP) {
-      const boss = easeBoss(baseBoss, bossDeterminationFactor(attempt));
+      const boss = easeBoss(baseBoss, determinationFactor(attempt));
       const startHp = attempt === 0 ? carriedHp : fullHp;
       const enc = fightBoss(party, boss, rng, clock, startHp, attempt);
       for (const e of enc.events) events.push(e);

@@ -75,10 +75,11 @@ Při resolve se každému reálnému účastníkovi udělí XP/zlato/loot na see
 ## Iterativní wipe/retry (M8.5-A)
 
 `simulateRaidRun` je **orchestrátor per-boss pullů** (helper `fightBoss` = jeden
-pull party vs boss). Wipe (celá party mrtvá) → retry téhož bosse (`BOSS_ATTEMPT_CAP`×
-max), boss se **zlehčí** (determination, HP/dmg ×`factor(attempt)` s dolní hranicí).
-Poražení bossové zůstávají; po wipu se party resetuje na plnou HP. Vyčerpání pokusů
-= **hard fail** (0 odměny, žádná útěcha — ruší dosavadní 10% útěchu).
+pull party vs boss). Wipe (celá party mrtvá) → retry téhož bosse (`BOSS_ATTEMPT_CAP`
+= 7 pullů), boss se **zlehčí** sdílenou křivkou `determinationFactor`
+(`1 → 1 → 0.95 → … → 0.75`, první wipe zdarma). Poražení bossové zůstávají; po wipu
+se party resetuje na plnou HP. Vyčerpání pokusů = **hard fail** (0 odměny, žádná
+útěcha — ruší dosavadní 10% útěchu).
 
 `RaidCombatResult.wipes` se propisuje do `computeRaidReward(raid, victory, seed,
 wipes)` → odměna všech účastníků škálovaná `wipeRewardMultiplier` (XP, zlato, loot
