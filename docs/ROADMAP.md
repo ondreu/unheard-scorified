@@ -692,9 +692,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       spolu se `simulateDungeonRun`. **Zachováno** sdílené: `determinationFactor`,
       `wipeRewardMultiplier`, `computeHit`, `round1`, `buildEnemyActor`. Ověřeno
       typecheck/lint/testy (167 shared + 131 API zelené).
-- [ ] 🧑‍💼 **Odstranit NPC backfill** pro dungeony a pro raidy > 5 (jen 5-man smí
-      NPC fill; větší obsah vyžaduje reálné hráče přes lobby). _Pozn.: mění
-      idle-first rozhodnutí pro velký obsah — potvrzeno PM._
+- [x] 🧑‍💼 **Odstranit NPC backfill** — **finální rozhodnutí PM: úplně** (dungeony 3/5,
+      raidy 5/10/20 i raid lobby). Party se skládá jen z reálných hráčů z fronty/lobby;
+      chybí-li hráči, run se spustí s menší partou a boss/encountery se škálují její
+      velikostí (`scaleBoss`/`groupEncounters` dle `party.length`). Odstraněny i mrtvé
+      shared buildery (`COMPANION_NAMES`, `buildCompanionBase`, `buildDungeonCompanion`,
+      `RaidDef.companion`) a `isNpc` z run view. _Pozn.: mění idle-first rozhodnutí pro
+      group obsah — potvrzeno PM. Follow-up: doladit matchmaking (rating-window/čekání
+      na partu) pro plynulejší skládání bez NPC._
 
 ### Známé follow-upy (konsolidace „zbývá doladit", 🤖)
 

@@ -108,7 +108,8 @@ aktivity = délka předpočítaného boje.
 
 Dungeon už **není idle aktivita** (`character_activities`), ale **group PVE run**
 sdílený s raidy (`raid_runs` + `content_type='dungeon'`, ADR 0014). SP = party 1 dps,
-group 3/5 = role + NPC backfill (idle matchmaking fronta `dungeon:<id>`). Combat =
+group 3/5 = role, jen reální hráči z fronty `dungeon:<id>` (žádný NPC backfill —
+chybí-li hráči, party je menší a encountery se škálují její velikostí). Combat =
 `simulateRaidRun` (party vs sekvence encounterů, členové používají signature abilities),
 encountery škálované velikostí party. **Personal loot** per účastník
 (`computeGroupReward`, seed per postava). Odměna padá při resolve (žádný separátní

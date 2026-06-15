@@ -3,23 +3,22 @@
  * obsahu: **party (1..N aktérů s rolemi) vs sekvence encounterů**, na společné
  * simulaci `simulateRaidRun` (party vs sekvence, wipe/retry z M8.5-A, member
  * abilities). SP dungeon = group run s 1 dps; group dungeon 3/5 a raid 5/10/20
- * přidávají role + NPC backfill.
+ * přidávají role. Party se skládá **jen z reálných hráčů** (žádný NPC backfill —
+ * odebráno; obsah se odsimuluje s tím, kolik hráčů se sejde, boss se škáluje
+ * velikostí party).
  *
  * Tento modul drží **content-agnostické** helpery (velikosti, kompozice,
- * encountery + scaling, companion baseline, unlock, personal reward). Persistence
+ * encountery + scaling, unlock, personal reward). Persistence
  * a matchmaking žijí v API (sdílené run tabulky). Veškerá náhoda jen přes
  * `SeededRng`. Viz ADR 0014.
  */
 import { SeededRng } from './rng';
-import { aggregateTalentEffects } from './data/talents';
-import { baseStatsFor } from './character';
 import {
   buildEnemyActor,
-  deriveCombatProfile,
   wipeRewardMultiplier,
   type CombatActor,
 } from './combat';
-import { DUNGEONS, isDungeonId, isDungeonUnlocked, type DungeonDef } from './data/dungeons';
+import { DUNGEONS, isDungeonId, isDungeonUnlocked } from './data/dungeons';
 import {
   RAIDS,
   buildRaidBoss,
@@ -106,23 +105,6 @@ export function groupEncounters(
   const raid = RAIDS[contentId];
   if (!raid) return [];
   return raid.bosses.map((b) => scaleBoss(buildRaidBoss(b), size));
-}
-
-/**
- * Baseline `CombatActor` pro NPC backfill daného obsahu (před aplikací role
- * přes `deriveRaidActor`). Dungeon: odvozeno z `recommendedLevel` (generický
- * warrior profil); raid: `buildCompanionBase` (řeší API, má raid def).
- */
-export function buildDungeonCompanion(dungeon: DungeonDef, name: string): CombatActor {
-  const level = dungeon.recommendedLevel;
-  return deriveCombatProfile({
-    name,
-    level,
-    klass: 'warrior',
-    primary: baseStatsFor('human', 'warrior', level),
-    equipment: {},
-    talents: aggregateTalentEffects('warrior', {}),
-  });
 }
 
 /** Je obsah pro postavu odemčený (level + případný attunement/questline)? */

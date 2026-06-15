@@ -8,9 +8,7 @@ import {
 import {
   aggregateTalentEffects,
   baseStatsFor,
-  buildCompanionBase,
   buildRaidBoss,
-  COMPANION_NAMES,
   computeRaidReward,
   defaultRaidComposition,
   deriveCombatProfile,
@@ -89,7 +87,7 @@ export interface RaidRunView {
     completed: boolean;
     finishesAt: string;
   };
-  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  party: { name: string; role: RaidRole; maxHealth: number }[];
   bosses: { name: string }[];
   events: CombatEvent[];
   /** null dokud se boj „neodehraje" (reveal dle času); pak true/false. */
@@ -268,26 +266,22 @@ export class RaidService {
     const party: RaidActor[] = [myActor];
     const pulled: RaidQueueEntry[] = [];
 
-    // Kolik kterých rolí ještě potřebujeme (po odečtení mé).
+    // Party se skládá JEN z reálných hráčů ve frontě (žádný NPC backfill).
+    // Chybí-li dost hráčů role, party bude menší — boss se škáluje skutečnou
+    // velikostí party (`finalizeRun` → `scaleBoss(party.length)`).
     const need: Record<RaidRole, number> = { tank: comp.tank, healer: comp.healer, dps: comp.dps };
     need[role] -= 1;
 
     for (const r of RAID_ROLES) {
-      let npcIndex = 1;
       for (let i = 0; i < need[r]; i++) {
         const candidate = await this.queue.takeByRole(raidId, r, characterId);
-        if (candidate) {
-          party.push(candidate.snapshot);
-          pulled.push(candidate);
-        } else {
-          const name = `${COMPANION_NAMES[r]} ${npcIndex++}`;
-          party.push(deriveRaidActor(buildCompanionBase(raid, name), r));
-        }
+        if (!candidate) break; // žádný další čekající hráč této role
+        party.push(candidate.snapshot);
+        pulled.push(candidate);
       }
     }
 
-    // Reální účastníci: já (iniciátor) + vytažení z fronty. NPC backfill je jen
-    // v `party` (pro simulaci), odměny dostávají jen reální hráči.
+    // Reální účastníci: já (iniciátor) + vytažení z fronty.
     const real: RaidParticipantInput[] = [{ character, role, initiator: true }];
     for (const p of pulled) {
       const pc = await this.characters.findById(p.characterId);
@@ -499,7 +493,6 @@ export class RaidService {
         name: a.name,
         role: a.role,
         maxHealth: a.maxHealth,
-        isNpc: a.name.startsWith('Mercenary '),
       })),
       bosses: (raid?.bosses ?? []).map((b) => ({ name: b.name })),
       events: visible,

@@ -136,7 +136,7 @@ describe('M8.5-B flow: raid lobby', () => {
     await expect(lobby.invite(a.accountId, a.id, lid, b.name, 'dps')).rejects.toThrow();
   });
 
-  it('spuštění sestaví party (členové + NPC backfill) a vyřeší run', async () => {
+  it('spuštění sestaví party jen z připojených členů (žádný NPC backfill) a vyřeší run', async () => {
     const a = await raider('Starter');
     const b = await raider('Joiner');
     await lobby.create(a.accountId, a.id, 'molten_core', 'tank', 5);
@@ -147,9 +147,9 @@ describe('M8.5-B flow: raid lobby', () => {
     const { runId } = await lobby.start(a.accountId, a.id, lid);
     expect(runId).toBeTruthy();
 
-    // Run existuje, party doplněna na velikost 5 (2 hráči + 3 NPC).
+    // Backfill odebrán: party = jen 2 připojení hráči, zbylé sloty prázdné.
     const run = await raid.getRun(a.accountId, a.id, runId);
-    expect(run.party).toHaveLength(5);
+    expect(run.party).toHaveLength(2);
     expect(run.myRole).toBe('tank');
     // Připojený hráč je účastníkem.
     const bRun = await raid.getRun(b.accountId, b.id, runId);

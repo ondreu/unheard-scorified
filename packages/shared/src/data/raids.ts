@@ -2,9 +2,9 @@
  * Definice raidů (MP PVE, M8). Statická herní data — jediný zdroj pravdy pro API
  * i web. Balanc (boss HP/AP, loot, XP) se ladí ZDE (vyladí se v M9).
  *
- * Raid = sekvence bossů + companion NPC základ (pro backfill chybějících rolí,
- * idle-first — viz ADR 0011) + attunement gating (level + dokončený questline,
- * rozhodnutí PM). Loot tabulky žijí v `loot.ts` (`RAID_LOOT_TABLES`).
+ * Raid = sekvence bossů + attunement gating (level + dokončený questline,
+ * rozhodnutí PM). Party se skládá jen z reálných hráčů (NPC backfill odebrán).
+ * Loot tabulky žijí v `loot.ts` (`RAID_LOOT_TABLES`).
  *
  * Raidy jsou PVE neutrální (obě frakce vidí stejnou sadu); attunement questline
  * je per-frakce (paralelní questy se stejným efektem — frakce kosmetická).
@@ -12,7 +12,6 @@
 import { SeededRng } from '../rng';
 import { buildEnemyActor, wipeRewardMultiplier, type CombatActor, type EnemyStats } from '../combat';
 import { rollLoot, RAID_LOOT_TABLES } from '../loot';
-import type { RaidRole } from '../raid';
 
 /** Boss v raidu (statická data → `buildRaidBoss`). Volitelné signature abilities. */
 export interface RaidBossDef extends EnemyStats {
@@ -42,11 +41,6 @@ export interface RaidDef {
   sizes: number[];
   /** Sekvence bossů (poslední je „end boss"). Staty se škálují dle velikosti. */
   bosses: RaidBossDef[];
-  /**
-   * Základní staty companion NPC (škálují se rolí v `deriveRaidActor`). Slouží
-   * k backfillu chybějících rolí, aby raid šel vyřešit i s málo hráči (idle-first).
-   */
-  companion: { maxHealth: number; attackPower: number; swingInterval: number; armor: number };
   /** Základní XP odměna za vyčištění (per účastník, fixní). */
   baseXp: number;
   /** Základní zlato (rolluje se s variancí). */
@@ -74,7 +68,6 @@ export const RAIDS: Record<string, RaidDef> = {
     description: 'The molten heart of Blackrock Mountain, where Ragnaros the Firelord smolders in his throne.',
     attunement: { requiredLevel: 40, questAnyOf: ['dw_morbent_fel', 'tn_galak_ogres'] },
     sizes: [5, 10, 20],
-    companion: { maxHealth: 900, attackPower: 34, swingInterval: 2.4, armor: 60 },
     baseXp: 9000,
     baseGold: 300,
     goldVariance: 0.2,
@@ -98,7 +91,6 @@ export const RAIDS: Record<string, RaidDef> = {
     description: 'Nefarian\'s dread fortress atop Blackrock Spire, home to his twisted chromatic experiments.',
     attunement: { requiredLevel: 55, questAnyOf: ['al_drakefire_attunement', 'ho_drakefire_attunement'] },
     sizes: [10, 20],
-    companion: { maxHealth: 1500, attackPower: 52, swingInterval: 2.4, armor: 100 },
     baseXp: 18000,
     baseGold: 520,
     goldVariance: 0.2,
@@ -128,28 +120,6 @@ export function buildRaidBoss(def: RaidBossDef): CombatActor {
   return {
     ...base,
     signatureAbilities: (def.abilities ?? []).map((a, i) => ({ id: `${def.id}_${i}`, ...a })),
-  };
-}
-
-/** Companion NPC jména per role (UI). */
-export const COMPANION_NAMES: Record<RaidRole, string> = {
-  tank: 'Mercenary Guardian',
-  healer: 'Mercenary Cleric',
-  dps: 'Mercenary Blade',
-};
-
-/** Základní `CombatActor` companion NPC (před aplikací role v `deriveRaidActor`). */
-export function buildCompanionBase(raid: RaidDef, name: string): CombatActor {
-  return {
-    name,
-    maxHealth: raid.companion.maxHealth,
-    attackPower: raid.companion.attackPower,
-    swingInterval: raid.companion.swingInterval,
-    critChance: 0.08,
-    critMultiplier: 2,
-    armor: raid.companion.armor,
-    lifesteal: 0,
-    signatureAbilities: [],
   };
 }
 

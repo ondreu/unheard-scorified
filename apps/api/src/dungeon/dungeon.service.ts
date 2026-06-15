@@ -8,9 +8,7 @@ import {
 import {
   aggregateTalentEffects,
   baseStatsFor,
-  buildDungeonCompanion,
   computeGroupReward,
-  COMPANION_NAMES,
   deriveCombatProfile,
   deriveRaidActor,
   DUNGEON_SIZES,
@@ -93,7 +91,7 @@ export interface DungeonRunView {
     completed: boolean;
     finishesAt: string;
   };
-  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  party: { name: string; role: RaidRole; maxHealth: number }[];
   encounters: { name: string; isBoss: boolean }[];
   events: CombatEvent[];
   /** null dokud se boj „neodehraje" (reveal dle času); pak true/false. */
@@ -252,19 +250,17 @@ export class DungeonService {
     const party: RaidActor[] = [myActor];
     const pulled: RaidQueueEntry[] = [];
 
+    // Party se skládá JEN z reálných hráčů ve frontě (žádný NPC backfill).
+    // Chybí-li hráči dané role, party prostě bude menší — boss/encountery se
+    // škálují skutečnou velikostí party (viz `encountersFor`).
     const need: Record<RaidRole, number> = { tank: comp.tank, healer: comp.healer, dps: comp.dps };
     need[myRole] -= 1;
     for (const r of RAID_ROLES) {
-      let npcIndex = 1;
       for (let i = 0; i < need[r]; i++) {
         const candidate = await this.queue.takeByRole(queueKey(dungeonId), r, characterId);
-        if (candidate) {
-          party.push(candidate.snapshot);
-          pulled.push(candidate);
-        } else {
-          const name = `${COMPANION_NAMES[r]} ${npcIndex++}`;
-          party.push(deriveRaidActor(buildDungeonCompanion(dungeon, name), r));
-        }
+        if (!candidate) break; // žádný další čekající hráč této role
+        party.push(candidate.snapshot);
+        pulled.push(candidate);
       }
     }
 
@@ -448,7 +444,6 @@ export class DungeonService {
         name: a.name,
         role: a.role,
         maxHealth: a.maxHealth,
-        isNpc: a.name.startsWith('Mercenary '),
       })),
       encounters: (dungeon?.encounters ?? []).map((e) => ({ name: e.name, isBoss: e.isBoss ?? false })),
       events: visible,

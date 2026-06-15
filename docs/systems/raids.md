@@ -8,9 +8,10 @@ a raid lootem. Rozhodnutí a důsledky: **ADR 0011**. Combat recykluje M5 engine
 Modern-WoW flex velikosti **5 / 10 / 20** (`RAID_SIZES`); per-raid `RaidDef.sizes`
 (první = default). Hráč při `enter` zvolí `size` + **vlastní kompozici**
 `{tank,healer,dps}` (`isValidComposition`: součet = size, jeho role ≥ 1); jinak
-`defaultRaidComposition(size)` (5: 1/1/3 · 10: 2/2/6 · 20: 2/5/13). Chybějící
-sloty doplní NPC → návrh compu je strategická volba (málo healerů → wipe, málo
-dps → enrage).
+`defaultRaidComposition(size)` (5: 1/1/3 · 10: 2/2/6 · 20: 2/5/13). Kompozice je
+**cíl** — chybějící sloty zůstanou prázdné (NPC backfill **odebrán**); party se
+skládá jen z reálných hráčů a boss se škáluje skutečnou velikostí party (málo
+healerů → wipe, málo dps → enrage).
 
 **Boss scaling** (`scaleBoss`): boss HP i dmg ×`size/5` → balanc zůstává zhruba
 invariantní napříč velikostmi, rozhoduje hlavně kompozice. Velikost se odvodí
@@ -46,12 +47,13 @@ heal. Vrací `CombatEvent[]` timeline + `victory` + `durationSec`.
 Loot: `RAID_LOOT_TABLES` (loot.ts) → epic/legendary raid gear (`items.ts`).
 `isRaidUnlocked(raidId, level, completedQuestIds)` = level + alespoň jeden attunement quest.
 
-## Idle-first matchmaking (NPC backfill)
+## Matchmaking (jen reální hráči — bez NPC backfillu)
 
 - `POST …/raids/:raidId/queue {role}` — čekání ve frontě (Redis hash, snapshot).
 - `POST …/raids/:raidId/enter {role}` — sestaví party: vytáhne čekající reálné
-  hráče pro chybějící role (atomicky), zbytek doplní **NPC companiony**, okamžitě
-  vyřeší. Vytažení hráči dostanou odměnu + push (jako offline arena soupeř).
+  hráče pro chybějící role (atomicky) a okamžitě vyřeší. **Žádný NPC backfill** —
+  chybí-li hráči, party je menší a boss se škáluje její velikostí. Vytažení hráči
+  dostanou odměnu + push (jako offline arena soupeř).
 - `POST …/raids/:raidId/leave`, `GET …/raids`, `GET …/raids/runs`, `GET …/raids/run/:runId`.
 
 Raidy nepoužívají `character_activities` (MP) — vlastní tabulky `raid_runs` +
@@ -98,9 +100,10 @@ scheduler). Run view vystaví `myLockedOut`. Vzorce: `@game/shared/lockout.ts`
 
 Vedle idle fronty lze raid sestavit **ručně** (`/characters/[id]/raid-lobby`):
 leader založí lobby (raid + velikost + kompozice), zve konkrétní postavy do rolí
-(odemčeno M9 social — friends/guild), spravuje sestavu a spustí. Zbylé sloty
-doplní **NPC backfill** (idle-first zachován). Spuštění recykluje
-`RaidService.finalizeRun` (stejná simulace/odměny/lockout jako idle `enter`).
+(odemčeno M9 social — friends/guild), spravuje sestavu a spustí. Běží s
+připojenými reálnými hráči — **žádný NPC backfill** (zbylé sloty zůstanou prázdné,
+boss se škáluje velikostí party). Spuštění recykluje `RaidService.finalizeRun`
+(stejná simulace/odměny/lockout jako idle `enter`).
 Tabulky `raid_lobbies` + `raid_lobby_members`; sloty počítají čisté helpery
 `@game/shared/lobby.ts`. Detail: **ADR 0018**.
 

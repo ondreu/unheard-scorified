@@ -110,7 +110,7 @@ export interface DungeonRunView {
   startAt: string;
   durationSec: number;
   progress: ActivityProgress;
-  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  party: { name: string; role: RaidRole; maxHealth: number }[];
   encounters: { name: string; isBoss: boolean }[];
   events: CombatEvent[];
   victory: boolean | null;
@@ -495,7 +495,7 @@ export interface RaidRunView {
   startAt: string;
   durationSec: number;
   progress: ActivityProgress;
-  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  party: { name: string; role: RaidRole; maxHealth: number }[];
   bosses: { name: string }[];
   events: CombatEvent[];
   victory: boolean | null;

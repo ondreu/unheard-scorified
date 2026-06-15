@@ -5,17 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  buildCompanionBase,
   canFillRole,
-  COMPANION_NAMES,
   defaultRaidComposition,
-  deriveRaidActor,
   isRaidId,
   isRaidRole,
   isRaidUnlocked,
   isValidComposition,
   levelFromXp,
-  RAID_ROLES,
   RAIDS,
   remainingSlots,
   type LobbyMemberStatus,
@@ -74,8 +70,9 @@ export interface LobbyState {
 
 /**
  * Raid lobby (M8.5-B, ruční formace). Odemčeno M9 social: leader sestaví party,
- * zve konkrétní postavy do rolí, a při spuštění se zbytek doplní NPC backfillem
- * (idle-first zachován). Run i odměny recyklují `RaidService.finalizeRun`.
+ * zve konkrétní postavy do rolí, a při spuštění běží s připojenými reálnými hráči
+ * (žádný NPC backfill — odebrán; zbylé sloty zůstanou prázdné a boss se škáluje
+ * velikostí party). Run i odměny recyklují `RaidService.finalizeRun`.
  */
 @Injectable()
 export class RaidLobbyService {
@@ -313,9 +310,9 @@ export class RaidLobbyService {
   }
 
   /**
-   * Spustí raid: sestaví party z připojených členů (čerstvé snapshoty) + NPC
-   * backfill na zbylé sloty, odsimuluje a udělí odměny (`RaidService.finalizeRun`).
-   * Vrací id runu (web naviguje na watch). Lobby přejde do `started`.
+   * Spustí raid: sestaví party z připojených členů (čerstvé snapshoty),
+   * odsimuluje a udělí odměny (`RaidService.finalizeRun`). Vrací id runu (web
+   * naviguje na watch). Lobby přejde do `started`.
    */
   async start(
     accountId: string,
@@ -337,27 +334,18 @@ export class RaidLobbyService {
     // Leader první (iniciátor seeduje běh).
     joined.sort((a, b) => Number(b.characterId === characterId) - Number(a.characterId === characterId));
 
+    // Party = jen připojení reální hráči (žádný NPC backfill). Zbylé sloty
+    // kompozice zůstanou neobsazené — boss se škáluje skutečnou velikostí party.
     const party: RaidActor[] = [];
     const real: RaidParticipantInput[] = [];
-    const joinedRoles: RaidRole[] = [];
     for (const m of joined) {
       const c = byId.get(m.characterId);
       if (!c) continue;
       const actor = await this.raid.buildRaidActor(c, levelFromXp(c.totalXp), m.role);
       party.push(actor);
       real.push({ character: c, role: m.role, initiator: c.id === characterId });
-      joinedRoles.push(m.role);
     }
     if (real.length === 0) throw new BadRequestException('Lobby has no joined members');
-
-    // NPC backfill na zbylé sloty kompozice.
-    const remaining = remainingSlots(lobby.composition, joinedRoles);
-    for (const r of RAID_ROLES) {
-      for (let i = 0; i < remaining[r]; i++) {
-        const name = `${COMPANION_NAMES[r]} ${i + 1}`;
-        party.push(deriveRaidActor(buildCompanionBase(raid, name), r));
-      }
-    }
 
     const { run } = await this.raid.finalizeRun(raid, party, real, characterId);
     await this.lobbies.setStatus(lobby.id, 'started', run.id);

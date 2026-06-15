@@ -141,23 +141,22 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     expect(lootCount).toBe(run.myReward!.items.length);
   });
 
-  it('group enter (size 3) doplní NPC backfill a každý reálný účastník dostane loot', async () => {
+  it('group enter (size 3) bez fronty → party jen iniciátor (žádný NPC backfill)', async () => {
     const c = await strongCharacter('d6', 'Leader');
     const run = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm', 3);
-    expect(run.size).toBe(3);
-    expect(run.party).toHaveLength(3);
-    expect(run.party.filter((p) => p.isNpc)).toHaveLength(2); // sólo + 2 NPC
+    // Backfill odebrán: nikdo další ve frontě → běží sám, žádní NPC.
+    expect(run.party).toHaveLength(1);
     expect(run.myReward).not.toBeNull();
   });
 
-  it('fronta: čekající hráč je vytažen do party iniciátora', async () => {
+  it('fronta: čekající hráč je vytažen do party iniciátora (žádný NPC fill)', async () => {
     const waiter = await strongCharacter('d9', 'Waiter');
     const leader = await strongCharacter('d10', 'Puller');
     const q = await dungeons.queueForDungeon(waiter.accountId, waiter.id, 'ragefire_chasm', 'healer');
     expect(q.queued).toBe(true);
 
     const run = await dungeons.enter(leader.accountId, leader.id, 'ragefire_chasm', 3);
-    expect(run.party.filter((p) => p.isNpc)).toHaveLength(1); // leader + waiter + 1 NPC
+    expect(run.party).toHaveLength(2); // leader + vytažený waiter, žádný NPC
     // Waiter dostal vlastní participant řádek (personal loot).
     const recent = await dungeons.recentRuns(waiter.accountId, waiter.id);
     expect(recent[0]?.runId).toBe(run.runId);
