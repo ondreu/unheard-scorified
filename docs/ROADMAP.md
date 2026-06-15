@@ -361,66 +361,73 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Zbývá doladit:** balanc (boss HP/AP, role tuning, loot, AH poplatky → M9);
   větší party / weekly lockout; vendoři (NPC odkup); AH vyhledávání/filtry.
 
-### M8.5 — Ruční sestavování skupin & wipe/retry combat (návrh PM)
+### M8.5 — Iterativní (wipe/retry) combat, skupinové módy & personal loot (návrh PM)
 
-> Status: **naplánováno** (zapsáno na žádost PM po reviewu M8). Rozšiřuje model
-> raidů + dungeonů + arén. Část závisí na sociálním systému (M9) — viz Rizika níže.
+> Status: **naplánováno** (zapsáno + upřesněno PM po reviewu M8). Rozšiřuje model
+> raidů, dungeonů i arén. Část (ruční formace v guildě) závisí na sociálním
+> systému (M9) — viz Pořadí/rizika.
 
-**Cíl:** vedle stávajícího idle „instant-form" matchmakingu přidat **manuální
-sestavení skupiny** (raid leader, ruční výběr hráčů, pozvánky) a **wipe/retry
-combat s klesající odměnou**.
+**Dva režimy napříč obsahem (potvrzeno PM):**
 
-#### A) Manuální formace skupin (raid / dungeon / arena)
+- **Idle „set & forget"** pro casual hráče — zachován current quick-start (queue +
+  NPC backfill, auto-resolve).
+- **Ruční sestavení** pro min-max/social hráče — leader, lobby, výběr hráčů,
+  pozvánky (v rámci guildy → **až po M9 social**).
 
-- **Raid leader** = iniciátor s pravomocemi (sestaví party, zve hráče, ručně
-  spustí). Dnes `initiator` flag existuje, ale bez pravomocí/lobby.
-- **Lobby / „forming" stav**: skupina se plní (real hráči na konkrétní role),
-  leader vidí obsazení (realtime přes WS — recykluje M7/M8 vrstvu), na konci NPC
-  backfill (zachován idle styl) a leader ručně spustí.
-- **Pozvánky + výběr hráčů**: cílené zvaní konkrétních hráčů (ne slepá fronta).
-  Primárně **v rámci guildy** → vyžaduje sociální systém (friends/guild/chat).
-- Sjednotit napříč PVE (raid 5/10/20, dungeon 5) i PVP (arena 2v2/3v3 týmy).
+#### A) Iterativní wipe/retry combat — VŠECHNY PVE módy
 
-#### B) Wipe/retry combat s klesající odměnou (PVE)
+Platí pro **SP dungeon i skupinový dungeon (3/5) i raid (5/10/20)** (potvrzeno PM).
+Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 
-- Combat přejde z „jedna simulace, celý run uspěje/selže" na **per-boss pully**:
-  wipe na bossovi → **další pull** (retry téhož bosse, nový seed), progres
-  předchozích bossů zůstává.
-- **Odměna klesá s počtem wipů**; **maximální odměna za 0 wipů**. Strop počtu
-  wipů (terminální stav „raid failed/locked") proti nekonečnému zacyklení.
-- Determinismus zachován: seed per pokus (`seed ⊕ attemptIndex`).
+- Wipe na bossovi → **další pull** (retry téhož bosse, nový seed `seed ⊕ attempt`),
+  progres už poražených bossů zůstává.
+- **Odměna klesá s počtem wipů; maximum za 0 wipů.** Strop wipů (terminální stav)
+  proti zacyklení.
+- **Idle režim**: auto-retry do clearu nebo stropu (hráč není u toho). **Ruční
+  režim**: leader může re-pull / odejít.
 
-#### Otevřená rozhodnutí (rozmyslet s PM na začátku M8.5)
+#### B) Skupinové PVE módy + manuální formace (raid + dungeon)
 
-- Klesající křivka odměn (lineární? kolik % za wipe? floor > 0?) a zda klesá
-  i **loot** (šance/počet), nebo jen XP/zlato.
-- Strop wipů per boss / per run; co se stane po dosažení stropu.
-- Granularita retry: per-boss progres (faithful WoW) vs retry celého runu.
-- Aplikuje se wipe/retry i na **dungeony** (dnes SP idle aktivita) → refaktor na
-  raid-like run model?
+- **Dungeon dostane SP mód i skupinový 3/5 mód** (potvrzeno PM). Sjednotit
+  raid + group dungeon pod společný „group PVE run" model (vlastní run tabulky,
+  role, NPC backfill) — SP dungeon je jeho speciální případ (1 hráč).
+- **Raid leader + lobby**: leader sestaví, zve hráče, ručně spustí; realtime
+  obsazení přes WS (recykluje M7/M8 vrstvu). Pozvánky/výběr **v guildě → po M9**.
 
-#### Rizika / posouzení (na žádost PM)
+#### C) Arény — rozšíření o 3v3 a 5v5 + ruční sestavení týmů
 
-1. **Sekvenční závislost na social (M9).** Ruční formace s pozvánkami/guildou
-   reálně potřebuje friends/guild/chat z M9. Doporučení: **rozdělit M8.5** na
-   (A) formaci — až po/spolu s M9 social — a (B) wipe/retry combat — lze udělat
-   nezávisle a hned (čistě PVE engine + reward změna). Pořadí by pak bylo
-   M8 → M8.5-B → M9 (social) → M8.5-A.
-2. **Wipe/retry nesedí na arény (PVP).** V PVP je prohra prostě prohra (rating),
-   „retry se sníženou odměnou" nemá smysl. Wipe/retry tedy jen **raid + dungeon**;
-   pro arény z M8.5 platí jen manuální formace (2v2/3v3 týmy).
-3. **Dungeony = dnes SP idle aktivita** v `character_activities` (1 per postava).
-   Skupinové dungeony + wipe/retry = nezanedbatelný refaktor na raid-like model
-   (vlastní run tabulky). Zvážit, zda dungeony zůstanou SP a wipe/retry se omezí
-   na raidy.
-4. **Idle vs „ruční start".** Ruční lobby (čekání na hráče + manuální start) je
-   v napětí s idle-first („set & forget"). NPC backfill to drží hratelné i sólo,
-   ale UX dvou režimů (idle quick-start vs manuální lobby) je třeba navrhnout.
-5. **Anti-griefing / escrow.** Pozvánky + odměny pro vytažené hráče: ošetřit
-   souhlas (opt-in pozvánka vs auto-pull z fronty) a férové rozdělení lootu.
+Upřesnění PM: v PVP **NEjde o wipe/retry**, ale o **nové brackety 3v3 a 5v5** vedle
+1v1 a **ruční sestavení týmu** (vybrat parťáky). Matchmaking týmů recykluje M7
+(snapshot fronta); ruční výběr týmu **po M9 social**. Rating model pro týmy (per
+tým vs per hráč) = otevřené rozhodnutí.
 
-S těmito výhradami **nevidím v přístupu zásadní problém** — je konzistentní s idle
-modelem a determinismem; hlavní je vyřešit pořadí vůči M9 social a rozsah u dungeonů.
+#### D) Personal loot + trade mezi hráči (modern-WoW styl)
+
+- **Každý účastník dostane vlastní loot** (raid loot už dnes rolluje per postava —
+  rozšířit i na dungeony). 
+- **P2P trade**: hráči si mohou loot mezi sebou vyměnit (jako moderní WoW). Nový
+  trade systém (oddělený od AH); pravidla trade-window (komu/kdy lze, ilvl/času
+  omezení) = otevřené rozhodnutí.
+
+#### Pořadí (doporučení) & otevřená rozhodnutí
+
+Doporučené pořadí kvůli závislosti na social:
+`M8 → M8.5-A (wipe/retry, lze hned) + M8.5-C-matchmaking + M8.5-D-personal-loot
+→ M9 (social) → M8.5-B (guild formace) + M8.5-C-ruční-týmy + M8.5-D-trade`.
+
+Otevřená rozhodnutí na začátek M8.5:
+- Klesající křivka odměn (lineární? % za wipe? floor > 0?) a zda klesá i **loot**
+  (šance/počet) nebo jen XP/zlato.
+- Strop wipů per boss / per run; chování po dosažení stropu.
+- Rating model arén pro týmy (per tým vs průměr hráčů); kompozice týmů PVP.
+- Trade pravidla (trade window, omezení, anti-griefing/escrow).
+- Architektura: sjednotit dungeon+raid pod „group PVE run" (refaktor SP dungeonu
+  z `character_activities` na run model).
+
+**Posouzení (na žádost PM):** s upřesněními **nevidím zásadní problém** — model je
+konzistentní s idle-first i determinismem (seed per pokus). Hlavní práce: (1) refaktor
+combat na per-boss iterace + reward curve, (2) sjednocení dungeon/raid run modelu,
+(3) trade systém, (4) arena týmy. Guild-vázané části čekají na M9 social.
 
 ### M9 — Polish, balanc, pixel grafika, sociální
 
