@@ -410,6 +410,12 @@ export function getArenaMatch(characterId: string, matchId: string): Promise<Are
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
+export interface RaidComposition {
+  tank: number;
+  healer: number;
+  dps: number;
+}
+
 export interface RaidListItem {
   id: string;
   name: string;
@@ -417,6 +423,8 @@ export interface RaidListItem {
   requiredLevel: number;
   attunementQuests: string[];
   bossNames: string[];
+  sizes: number[];
+  defaultComposition: Record<number, RaidComposition>;
   unlocked: boolean;
   queuedRole: RaidRole | null;
 }
@@ -468,10 +476,12 @@ export function enterRaid(
   characterId: string,
   raidId: string,
   role: RaidRole,
+  size?: number,
+  composition?: RaidComposition,
 ): Promise<RaidRunView> {
   return request<RaidRunView>(`/characters/${characterId}/raids/${raidId}/enter`, {
     method: 'POST',
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ role, size, composition }),
   });
 }
 

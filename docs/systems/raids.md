@@ -3,9 +3,20 @@
 Organizovaný skupinový PVE obsah s rolemi, idle boss fighty, attunement gatingem
 a raid lootem. Rozhodnutí a důsledky: **ADR 0011**. Combat recykluje M5 engine.
 
-## Party & role (rozhodnutí PM)
+## Velikost & kompozice (rozhodnutí PM)
 
-5 hráčů: **1 tank / 1 healer / 3 dps** (`RAID_COMPOSITION` v `packages/shared/src/raid.ts`).
+Modern-WoW flex velikosti **5 / 10 / 20** (`RAID_SIZES`); per-raid `RaidDef.sizes`
+(první = default). Hráč při `enter` zvolí `size` + **vlastní kompozici**
+`{tank,healer,dps}` (`isValidComposition`: součet = size, jeho role ≥ 1); jinak
+`defaultRaidComposition(size)` (5: 1/1/3 · 10: 2/2/6 · 20: 2/5/13). Chybějící
+sloty doplní NPC → návrh compu je strategická volba (málo healerů → wipe, málo
+dps → enrage).
+
+**Boss scaling** (`scaleBoss`): boss HP i dmg ×`size/5` → balanc zůstává zhruba
+invariantní napříč velikostmi, rozhoduje hlavně kompozice. Velikost se odvodí
+z délky `party` snapshotu (žádná nová migrace).
+
+## Role
 
 - **tank** — `maxHealth ×1.5`, `attackPower ×0.6`; boss na něj útočí a bere zmírněné
   poškození (`TANK_MITIGATION`).
@@ -63,5 +74,5 @@ Při resolve se každému reálnému účastníkovi udělí XP/zlato/loot na see
 
 ## Zbývá doladit (M9)
 
-Balanc (boss HP/AP, role tuning, loot), větší party (10/20/40), per-role gating
-dle classy, weekly raid lockout.
+Balanc (boss HP/AP, role tuning, loot, size scaling faktor), 40-player velikost,
+per-role gating dle classy, weekly raid lockout.

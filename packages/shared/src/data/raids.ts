@@ -38,7 +38,9 @@ export interface RaidDef {
   /** Flavor popis (anglicky). */
   description: string;
   attunement: RaidAttunement;
-  /** Sekvence bossů (poslední je „end boss"). */
+  /** Povolené velikosti party (modern-WoW flex: 5/10/20). První = default. */
+  sizes: number[];
+  /** Sekvence bossů (poslední je „end boss"). Staty se škálují dle velikosti. */
   bosses: RaidBossDef[];
   /**
    * Základní staty companion NPC (škálují se rolí v `deriveRaidActor`). Slouží
@@ -71,6 +73,7 @@ export const RAIDS: Record<string, RaidDef> = {
     name: 'Molten Core',
     description: 'The molten heart of Blackrock Mountain, where Ragnaros the Firelord smolders in his throne.',
     attunement: { requiredLevel: 40, questAnyOf: ['dw_morbent_fel', 'tn_galak_ogres'] },
+    sizes: [5, 10, 20],
     companion: { maxHealth: 900, attackPower: 34, swingInterval: 2.4, armor: 60 },
     baseXp: 9000,
     baseGold: 300,
@@ -94,6 +97,7 @@ export const RAIDS: Record<string, RaidDef> = {
     name: 'Blackwing Lair',
     description: 'Nefarian\'s dread fortress atop Blackrock Spire, home to his twisted chromatic experiments.',
     attunement: { requiredLevel: 55, questAnyOf: ['al_drakefire_attunement', 'ho_drakefire_attunement'] },
+    sizes: [10, 20],
     companion: { maxHealth: 1500, attackPower: 52, swingInterval: 2.4, armor: 100 },
     baseXp: 18000,
     baseGold: 520,

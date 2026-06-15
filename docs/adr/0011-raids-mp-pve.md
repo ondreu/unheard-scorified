@@ -17,11 +17,34 @@ contentem musí dát hrát i sólo).
 
 ## Rozhodnutí PM (potvrzeno)
 
-1. **Party 5 hráčů: 1 tank / 1 healer / 3 dps.** Nejmenší smysluplná „trinita".
-2. **Attunement = level + dokončený dungeon/questline** (ne item-gated).
-3. **2 raidy × ~3 bossy** (Molten Core ~lvl 40, Blackwing Lair ~lvl 55).
+1. **Velikosti party 5 / 10 / 20** (modern-WoW „flex"); per-raid seznam povolených
+   velikostí, hráč velikost zvolí při `enter`. Default kompozice 5: 1/1/3 · 10:
+   2/2/6 · 20: 2/5/13.
+2. **Hráč si skládá vlastní kompozici** (poměr tank/healer/dps). Většinu slotů
+   beztak doplní NPC backfill → návrh compu je strategická volba (málo healerů →
+   wipe, málo dps → enrage).
+3. **Attunement = level + dokončený dungeon/questline** (ne item-gated).
+4. **2 raidy × ~3 bossy** (Molten Core ~lvl 40 [5/10/20], Blackwing Lair ~lvl 55 [10/20]).
+
+> Původní MVP (jediná velikost 5 = 1/1/3) byl po reviewu PM rozšířen na flex
+> velikosti + hráčem volenou kompozici (viz níže, bod 1).
 
 ## Rozhodnutí
+
+### 0. Velikosti party a hráčem volená kompozice
+
+`RAID_SIZES = [5,10,20]`; `RaidDef.sizes` = povolené velikosti per raid (první =
+default). `enter` přijímá `{ role, size?, composition? }`:
+
+- `size` musí být v `raid.sizes`; jinak default = `raid.sizes[0]`.
+- `composition` (`{tank,healer,dps}`) validuje `isValidComposition` (nezáporná
+  celá čísla, součet = `size`, slot role hráče ≥ 1); jinak `defaultRaidComposition(size)`.
+
+**Boss scaling** (`scaleBoss`): boss HP i dmg ×`size / RAID_BASE_SIZE(5)`. Větší
+raid = víc dps (víc boss HP) i víc healu (víc boss dmg) → balanc zůstává zhruba
+invariantní napříč velikostmi a rozhoduje hlavně **kompozice**, ne počet hráčů.
+Velikost se při reveal odvodí z délky uloženého `party` snapshotu (`run.party.length`)
+→ **žádná nová DB migrace** a deterministicky identický timeline.
 
 ### 1. Raid combat = party vs boss, recyklace M5 enginu
 

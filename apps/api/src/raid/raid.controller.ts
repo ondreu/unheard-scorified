@@ -7,7 +7,7 @@ import {
   type RaidRunSummary,
   type RaidRunView,
 } from './raid.service';
-import type { RaidRole } from '@game/shared';
+import type { RaidComposition, RaidRole } from '@game/shared';
 
 @Controller('characters/:characterId/raids')
 @UseGuards(JwtAuthGuard)
@@ -63,14 +63,21 @@ export class RaidController {
     return this.raids.leaveQueue(user.accountId, characterId, raidId);
   }
 
-  /** Spustí raid (sestaví party + okamžitě vyřeší). */
+  /** Spustí raid (zvolí velikost + kompozici, sestaví party + okamžitě vyřeší). */
   @Post(':raidId/enter')
   enter(
     @CurrentUser() user: { accountId: string },
     @Param('characterId') characterId: string,
     @Param('raidId') raidId: string,
-    @Body() body: { role: string },
+    @Body() body: { role: string; size?: number; composition?: RaidComposition },
   ): Promise<RaidRunView> {
-    return this.raids.enter(user.accountId, characterId, raidId, body?.role);
+    return this.raids.enter(
+      user.accountId,
+      characterId,
+      raidId,
+      body?.role,
+      body?.size,
+      body?.composition,
+    );
   }
 }

@@ -321,11 +321,13 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 ### M8 — Raidy (MP PVE) & Auction House — ✅ hotovo
 
-- [x] **Raidy** (MP PVE): party 5 hráčů (rozhodnutí PM) = **1 tank / 1 healer /
-      3 dps**. Combat engine z M5 rozšířen o **party-vs-boss** simulaci
-      (`packages/shared/src/raid.ts::simulateRaidRun`, recykluje `computeHit`):
-      tank drží aggro + mitigace, healer léčí (event `heal`), dps dmg; boss enrage,
-      wipe = defeat. `deriveRaidActor` škáluje profil dle role.
+- [x] **Raidy** (MP PVE): **flex velikosti 5 / 10 / 20** (modern-WoW styl,
+      rozhodnutí PM) s **hráčem volenou kompozicí** tank/healer/dps (default 5:
+      1/1/3 · 10: 2/2/6 · 20: 2/5/13; chybějící sloty doplní NPC). Boss se škáluje
+      dle velikosti (`scaleBoss`, HP+dmg ×size/5). Combat engine z M5 rozšířen o
+      **party-vs-boss** simulaci (`packages/shared/src/raid.ts::simulateRaidRun`,
+      recykluje `computeHit`): tank drží aggro + mitigace, healer léčí (event
+      `heal`), dps dmg; boss enrage, wipe = defeat. `deriveRaidActor` škáluje profil dle role.
 - [x] **2 raidy × 3 bossy** (rozhodnutí PM): Molten Core (~lvl 40), Blackwing Lair
       (~lvl 55) — `data/raids.ts`. **Attunement = level + dokončený questline**
       (rozhodnutí PM; `isRaidUnlocked` recykluje `completed_quests` z M2; pro BWL
@@ -381,7 +383,7 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
 - ~~Sezónní model (reset ladderu) pro PVP. → M7~~ ✅ vyřešeno v M7: sezóny = data v shared, rating per sezóna (reset), lazy idempotentní rollover + sezónní odměny dle tieru.
 - ~~Rozsah Aren MVP (kolik bracketů, realtime watch). → M7~~ ✅ vyřešeno v M7: jen `1v1`, live watch přes WebSocket (Redis pub/sub).
-- ~~Velikost raid party a počet rolí v MVP. → M8~~ ✅ vyřešeno v M8: 5 hráčů (1 tank / 1 healer / 3 dps), idle-first matchmaking s NPC backfillem.
+- ~~Velikost raid party a počet rolí v MVP. → M8~~ ✅ vyřešeno v M8: flex velikosti 5/10/20 (modern-WoW) + hráčem volená kompozice T/H/DPS, boss scaling dle velikosti, idle-first matchmaking s NPC backfillem.
 - ~~Kolik raidů/bossů + attunement model. → M8~~ ✅ vyřešeno v M8: 2 raidy × 3 bossy, attunement = level + dokončený questline.
 - ~~AH model (aukce vs buyout, poplatky/expirace). → M8~~ ✅ vyřešeno v M8: buyout + bidding s depositem a 5 % cut (gold sinky) + expirace; vypořádání lazy + BullMQ.
 

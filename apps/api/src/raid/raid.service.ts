@@ -12,15 +12,17 @@ import {
   buildRaidBoss,
   COMPANION_NAMES,
   computeRaidReward,
+  defaultRaidComposition,
   deriveCombatProfile,
   deriveRaidActor,
   isRaidId,
   isRaidRole,
   isRaidUnlocked,
+  isValidComposition,
   levelFromXp,
-  RAID_COMPOSITION,
   RAID_ROLES,
   RAIDS,
+  scaleBoss,
   seedFromString,
   simulateRaidRun,
   type ClassId,
@@ -28,6 +30,7 @@ import {
   type CombatEvent,
   type RaceId,
   type RaidActor,
+  type RaidComposition,
   type RaidReward,
   type RaidRole,
 } from '@game/shared';
@@ -51,6 +54,10 @@ export interface RaidListItem {
   requiredLevel: number;
   attunementQuests: string[];
   bossNames: string[];
+  /** Povolené velikosti party (5/10/20); první = default. */
+  sizes: number[];
+  /** Default kompozice per velikost (UI předvyplní; hráč ji může upravit). */
+  defaultComposition: Record<number, RaidComposition>;
   unlocked: boolean;
   /** Role, ve které postava čeká ve frontě (nebo null). */
   queuedRole: RaidRole | null;
@@ -128,6 +135,8 @@ export class RaidService {
       (a, b) => a.attunement.requiredLevel - b.attunement.requiredLevel,
     )) {
       const queuedRole = await this.queue.queuedRole(raid.id, characterId);
+      const defaultComposition: Record<number, RaidComposition> = {};
+      for (const size of raid.sizes) defaultComposition[size] = defaultRaidComposition(size);
       result.push({
         id: raid.id,
         name: raid.name,
@@ -135,6 +144,8 @@ export class RaidService {
         requiredLevel: raid.attunement.requiredLevel,
         attunementQuests: raid.attunement.questAnyOf,
         bossNames: raid.bosses.map((b) => b.name),
+        sizes: raid.sizes,
+        defaultComposition,
         unlocked: isRaidUnlocked(raid.id, level, completedIds),
         queuedRole,
       });
@@ -196,6 +207,8 @@ export class RaidService {
     characterId: string,
     raidId: string,
     role: string,
+    size?: number,
+    composition?: RaidComposition,
   ): Promise<RaidRunView> {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
@@ -209,6 +222,21 @@ export class RaidService {
     }
 
     const raid = RAIDS[raidId]!;
+
+    // Velikost: default = první povolená; jinak musí být v seznamu povolených.
+    const chosenSize = size ?? raid.sizes[0]!;
+    if (!raid.sizes.includes(chosenSize)) {
+      throw new BadRequestException(`Raid size ${chosenSize} not allowed (${raid.sizes.join('/')})`);
+    }
+
+    // Kompozice: hráčem zvolená (validovaná) nebo default pro velikost.
+    const comp = composition ?? defaultRaidComposition(chosenSize);
+    if (!isValidComposition(comp, chosenSize, role)) {
+      throw new BadRequestException(
+        `Invalid composition: counts must be non-negative, sum to ${chosenSize}, and include your role`,
+      );
+    }
+
     // Vstupuji-li, opustím případnou frontu (nečekám, hraju teď).
     await this.queue.remove(raidId, characterId);
 
@@ -217,7 +245,7 @@ export class RaidService {
     const pulled: RaidQueueEntry[] = [];
 
     // Kolik kterých rolí ještě potřebujeme (po odečtení mé).
-    const need: Record<RaidRole, number> = { ...RAID_COMPOSITION };
+    const need: Record<RaidRole, number> = { tank: comp.tank, healer: comp.healer, dps: comp.dps };
     need[role] -= 1;
 
     for (const r of RAID_ROLES) {
@@ -235,7 +263,7 @@ export class RaidService {
     }
 
     const seed = seedFromString(`${raidId}:${characterId}:${Date.now()}`);
-    const bosses = raid.bosses.map(buildRaidBoss);
+    const bosses = raid.bosses.map((b) => scaleBoss(buildRaidBoss(b), party.length));
     const result = simulateRaidRun(party, bosses, seed);
 
     const run = await this.repo.createRun({
@@ -371,7 +399,9 @@ export class RaidService {
     const completed = now >= startMs + run.durationSec * 1000;
     const progress = run.durationSec <= 0 ? 1 : Math.min(1, elapsedSec / run.durationSec);
 
-    const bosses = (raid?.bosses ?? []).map(buildRaidBoss);
+    // Bossy se škálují stejně jako při enter (dle velikosti party) → identický
+    // deterministický timeline.
+    const bosses = (raid?.bosses ?? []).map((b) => scaleBoss(buildRaidBoss(b), run.party.length));
     const result = simulateRaidRun(run.party, bosses, run.seed);
     const visible = result.events.filter((e) => e.t <= elapsedSec);
 

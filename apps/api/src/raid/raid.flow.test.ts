@@ -169,4 +169,30 @@ describe('M8 flow: raids (MP PVE)', () => {
     const a = await raider('rd_role', 'Roler', { attune: 'tn_galak_ogres' });
     await expect(raid.enter(a.accountId, a.id, 'molten_core', 'bard')).rejects.toThrow();
   });
+
+  it('spustí 10-player raid s vlastní kompozicí (víc NPC backfill)', async () => {
+    const a = await raider('rd_ten', 'Tenman', { attune: 'tn_galak_ogres', weapon: 'ashkandi' });
+    const run = await raid.enter(a.accountId, a.id, 'molten_core', 'tank', 10, {
+      tank: 2,
+      healer: 3,
+      dps: 5,
+    });
+    expect(run.party).toHaveLength(10);
+    // 1 reálný (iniciátor tank), 9 NPC backfill.
+    expect(run.party.filter((p) => p.isNpc)).toHaveLength(9);
+    expect(run.party.filter((p) => p.role === 'healer')).toHaveLength(3);
+  });
+
+  it('odmítne nepovolenou velikost a nesedící kompozici', async () => {
+    const a = await raider('rd_bad', 'Badcomp', { attune: 'tn_galak_ogres' });
+    await completed.markCompleted(a.id, 'al_drakefire_attunement'); // attune i pro BWL
+    // 7 není povolená velikost molten_core.
+    await expect(raid.enter(a.accountId, a.id, 'molten_core', 'dps', 7)).rejects.toThrow();
+    // Kompozice nesedí na velikost 10.
+    await expect(
+      raid.enter(a.accountId, a.id, 'molten_core', 'dps', 10, { tank: 1, healer: 1, dps: 3 }),
+    ).rejects.toThrow();
+    // Blackwing Lair nepodporuje velikost 5 (přitom je attuned → padne na velikosti).
+    await expect(raid.enter(a.accountId, a.id, 'blackwing_lair', 'dps', 5)).rejects.toThrow();
+  });
 });

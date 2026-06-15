@@ -9,6 +9,7 @@
     listRaids,
     queueRaid,
     recentRaidRuns,
+    type RaidComposition,
     type RaidListItem,
     type RaidRole,
     type RaidRunSummary,
@@ -29,11 +30,15 @@
     attune: 'Attunement',
     bosses: 'Bosses',
     role: 'Role',
+    size: 'Size',
+    comp: 'Composition (T / H / DPS)',
+    players: 'players',
     queuedAs: 'Waiting in queue as',
     recent: 'Recent runs',
     victory: 'Victory',
     wipe: 'Wipe',
-    party: '5-player party · 1 tank / 1 healer / 3 dps · empty slots filled by mercenaries',
+    party:
+      'Pick size (5/10/20) and compose your party (tanks / healers / dps). Empty slots are filled by mercenaries.',
   };
 
   const ROLES: RaidRole[] = ['tank', 'healer', 'dps'];
@@ -41,6 +46,8 @@
   let raids = $state<RaidListItem[]>([]);
   let recent = $state<RaidRunSummary[]>([]);
   let role = $state<Record<string, RaidRole>>({});
+  let size = $state<Record<string, number>>({});
+  let comp = $state<Record<string, RaidComposition>>({});
   let loading = $state(true);
   let error = $state<string | null>(null);
   let busyId = $state<string | null>(null);
@@ -53,7 +60,11 @@
     loading = true;
     try {
       [raids, recent] = await Promise.all([listRaids(characterId), recentRaidRuns(characterId)]);
-      for (const r of raids) if (!role[r.id]) role[r.id] = r.queuedRole ?? 'dps';
+      for (const r of raids) {
+        if (!role[r.id]) role[r.id] = r.queuedRole ?? 'dps';
+        if (!size[r.id]) size[r.id] = r.sizes[0] ?? 5;
+        if (!comp[r.id]) comp[r.id] = { ...r.defaultComposition[size[r.id]!]! };
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
@@ -65,11 +76,22 @@
     }
   }
 
+  // Při změně velikosti přednastav default kompozici dané velikosti.
+  function onSize(r: RaidListItem, s: number): void {
+    size[r.id] = s;
+    comp[r.id] = { ...r.defaultComposition[s]! };
+  }
+
+  function compSum(r: RaidListItem): number {
+    const c = comp[r.id];
+    return c ? c.tank + c.healer + c.dps : 0;
+  }
+
   async function enter(r: RaidListItem): Promise<void> {
     busyId = r.id;
     error = null;
     try {
-      const run = await enterRaid(characterId, r.id, role[r.id] ?? 'dps');
+      const run = await enterRaid(characterId, r.id, role[r.id] ?? 'dps', size[r.id], comp[r.id]);
       await goto(`/characters/${characterId}/raid/${run.runId}`);
     } catch (err) {
       error = (err as Error).message;
@@ -155,31 +177,69 @@
                 </button>
               </div>
             {:else}
-              <div class="mt-4 flex items-center gap-2">
-                <label for={`role-${r.id}`} class="text-sm text-amber-100/70">{ui.role}</label>
-                <select
-                  id={`role-${r.id}`}
-                  bind:value={role[r.id]}
-                  class="rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
-                >
-                  {#each ROLES as ro (ro)}
-                    <option value={ro}>{ro}</option>
-                  {/each}
-                </select>
-                <button
-                  onclick={() => enter(r)}
-                  disabled={busyId !== null}
-                  class="ml-auto rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
-                >
-                  {busyId === r.id ? ui.entering : ui.enter}
-                </button>
-                <button
-                  onclick={() => queue(r)}
-                  disabled={busyId !== null}
-                  class="rounded border border-amber-700/60 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
-                >
-                  {ui.queue}
-                </button>
+              <div class="mt-4 flex flex-wrap items-end gap-3">
+                <label class="text-sm text-amber-100/70">
+                  {ui.role}
+                  <select
+                    bind:value={role[r.id]}
+                    class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
+                  >
+                    {#each ROLES as ro (ro)}
+                      <option value={ro}>{ro}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label class="text-sm text-amber-100/70">
+                  {ui.size}
+                  <select
+                    value={size[r.id]}
+                    onchange={(e) => onSize(r, Number((e.target as HTMLSelectElement).value))}
+                    class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
+                  >
+                    {#each r.sizes as s (s)}
+                      <option value={s}>{s} {ui.players}</option>
+                    {/each}
+                  </select>
+                </label>
+                {#if comp[r.id]}
+                  <div class="text-sm text-amber-100/70">
+                    {ui.comp}
+                    <div class="mt-1 flex items-center gap-1">
+                      {#each ROLES as ro (ro)}
+                        <input
+                          type="number"
+                          min="0"
+                          max={size[r.id]}
+                          bind:value={comp[r.id]![ro]}
+                          class="w-12 rounded border border-amber-900/40 bg-black/40 px-1 py-1 text-center text-sm text-amber-100"
+                        />
+                      {/each}
+                      <span
+                        class="ml-1 text-xs {compSum(r) === size[r.id]
+                          ? 'text-emerald-300'
+                          : 'text-red-400'}"
+                      >
+                        Σ{compSum(r)}/{size[r.id]}
+                      </span>
+                    </div>
+                  </div>
+                {/if}
+                <div class="ml-auto flex gap-2">
+                  <button
+                    onclick={() => enter(r)}
+                    disabled={busyId !== null || compSum(r) !== size[r.id]}
+                    class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {busyId === r.id ? ui.entering : ui.enter}
+                  </button>
+                  <button
+                    onclick={() => queue(r)}
+                    disabled={busyId !== null}
+                    class="rounded border border-amber-700/60 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
+                  >
+                    {ui.queue}
+                  </button>
+                </div>
               </div>
             {/if}
           {/if}

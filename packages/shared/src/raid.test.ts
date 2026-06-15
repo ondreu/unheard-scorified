@@ -3,12 +3,18 @@ import {
   RAIDS,
   RAID_COMPOSITION,
   RAID_PARTY_SIZE,
+  RAID_SIZES,
   buildCompanionBase,
   buildRaidBoss,
+  compositionSize,
   computeRaidReward,
+  defaultRaidComposition,
   deriveRaidActor,
   isRaidRole,
+  isRaidSize,
   isRaidUnlocked,
+  isValidComposition,
+  scaleBoss,
   simulateRaidRun,
   type CombatActor,
   type RaidActor,
@@ -52,6 +58,41 @@ describe('raid composition', () => {
   it('isRaidRole validates roles', () => {
     for (const r of ['tank', 'healer', 'dps'] as RaidRole[]) expect(isRaidRole(r)).toBe(true);
     expect(isRaidRole('bard')).toBe(false);
+  });
+});
+
+describe('raid sizes & composition', () => {
+  it('supports 5/10/20 and validates size', () => {
+    expect([...RAID_SIZES]).toEqual([5, 10, 20]);
+    expect(isRaidSize(10)).toBe(true);
+    expect(isRaidSize(7)).toBe(false);
+  });
+
+  it('default composition sums to the size', () => {
+    for (const size of RAID_SIZES) {
+      expect(compositionSize(defaultRaidComposition(size))).toBe(size);
+    }
+  });
+
+  it('validates custom composition (sum + player role present)', () => {
+    expect(isValidComposition({ tank: 2, healer: 2, dps: 6 }, 10, 'dps')).toBe(true);
+    // Hráč dps, ale dps=0 → neplatné.
+    expect(isValidComposition({ tank: 3, healer: 7, dps: 0 }, 10, 'dps')).toBe(false);
+    // Součet nesedí.
+    expect(isValidComposition({ tank: 1, healer: 1, dps: 3 }, 10, 'tank')).toBe(false);
+    // Záporné / necelé.
+    expect(isValidComposition({ tank: -1, healer: 2, dps: 9 }, 10, 'healer')).toBe(false);
+    // Extrémní (0 healerů) je povoleno — strategická volba hráče.
+    expect(isValidComposition({ tank: 1, healer: 0, dps: 9 }, 10, 'tank')).toBe(true);
+  });
+
+  it('scaleBoss scales HP and damage with size', () => {
+    const boss = buildRaidBoss(RAIDS.molten_core!.bosses[0]!);
+    const scaled = scaleBoss(boss, 20);
+    expect(scaled.maxHealth).toBe(boss.maxHealth * 4);
+    expect(scaled.attackPower).toBe(boss.attackPower * 4);
+    // Base size = identita.
+    expect(scaleBoss(boss, 5)).toEqual(boss);
   });
 });
 

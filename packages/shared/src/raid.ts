@@ -32,15 +32,65 @@ export function isRaidRole(value: string): value is RaidRole {
   return RAID_ROLES.includes(value as RaidRole);
 }
 
-/** Složení party (rozhodnutí PM MVP). */
+/** Složení party (počet aktérů per role). Součet = velikost raidu. */
 export interface RaidComposition {
   tank: number;
   healer: number;
   dps: number;
 }
 
-export const RAID_COMPOSITION: RaidComposition = { tank: 1, healer: 1, dps: 3 };
-export const RAID_PARTY_SIZE = RAID_COMPOSITION.tank + RAID_COMPOSITION.healer + RAID_COMPOSITION.dps;
+/** Podporované velikosti raidu (modern-WoW styl): 5 / 10 / 20 hráčů. */
+export const RAID_SIZES = [5, 10, 20] as const;
+export type RaidSize = (typeof RAID_SIZES)[number];
+
+/** Základní (canonical) velikost pro škálování bossů. */
+export const RAID_BASE_SIZE = 5;
+
+export function isRaidSize(value: number): value is RaidSize {
+  return (RAID_SIZES as readonly number[]).includes(value);
+}
+
+/** Default kompozice per velikost (klasický poměr ~1 healer na 4-5, 2 tanky výš). */
+const DEFAULT_COMPOSITIONS: Record<number, RaidComposition> = {
+  5: { tank: 1, healer: 1, dps: 3 },
+  10: { tank: 2, healer: 2, dps: 6 },
+  20: { tank: 2, healer: 5, dps: 13 },
+};
+
+/** Default kompozice pro danou velikost (fallback proporčně pro nestandardní). */
+export function defaultRaidComposition(size: number): RaidComposition {
+  const preset = DEFAULT_COMPOSITIONS[size];
+  if (preset) return preset;
+  const tank = Math.max(1, Math.round(size * 0.15));
+  const healer = Math.max(1, Math.round(size * 0.22));
+  return { tank, healer, dps: Math.max(0, size - tank - healer) };
+}
+
+export function compositionSize(comp: RaidComposition): number {
+  return comp.tank + comp.healer + comp.dps;
+}
+
+/**
+ * Validuje hráčem zvolenou kompozici: nezáporné celočíselné počty, součet = `size`
+ * a alespoň jeden slot role hráče (tu hráč obsazuje). Jinak je comp libovolný —
+ * špatný poměr (málo healerů / dps) je strategická volba hráče (může vést k wipu).
+ */
+export function isValidComposition(
+  comp: RaidComposition,
+  size: number,
+  playerRole: RaidRole,
+): boolean {
+  for (const r of RAID_ROLES) {
+    const n = comp[r];
+    if (!Number.isInteger(n) || n < 0) return false;
+  }
+  if (compositionSize(comp) !== size) return false;
+  return comp[playerRole] >= 1;
+}
+
+// Zpětně kompatibilní MVP default (velikost 5).
+export const RAID_COMPOSITION: RaidComposition = DEFAULT_COMPOSITIONS[5]!;
+export const RAID_PARTY_SIZE = compositionSize(RAID_COMPOSITION);
 
 // ── Role tuning (laditelný balanc, vyladí se v M9) ──────────────────────────
 /** Tank: víc HP, míň dmg, zmírněné příchozí poškození. */
@@ -93,6 +143,21 @@ export function deriveRaidActor(base: CombatActor, role: RaidRole): RaidActor {
     };
   }
   return { ...base, role, healPower: 0 };
+}
+
+/**
+ * Škáluje bosse podle velikosti raidu (HP i dmg ×`size/RAID_BASE_SIZE`). Větší
+ * raid = víc dps (víc HP bosse) i víc healu (víc boss dmg) → balanc zůstává zhruba
+ * invariantní napříč velikostmi a rozhoduje hlavně KOMPOZICE, ne počet hráčů.
+ */
+export function scaleBoss(boss: CombatActor, size: number): CombatActor {
+  const factor = Math.max(1, size) / RAID_BASE_SIZE;
+  if (factor === 1) return boss;
+  return {
+    ...boss,
+    maxHealth: Math.round(boss.maxHealth * factor),
+    attackPower: boss.attackPower * factor,
+  };
 }
 
 export interface RaidCombatResult {
