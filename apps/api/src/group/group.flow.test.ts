@@ -11,6 +11,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { BuffRepository } from '../buff/buff.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
@@ -59,7 +60,7 @@ describe('M9 flow: groups (party)', () => {
     completed = new CompletedQuestRepository(db);
 
     const invRepo = new InventoryRepository(db);
-    const invService = new InventoryService(charRepo, invRepo);
+    const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
     const talents = new TalentRepository(db);
     const push = new PushService(new PushRepository(db));
     const raidRepo = new RaidRepository(db);

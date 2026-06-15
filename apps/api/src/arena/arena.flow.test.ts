@@ -11,6 +11,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { BuffRepository } from '../buff/buff.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
@@ -50,7 +51,7 @@ describe('M7 flow: arena PVP', () => {
     vi.useFakeTimers();
     vi.setSystemTime(T0);
     // Čerstvá fronta + žebříček pro každý test (in-memory stav neteče mezi testy).
-    const invService = new InventoryService(charRepo, new InventoryRepository(db));
+    const invService = new InventoryService(charRepo, new InventoryRepository(db), new BuffRepository(db));
     const talentRepo = new TalentRepository(db);
     const push = new PushService(new PushRepository(db));
     arena = new ArenaService(

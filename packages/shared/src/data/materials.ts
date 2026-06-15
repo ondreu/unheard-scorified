@@ -7,7 +7,7 @@
  *
  * Jediný zdroj pravdy pro API i web.
  */
-import type { ItemRarity } from './items';
+import type { ItemRarity, ItemStats } from './items';
 
 export type MaterialId =
   | 'copper_ore'
@@ -56,7 +56,7 @@ export interface ConsumableDef {
   name: string;
   rarity: ItemRarity;
   tier: number;
-  /** Popis efektu (mechanika „use" přijde později, M9). */
+  /** Popis efektu (UI). Mechanika „use" → timed buff (`CONSUMABLE_BUFFS`). */
   effect: string;
   vendorGold: number;
 }
@@ -64,20 +64,41 @@ export interface ConsumableDef {
 export const CONSUMABLES: Record<ConsumableId, ConsumableDef> = {
   minor_healing_potion: {
     id: 'minor_healing_potion', name: 'Minor Healing Potion', rarity: 'common', tier: 1,
-    effect: 'Restores a small amount of health.', vendorGold: 2,
+    effect: 'Bolsters vitality (+Stamina) for 10 minutes.', vendorGold: 2,
   },
   healing_potion: {
     id: 'healing_potion', name: 'Healing Potion', rarity: 'uncommon', tier: 2,
-    effect: 'Restores a moderate amount of health.', vendorGold: 5,
+    effect: 'Bolsters vitality (+Stamina) for 15 minutes.', vendorGold: 5,
   },
   superior_healing_potion: {
     id: 'superior_healing_potion', name: 'Superior Healing Potion', rarity: 'rare', tier: 3,
-    effect: 'Restores a large amount of health.', vendorGold: 10,
+    effect: 'Bolsters vitality (+Stamina) for 20 minutes.', vendorGold: 10,
   },
   elixir_of_strength: {
     id: 'elixir_of_strength', name: 'Elixir of Strength', rarity: 'epic', tier: 3,
-    effect: 'Reputation reward: grants a potent Strength buff.', vendorGold: 25,
+    effect: 'Grants a potent Strength buff for 30 minutes.', vendorGold: 25,
   },
+};
+
+/**
+ * Efekt „use" spotřebáku (M10) — **dočasný stat buff** s expirací. Idle hra:
+ * vypij lektvar před vysláním na aktivitu/dungeon/raid/arénu → buff se po dobu
+ * trvání přičte do bojového profilu (přes `getEquipmentStats`). Jeden stack na
+ * spotřebák; opětovné použití expiraci obnoví (refresh, ne stacking). Staty
+ * sdílí `ItemStats` (stejný systém jako gear) → žádná nová combat mechanika.
+ */
+export interface ConsumableBuff {
+  /** Bonusové staty po dobu trvání. */
+  stats: ItemStats;
+  /** Délka trvání v sekundách. */
+  durationSec: number;
+}
+
+export const CONSUMABLE_BUFFS: Record<ConsumableId, ConsumableBuff> = {
+  minor_healing_potion: { stats: { stamina: 6 }, durationSec: 600 },
+  healing_potion: { stats: { stamina: 12 }, durationSec: 900 },
+  superior_healing_potion: { stats: { stamina: 20 }, durationSec: 1200 },
+  elixir_of_strength: { stats: { strength: 15 }, durationSec: 1800 },
 };
 
 export function isMaterialId(value: string): value is MaterialId {
@@ -86,4 +107,9 @@ export function isMaterialId(value: string): value is MaterialId {
 
 export function isConsumableId(value: string): value is ConsumableId {
   return value in CONSUMABLES;
+}
+
+/** Buff efekt spotřebáku (M10); neznámý ⇒ undefined. */
+export function consumableBuff(id: string): ConsumableBuff | undefined {
+  return isConsumableId(id) ? CONSUMABLE_BUFFS[id] : undefined;
 }

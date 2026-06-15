@@ -1361,6 +1361,70 @@ export function selectMount(characterId: string, mountId: string): Promise<Mount
   });
 }
 
+// --- Vendor (M10) ---
+export interface VendorStockView {
+  itemId: string;
+  name: string;
+  price: number;
+}
+export interface VendorSellView {
+  itemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+export interface VendorView {
+  gold: number;
+  stock: VendorStockView[];
+  sellable: VendorSellView[];
+}
+
+export function getVendor(characterId: string): Promise<VendorView> {
+  return request<VendorView>(`/characters/${characterId}/vendor`);
+}
+
+export function vendorBuy(characterId: string, itemId: string, quantity = 1): Promise<VendorView> {
+  return request<VendorView>(`/characters/${characterId}/vendor/buy/${itemId}`, {
+    method: 'POST',
+    body: JSON.stringify({ quantity }),
+  });
+}
+
+export function vendorSell(characterId: string, itemId: string, quantity = 1): Promise<VendorView> {
+  return request<VendorView>(`/characters/${characterId}/vendor/sell/${itemId}`, {
+    method: 'POST',
+    body: JSON.stringify({ quantity }),
+  });
+}
+
+// --- Consumables (M10) ---
+export interface ConsumableStackView {
+  itemId: string;
+  name: string;
+  quantity: number;
+  effect: string;
+}
+export interface ActiveBuffView {
+  consumableId: string;
+  name: string;
+  stats: Record<string, number>;
+  expiresAt: string;
+}
+export interface ConsumablesView {
+  consumables: ConsumableStackView[];
+  activeBuffs: ActiveBuffView[];
+}
+
+export function getConsumables(characterId: string): Promise<ConsumablesView> {
+  return request<ConsumablesView>(`/characters/${characterId}/consumables`);
+}
+
+export function useConsumable(characterId: string, itemId: string): Promise<ConsumablesView> {
+  return request<ConsumablesView>(`/characters/${characterId}/consumables/use/${itemId}`, {
+    method: 'POST',
+  });
+}
+
 export interface DevAccountView {
   id: string;
   username: string;

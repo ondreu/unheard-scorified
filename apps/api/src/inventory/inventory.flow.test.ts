@@ -10,6 +10,7 @@ import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
+import { BuffRepository } from '../buff/buff.repository';
 import { InventoryRepository } from './inventory.repository';
 import { InventoryService } from './inventory.service';
 
@@ -34,7 +35,7 @@ describe('M4 flow: inventory & equipment', () => {
     charRepo = new CharacterRepository(db);
     characters = new CharacterService(charRepo);
     invRepo = new InventoryRepository(db);
-    invService = new InventoryService(charRepo, invRepo);
+    invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
   });
 
   async function newCharacter(

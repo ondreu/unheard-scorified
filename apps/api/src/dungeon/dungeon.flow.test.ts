@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { BuffRepository } from '../buff/buff.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushRepository } from '../push/push.repository';
@@ -50,7 +51,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(T0);
-    const invService = new InventoryService(charRepo, invRepo);
+    const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
     dungeons = new DungeonService(
       charRepo,
       invService,

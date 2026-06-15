@@ -680,7 +680,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       „nakupují" jen virtuálně (nezasahují do reálných hráčských aukcí). Vyžaduje
       **aukční dům** jako systém (zatím není — kandidát na vlastní ADR; sdílí
       ekonomiku s vendory/goldem).
-- [ ] 🤖 Vendoři (NPC odkup/prodej) + „use" consumables/buffů (zbytek z M6).
+- [x] 🤖 **Vendoři (NPC odkup/prodej) + „use" consumables/buffů** ✅ (zbytek z M6):
+      `VendorModule` (pevné ceny `vendorBuyPrice`=value×5 sink / `vendorSellPrice`
+      source; sortiment `VENDOR_STOCK` se startovním gearem napříč armor typy; BoP
+      lze prodat, na AH ne) + `ConsumableModule` (use → dočasný stat buff
+      `CONSUMABLE_BUFFS`, tabulka `character_buffs` migrace `0025`, přičítá se do
+      bojového profilu přes `getEquipmentStats`). Web `/vendor` + `/consumables`.
+      Testy: shared `vendor.test.ts` (+7) + API `vendor.flow` (+5) / `consumable.flow`
+      (+4). Detail: `docs/systems/vendor-consumables.md`.
 - [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid.
 - [x] 🤖 **2v2 aréna bracket** ✅: skupina o 2 → 2v2 (`arenaBracketForSize`,
       `TEAM_BRACKETS`); engine/Elo/watch generické. Testy: shared + team-arena flow.

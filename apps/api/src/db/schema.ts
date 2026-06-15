@@ -802,6 +802,31 @@ export const characterMountsRelations = relations(characterMounts, ({ one }) => 
   }),
 }));
 
+/**
+ * Aktivní buffy postavy (M10 consumables). Jeden řádek na spotřebák (PK
+ * character+consumable) — opětovné použití obnoví `expiresAt` (refresh, ne
+ * stacking). Stat bonus se odvozuje z `CONSUMABLE_BUFFS` (@game/shared), tady
+ * jen identita + expirace. Prošlé buffy se lazy filtrují/mažou při čtení.
+ */
+export const characterBuffs = pgTable(
+  'character_buffs',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    consumableId: varchar('consumable_id', { length: 64 }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.consumableId] })],
+);
+
+export const characterBuffsRelations = relations(characterBuffs, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterBuffs.characterId],
+    references: [characters.id],
+  }),
+}));
+
 export const characterProfessionsRelations = relations(characterProfessions, ({ one }) => ({
   character: one(characters, {
     fields: [characterProfessions.characterId],
@@ -834,6 +859,8 @@ export type CharacterTalent = typeof characterTalents.$inferSelect;
 export type NewCharacterTalent = typeof characterTalents.$inferInsert;
 export type CharacterSkin = typeof characterSkins.$inferSelect;
 export type NewCharacterSkin = typeof characterSkins.$inferInsert;
+export type CharacterBuff = typeof characterBuffs.$inferSelect;
+export type NewCharacterBuff = typeof characterBuffs.$inferInsert;
 export type CharacterMount = typeof characterMounts.$inferSelect;
 export type NewCharacterMount = typeof characterMounts.$inferInsert;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;

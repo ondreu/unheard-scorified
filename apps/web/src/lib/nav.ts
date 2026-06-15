@@ -25,6 +25,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { path: 'professions', icon: '⚒️', title: 'Professions', sub: 'Gather & craft', accent: '#c79c6e', group: 'progress' },
   { path: 'achievements', icon: '🏆', title: 'Achievements', sub: 'Goals & rewards', accent: 'var(--gold-bright)', group: 'progress' },
   { path: 'mounts', icon: '🐎', title: 'Mounts', sub: 'Travel speed', accent: 'var(--r-uncommon)', group: 'progress' },
+  { path: 'consumables', icon: '🧪', title: 'Consumables', sub: 'Use potions & elixirs', accent: 'var(--r-rare)', group: 'progress' },
 
   { path: 'group', icon: '👥', title: 'Group', sub: 'Party up', accent: 'var(--info)', group: 'social' },
   { path: 'social', icon: '💬', title: 'Friends & Chat', sub: 'Social & global chat', accent: 'var(--info)', group: 'social' },
@@ -32,6 +33,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { path: 'guild', icon: '🏰', title: 'Guild', sub: 'Your guild', accent: '#9482c9', group: 'social' },
 
   { path: 'auctions', icon: '💰', title: 'Auction House', sub: 'Buy & sell', accent: 'var(--gold-bright)', group: 'economy' },
+  { path: 'vendor', icon: '🏪', title: 'Vendor', sub: 'NPC buy & sell', accent: 'var(--gold)', group: 'economy' },
 ];
 
 export const GROUP_LABELS: Record<NavSection['group'], string> = {
