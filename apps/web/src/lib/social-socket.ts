@@ -31,8 +31,18 @@ export interface GuildInviteEvent {
   guildName: string;
   byName: string;
 }
+export interface GuildCharterInviteEvent {
+  guildName: string;
+  byName: string;
+}
+export interface WhisperEvent {
+  fromCharacterId: string;
+  fromName: string;
+  body: string;
+  at: string;
+}
 
-/** Přihlásí postavu k realtime notifikacím (přátelství + guild pozvánky). */
+/** Přihlásí postavu k realtime notifikacím (přátelství + guild + whisper). */
 export function subscribeSocial(
   socket: Socket,
   characterId: string,
@@ -40,6 +50,8 @@ export function subscribeSocial(
     onFriendRequest?: (e: FriendRequestEvent) => void;
     onFriendAccepted?: (e: FriendAcceptedEvent) => void;
     onGuildInvite?: (e: GuildInviteEvent) => void;
+    onGuildCharterInvite?: (e: GuildCharterInviteEvent) => void;
+    onWhisper?: (e: WhisperEvent) => void;
   },
 ): () => void {
   const join = (): void => {
@@ -50,11 +62,15 @@ export function subscribeSocial(
   if (handlers.onFriendRequest) socket.on('social:friend_request', handlers.onFriendRequest);
   if (handlers.onFriendAccepted) socket.on('social:friend_accepted', handlers.onFriendAccepted);
   if (handlers.onGuildInvite) socket.on('guild:invite', handlers.onGuildInvite);
+  if (handlers.onGuildCharterInvite) socket.on('guild:charter_invite', handlers.onGuildCharterInvite);
+  if (handlers.onWhisper) socket.on('whisper:message', handlers.onWhisper);
   return () => {
     socket.off('connect', join);
     if (handlers.onFriendRequest) socket.off('social:friend_request', handlers.onFriendRequest);
     if (handlers.onFriendAccepted) socket.off('social:friend_accepted', handlers.onFriendAccepted);
     if (handlers.onGuildInvite) socket.off('guild:invite', handlers.onGuildInvite);
+    if (handlers.onGuildCharterInvite) socket.off('guild:charter_invite', handlers.onGuildCharterInvite);
+    if (handlers.onWhisper) socket.off('whisper:message', handlers.onWhisper);
   };
 }
 
