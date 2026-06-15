@@ -23,3 +23,4 @@ export * from './data/raids';
 export * from './group';
 export * from './lockout';
 export * from './auction';
+export * from './social';

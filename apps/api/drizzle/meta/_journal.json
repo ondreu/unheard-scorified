@@ -78,6 +78,20 @@
       "when": 1781519218145,
       "tag": "0010_eminent_iron_fist",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781520707800,
+      "tag": "0011_reflective_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781521208900,
+      "tag": "0012_windy_rictor",
+      "breakpoints": true
     }
   ]
 }

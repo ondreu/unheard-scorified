@@ -651,6 +651,88 @@ export function unsubscribePushApi(endpoint: string): Promise<void> {
   return request<void>('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) });
 }
 
+// Social (M9): friends + chat.
+
+export interface FriendView {
+  characterId: string;
+  name: string;
+  level: number;
+  race: string;
+  class: string;
+  faction: string;
+  since: string;
+}
+
+export interface FriendRequestView {
+  requestId: string;
+  characterId: string;
+  name: string;
+  level: number;
+  race: string;
+  class: string;
+  faction: string;
+  sentAt: string;
+}
+
+export interface SocialView {
+  friends: FriendView[];
+  incoming: FriendRequestView[];
+  outgoing: FriendRequestView[];
+}
+
+export interface FriendActionResult {
+  accepted: boolean;
+  social: SocialView;
+}
+
+export function getSocial(characterId: string): Promise<SocialView> {
+  return request<SocialView>(`/characters/${characterId}/social`);
+}
+
+export function sendFriendRequest(characterId: string, name: string): Promise<FriendActionResult> {
+  return request<FriendActionResult>(`/characters/${characterId}/social/requests`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function respondFriendRequest(
+  characterId: string,
+  requestId: string,
+  accept: boolean,
+): Promise<SocialView> {
+  return request<SocialView>(
+    `/characters/${characterId}/social/requests/${requestId}/respond`,
+    { method: 'POST', body: JSON.stringify({ accept }) },
+  );
+}
+
+export function removeFriend(characterId: string, otherCharacterId: string): Promise<SocialView> {
+  return request<SocialView>(`/characters/${characterId}/social/friends/${otherCharacterId}`, {
+    method: 'DELETE',
+  });
+}
+
+export interface ChatMessageView {
+  id: string;
+  channel: string;
+  characterId: string | null;
+  name: string;
+  body: string;
+  at: string;
+}
+
+export function getChatHistory(characterId: string): Promise<ChatMessageView[]> {
+  return request<ChatMessageView[]>(`/characters/${characterId}/chat`);
+}
+
+export function sendChatMessage(characterId: string, body: string): Promise<ChatMessageView> {
+  return request<ChatMessageView>(`/characters/${characterId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

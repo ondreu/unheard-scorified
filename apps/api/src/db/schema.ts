@@ -13,6 +13,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -25,8 +26,10 @@ import type {
   CombatActor,
   ActivityType,
   DuelSide,
+  ChatChannel,
   Faction,
   FactionId,
+  FriendRequestStatus,
   ProfessionId,
   RaceId,
   RaidActor,
@@ -364,6 +367,51 @@ export const characterLockouts = pgTable(
 );
 
 /**
+ * Přátelství mezi postavami (M9 social). Jeden řádek = vztah (requester ↔
+ * addressee), ne dva směrové. `status`:
+ *  - `pending` — `requester` poslal žádost, `addressee` ji ještě nepotvrdil.
+ *  - `accepted` — vzájemné přátelství.
+ * Odmítnutí žádosti = smazání řádku (žádný `declined` stav). Unikátní pár
+ * (requester, addressee) brání duplicitním žádostem stejným směrem; opačný směr
+ * řeší service (auto-accept při vzájemné žádosti). Friends jsou per-postava
+ * (vanilla-WoW styl) — připraveno na pozdější pozvánky do týmových arén/raidů.
+ */
+export const friendships = pgTable(
+  'friendships',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    requesterCharacterId: uuid('requester_character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    addresseeCharacterId: uuid('addressee_character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    status: varchar('status', { length: 12 }).$type<FriendRequestStatus>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
+  },
+  (t) => [unique().on(t.requesterCharacterId, t.addresseeCharacterId)],
+);
+
+/**
+ * Chat zprávy (M9 social). Jednoduchý persistovaný chat: jeden řádek = jedna
+ * zpráva v kanálu (zatím jen `global`). Jméno odesílatele je **denormalizované**
+ * (`senderName`), aby historie šla vykreslit bez joinu i po smazání postavy
+ * (`senderCharacterId` → set null). Realtime fan-out přes Redis pub/sub adaptér
+ * (M7); tato tabulka je durable historie. Viz ADR 0016.
+ */
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  channel: varchar('channel', { length: 16 }).$type<ChatChannel>().notNull(),
+  senderCharacterId: uuid('sender_character_id').references(() => characters.id, {
+    onDelete: 'set null',
+  }),
+  senderName: varchar('sender_name', { length: 16 }).notNull(),
+  body: varchar('body', { length: 256 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -514,3 +562,7 @@ export type Auction = typeof auctions.$inferSelect;
 export type NewAuction = typeof auctions.$inferInsert;
 export type CharacterLockout = typeof characterLockouts.$inferSelect;
 export type NewCharacterLockout = typeof characterLockouts.$inferInsert;
+export type Friendship = typeof friendships.$inferSelect;
+export type NewFriendship = typeof friendships.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
