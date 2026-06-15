@@ -220,6 +220,31 @@ export function createCharacter(input: {
   return request<CharacterView>('/characters', { method: 'POST', body: JSON.stringify(input) });
 }
 
+export interface InspectItemView {
+  slot: string;
+  itemId: string;
+  name: string;
+  rarity: string;
+  itemLevel: number;
+  stats: Record<string, number>;
+}
+
+export interface InspectView {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  faction: string;
+  itemLevel: number;
+  sheet: CharacterView['sheet'];
+  equipment: InspectItemView[];
+}
+
+/** Veřejný inspect cizí postavy (chat → klik na jméno): gear, ilvl, staty. */
+export function inspectCharacter(targetCharacterId: string): Promise<InspectView> {
+  return request<InspectView>(`/characters/${targetCharacterId}/inspect`);
+}
+
 export function listAvailableQuests(characterId: string): Promise<QuestView[]> {
   return request<QuestView[]>(`/characters/${characterId}/quests`);
 }

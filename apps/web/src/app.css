@@ -1,10 +1,320 @@
 @import 'tailwindcss';
 
+/*
+ * AFK to 60 — design system (M9 UI refresh).
+ * Tmavé fantasy téma: obsidián + zlato/pergamen, ornamentální panely, frakční
+ * akcenty. Tokeny drží jediný zdroj pravdy pro barvy/spacing; komponentní třídy
+ * (.panel/.card/.btn/…) drží stránky čisté a konzistentní. UI stringy zůstávají
+ * v komponentách (oddělené od logiky, EN).
+ */
+
+/* Display font pro nadpisy; bezpečně degraduje na serif, když síť nenačte. */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&display=swap');
+
 :root {
   color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #120d09;
+  --bg-2: #1a1410;
+  --surface: rgba(28, 21, 15, 0.72);
+  --surface-2: rgba(40, 30, 21, 0.6);
+  --surface-raised: rgba(48, 36, 25, 0.85);
+
+  /* Borders */
+  --border: rgba(180, 130, 60, 0.22);
+  --border-strong: rgba(212, 160, 76, 0.5);
+
+  /* Text */
+  --text: #f4e9d6;
+  --text-dim: rgba(244, 233, 214, 0.66);
+  --text-faint: rgba(244, 233, 214, 0.38);
+
+  /* Accents */
+  --gold: #d4a04c;
+  --gold-bright: #f0c870;
+  --alliance: #4a90d9;
+  --horde: #c0392b;
+  --danger: #e05a4a;
+  --success: #5fb87a;
+  --info: #6cb6e0;
+
+  /* Rarity */
+  --r-common: #c8c8c8;
+  --r-uncommon: #4ad14a;
+  --r-rare: #4a90d9;
+  --r-epic: #b860e0;
+  --r-legendary: #f0a020;
+
+  --font-display: 'Cinzel', ui-serif, Georgia, 'Times New Roman', serif;
 }
 
 body {
-  @apply bg-[#1a1410] text-amber-50 antialiased;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%, rgba(120, 80, 30, 0.18), transparent 60%),
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(40, 60, 90, 0.1), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
   font-family: ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+/* ── Panels & cards ─────────────────────────────────────────────────────── */
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    var(--surface);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 10px 30px -12px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+.panel-pad {
+  padding: 1.25rem;
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold-bright);
+  font-size: 1.05rem;
+}
+
+/* Hub feature card (klikací dlaždice). */
+.card {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 45%),
+    var(--surface);
+  padding: 0.9rem 1rem;
+  transition:
+    border-color 0.15s ease,
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.8);
+}
+
+.card-icon {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex-shrink: 0;
+  border-radius: 0.55rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 1.35rem;
+}
+
+.card-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.card-sub {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  margin-top: 0.1rem;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface-2);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--border-strong);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  border-color: var(--gold-bright);
+  color: #2a1c08;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-danger {
+  color: var(--danger);
+  border-color: rgba(224, 90, 74, 0.4);
+}
+
+.btn-danger:hover {
+  border-color: var(--danger);
+  background: rgba(224, 90, 74, 0.12);
+}
+
+.btn-sm {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+/* ── Inputs ─────────────────────────────────────────────────────────────── */
+
+.input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.32);
+  padding: 0.55rem 0.75rem;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 2px rgba(212, 160, 76, 0.15);
+}
+
+.field-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* ── Chips / badges ─────────────────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+
+/* ── XP / progress bars ─────────────────────────────────────────────────── */
+
+.bar {
+  height: 0.5rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
+}
+
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  transition: width 0.4s ease;
+}
+
+/* ── Divider ────────────────────────────────────────────────────────────── */
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+  border: 0;
+}
+
+/* ── Avatar frame ───────────────────────────────────────────────────────── */
+
+.frame {
+  position: relative;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 2px solid var(--border-strong);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 4px 14px -6px rgba(0, 0, 0, 0.8);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text);
+  user-select: none;
+}
+
+.frame-alliance {
+  border-color: var(--alliance);
+}
+
+.frame-horde {
+  border-color: var(--horde);
+}
+
+/* ── Modal / overlay ────────────────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+/* Custom scrollbar — diskrétní v tmavém UI. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 130, 60, 0.35) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(180, 130, 60, 0.35);
+  border-radius: 999px;
 }

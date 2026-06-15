@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CharacterService, type CharacterView } from './character.service';
+import { CharacterService, type CharacterView, type InspectView } from './character.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 
 @Controller('characters')
@@ -25,5 +25,14 @@ export class CharacterController {
   @Get(':id')
   get(@CurrentUser() user: { accountId: string }, @Param('id') id: string): Promise<CharacterView> {
     return this.characters.getOwned(user.accountId, id);
+  }
+
+  /**
+   * Veřejný inspect libovolné postavy (chat → klik na jméno). Vyžaduje přihlášení,
+   * ale ne vlastnictví — vrací jen public combat info (gear/ilvl/staty).
+   */
+  @Get(':id/inspect')
+  inspect(@Param('id') id: string): Promise<InspectView> {
+    return this.characters.inspect(id);
   }
 }
