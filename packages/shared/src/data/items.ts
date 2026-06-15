@@ -3,6 +3,7 @@
  * M4: základní katalog; M5+ rozšíří o zbraňové typy a set bonusy.
  */
 import type { PrimaryStat } from '../character';
+import type { ClassId } from './classes';
 
 export type EquipmentSlot =
   | 'head' | 'neck' | 'shoulder' | 'chest' | 'waist' | 'legs' | 'feet' | 'wrist'
@@ -23,6 +24,14 @@ export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
  * jako obchodovatelný). Viz ADR 0015.
  */
 export type BindType = 'none' | 'bop' | 'boe';
+
+/**
+ * Typ brnění (M10 feat — armor types). Platí jen pro „armor" sloty
+ * (`ARMOR_SLOT_TYPES`); zbraně, šperky, plášť a off-hand armorClass nemají
+ * (jsou bez omezení podle classy). Classa smí nosit jen typy z
+ * `CLASS_ARMOR_PROFICIENCY` (vanilla-style: cloth < leather < mail < plate).
+ */
+export type ArmorClass = 'cloth' | 'leather' | 'mail' | 'plate';
 
 /** Primární staty, které může item přidat. */
 export type ItemStatKey = PrimaryStat | 'armor' | 'attack_power' | 'spell_power' | 'crit_rating' | 'dodge_rating';
@@ -46,6 +55,12 @@ export interface ItemDef {
    * (jediný zdroj pravdy), aby zůstal explicitní a na jednom místě.
    */
   bindType?: BindType;
+  /**
+   * Typ brnění (M10 feat). Vyplněné jen u kusů v „armor" slotech
+   * (`ARMOR_SLOT_TYPES`); naplňuje se z `ARMOR_CLASS_BY_ITEM` níže. Chybí ⇒
+   * item nemá armor omezení (zbraně/šperky/plášť/off-hand → nosí každá classa).
+   */
+  armorClass?: ArmorClass;
 }
 
 export const ITEMS: Record<ItemId, ItemDef> = {
@@ -338,6 +353,44 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     rarity: 'rare', itemLevel: 34, vendorGold: 34,
     stats: { strength: 9, stamina: 11, armor: 48 },
   },
+
+  // --- Cloth set (M10 armor types): základní výbava pro cloth-only classy
+  // (mage/priest/warlock) napříč sloty, kde dosud chyběla. Dostupné u vendora. ---
+  acolyte_hood: {
+    id: 'acolyte_hood', name: "Acolyte's Hood", slot: 'head',
+    rarity: 'common', itemLevel: 8, vendorGold: 2,
+    stats: { intellect: 3, spirit: 2 },
+  },
+  apprentice_mantle: {
+    id: 'apprentice_mantle', name: "Apprentice's Mantle", slot: 'shoulder',
+    rarity: 'common', itemLevel: 12, vendorGold: 3,
+    stats: { intellect: 4, spirit: 2 },
+  },
+  silk_girdle: {
+    id: 'silk_girdle', name: 'Silk Girdle', slot: 'waist',
+    rarity: 'common', itemLevel: 14, vendorGold: 3,
+    stats: { intellect: 4, spirit: 3 },
+  },
+  woven_wristwraps: {
+    id: 'woven_wristwraps', name: 'Woven Wristwraps', slot: 'wrist',
+    rarity: 'common', itemLevel: 10, vendorGold: 2,
+    stats: { intellect: 3, spirit: 2 },
+  },
+  enchanters_gloves: {
+    id: 'enchanters_gloves', name: "Enchanter's Gloves", slot: 'hands',
+    rarity: 'uncommon', itemLevel: 16, vendorGold: 6,
+    stats: { intellect: 5, spirit: 3, spell_power: 4 },
+  },
+  sandals_of_insight: {
+    id: 'sandals_of_insight', name: 'Sandals of Insight', slot: 'feet',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  mystic_leggings: {
+    id: 'mystic_leggings', name: 'Mystic Leggings', slot: 'legs',
+    rarity: 'uncommon', itemLevel: 22, vendorGold: 11,
+    stats: { intellect: 7, spirit: 5, spell_power: 5 },
+  },
 };
 
 /**
@@ -366,6 +419,76 @@ const BIND_ON_EQUIP: ItemId[] = ['masterwork_blade', 'arcane_robes'];
 
 for (const id of BIND_ON_PICKUP) ITEMS[id]!.bindType = 'bop';
 for (const id of BIND_ON_EQUIP) ITEMS[id]!.bindType = 'boe';
+
+/** Item slot typy, které jsou „armor" (podléhají typu brnění). */
+export const ARMOR_SLOT_TYPES: ReadonlySet<ItemSlotType> = new Set<ItemSlotType>([
+  'head', 'shoulder', 'chest', 'waist', 'legs', 'feet', 'wrist', 'hands',
+]);
+
+/**
+ * Typ brnění per item (M10 armor types) — jediný zdroj pravdy. Vyplňuje
+ * `ItemDef.armorClass` u kusů v armor slotech. Volené dle stat afinity
+ * (cloth=int/spirit, leather=agi, mail=mix str/agi+stam, plate=str/stam).
+ */
+const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
+  cloth: [
+    'worn_robe', 'spellweave_robe', 'arcane_robes', 'robe_of_volatile_power',
+    'whitemane_chapeau', 'netherwind_crown',
+    'acolyte_hood', 'apprentice_mantle', 'silk_girdle', 'woven_wristwraps',
+    'enchanters_gloves', 'sandals_of_insight', 'mystic_leggings',
+  ],
+  leather: [
+    'leather_cap', 'scout_vest', 'ranger_gloves', 'shadow_cowl',
+    'shadow_vambraces', 'aged_core_leather_gloves', 'traveler_boots',
+    'simple_bracers',
+  ],
+  mail: [
+    'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',
+  ],
+  plate: [
+    'soldier_helm', 'marauder_shoulders', 'crusader_belt', 'warlord_plate',
+    'titan_boots', 'sentinel_legguards', 'herod_shoulder',
+    'sabatons_of_the_flamewalker', 'drake_talon_pauldrons',
+  ],
+};
+
+for (const [cls, ids] of Object.entries(ARMOR_CLASS_BY_ITEM) as [ArmorClass, ItemId[]][]) {
+  for (const id of ids) {
+    const def = ITEMS[id];
+    if (def && ARMOR_SLOT_TYPES.has(def.slot)) def.armorClass = cls;
+  }
+}
+
+/**
+ * Co která classa umí nosit (vanilla-style proficiency na cap levelu;
+ * leveling progrese se neřeší). Nižší typy umí každý, kdo umí vyšší.
+ */
+export const CLASS_ARMOR_PROFICIENCY: Record<ClassId, ArmorClass[]> = {
+  warrior: ['cloth', 'leather', 'mail', 'plate'],
+  paladin: ['cloth', 'leather', 'mail', 'plate'],
+  hunter: ['cloth', 'leather', 'mail'],
+  shaman: ['cloth', 'leather', 'mail'],
+  rogue: ['cloth', 'leather'],
+  druid: ['cloth', 'leather'],
+  priest: ['cloth'],
+  mage: ['cloth'],
+  warlock: ['cloth'],
+};
+
+/** Typ brnění itemu (M10); item bez armorClass (zbraň/šperk/plášť) ⇒ undefined. */
+export function itemArmorClass(itemId: string): ArmorClass | undefined {
+  return ITEMS[itemId]?.armorClass;
+}
+
+/**
+ * Smí daná classa nosit tento item? Itemy bez armorClass (zbraně, šperky,
+ * plášť, off-hand) může nosit kdokoli. Armor kusy gateuje proficiency.
+ */
+export function canEquipArmor(klass: ClassId, itemId: string): boolean {
+  const ac = itemArmorClass(itemId);
+  if (!ac) return true;
+  return CLASS_ARMOR_PROFICIENCY[klass]?.includes(ac) ?? false;
+}
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 

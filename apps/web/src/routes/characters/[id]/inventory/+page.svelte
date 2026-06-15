@@ -312,7 +312,7 @@
                       {/if}
                     </p>
                     <p class="text-xs text-[var(--text-faint)]">
-                      {inv.item.slot} · {ui.ilvl} {inv.item.itemLevel} · {ui.vendorGold} {inv.item.vendorGold}{ui.gold}
+                      {inv.item.slot}{inv.item.armorClass ? ` · ${inv.item.armorClass}` : ''} · {ui.ilvl} {inv.item.itemLevel} · {ui.vendorGold} {inv.item.vendorGold}{ui.gold}
                     </p>
                     <p class="mt-1 text-xs text-[var(--text-dim)]">
                       {Object.entries(inv.item.stats).map(([k, v]) => `+${v} ${statLabel(k)}`).join(', ')}

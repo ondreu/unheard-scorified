@@ -655,14 +655,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       API flow (+8). Detail: `docs/systems/mounts.md`, **ADR 0023**.
 - [ ] 🧑‍💼 **Admin panel**: u seznamu účtů rozkliknout jejich postavy (drill-down
       account → characters → inspect). Rozšiřuje stávající `/dev/mod`.
-- [ ] 🧑‍💼 **Více gearu + armor typy** (cloth / leather / mail / plate).
-  - **Posouzení agenta (🤖): ano, realizovatelné a NE moc složité.** Návrh: přidat
-    `ItemDef.armorClass` + mapování `class → povolené armor typy` (gate při equipu,
-    rozšiřuje stávající `SLOT_TO_ITEM_SLOT` validaci). **Itemizace** přes stat
-    afinitu (str/agi/int/stam/spirit), kterou už staty itemů mají → podtextově
-    vznikne gear pro tank/melee-dps/caster-dps/heal bez nové mechaniky. Balanc
-    zůstává v `@game/shared` (jeden zdroj). Riziko nízké: čistě data + jedna
-    equip validace; combat dopad přes existující `deriveCombatProfile`.
+- [x] 🧑‍💼 **Armor typy** (cloth / leather / mail / plate) ✅: `ItemDef.armorClass`
+      (naplněné z `ARMOR_CLASS_BY_ITEM`, jen armor sloty `ARMOR_SLOT_TYPES`) +
+      `CLASS_ARMOR_PROFICIENCY` (vanilla-style: warrior/paladin=plate↓,
+      hunter/shaman=mail↓, rogue/druid=leather↓, priest/mage/warlock=cloth).
+      Gate `canEquipArmor` vynucen v `InventoryService.equip`. Itemizace přes stat
+      afinitu (str/agi/int/stam/spirit). Doplněn základní cloth set pro cloth-only
+      classy. Testy: shared `data/armor.test.ts` (+6) + API inventory flow (+2).
+      Detail: `docs/systems/items.md`.
+  - [ ] **Více gearu** (zbývá): víc kusů napříč tiery/typy pro plnou itemizaci
+        (tank/melee-dps/caster-dps/heal). Mechanika hotová, jde o obsah/balanc.
 - [ ] 🧑‍💼 **Omezený inventář + craftovatelné batohy** (WoW styl). Konečný počet
       slotů v základním batohu + další **bag sloty**, do nichž se vkládají batohy
       o N slotech. Batohy se **craftí** (tailoring/leatherworking → gating

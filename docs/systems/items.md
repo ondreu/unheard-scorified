@@ -82,3 +82,35 @@ Helpery: `itemBindType(id)`, `isSoulbound(id)` (= `bop`), `isAuctionable(id)`
 (= známý a ne-BoP). Raid/dungeon **personal loot je BoP** → na AH se nedá vypsat
 (filtr v sell UI + server validace). Trade-window soulbound itemů = M9 (závisí na
 P2P trade).
+
+## Typy brnění — `armorClass` (M10 armor types)
+
+`ItemDef.armorClass: 'cloth' | 'leather' | 'mail' | 'plate'` (volitelné). Vyplňuje
+se z `ARMOR_CLASS_BY_ITEM` v `data/items.ts` (jediný zdroj pravdy) **jen** u kusů
+v armor slotech (`ARMOR_SLOT_TYPES` = head, shoulder, chest, waist, legs, feet,
+wrist, hands). Zbraně, šperky (neck/finger/trinket), plášť a off-hand armorClass
+**nemají** → nosí je každá classa bez omezení.
+
+Typ se volí dle stat afinity: cloth = int/spirit (casteři), leather = agility,
+mail = mix str/agi + stamina, plate = str/stamina (tanci/melee).
+
+### Class proficiency
+
+`CLASS_ARMOR_PROFICIENCY: Record<ClassId, ArmorClass[]>` (vanilla-style na cap
+levelu; leveling progrese se neřeší):
+
+| Classy | Umí nosit |
+| --- | --- |
+| Warrior, Paladin | cloth, leather, mail, plate |
+| Hunter, Shaman | cloth, leather, mail |
+| Rogue, Druid | cloth, leather |
+| Priest, Mage, Warlock | cloth |
+
+Helpery: `itemArmorClass(id)`, `canEquipArmor(klass, id)` (true pro ne-armor
+itemy + armor v rámci proficiency). Gate je vynucen v `InventoryService.equip`
+(po validaci slot typu) — pokus o nasazení nekompatibilního typu vrátí 400.
+
+Pro cloth-only classy (mage/priest/warlock) byl doplněn základní **cloth set**
+napříč sloty (`acolyte_hood`, `apprentice_mantle`, `silk_girdle`,
+`woven_wristwraps`, `enchanters_gloves`, `sandals_of_insight`, `mystic_leggings`)
+— dostupný u vendora.

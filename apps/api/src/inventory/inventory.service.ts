@@ -7,11 +7,14 @@ import {
   ITEMS,
   isItemId,
   isEquipmentSlot,
+  canEquipArmor,
+  itemArmorClass,
   SLOT_TO_ITEM_SLOT,
   sumEquipmentStats,
   type ItemDef,
   type EquipmentSlot,
   type ItemStats,
+  type ClassId,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from './inventory.repository';
@@ -86,6 +89,13 @@ export class InventoryService {
     const expectedSlotType = SLOT_TO_ITEM_SLOT[slot as EquipmentSlot];
     if (itemDef.slot !== expectedSlotType) {
       throw new BadRequestException(`Item cannot go in slot "${slot}" (expected ${itemDef.slot})`);
+    }
+
+    // Armor proficiency (M10): classa smí nosit jen povolené typy brnění.
+    if (!canEquipArmor(character.class as ClassId, itemId)) {
+      throw new BadRequestException(
+        `Your class cannot wear ${itemArmorClass(itemId)} armor`,
+      );
     }
 
     // Ověř, že postava item vlastní (a má volný kus k nasazení)

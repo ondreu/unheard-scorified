@@ -164,6 +164,27 @@ describe('M4 flow: inventory & equipment', () => {
     expect(inv[0]?.quantity).toBe(1);
   });
 
+  it('armor proficiency: mage nemůže nasadit plate, ale cloth ano', async () => {
+    const tokens = await auth.register('inv_mage', 'password123');
+    const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
+    const mage = await characters.create(accountId, { name: 'Khadgar', race: 'human', class: 'mage' });
+
+    await invRepo.addItem(mage.id, 'warlord_plate'); // plate chest
+    await invRepo.addItem(mage.id, 'arcane_robes'); // cloth chest
+
+    await expect(invService.equip(accountId, mage.id, 'warlord_plate', 'chest')).rejects.toThrow();
+
+    const after = await invService.equip(accountId, mage.id, 'arcane_robes', 'chest');
+    expect(after.equipped[0]?.itemId).toBe('arcane_robes');
+  });
+
+  it('warrior unese plate i cloth', async () => {
+    const { accountId, id } = await newCharacter('inv_war', 'Bolvar');
+    await invRepo.addItem(id, 'warlord_plate');
+    const after = await invService.equip(accountId, id, 'warlord_plate', 'chest');
+    expect(after.equipped[0]?.itemId).toBe('warlord_plate');
+  });
+
   it('cizí účet nemůže spravovat inventář postavy', async () => {
     const owner = await newCharacter('inv7a', 'Arthas');
     const other = await newCharacter('inv7b', 'Uther');
