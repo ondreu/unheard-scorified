@@ -200,4 +200,28 @@ describe('M9 flow: groups (party)', () => {
     expect(bState.group?.leaderCharacterId).toBe(b!.id);
     expect(bState.group?.iAmLeader).toBe(true);
   });
+
+  it('invite bez skupiny ji automaticky založí (volající = leader)', async () => {
+    const [a, b] = await friends('Auto', 2);
+    // a nemá skupinu; pozvání b ji založí.
+    const state = await group.invite(a!.accountId, a!.id, b!.name, 'dps');
+    expect(state.group).toBeTruthy();
+    expect(state.group?.leaderCharacterId).toBe(a!.id);
+    expect(state.group?.members.find((m) => m.characterId === b!.id)?.status).toBe('invited');
+  });
+
+  it('request to join → leader approve → člen připojen', async () => {
+    const [a, b] = await friends('Req', 2);
+    await group.create(a!.accountId, a!.id, 'tank');
+    // b (bez skupiny) požádá o vstup do a-skupiny.
+    await group.requestJoin(b!.accountId, b!.id, a!.name);
+    const leaderState = await group.getState(a!.accountId, a!.id);
+    const req = leaderState.group?.members.find((m) => m.characterId === b!.id);
+    expect(req?.status).toBe('requested');
+    // Leader schválí.
+    await group.respondJoinRequest(a!.accountId, a!.id, b!.id, true);
+    const after = await group.getState(b!.accountId, b!.id);
+    expect(after.group?.joinedCount).toBe(2);
+    expect(after.group?.leaderCharacterId).toBe(a!.id);
+  });
 });

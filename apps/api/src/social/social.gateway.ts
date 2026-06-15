@@ -95,6 +95,39 @@ export class SocialGateway implements OnGatewayInit, OnGatewayConnection {
     }
   }
 
+  /**
+   * Whisper (soukromá 1:1 zpráva) — **pouze online**. Doručí se jen pokud má
+   * příjemce aktivní socket ve své room (napříč instancemi přes Redis adaptér).
+   * Žádná perzistence; offline doručení řeší Mail. Vrací `delivered`.
+   */
+  @SubscribeMessage('whisper:send')
+  async whisper(
+    client: Socket,
+    payload: { fromCharacterId?: string; toCharacterId?: string; body?: string },
+  ): Promise<{ ok: boolean; delivered?: boolean; error?: string }> {
+    const accountId = (client.data as SocketState).accountId;
+    const { fromCharacterId, toCharacterId } = payload ?? {};
+    const body = (payload?.body ?? '').trim().slice(0, 256);
+    if (!accountId || !fromCharacterId || !toCharacterId || !body) return { ok: false };
+    const sender = await this.characters.findOwned(accountId, fromCharacterId);
+    if (!sender) return { ok: false, error: 'Not your character' };
+    const target = await this.characters.findById(toCharacterId);
+    if (!target) return { ok: false, error: 'No character with that name' };
+
+    const room = SocialEventsRelay.room(toCharacterId);
+    const sockets = await this.server.in(room).fetchSockets();
+    const delivered = sockets.length > 0;
+    if (delivered) {
+      this.server.to(room).emit('whisper:message', {
+        fromCharacterId,
+        fromName: sender.name,
+        body,
+        at: new Date().toISOString(),
+      });
+    }
+    return { ok: true, delivered };
+  }
+
   /** Odešle chatovou zprávu (persistuje + rozešle všem v kanálu). */
   @SubscribeMessage('chat:send')
   async send(

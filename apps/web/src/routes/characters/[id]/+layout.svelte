@@ -7,6 +7,8 @@
     ApiError,
     getCharacter,
     getGroup,
+    getGuild,
+    getMailbox,
     type CharacterView,
     type GroupState,
   } from '$lib/api';
@@ -33,7 +35,12 @@
     inviteFriendReq: (n: string) => `${n} sent a friend request`,
     inviteFriendAcc: (n: string) => `${n} accepted your friend request`,
     inviteGuild: (g: string, b: string) => `${b} invited you to ${g}`,
+    inviteGuildShort: (g: string) => `Guild invite: ${g}`,
+    inviteCharter: (g: string, b: string) => `${b} asked you to sign the charter of ${g}`,
+    inviteCharterShort: (g: string) => `Charter signature request: ${g}`,
     inviteGroup: (n: string) => `${n} invited you to a group`,
+    whisper: (n: string, b: string) => `${n} whispers: ${b}`,
+    mailUnread: (n: number) => `You have ${n} unread mail`,
   };
 
   let character = $state<CharacterView | null>(null);
@@ -72,6 +79,9 @@
         onFriendRequest: (e) => notifications.push('social', ui.inviteFriendReq(e.fromName)),
         onFriendAccepted: (e) => notifications.push('social', ui.inviteFriendAcc(e.byName)),
         onGuildInvite: (e) => notifications.push('social', ui.inviteGuild(e.guildName, e.byName)),
+        onGuildCharterInvite: (e) =>
+          notifications.push('social', ui.inviteCharter(e.guildName, e.byName)),
+        onWhisper: (e) => notifications.push('social', ui.whisper(e.fromName, e.body)),
       });
     }
   });
@@ -93,6 +103,22 @@
       for (const inv of invites) notifications.push('social', ui.inviteGroup(inv.leaderName));
     } catch {
       group = null;
+    }
+    // Surface pending guild + charter invites that may have arrived while offline.
+    try {
+      const g = await getGuild(id);
+      for (const inv of g.invites) notifications.push('social', ui.inviteGuildShort(inv.guildName));
+      for (const req of g.charterInvites)
+        notifications.push('social', ui.inviteCharterShort(req.guildName));
+    } catch {
+      // best-effort; guild panel still reachable from nav
+    }
+    // Unread mail badge (offline messages arrived).
+    try {
+      const box = await getMailbox(id);
+      if (box.unread > 0) notifications.push('info', ui.mailUnread(box.unread));
+    } catch {
+      // best-effort
     }
   }
 
@@ -230,7 +256,7 @@
 
 {#if c}
   <ChatBubble viewerId={c.id} viewerName={c.name} />
-  <PlayerProfile viewerId={c.id} />
+  <PlayerProfile viewerId={c.id} viewerInGroup={!!group?.group} />
 {/if}
 <Toasts />
 <DevPanel {characterId} />

@@ -18,6 +18,7 @@ import {
 } from '@game/shared';
 import { CharacterRepository } from './character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { GroupRepository } from '../group/group.repository';
 import type { Character } from '../db/schema';
 
 export interface CharacterView {
@@ -48,6 +49,8 @@ export interface InspectView {
   faction: string;
   /** Průměrný item level equipnutého gearu (0 = nic nemá oblečeno). */
   itemLevel: number;
+  /** Je postava aktuálně v nějaké skupině (pro „request to join group" v UI)? */
+  inGroup: boolean;
   sheet: CharacterSheet;
   equipment: InspectItemView[];
 }
@@ -59,6 +62,7 @@ export class CharacterService {
     // Volitelné kvůli jednoduchému instancování v unit/flow testech (1 arg).
     // V produkci Nest vždy injektne (provider v CharacterModule).
     private readonly inventory?: InventoryRepository,
+    private readonly groups?: GroupRepository,
   ) {}
 
   async create(
@@ -138,6 +142,8 @@ export class CharacterService {
         ? Math.round(equippedDefs.reduce((sum, d) => sum + d.itemLevel, 0) / equippedDefs.length)
         : 0;
 
+    const inGroup = this.groups ? !!(await this.groups.activeMembership(id)) : false;
+
     return {
       id: row.id,
       name: row.name,
@@ -145,6 +151,7 @@ export class CharacterService {
       class: row.class,
       faction: row.faction,
       itemLevel,
+      inGroup,
       sheet: buildCharacterSheet(row.race, row.class, row.totalXp, equipmentStats),
       equipment,
     };

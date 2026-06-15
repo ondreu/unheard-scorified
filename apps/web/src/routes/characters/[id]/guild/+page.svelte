@@ -22,6 +22,7 @@
     canInvite,
     canManageMember,
     GUILD_CHARTER_COST,
+    GUILD_CHARTER_MIN_SIGNER_LEVEL,
     GUILD_CHARTER_SIGNATURES_REQUIRED,
     type GuildRank,
   } from '@game/shared';
@@ -46,7 +47,7 @@
     level: 'Lv',
     // Charter
     charterTitle: 'Found a guild',
-    charterIntro: `Founding a guild works like a charter: pay ${GUILD_CHARTER_COST} gold to start one, then gather ${GUILD_CHARTER_SIGNATURES_REQUIRED} signatures from other players before you can found it.`,
+    charterIntro: `Founding a guild works like a charter: pay ${GUILD_CHARTER_COST} gold to start one, then gather ${GUILD_CHARTER_SIGNATURES_REQUIRED} signatures from other players (level ${GUILD_CHARTER_MIN_SIGNER_LEVEL}+, not already in a guild) before you can found it. Signatories automatically join once it's founded.`,
     charterNamePlaceholder: 'Proposed guild name…',
     startCharter: `Buy charter (${GUILD_CHARTER_COST}g)`,
     yourCharter: 'Your guild charter',

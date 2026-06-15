@@ -55,3 +55,10 @@ export const chatPrefill = writable<string | null>(null);
 export function prefillChat(text: string): void {
   chatPrefill.set(text);
 }
+
+/** Cíl whisperu — chat bublina se otevře v režimu „whisper to X". */
+export const whisperTarget = writable<{ characterId: string; name: string } | null>(null);
+
+export function startWhisper(characterId: string, name: string): void {
+  whisperTarget.set({ characterId, name });
+}

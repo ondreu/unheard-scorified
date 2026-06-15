@@ -28,6 +28,7 @@ export const NAV_SECTIONS: NavSection[] = [
 
   { path: 'group', icon: '👥', title: 'Group', sub: 'Party up', accent: 'var(--info)', group: 'social' },
   { path: 'social', icon: '💬', title: 'Friends & Chat', sub: 'Social & global chat', accent: 'var(--info)', group: 'social' },
+  { path: 'mail', icon: '✉️', title: 'Mail', sub: 'Offline messages & items', accent: 'var(--gold)', group: 'social' },
   { path: 'guild', icon: '🏰', title: 'Guild', sub: 'Your guild', accent: '#9482c9', group: 'social' },
 
   { path: 'auctions', icon: '💰', title: 'Auction House', sub: 'Buy & sell', accent: 'var(--gold-bright)', group: 'economy' },

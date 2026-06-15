@@ -17,6 +17,7 @@
     getTeamArena,
     promoteGroupMember,
     respondGroupInvite,
+    respondGroupJoinRequest,
     setGroupRole,
     type DungeonListItem,
     type GroupState,
@@ -44,6 +45,7 @@
     leave: 'Leave',
     disband: 'Disband',
     kick: 'Kick',
+    approve: 'Approve',
     promote: 'Make leader',
     myRole: 'My role',
     launch: 'Go',
@@ -218,13 +220,19 @@
                     <button class="hover:underline" onclick={() => openProfile(m.characterId, m.name)}>{m.name}</button>
                     {#if m.isLeader}<span class="text-xs text-[var(--gold-bright)]" title={ui.leader}>★</span>{/if}
                     {#if m.status === 'invited'}<span class="text-xs text-[var(--text-faint)]">(invited)</span>{/if}
+                    {#if m.status === 'requested'}<span class="text-xs text-[var(--info)]">(wants to join)</span>{/if}
                   </span>
                   <span class="block text-xs" style={`color:${ROLE_META[m.role].color}`}>
                     {ROLE_META[m.role].icon} {m.role} · Lv {m.level} {CLASSES[m.class as keyof typeof CLASSES]?.name}
                   </span>
                 </span>
               </span>
-              {#if g.iAmLeader && !m.isLeader && m.status === 'joined'}
+              {#if g.iAmLeader && m.status === 'requested'}
+                <span class="flex shrink-0 gap-2">
+                  <button disabled={busy} onclick={() => act(() => respondGroupJoinRequest(characterId, m.characterId, true))} class="btn btn-primary btn-sm">{ui.approve}</button>
+                  <button disabled={busy} onclick={() => act(() => respondGroupJoinRequest(characterId, m.characterId, false))} class="btn btn-danger btn-sm">{ui.decline}</button>
+                </span>
+              {:else if g.iAmLeader && !m.isLeader && m.status === 'joined'}
                 <span class="flex shrink-0 gap-2">
                   <button disabled={busy} onclick={() => act(() => promoteGroupMember(characterId, m.characterId))} class="btn btn-sm">{ui.promote}</button>
                   <button disabled={busy} onclick={() => act(() => kickGroupMember(characterId, m.characterId))} class="btn btn-danger btn-sm">{ui.kick}</button>

@@ -9,6 +9,7 @@ import {
   canInvite,
   canManageMember,
   GUILD_CHARTER_COST,
+  GUILD_CHARTER_MIN_SIGNER_LEVEL,
   GUILD_CHARTER_SIGNATURES_REQUIRED,
   isValidGuildName,
   levelFromXp,
@@ -268,6 +269,14 @@ export class GuildService {
     const target = await this.characters.findByName(targetName.trim());
     if (!target) throw new NotFoundException('No character with that name');
     if (target.id === characterId) throw new BadRequestException('You cannot sign your own charter');
+    if (levelFromXp(target.totalXp) < GUILD_CHARTER_MIN_SIGNER_LEVEL) {
+      throw new BadRequestException(
+        `Signers must be at least level ${GUILD_CHARTER_MIN_SIGNER_LEVEL}`,
+      );
+    }
+    if (await this.guilds.membershipOf(target.id)) {
+      throw new BadRequestException('That character is already in a guild');
+    }
     if (await this.guilds.findSignature(charter.id, target.id)) {
       throw new BadRequestException('Already asked that character to sign');
     }
@@ -284,11 +293,23 @@ export class GuildService {
     charterId: string,
     accept: boolean,
   ): Promise<GuildState> {
-    await this.own(accountId, characterId);
+    const self = await this.own(accountId, characterId);
     const sig = await this.guilds.findSignature(charterId, characterId);
     if (!sig) throw new NotFoundException('Signature request not found');
-    if (accept) await this.guilds.markSigned(sig.id);
-    else await this.guilds.deleteSignature(sig.id);
+    if (accept) {
+      // Re-check pravidla při podpisu (stav se mohl od pozvánky změnit).
+      if (levelFromXp(self.totalXp) < GUILD_CHARTER_MIN_SIGNER_LEVEL) {
+        throw new BadRequestException(
+          `You must be at least level ${GUILD_CHARTER_MIN_SIGNER_LEVEL} to sign a charter`,
+        );
+      }
+      if (await this.guilds.membershipOf(characterId)) {
+        throw new BadRequestException('You are already in a guild');
+      }
+      await this.guilds.markSigned(sig.id);
+    } else {
+      await this.guilds.deleteSignature(sig.id);
+    }
     return this.stateFor(characterId);
   }
 
@@ -309,7 +330,20 @@ export class GuildService {
     if (await this.guilds.findByName(charter.name)) {
       throw new BadRequestException('Guild name already taken');
     }
-    await this.guilds.createGuild(charter.name, characterId);
+    const guild = await this.guilds.createGuild(charter.name, characterId);
+
+    // Signatáři automaticky vstoupí do založené guildy (pokud mezitím nevstoupili
+    // jinam a guilda není plná). Charter se pak smaže (cascade podpisy).
+    const sigs = await this.guilds.listSignatures(charter.id);
+    let count = await this.guilds.countMembers(guild.id);
+    for (const sig of sigs) {
+      if (!sig.signed || sig.characterId === characterId) continue;
+      if (count >= MAX_GUILD_MEMBERS) break;
+      if (await this.guilds.membershipOf(sig.characterId)) continue;
+      await this.guilds.addMember(guild.id, sig.characterId, 'member');
+      count += 1;
+    }
+
     await this.guilds.deleteCharter(charter.id);
     return this.stateFor(characterId);
   }

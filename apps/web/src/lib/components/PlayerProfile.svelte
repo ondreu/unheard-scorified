@@ -4,6 +4,8 @@
     inspectCharacter,
     inviteToGroup,
     inviteToGuild,
+    requestGroupJoin,
+    sendFriendRequest,
     startTrade,
     type InspectView,
     type RaidRole,
@@ -18,7 +20,7 @@
     raceName,
     className,
   } from '$lib/cosmetics';
-  import { inspectTarget, notifications, prefillChat } from '$lib/ui-stores';
+  import { inspectTarget, notifications, startWhisper } from '$lib/ui-stores';
   import Avatar from './Avatar.svelte';
   import Badge from './Badge.svelte';
 
@@ -30,16 +32,22 @@
     noGear: 'No gear equipped.',
     stats: 'Stats',
     whisper: 'Whisper',
+    mail: 'Send mail',
+    friend: 'Add friend',
     group: 'Invite to group',
+    requestGroup: 'Request to join',
     trade: 'Invite to trade',
     guild: 'Invite to guild',
     close: 'Close',
     self: 'This is you.',
   };
 
-  let { viewerId }: { viewerId: string } = $props();
+  let { viewerId, viewerInGroup = false }: { viewerId: string; viewerInGroup?: boolean } = $props();
 
   let data = $state<InspectView | null>(null);
+
+  // When I'm not in a group and the target is, the action becomes "request to join".
+  const requestMode = $derived(!viewerInGroup && (data?.inGroup ?? false));
   let loading = $state(false);
   let error = $state<string | null>(null);
   let actionBusy = $state(false);
@@ -91,16 +99,30 @@
 
   function whisper(): void {
     if (!data) return;
-    prefillChat(`@${data.name} `);
+    startWhisper(data.id, data.name);
     close();
+  }
+
+  async function mail(): Promise<void> {
+    if (!data) return;
+    const name = data.name;
+    close();
+    await goto(`/characters/${viewerId}/mail?to=${encodeURIComponent(name)}`);
   }
 
   function doGroup(): void {
     if (!data) return;
-    void act(
-      () => inviteToGroup(viewerId, data!.name, inviteRole).then(() => undefined),
-      `Invited ${data.name} to your group.`,
-    );
+    if (requestMode) {
+      void act(
+        () => requestGroupJoin(viewerId, data!.name).then(() => undefined),
+        `Requested to join ${data.name}'s group.`,
+      );
+    } else {
+      void act(
+        () => inviteToGroup(viewerId, data!.name, inviteRole).then(() => undefined),
+        `Invited ${data.name} to your group.`,
+      );
+    }
   }
 
   function doGuild(): void {
@@ -108,6 +130,14 @@
     void act(
       () => inviteToGuild(viewerId, data!.name).then(() => undefined),
       `Invited ${data.name} to your guild.`,
+    );
+  }
+
+  function doFriend(): void {
+    if (!data) return;
+    void act(
+      () => sendFriendRequest(viewerId, data!.name).then(() => undefined),
+      `Friend request sent to ${data.name}.`,
     );
   }
 
@@ -228,22 +258,34 @@
               <button class="btn btn-sm" onclick={whisper} disabled={actionBusy}>
                 💬 {ui.whisper}
               </button>
+              <button class="btn btn-sm" onclick={mail} disabled={actionBusy}>
+                ✉️ {ui.mail}
+              </button>
+              <button class="btn btn-sm" onclick={doFriend} disabled={actionBusy}>
+                ➕ {ui.friend}
+              </button>
               <button class="btn btn-sm" onclick={doTrade} disabled={actionBusy}>
                 🤝 {ui.trade}
               </button>
               <button class="btn btn-sm" onclick={doGuild} disabled={actionBusy}>
                 🏰 {ui.guild}
               </button>
-              <div class="flex gap-1">
-                <select class="input btn-sm flex-1 px-1 py-0" bind:value={inviteRole}>
-                  {#each Object.entries(ROLE_META) as [r, meta] (r)}
-                    <option value={r}>{meta.label}</option>
-                  {/each}
-                </select>
-                <button class="btn btn-sm flex-1" onclick={doGroup} disabled={actionBusy}>
-                  ➕ {ui.group}
+              {#if requestMode}
+                <button class="btn btn-sm" onclick={doGroup} disabled={actionBusy}>
+                  ✋ {ui.requestGroup}
                 </button>
-              </div>
+              {:else}
+                <div class="flex gap-1">
+                  <select class="input btn-sm flex-1 px-1 py-0" bind:value={inviteRole}>
+                    {#each Object.entries(ROLE_META) as [r, meta] (r)}
+                      <option value={r}>{meta.label}</option>
+                    {/each}
+                  </select>
+                  <button class="btn btn-sm flex-1" onclick={doGroup} disabled={actionBusy}>
+                    ➕ {ui.group}
+                  </button>
+                </div>
+              {/if}
             </div>
           {/if}
 
