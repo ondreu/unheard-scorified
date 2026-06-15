@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { ApiError, listCharacters, type CharacterView } from '$lib/api';
+  import { clearTokens } from '$lib/auth';
   import { RACES, CLASSES } from '@game/shared';
   import { CLASS_COLOR, FACTION_COLOR, factionLabel } from '$lib/cosmetics';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -24,12 +25,20 @@
       loading = false;
     }
   });
+
+  async function logout(): Promise<void> {
+    clearTokens();
+    await goto('/login');
+  }
 </script>
 
 <main class="mx-auto max-w-2xl px-6 py-12">
   <div class="flex items-center justify-between">
     <h1 class="font-display text-3xl font-bold text-[var(--gold-bright)]">Choose your hero</h1>
-    <a href="/characters/new" class="btn btn-primary">+ New character</a>
+    <div class="flex gap-2">
+      <a href="/characters/new" class="btn btn-primary">+ New character</a>
+      <button class="btn" onclick={logout} title="Log out">Log out</button>
+    </div>
   </div>
 
   {#if loading}
