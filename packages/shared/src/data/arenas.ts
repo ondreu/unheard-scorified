@@ -8,14 +8,32 @@
  * stejně jako professions). Veškerá náhoda boje jen přes `SeededRng`.
  */
 
-/** Rated bracket. MVP má jen 1v1; 2v2/3v3 lze přidat bez refaktoru. */
-export type ArenaBracket = '1v1';
+/**
+ * Rated bracket. 1v1 = idle (auto-matchmaking, M7); 3v3/5v5 = ruční týmy
+ * (M8.5-C, bez NPC backfillu). Rating je per postava per bracket per sezóna.
+ */
+export type ArenaBracket = '1v1' | '3v3' | '5v5';
 
-export const ARENA_BRACKETS: readonly ArenaBracket[] = ['1v1'] as const;
+export const ARENA_BRACKETS: readonly ArenaBracket[] = ['1v1', '3v3', '5v5'] as const;
 export const DEFAULT_BRACKET: ArenaBracket = '1v1';
 
 export function isArenaBracket(value: string): value is ArenaBracket {
   return (ARENA_BRACKETS as readonly string[]).includes(value);
+}
+
+/** Týmové brackety (ruční sestavení, M8.5-C). */
+export type TeamBracket = '3v3' | '5v5';
+export const TEAM_BRACKETS: readonly TeamBracket[] = ['3v3', '5v5'] as const;
+
+export function isTeamBracket(value: string): value is TeamBracket {
+  return (TEAM_BRACKETS as readonly string[]).includes(value);
+}
+
+/** Počet hráčů v týmu daného bracketu. */
+export const BRACKET_TEAM_SIZE: Record<ArenaBracket, number> = { '1v1': 1, '3v3': 3, '5v5': 5 };
+
+export function bracketTeamSize(bracket: ArenaBracket): number {
+  return BRACKET_TEAM_SIZE[bracket];
 }
 
 /** Počáteční rating každé postavy v nové sezóně. */

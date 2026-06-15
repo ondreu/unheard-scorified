@@ -3,12 +3,16 @@ import {
   activeSeasonAt,
   applyRatingChange,
   ARENA_SEASONS,
+  bracketTeamSize,
+  eloDelta,
   expectedScore,
+  isTeamBracket,
   ratingTier,
   ratingTierProgress,
   seasonById,
   seasonRewardGold,
   simulatePvpDuel,
+  simulateTeamFight,
   STARTING_RATING,
   type CombatActor,
 } from './index';
@@ -128,5 +132,60 @@ describe('tiery a sezóny', () => {
   it('seasonById najde definici', () => {
     expect(seasonById('season-1')?.name).toContain('Season 1');
     expect(seasonById('nope')).toBeUndefined();
+  });
+});
+
+describe('brackets', () => {
+  it('rozpozná týmové brackety a jejich velikost', () => {
+    expect(isTeamBracket('3v3')).toBe(true);
+    expect(isTeamBracket('5v5')).toBe(true);
+    expect(isTeamBracket('1v1')).toBe(false);
+    expect(bracketTeamSize('3v3')).toBe(3);
+    expect(bracketTeamSize('5v5')).toBe(5);
+    expect(bracketTeamSize('1v1')).toBe(1);
+  });
+});
+
+describe('simulateTeamFight', () => {
+  const team = (prefix: string, n: number, o: Partial<CombatActor> = {}): CombatActor[] =>
+    Array.from({ length: n }, (_, i) => actor(`${prefix}${i + 1}`, o));
+
+  it('je deterministický pro stejný seed', () => {
+    const a = team('A', 3);
+    const b = team('B', 3);
+    expect(simulateTeamFight(a, b, 999)).toEqual(simulateTeamFight(a, b, 999));
+  });
+
+  it('silnější tým spolehlivě vyhraje a zápas skončí victory', () => {
+    const strong = team('S', 3, { attackPower: 120, maxHealth: 800 });
+    const weak = team('W', 3, { attackPower: 18, maxHealth: 280 });
+    const r = simulateTeamFight(strong, weak, 5);
+    expect(r.winner).toBe('a');
+    expect(r.events.at(-1)?.type).toBe('victory');
+    expect(r.durationSec).toBeGreaterThanOrEqual(5);
+  });
+
+  it('funguje i pro 5v5 a vždy určí vítěze', () => {
+    const r = simulateTeamFight(team('A', 5), team('B', 5), 77);
+    expect(['a', 'b']).toContain(r.winner);
+  });
+});
+
+describe('eloDelta', () => {
+  it('výhra proti rovnocennému soupeři přidá ~K/2', () => {
+    const { delta } = eloDelta(1500, 1500, true);
+    expect(delta).toBe(16);
+  });
+
+  it('prohra ubere a rating neklesne pod nulu', () => {
+    expect(eloDelta(1500, 1500, false).delta).toBe(-16);
+    // Malý rating, rovnocenný soupeř → propad pod nulu se ořízne na 0.
+    expect(eloDelta(10, 10, false).rating).toBe(0);
+  });
+
+  it('výhra proti silnějšímu dá víc než proti slabšímu', () => {
+    const vsStrong = eloDelta(1500, 1900, true).delta;
+    const vsWeak = eloDelta(1500, 1100, true).delta;
+    expect(vsStrong).toBeGreaterThan(vsWeak);
   });
 });

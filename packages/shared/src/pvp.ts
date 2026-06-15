@@ -159,6 +159,144 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
   };
 }
 
+// ── Týmový souboj (M8.5-C, 3v3 / 5v5) ──────────────────────────────────────
+
+/** Bezpečnostní strop iterací týmového boje (víc aktérů než 1v1). */
+const TEAM_MAX_ITERATIONS = 20000;
+
+export interface TeamFightResult {
+  events: CombatEvent[];
+  /** Vítězný tým. */
+  winner: DuelSide;
+  durationSec: number;
+}
+
+interface TeamTimer {
+  next: number;
+  interval: number;
+  side: DuelSide;
+  /** Index člena v týmu (útočník). */
+  member: number;
+  abilityName?: string;
+  abilityMult?: number;
+}
+
+/** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
+function pickTarget(hp: number[]): number {
+  let idx = -1;
+  for (let i = 0; i < hp.length; i++) {
+    if (hp[i]! > 0 && (idx === -1 || hp[i]! < hp[idx]!)) idx = i;
+  }
+  return idx;
+}
+
+/**
+ * Deterministicky odbojuje týmový PVP zápas (3v3 / 5v5). Recykluje `computeHit`
+ * (žádná duplikace vzorců). Každý živý člen útočí basic údery + signature
+ * abilities, cílí na živého nepřítele s nejnižším HP (focus fire). Po
+ * `PVP_RAMPAGE_SEC` všichni „enrage". Vítězí tým s žijícími členy (při stropu
+ * iterací rozhoduje vyšší součet podílu HP; při shodě tým `a`).
+ */
+export function simulateTeamFight(
+  teamA: CombatActor[],
+  teamB: CombatActor[],
+  seed: number,
+): TeamFightResult {
+  const rng = new SeededRng(seed);
+  const events: CombatEvent[] = [];
+  const team: Record<DuelSide, CombatActor[]> = { a: teamA, b: teamB };
+  const hp: Record<DuelSide, number[]> = {
+    a: teamA.map((m) => m.maxHealth),
+    b: teamB.map((m) => m.maxHealth),
+  };
+  let clock = 0;
+
+  events.push({
+    t: 0,
+    type: 'encounter_start',
+    message: `⚔️ ${teamA.length}v${teamB.length} Arena: ${teamA.map((m) => m.name).join(', ')} vs ${teamB.map((m) => m.name).join(', ')}!`,
+  });
+
+  const timers: TeamTimer[] = [];
+  for (const side of ['a', 'b'] as DuelSide[]) {
+    team[side].forEach((m, i) => {
+      timers.push({ next: m.swingInterval, interval: m.swingInterval, side, member: i });
+      for (const ab of m.signatureAbilities) {
+        timers.push({
+          next: ab.cooldownSec,
+          interval: ab.cooldownSec,
+          side,
+          member: i,
+          abilityName: ab.name,
+          abilityMult: ab.damageMult,
+        });
+      }
+    });
+  }
+
+  const alive = (side: DuelSide): boolean => hp[side].some((h) => h > 0);
+
+  let iterations = 0;
+  while (alive('a') && alive('b') && iterations++ < TEAM_MAX_ITERATIONS) {
+    let idx = 0;
+    for (let j = 1; j < timers.length; j++) {
+      if (timers[j]!.next < timers[idx]!.next) idx = j;
+    }
+    const timer = timers[idx]!;
+    clock = timer.next;
+    timer.next += timer.interval;
+
+    const attackerSide = timer.side;
+    const defenderSide: DuelSide = attackerSide === 'a' ? 'b' : 'a';
+    // Mrtvý útočník neútočí (timer dál běží, ale událost se přeskočí).
+    if (hp[attackerSide][timer.member]! <= 0) continue;
+
+    const targetIdx = pickTarget(hp[defenderSide]);
+    if (targetIdx === -1) break;
+
+    const attacker = team[attackerSide][timer.member]!;
+    const defender = team[defenderSide][targetIdx]!;
+    const enraged = clock >= PVP_RAMPAGE_SEC;
+    const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
+    hp[defenderSide][targetIdx] = Math.max(0, hp[defenderSide][targetIdx]! - hit.amount);
+    if (attacker.lifesteal > 0) {
+      hp[attackerSide][timer.member] = Math.min(
+        attacker.maxHealth,
+        hp[attackerSide][timer.member]! + Math.round(hit.amount * attacker.lifesteal),
+      );
+    }
+
+    const fell = hp[defenderSide][targetIdx] === 0;
+    events.push({
+      t: round1(clock),
+      type: timer.abilityName ? 'ability' : 'attack',
+      source: attacker.name,
+      target: defender.name,
+      amount: hit.amount,
+      crit: hit.crit,
+      ability: timer.abilityName,
+      targetHealthRemaining: hp[defenderSide][targetIdx]!,
+      message: `${attacker.name} ${timer.abilityName ? `casts ${timer.abilityName} on` : 'hits'} ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [rampage]' : ''}.${fell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
+    });
+  }
+
+  const fracA = hp.a.reduce((s, h, i) => s + h / teamA[i]!.maxHealth, 0);
+  const fracB = hp.b.reduce((s, h, i) => s + h / teamB[i]!.maxHealth, 0);
+  let winner: DuelSide;
+  if (alive('a') && !alive('b')) winner = 'a';
+  else if (alive('b') && !alive('a')) winner = 'b';
+  else winner = fracA >= fracB ? 'a' : 'b';
+
+  events.push({
+    t: round1(clock),
+    type: 'victory',
+    source: team[winner].map((m) => m.name).join(', '),
+    message: `🏆 Team ${winner.toUpperCase()} wins the ${teamA.length}v${teamB.length}!`,
+  });
+
+  return { events, winner, durationSec: Math.max(PVP_MIN_DURATION_SEC, Math.ceil(clock)) };
+}
+
 // ── Elo rating ───────────────────────────────────────────────────────────────
 
 /** Očekávané skóre A proti B (Elo, 0..1). */
@@ -190,6 +328,23 @@ export function applyRatingChange(winnerRating: number, loserRating: number): Ra
     winnerDelta: winner - winnerRating,
     loserDelta: loser - loserRating,
   };
+}
+
+/**
+ * Elo posun jedné postavy proti **průměrnému ratingu soupeřů** (M8.5-C týmy).
+ * `won` = vyhrál její tým. Rating neklesne pod `MIN_RATING`. Vrací nový rating
+ * i deltu. Aplikuje se každému členu týmu zvlášť (ad-hoc týmy, rating per postava).
+ */
+export function eloDelta(
+  rating: number,
+  opponentRating: number,
+  won: boolean,
+): { rating: number; delta: number } {
+  const expected = expectedScore(rating, opponentRating);
+  const score = won ? 1 : 0;
+  const raw = Math.round(ELO_K_FACTOR * (score - expected));
+  const next = Math.max(MIN_RATING, rating + raw);
+  return { rating: next, delta: next - rating };
 }
 
 // ── Tier & sezóny ─────────────────────────────────────────────────────────────
