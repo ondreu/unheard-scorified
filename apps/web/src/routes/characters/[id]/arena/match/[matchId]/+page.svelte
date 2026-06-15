@@ -61,6 +61,9 @@
     if (e.type === 'victory') return 'text-[var(--success)] font-semibold';
     if (e.type === 'player_defeated') return 'text-[var(--danger)] font-semibold';
     if (e.type === 'encounter_start') return 'text-[var(--gold-bright)] font-semibold';
+    if (e.type === 'heal' || e.type === 'drain') return 'text-[var(--success)]';
+    if (e.type === 'dot') return 'text-[var(--gold-bright)]';
+    if (e.type === 'absorb') return 'text-[var(--info)]';
     if (e.type === 'ability') return 'text-[var(--info)]';
     if (e.source === match?.me.name) return 'text-[var(--text)]';
     return 'text-[var(--text-dim)]';

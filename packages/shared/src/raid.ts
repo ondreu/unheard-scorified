@@ -17,6 +17,7 @@
  */
 import { SeededRng } from './rng';
 import {
+  applyAbsorb,
   computeHit,
   determinationFactor,
   round1,
@@ -204,9 +205,43 @@ interface BossAttemptResult {
 interface RaidTimer {
   next: number;
   interval: number;
-  kind: 'member' | 'member_ability' | 'boss_basic' | 'boss_ability';
+  kind: 'member' | 'member_ability' | 'boss_basic' | 'boss_ability' | 'dot_tick';
   memberIdx?: number;
   ability?: SignatureAbility;
+  /** dot_tick: fixní poškození bosse jedním tikem. */
+  dotDamage?: number;
+  /** dot_tick: jméno DoT efektu (pro log) a jeho zdroj. */
+  dotName?: string;
+  dotSource?: string;
+  /** dot_tick: zbývající počet tiků. */
+  ticksLeft?: number;
+}
+
+/**
+ * Naplánuje DoT (krvácení/hoření) na bosse: jeden opakující se timer s `ticksLeft`
+ * tiky. Po posledním tiku se timer „vypne" (`next = Infinity`). Tiky jsou fixní
+ * (bez RNG) → nemění pořadí náhodných draws ostatních úderů (determinismus).
+ */
+function scheduleDot(
+  timers: RaidTimer[],
+  source: CombatActor,
+  ability: SignatureAbility,
+  clock: number,
+): void {
+  const ticks = ability.dotTicks ?? 0;
+  const duration = ability.dotDurationSec ?? 0;
+  if (ticks <= 0 || duration <= 0) return;
+  const interval = duration / ticks;
+  const dmg = Math.max(1, Math.round(source.attackPower * (ability.dotTickMult ?? 0)));
+  timers.push({
+    next: clock + interval,
+    interval,
+    kind: 'dot_tick',
+    dotDamage: dmg,
+    dotName: ability.name,
+    dotSource: source.name,
+    ticksLeft: ticks,
+  });
 }
 
 /** Vybere cíl bossova úderu: první živý tank, jinak nejodolnější živý člen. */
@@ -240,6 +275,8 @@ function fightBoss(
 ): BossAttemptResult {
   const events: CombatEvent[] = [];
   const hp = [...startHp];
+  // Absorpční štíty členů (per pull). Nedoplňují se; pohlcují příchozí poškození.
+  const shield = party.map((p) => p.shield ?? 0);
   let clock = startClock;
   let bossHp = boss.maxHealth;
   const encStart = clock;
@@ -329,20 +366,51 @@ function fightBoss(
       } else {
         const hit = computeHit(member, boss, rng, 1, false);
         bossHp = Math.max(0, bossHp - hit.amount);
-        if (member.lifesteal > 0) {
-          hp[i] = Math.min(member.maxHealth, hp[i]! + Math.round(hit.amount * member.lifesteal));
-        }
-        events.push({
-          t: round1(clock),
-          type: 'attack',
-          source: member.name,
-          target: boss.name,
-          amount: hit.amount,
-          crit: hit.crit,
-          targetHealthRemaining: bossHp,
-          message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
-        });
+        const healed = member.lifesteal > 0 ? Math.round(hit.amount * member.lifesteal) : 0;
+        if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
+        events.push(
+          healed > 0
+            ? {
+                t: round1(clock),
+                type: 'drain',
+                source: member.name,
+                target: boss.name,
+                amount: hit.amount,
+                crit: hit.crit,
+                targetHealthRemaining: bossHp,
+                message: `🩸 ${member.name} drains ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`,
+              }
+            : {
+                t: round1(clock),
+                type: 'attack',
+                source: member.name,
+                target: boss.name,
+                amount: hit.amount,
+                crit: hit.crit,
+                targetHealthRemaining: bossHp,
+                message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+              },
+        );
       }
+    } else if (timer.kind === 'dot_tick') {
+      if (bossHp <= 0) {
+        timer.next = Infinity;
+        continue;
+      }
+      const dmg = timer.dotDamage!;
+      bossHp = Math.max(0, bossHp - dmg);
+      events.push({
+        t: round1(clock),
+        type: 'dot',
+        source: timer.dotSource,
+        target: boss.name,
+        amount: dmg,
+        ability: timer.dotName,
+        targetHealthRemaining: bossHp,
+        message: `🔥 ${boss.name} suffers ${dmg} from ${timer.dotName} (${timer.dotSource}). ${boss.name}: ${bossHp} HP`,
+      });
+      timer.ticksLeft = (timer.ticksLeft ?? 1) - 1;
+      if (timer.ticksLeft <= 0) timer.next = Infinity;
     } else if (timer.kind === 'member_ability') {
       const i = timer.memberIdx!;
       if (hp[i]! <= 0) continue; // mrtvý člen nekouzlí
@@ -350,19 +418,25 @@ function fightBoss(
       const ability = timer.ability!;
       const hit = computeHit(member, boss, rng, ability.damageMult, false);
       bossHp = Math.max(0, bossHp - hit.amount);
-      if (member.lifesteal > 0) {
-        hp[i] = Math.min(member.maxHealth, hp[i]! + Math.round(hit.amount * member.lifesteal));
-      }
+      const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
+      const healed = healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
+      if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
+      if (ability.kind === 'dot') scheduleDot(timers, member, ability, clock);
       events.push({
         t: round1(clock),
-        type: 'ability',
+        type: healed > 0 ? 'drain' : 'ability',
         source: member.name,
         target: boss.name,
         amount: hit.amount,
         crit: hit.crit,
         ability: ability.name,
         targetHealthRemaining: bossHp,
-        message: `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+        message:
+          healed > 0
+            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
+            : ability.kind === 'dot'
+              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, leaving a burn. ${boss.name}: ${bossHp} HP`
+              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
       });
     } else {
       // Boss útočí.
@@ -373,20 +447,39 @@ function fightBoss(
       const hit = computeHit(boss, target, rng, ability?.damageMult ?? 1, enraged);
       let dmg = hit.amount;
       if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
+      // Absorpční štít pohltí část poškození, než dopadne na HP.
+      if (shield[tIdx]! > 0) {
+        const abs = applyAbsorb(dmg, shield[tIdx]!);
+        if (abs.absorbed > 0) {
+          shield[tIdx] = abs.shieldRemaining;
+          dmg = abs.netDamage;
+          events.push({
+            t: round1(clock),
+            type: 'absorb',
+            source: boss.name,
+            target: target.name,
+            amount: abs.absorbed,
+            message: `🛡️ ${target.name}'s shield absorbs ${abs.absorbed}${shield[tIdx]! > 0 ? ` (${shield[tIdx]} left)` : ' (shield breaks)'}.`,
+          });
+        }
+      }
       hp[tIdx] = Math.max(0, hp[tIdx]! - dmg);
-      events.push({
-        t: round1(clock),
-        type: ability ? 'ability' : 'attack',
-        source: boss.name,
-        target: target.name,
-        amount: dmg,
-        crit: hit.crit,
-        ability: ability?.name,
-        targetHealthRemaining: hp[tIdx],
-        message: ability
-          ? `${boss.name} uses ${ability.name} on ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`
-          : `${boss.name} hits ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`,
-      });
+      // Při plné absorpci stačí 'absorb' událost (žádný „for 0" řádek navíc).
+      if (dmg > 0) {
+        events.push({
+          t: round1(clock),
+          type: ability ? 'ability' : 'attack',
+          source: boss.name,
+          target: target.name,
+          amount: dmg,
+          crit: hit.crit,
+          ability: ability?.name,
+          targetHealthRemaining: hp[tIdx],
+          message: ability
+            ? `${boss.name} uses ${ability.name} on ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`
+            : `${boss.name} hits ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`,
+        });
+      }
       if (hp[tIdx] === 0) {
         events.push({
           t: round1(clock),

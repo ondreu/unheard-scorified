@@ -31,6 +31,7 @@ function strongActor(name: string, attackPower = 60, maxHealth = 800): CombatAct
     critMultiplier: 2,
     armor: 40,
     lifesteal: 0,
+    shield: 0,
     signatureAbilities: [],
   };
 }

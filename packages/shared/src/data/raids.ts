@@ -119,7 +119,11 @@ export function buildRaidBoss(def: RaidBossDef): CombatActor {
   const base = buildEnemyActor(def);
   return {
     ...base,
-    signatureAbilities: (def.abilities ?? []).map((a, i) => ({ id: `${def.id}_${i}`, ...a })),
+    signatureAbilities: (def.abilities ?? []).map((a, i) => ({
+      id: `${def.id}_${i}`,
+      kind: 'strike' as const,
+      ...a,
+    })),
   };
 }
 

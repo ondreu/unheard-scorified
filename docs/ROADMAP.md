@@ -706,9 +706,19 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > 🧑‍💼 Gigantický zásah do všech faktorů hry. Cíl: divácky zajímavý combat
 > (arény/dungeony/raidy) + hloubka pro min-max. **Mana zatím ne — jen cooldowny.**
 
-- [ ] **WoW-like combat log** — bohaté události („*X* cast Healing Touch, healed
-      *self* for N" / „*X* cast Drain Life on *Y* for N, healed for N"). Stávající
-      `CombatEvent[]` se rozšíří o `heal`/`drain`/`absorb` typy a strukturovaný text.
+- [x] **WoW-like combat log** ✅ — `CombatEvent` rozšířen o typy `drain`/`dot`/
+      `absorb` + strukturovaný anglický text. Nové mechaniky v enginu: lifesteal
+      úder = `drain` („🩸 *X* drains *Y* for N, healed for M"), capstone DoT
+      ability (Pyroblast, Unstable Affliction) = úder + krvácení/hoření tiky
+      (`dot`, fixní → bez RNG perturbace = determinismus zachován), absorpční štít
+      (Ice Barrier, Holy Shield přes `SHIELD_TAGS`) pohlcuje příchozí poškození
+      (`absorb`). Kurátorovaný **ability katalog** s druhy (`data/abilities.ts`:
+      `AbilityKind` strike/drain/dot/heal/shield). Sdílené napříč raid/dungeon
+      (`fightBoss`) i PVP (`simulatePvpDuel`/`simulateTeamFight`) přes
+      `applyAbsorb` — žádná duplikace. Web log barevně rozlišuje nové typy ve
+      všech watch view (raid/dungeon/arena/team). Testy: `combat-overhaul.test.ts`
+      (+8). _Follow-up: DoT tiky i v PVP (zatím jen base úder); heal/shield
+      ability pro healery (zatím léčí passivně `healPower)._
 - [ ] **Deklarativní rotace / spell priority** (idle-friendly, deterministické).
   - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
     postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad

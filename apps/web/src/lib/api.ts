@@ -1201,7 +1201,7 @@ export interface TeamMatchView {
   progress: { elapsedSec: number; remainingSec: number; completed: boolean };
   myTeam: { name: string; maxHealth: number }[];
   enemyTeam: { name: string; maxHealth: number }[];
-  events: { t: number; type: string; message?: string }[];
+  events: CombatEvent[];
   outcome: 'win' | 'loss' | null;
 }
 
