@@ -114,7 +114,7 @@ export class TeamArenaService {
     const level = levelFromXp(char.totalXp);
 
     const brackets: TeamBracketView[] = [];
-    for (const bracket of ['3v3', '5v5'] as TeamBracket[]) {
+    for (const bracket of ['2v2', '3v3', '5v5'] as TeamBracket[]) {
       const rating = await this.arena.ensureRating(characterId, bracket, seasonId);
       const queued =
         (await this.queue.isLeaderQueued(bracket, seasonId, characterId)) ||

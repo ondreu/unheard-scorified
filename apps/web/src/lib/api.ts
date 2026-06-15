@@ -867,7 +867,7 @@ export interface GroupState {
 export type GroupLaunchResult =
   | { activityType: 'dungeon'; runId: string }
   | { activityType: 'raid'; runId: string }
-  | { activityType: 'arena'; bracket: '1v1' | '3v3' | '5v5'; status: 'queued' | 'matched'; matchId?: string };
+  | { activityType: 'arena'; bracket: '1v1' | '2v2' | '3v3' | '5v5'; status: 'queued' | 'matched'; matchId?: string };
 
 export function getGroup(characterId: string): Promise<GroupState> {
   return request<GroupState>(`/characters/${characterId}/group`);
@@ -1008,7 +1008,7 @@ export function cancelTrade(characterId: string): Promise<TradeState> {
 // Team arena (M8.5-C, 3v3/5v5)
 
 export interface TeamBracketView {
-  bracket: '3v3' | '5v5';
+  bracket: '2v2' | '3v3' | '5v5';
   teamSize: number;
   rating: number;
   tier: string;
@@ -1026,7 +1026,7 @@ export interface TeamArenaView {
 
 export interface TeamQueueResult {
   status: 'queued' | 'matched';
-  bracket: '3v3' | '5v5';
+  bracket: '2v2' | '3v3' | '5v5';
   matchId?: string;
 }
 
@@ -1047,7 +1047,7 @@ export function getTeamArena(characterId: string): Promise<TeamArenaView> {
 
 export function leaveTeamQueue(
   characterId: string,
-  bracket: '3v3' | '5v5',
+  bracket: '2v2' | '3v3' | '5v5',
 ): Promise<{ left: boolean }> {
   return request<{ left: boolean }>(`/characters/${characterId}/team-arena/leave`, {
     method: 'POST',

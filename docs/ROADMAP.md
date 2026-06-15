@@ -645,7 +645,9 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       **aukční dům** jako systém (zatím není — kandidát na vlastní ADR; sdílí
       ekonomiku s vendory/goldem).
 - [ ] 🤖 Vendoři (NPC odkup/prodej) + „use" consumables/buffů (zbytek z M6).
-- [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid, 2v2 bracket.
+- [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid.
+- [x] 🤖 **2v2 aréna bracket** ✅: skupina o 2 → 2v2 (`arenaBracketForSize`,
+      `TEAM_BRACKETS`); engine/Elo/watch generické. Testy: shared + team-arena flow.
 
 ### MIL — combat overhaul (WoW-like log + rotace/priority)
 

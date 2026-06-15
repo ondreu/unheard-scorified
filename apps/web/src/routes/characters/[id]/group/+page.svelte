@@ -44,7 +44,7 @@
     dungeon: 'Dungeon',
     raid: 'Raid',
     arena: 'Arena',
-    arenaHint: 'Arena bracket follows your group size (1 → 1v1, 3 → 3v3, 5 → 5v5).',
+    arenaHint: 'Arena bracket follows your group size (1 → 1v1, 2 → 2v2, 3 → 3v3, 5 → 5v5).',
   };
 
   const ROLES: RaidRole[] = ['tank', 'healer', 'dps'];
