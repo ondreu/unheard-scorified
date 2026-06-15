@@ -36,6 +36,9 @@ export const GOALS: readonly GoalDef[] = [
   { id: 'weekly_quests_15', name: 'Weekly Tasks', description: 'Complete 15 quests this week.', period: 'weekly', metric: 'questsCompleted', target: 15, rewardGold: 250 },
   { id: 'weekly_dungeon_10', name: 'Weekly Spelunker', description: 'Clear 10 dungeons this week.', period: 'weekly', metric: 'dungeonClears', target: 10, rewardGold: 300 },
   { id: 'weekly_raid_3', name: 'Weekly Raider', description: 'Clear 3 raid runs this week.', period: 'weekly', metric: 'raidClears', target: 3, rewardGold: 400 },
+  // Doplňkové cíle (M9): druhá denní meta + náročnější týdenní.
+  { id: 'daily_raid_1', name: 'Daily Incursion', description: 'Clear a raid run today.', period: 'daily', metric: 'raidClears', target: 1, rewardGold: 120 },
+  { id: 'weekly_quests_40', name: 'Weekly Grind', description: 'Complete 40 quests this week.', period: 'weekly', metric: 'questsCompleted', target: 40, rewardGold: 500 },
 ] as const;
 
 export function goalById(id: string): GoalDef | undefined {
