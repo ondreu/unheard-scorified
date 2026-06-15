@@ -565,7 +565,12 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `SocialModule`. Web `/characters/[id]/guild` + realtime `guild:invite`.
       Testy: shared `guild.test.ts` (+5) + API `guild.flow.test.ts` (+9). Detail:
       **ADR 0017**, `docs/systems/social.md`. Odemyká M8.5-B/C (ruční formace).
-- [ ] Achievementy, denní/týdenní cíle.
+- [x] **Achievementy** ✅: odvozené z herního stavu (level/gold/questy/dungeony/
+      raidy/arény/přátelé — žádné invazivní countery), katalog ve `@game/shared`,
+      jednorázové odměny (`character_achievements`, migrace `0017`),
+      `ProgressionModule`. Web `/characters/[id]/achievements`. Testy: shared
+      `achievements.test.ts` (+3) + API `progression.flow.test.ts` (+5). ADR 0021.
+- [ ] Denní/týdenní cíle (časově omezené, recyklují achievement metriky).
 - [ ] PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
 - **Výstup:** vyladěná, vizuálně oživená hra.
 

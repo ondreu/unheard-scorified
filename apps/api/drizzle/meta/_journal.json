@@ -120,6 +120,13 @@
       "when": 1781526555890,
       "tag": "0016_opposite_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1781527239811,
+      "tag": "0017_sharp_strong_guy",
+      "breakpoints": true
     }
   ]
 }

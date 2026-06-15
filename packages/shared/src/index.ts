@@ -27,3 +27,4 @@ export * from './social';
 export * from './guild';
 export * from './lobby';
 export * from './trade';
+export * from './achievements';

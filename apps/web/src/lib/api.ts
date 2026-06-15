@@ -1059,6 +1059,48 @@ export function getTeamMatch(characterId: string, matchId: string): Promise<Team
   return request<TeamMatchView>(`/characters/${characterId}/team-arena/match/${matchId}`);
 }
 
+// Achievements (M9)
+
+export interface AchievementView {
+  id: string;
+  name: string;
+  description: string;
+  metric: string;
+  threshold: number;
+  rewardGold: number;
+  value: number;
+  pct: number;
+  completed: boolean;
+  claimed: boolean;
+  claimable: boolean;
+}
+
+export interface AchievementsView {
+  achievements: AchievementView[];
+  completedCount: number;
+  total: number;
+}
+
+export interface AchievementClaimResult {
+  achievementId: string;
+  rewardGold: number;
+  goldAfter: number;
+}
+
+export function getAchievements(characterId: string): Promise<AchievementsView> {
+  return request<AchievementsView>(`/characters/${characterId}/achievements`);
+}
+
+export function claimAchievement(
+  characterId: string,
+  achievementId: string,
+): Promise<AchievementClaimResult> {
+  return request<AchievementClaimResult>(
+    `/characters/${characterId}/achievements/${achievementId}/claim`,
+    { method: 'POST' },
+  );
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

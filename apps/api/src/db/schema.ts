@@ -573,6 +573,23 @@ export const guildInvites = pgTable(
 );
 
 /**
+ * Nárokované achievementy postavy (M9). Jeden řádek = postava si vyzvedla odměnu
+ * za achievement (`achievementId` z `@game/shared` katalogu). Splnění se odvozuje
+ * lazy z herního stavu; tady se drží jen fakt vyzvednutí (jednorázová odměna).
+ */
+export const characterAchievements = pgTable(
+  'character_achievements',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    achievementId: varchar('achievement_id', { length: 48 }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.achievementId] })],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -729,6 +746,8 @@ export type Friendship = typeof friendships.$inferSelect;
 export type NewFriendship = typeof friendships.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type CharacterAchievement = typeof characterAchievements.$inferSelect;
+export type NewCharacterAchievement = typeof characterAchievements.$inferInsert;
 export type Trade = typeof trades.$inferSelect;
 export type NewTrade = typeof trades.$inferInsert;
 export type TradeItem = typeof tradeItems.$inferSelect;
