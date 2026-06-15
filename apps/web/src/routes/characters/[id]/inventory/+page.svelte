@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { ApiError } from '$lib/api';
+  import { currentTokens } from '$lib/auth';
   import type { ItemDef, EquipmentSlot, ItemRarity } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -97,15 +98,9 @@
   }
 
   function authHeaders(): Record<string, string> {
-    // Grab token from localStorage (same as $lib/auth)
-    try {
-      const raw = localStorage.getItem('tokens');
-      if (!raw) return {};
-      const tokens = JSON.parse(raw) as { accessToken?: string };
-      return tokens.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {};
-    } catch {
-      return {};
-    }
+    // Single source of truth for tokens (see $lib/auth).
+    const token = currentTokens()?.accessToken;
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   async function doEquip(itemId: string, slot: string): Promise<void> {
