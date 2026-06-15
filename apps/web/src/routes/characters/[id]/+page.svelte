@@ -151,6 +151,7 @@
     professions: 'Professions',
     arena: 'Arena (PVP)',
     raids: 'Raids (MP PVE)',
+    group: 'Group',
     auctions: 'Auction House',
     social: 'Friends',
     guild: 'Guild',
@@ -158,16 +159,11 @@
     achievements: 'Achievements',
   };
 
-  const isDungeon = $derived(activity?.activityType === 'dungeon');
   const isProfession = $derived(
     activity?.activityType === 'gather' || activity?.activityType === 'craft',
   );
-  const activityLabel = $derived(
-    isDungeon ? '⚔️ In dungeon' : isProfession ? '🔨 Working' : ui.onQuest,
-  );
-  const completeLabel = $derived(
-    isDungeon ? 'Dungeon complete!' : isProfession ? 'Activity complete!' : ui.completed,
-  );
+  const activityLabel = $derived(isProfession ? '🔨 Working' : ui.onQuest);
+  const completeLabel = $derived(isProfession ? 'Activity complete!' : ui.completed);
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
@@ -322,6 +318,12 @@
         {uiM4.raids}
       </a>
       <a
+        href={`/characters/${characterId}/group`}
+        class="rounded bg-sky-800/40 px-4 py-2 text-sm font-medium text-sky-200 hover:bg-sky-700/50"
+      >
+        {uiM4.group}
+      </a>
+      <a
         href={`/characters/${characterId}/auctions`}
         class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
       >
@@ -367,18 +369,10 @@
         </p>
         <div class="mt-3 h-2 w-full overflow-hidden rounded bg-black/40">
           <div
-            class="h-full {isDungeon ? 'bg-red-500' : 'bg-amber-500'} transition-all"
+            class="h-full bg-amber-500 transition-all"
             style={`width: ${Math.min(100, (1 - remainingMs / (a.durationSec * 1000)) * 100)}%`}
           ></div>
         </div>
-        {#if isDungeon && !completed}
-          <a
-            href={`/characters/${characterId}/dungeon`}
-            class="mt-3 inline-block rounded bg-red-700/60 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-red-600/60"
-          >
-            Watch fight →
-          </a>
-        {/if}
         {#if completed}
           <p class="mt-3 font-medium text-emerald-300">
             {completeLabel}

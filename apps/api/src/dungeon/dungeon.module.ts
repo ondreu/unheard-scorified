@@ -27,5 +27,7 @@ import { DungeonService } from './dungeon.service';
   ],
   controllers: [DungeonController],
   providers: [DungeonService],
+  // GroupModule (ADR 0022) spouští dungeon přes DungeonService.runForGroup.
+  exports: [DungeonService],
 })
 export class DungeonModule {}

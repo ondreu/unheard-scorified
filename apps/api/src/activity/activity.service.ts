@@ -11,7 +11,6 @@ import {
   applyXpGain,
   buildCharacterSheet,
   computeActivityReward,
-  DUNGEONS,
   FACTIONS,
   GATHERING_NODES,
   isQuestAvailable,
@@ -27,7 +26,6 @@ import {
   type ActivityState,
   type CharacterSheet,
   type CraftActivityParams,
-  type DungeonActivityParams,
   type FactionId,
   type GatherActivityParams,
   type ProfessionId,
@@ -45,15 +43,13 @@ import { ACTIVITY_SCHEDULER, type ActivityScheduler } from './activity.scheduler
 export interface ActivityView {
   id: string;
   activityType: string;
-  /** Zobrazovaný název aktivity (quest nebo dungeon). */
+  /** Zobrazovaný název aktivity. */
   title: string;
   startAt: string;
   durationSec: number;
   /** Vyplněno jen pro `activityType === 'quest'`. */
   questId?: string;
   quest?: { id: string; name: string; zoneId: string; kind: string };
-  /** Vyplněno jen pro `activityType === 'dungeon'`. */
-  dungeon?: { id: string; name: string };
   progress: {
     elapsedSec: number;
     remainingSec: number;
@@ -310,12 +306,6 @@ export class ActivityService {
       durationSec: row.durationSec,
       progress,
     };
-
-    if (row.activityType === 'dungeon') {
-      const params = row.params as DungeonActivityParams;
-      const dungeon = DUNGEONS[params.dungeonId];
-      return { ...base, title: dungeon?.name ?? params.dungeonId, dungeon: { id: params.dungeonId, name: dungeon?.name ?? params.dungeonId } };
-    }
 
     if (row.activityType === 'gather') {
       const node = GATHERING_NODES[(row.params as GatherActivityParams).nodeId];

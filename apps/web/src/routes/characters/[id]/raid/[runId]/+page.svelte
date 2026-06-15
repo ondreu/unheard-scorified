@@ -15,7 +15,6 @@
     party: 'Party',
     reward: 'Your reward',
     loot: 'Loot',
-    npc: 'NPC',
     lockout: '🔒 Weekly lockout — already cleared this week, no reward.',
   };
 
@@ -103,10 +102,7 @@
       <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.party}</h2>
       {#each r.party as p (p.name)}
         <div class="flex items-center justify-between rounded bg-black/20 px-3 py-1">
-          <span class="text-amber-100/80">
-            {p.name}
-            {#if p.isNpc}<span class="ml-1 text-xs text-stone-500">({ui.npc})</span>{/if}
-          </span>
+          <span class="text-amber-100/80">{p.name}</span>
           <span class="text-xs uppercase text-amber-300/70">{p.role}</span>
         </div>
       {/each}
@@ -149,7 +145,7 @@
     <!-- Combat log -->
     <section class="mt-4 rounded-lg border border-amber-900/40 bg-black/30 p-4">
       <ul class="space-y-1 font-mono text-xs">
-        {#each r.events as e, i (i)}
+        {#each [...r.events].reverse() as e, i (r.events.length - 1 - i)}
           <li class={eventClass(e)}>
             <span class="text-stone-500">{e.t.toFixed(1)}s</span>
             {e.message}

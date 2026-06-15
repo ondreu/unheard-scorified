@@ -84,14 +84,16 @@ Všechny herní texty jsou anglicky, oddělené od logiky (i18n-ready).
 
 ## Týmové arény 3v3/5v5 (M8.5-C)
 
-Vedle 1v1 jsou rated brackety **3v3 a 5v5** s **ručně sestavenými týmy**: leader
-zařadí tým jedním voláním (`POST /characters/:id/team-arena/queue` s parťáky dle
-jména). Parťák musí být **friend nebo spoluhráč z guildy** (social graf = souhlas).
-Žádný NPC backfill — tým se páruje jen s jiným plným reálným týmem bez překryvu
-členů (snapshot fronta jako 1v1). Boj: `simulateTeamFight` (focus-fire, rampage,
-recykluje `computeHit`). Rating **per postava per bracket** přes `eloDelta` proti
-průměru soupeřova týmu (rozšiřuje `arena_ratings`). Zápas v `arena_team_matches`,
-watch přes REST reveal (`/team-arena/match/:id`; web polluje). Detail: **ADR 0020**.
+Vedle 1v1 jsou rated brackety **3v3 a 5v5**. Tým se od **M9 (ADR 0022)** sestavuje
+**trvalou skupinou** (`/characters/[id]/group`, viz `docs/systems/groups.md`) a
+spustí — velikost skupiny určuje bracket (3→3v3, 5→5v5). `TeamArenaService.
+launchForGroup` udělá snapshoty a zařadí tým do fronty (eligibilita friend/guild
+se řeší už při vstupu do skupiny). Žádný NPC backfill — tým se páruje jen s jiným
+plným reálným týmem bez překryvu členů. Boj: `simulateTeamFight` (focus-fire,
+rampage, recykluje `computeHit`). Rating **per postava per bracket** přes `eloDelta`
+proti průměru soupeřova týmu (`arena_ratings`). Zápas v `arena_team_matches`, watch
+přes REST reveal (`/team-arena/match/:id`; web polluje). Detail: **ADR 0020** +
+**0022**. _Původní ruční `queueTeam` dle jmen (M8.5-C) bylo nahrazeno skupinou._
 
 ## Známé follow-upy (M8/M9)
 

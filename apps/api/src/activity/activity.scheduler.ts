@@ -1,12 +1,10 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { Queue, Worker, type ConnectionOptions } from 'bullmq';
 import {
-  DUNGEONS,
   GATHERING_NODES,
   QUESTS,
   RECIPES,
   type CraftActivityParams,
-  type DungeonActivityParams,
   type GatherActivityParams,
   type QuestActivityParams,
 } from '@game/shared';
@@ -92,13 +90,6 @@ export class BullMqActivityScheduler implements ActivityScheduler, OnModuleInit,
     characterName: string,
   ): { title: string; body: string } {
     switch (activityType) {
-      case 'dungeon':
-        return {
-          title: 'Dungeon Complete!',
-          body: `${characterName} has cleared "${
-            DUNGEONS[(params as DungeonActivityParams).dungeonId]?.name ?? 'the dungeon'
-          }". Return to claim your loot.`,
-        };
       case 'gather':
         return {
           title: 'Gathering Complete!',

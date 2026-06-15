@@ -4,7 +4,6 @@ import {
   RAID_COMPOSITION,
   RAID_PARTY_SIZE,
   RAID_SIZES,
-  buildCompanionBase,
   buildRaidBoss,
   compositionSize,
   computeRaidReward,
@@ -170,15 +169,6 @@ describe('simulateRaidRun', () => {
     for (let i = 1; i < result.events.length; i++) {
       expect(result.events[i]!.t).toBeGreaterThanOrEqual(result.events[i - 1]!.t);
     }
-  });
-});
-
-describe('companion backfill', () => {
-  it('builds a usable companion actor per role', () => {
-    const raid = RAIDS.molten_core!;
-    const tank = deriveRaidActor(buildCompanionBase(raid, 'NPC'), 'tank');
-    expect(tank.role).toBe('tank');
-    expect(tank.maxHealth).toBeGreaterThan(raid.companion.maxHealth - 1);
   });
 });
 

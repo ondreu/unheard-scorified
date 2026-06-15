@@ -575,9 +575,25 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       odměna za období (`character_goal_claims`, migrace `0018`). Sdílené
       `@game/shared/goals.ts`. Web: sekce na `/characters/[id]/achievements`.
       Testy: shared `goals.test.ts` (+5) + API (+2). ADR 0021.
-- [ ] PixiJS pixel scénky, nahrazení placeholderů; tutoriál/onboarding.
+- [x] **Trvalá skupina (party)** ✅: jeden formační systém pro **dungeon/raid/arénu**
+      (`groups` + `group_members`, migrace 0020). Leader zve friends/guild do rolí,
+      skupina přežívá mezi aktivitami; launch → `DungeonService.runForGroup` /
+      `RaidService.runForGroup` / aréna (velikost → bracket 1v1/3v3/5v5). **Nahradilo
+      raid lobby (M8.5-B) i ruční team arénu (M8.5-C)** — bez NPC backfillu, recykluje
+      run/aréna enginy. `GroupModule`, web `/characters/[id]/group`. Testy: shared
+      `party.test.ts` (+3) + API `group.flow.test.ts` (+7). **ADR 0022**,
+      `docs/systems/groups.md`.
+- [ ] PixiJS pixel scénky, nahrazení placeholderů.
 - [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
+
+> ℹ️ **Onboarding/tutoriál odložen do M11** (rozhodnutí PM) — viz níže.
+
+### M11 — Onboarding & tutoriál (odloženo)
+
+- [ ] Tutoriál/onboarding nového hráče: provedení základní idle smyčkou
+      (vytvoř postavu → pošli questovat → claim odměn → equip gearu → talenty),
+      kontextové nápovědy, bez nové herní mechaniky (čistě UX vrstva).
 
 ---
 
@@ -667,17 +683,31 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ### FIX
 
-- [ ] 🧑‍💼 Otočit combat log — **nejnovější události nahoře**.
-- [ ] 🧑‍💼 **Equip bug**: jeden prsten lze nasadit do dvou slotů zároveň.
-  - [ ] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje).
-  - [ ] Equip přes **drag & drop**.
-- [ ] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
-- [ ] 🧑‍💼 **Odstranit legacy** (single-actor `simulateDungeonRun`/`computeDungeonReward`/
-      `DungeonActivityParams` + větev `'dungeon'` v activity modelu; pozor na sdílené
-      combat helpery `determinationFactor`/`easeActor` — ty zůstávají).
-- [ ] 🧑‍💼 **Odstranit NPC backfill** pro dungeony a pro raidy > 5 (jen 5-man smí
-      NPC fill; větší obsah vyžaduje reálné hráče přes lobby). _Pozn.: mění
-      idle-first rozhodnutí pro velký obsah — potvrzeno PM._
+- [x] 🧑‍💼 Otočit combat log — **nejnovější události nahoře**. (dungeon/raid/arena/team-match)
+- [x] 🧑‍💼 **Equip bug**: jeden prsten lze nasadit do dvou slotů zároveň.
+  - [x] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje). Equip teď
+        kus z inventáře spotřebuje (consume→equip), unequip/swap ho vrátí; tentýž
+        kus nelze nasadit do dvou slotů. Testy v `inventory.flow.test.ts`.
+  - [ ] Equip přes **drag & drop**. (samostatné UX, zbývá)
+- [x] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
+      Seznam dungeonů i raidů vystavuje `hasLockout`/`lockedOut`; web zobrazí
+      „🔒 Saved this week" badge u instancí vyčištěných tento UTC týden.
+- [x] 🧑‍💼 **Odstranit legacy** — single-actor `simulateDungeonRun`/`computeDungeonReward`/
+      `simulateDungeonFromParams`/`DungeonActivityParams`/`DungeonCombatResult` + privátní
+      `fightEncounter`/`easeActor` + jen-jimi-používané konstanty; větev `'dungeon'`
+      odstraněna z `ActivityType` i activity modelu (api scheduler/service, web). **Korekce
+      poznámky:** `easeActor` se NEsdílel (raid používá vlastní `easeBoss`) → odstraněn
+      spolu se `simulateDungeonRun`. **Zachováno** sdílené: `determinationFactor`,
+      `wipeRewardMultiplier`, `computeHit`, `round1`, `buildEnemyActor`. Ověřeno
+      typecheck/lint/testy (167 shared + 131 API zelené).
+- [x] 🧑‍💼 **Odstranit NPC backfill** — **finální rozhodnutí PM: úplně** (dungeony 3/5,
+      raidy 5/10/20 i raid lobby). Party se skládá jen z reálných hráčů z fronty/lobby;
+      chybí-li hráči, run se spustí s menší partou a boss/encountery se škálují její
+      velikostí (`scaleBoss`/`groupEncounters` dle `party.length`). Odstraněny i mrtvé
+      shared buildery (`COMPANION_NAMES`, `buildCompanionBase`, `buildDungeonCompanion`,
+      `RaidDef.companion`) a `isNpc` z run view. _Pozn.: mění idle-first rozhodnutí pro
+      group obsah — potvrzeno PM. Follow-up: doladit matchmaking (rating-window/čekání
+      na partu) pro plynulejší skládání bez NPC._
 
 ### Známé follow-upy (konsolidace „zbývá doladit", 🤖)
 

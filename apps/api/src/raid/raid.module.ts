@@ -9,18 +9,16 @@ import { TalentModule } from '../talent/talent.module';
 import { RaidController } from './raid.controller';
 import { RaidEventsRelay } from './raid.events';
 import { RaidGateway } from './raid.gateway';
-import { RaidLobbyController } from './raid-lobby.controller';
-import { RaidLobbyRepository } from './raid-lobby.repository';
-import { RaidLobbyService } from './raid-lobby.service';
 import { RAID_QUEUE, RedisRaidQueue } from './raid.matchmaking';
 import { RaidRepository } from './raid.repository';
 import { RaidService } from './raid.service';
 
 /**
  * Raidy (M8, MP PVE). Role-based matchmaking fronta (Redis, in-memory ve flow
- * testech) + NPC backfill → idle-first řešení i sólo. Combat recykluje engine
+ * testech) — jen reální hráči (NPC backfill odebrán). Combat recykluje engine
  * z M5 (party vs boss). Realtime watch přes WebSocket gateway + Redis pub/sub
- * adaptér (recykluje vrstvu z M7, viz main.ts, ADR 0011).
+ * adaptér (recykluje vrstvu z M7, viz main.ts, ADR 0011). Ruční formaci řeší
+ * trvalá skupina (`GroupModule`, ADR 0022).
  */
 @Module({
   imports: [
@@ -32,17 +30,16 @@ import { RaidService } from './raid.service';
     PushModule,
     LockoutModule,
   ],
-  controllers: [RaidController, RaidLobbyController],
+  controllers: [RaidController],
   providers: [
     RaidService,
     RaidRepository,
-    RaidLobbyService,
-    RaidLobbyRepository,
     RaidEventsRelay,
     RaidGateway,
     { provide: RAID_QUEUE, useClass: RedisRaidQueue },
   ],
-  // Sdílený run model (M8.5-B): dungeon modul recykluje run repository + frontu.
-  exports: [RaidRepository, RAID_QUEUE],
+  // Sdílený run model (M8.5-B): dungeon + group moduly recyklují run repo, frontu
+  // a RaidService (finalizeRun / runForGroup).
+  exports: [RaidRepository, RAID_QUEUE, RaidService],
 })
 export class RaidModule {}

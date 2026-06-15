@@ -8,9 +8,7 @@ import {
 import {
   aggregateTalentEffects,
   baseStatsFor,
-  buildCompanionBase,
   buildRaidBoss,
-  COMPANION_NAMES,
   computeRaidReward,
   defaultRaidComposition,
   deriveCombatProfile,
@@ -64,6 +62,10 @@ export interface RaidListItem {
   unlocked: boolean;
   /** Role, ve které postava čeká ve frontě (nebo null). */
   queuedRole: RaidRole | null;
+  /** Raidy mají vždy weekly lockout (M8.6) — clear se počítá jednou týdně. */
+  hasLockout: boolean;
+  /** Postava už tento raid tento týden vyčistila (žádná další odměna). */
+  lockedOut: boolean;
 }
 
 export interface RaidRewardView {
@@ -85,7 +87,7 @@ export interface RaidRunView {
     completed: boolean;
     finishesAt: string;
   };
-  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  party: { name: string; role: RaidRole; maxHealth: number }[];
   bosses: { name: string }[];
   events: CombatEvent[];
   /** null dokud se boj „neodehraje" (reveal dle času); pak true/false. */
@@ -145,6 +147,7 @@ export class RaidService {
 
     const level = levelFromXp(character.totalXp);
     const completedIds = await this.completed.completedIds(characterId);
+    const weekId = weeklyLockoutId(Date.now());
     const result: RaidListItem[] = [];
     for (const raid of Object.values(RAIDS).sort(
       (a, b) => a.attunement.requiredLevel - b.attunement.requiredLevel,
@@ -152,6 +155,8 @@ export class RaidService {
       const queuedRole = await this.queue.queuedRole(raid.id, characterId);
       const defaultComposition: Record<number, RaidComposition> = {};
       for (const size of raid.sizes) defaultComposition[size] = defaultRaidComposition(size);
+      const lockoutId = lockoutIdForContent('raid', raid.id);
+      const lockedOut = lockoutId !== null && (await this.lockouts.isLocked(characterId, lockoutId, weekId));
       result.push({
         id: raid.id,
         name: raid.name,
@@ -163,6 +168,8 @@ export class RaidService {
         defaultComposition,
         unlocked: isRaidUnlocked(raid.id, level, completedIds),
         queuedRole,
+        hasLockout: lockoutId !== null,
+        lockedOut,
       });
     }
     return result;
@@ -259,26 +266,22 @@ export class RaidService {
     const party: RaidActor[] = [myActor];
     const pulled: RaidQueueEntry[] = [];
 
-    // Kolik kterých rolí ještě potřebujeme (po odečtení mé).
+    // Party se skládá JEN z reálných hráčů ve frontě (žádný NPC backfill).
+    // Chybí-li dost hráčů role, party bude menší — boss se škáluje skutečnou
+    // velikostí party (`finalizeRun` → `scaleBoss(party.length)`).
     const need: Record<RaidRole, number> = { tank: comp.tank, healer: comp.healer, dps: comp.dps };
     need[role] -= 1;
 
     for (const r of RAID_ROLES) {
-      let npcIndex = 1;
       for (let i = 0; i < need[r]; i++) {
         const candidate = await this.queue.takeByRole(raidId, r, characterId);
-        if (candidate) {
-          party.push(candidate.snapshot);
-          pulled.push(candidate);
-        } else {
-          const name = `${COMPANION_NAMES[r]} ${npcIndex++}`;
-          party.push(deriveRaidActor(buildCompanionBase(raid, name), r));
-        }
+        if (!candidate) break; // žádný další čekající hráč této role
+        party.push(candidate.snapshot);
+        pulled.push(candidate);
       }
     }
 
-    // Reální účastníci: já (iniciátor) + vytažení z fronty. NPC backfill je jen
-    // v `party` (pro simulaci), odměny dostávají jen reální hráči.
+    // Reální účastníci: já (iniciátor) + vytažení z fronty.
     const real: RaidParticipantInput[] = [{ character, role, initiator: true }];
     for (const p of pulled) {
       const pc = await this.characters.findById(p.characterId);
@@ -290,10 +293,37 @@ export class RaidService {
   }
 
   /**
+   * Spustí raid s předem sestavenou **skupinou** (M9 group): leader (`members[0]`)
+   * + členové. Gatuje attunement leaderovým levelem + questline. Sdílí
+   * `finalizeRun` (stejná simulace/odměny/lockout). Vrací id runu.
+   */
+  async runForGroup(
+    leader: Character,
+    raidId: string,
+    members: { character: Character; role: RaidRole }[],
+  ): Promise<{ runId: string }> {
+    if (!isRaidId(raidId)) throw new BadRequestException('Unknown raid');
+    const level = levelFromXp(leader.totalXp);
+    const completedIds = await this.completed.completedIds(leader.id);
+    if (!isRaidUnlocked(raidId, level, completedIds)) {
+      throw new BadRequestException('Raid is not unlocked (level / attunement)');
+    }
+    const raid = RAIDS[raidId]!;
+    const party: RaidActor[] = [];
+    const real: RaidParticipantInput[] = [];
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i]!;
+      party.push(await this.buildRaidActor(m.character, levelFromXp(m.character.totalXp), m.role));
+      real.push({ character: m.character, role: m.role, initiator: i === 0 });
+    }
+    const { run } = await this.finalizeRun(raid, party, real, leader.id);
+    return { runId: run.id };
+  }
+
+  /**
    * Sdílené dokončení raid runu (M8.5-B): odsimuluje předanou party, uloží run a
-   * udělí odměny všem reálným účastníkům (NPC v `party` jsou jen pro simulaci).
-   * Vrací run + mapu odměn per postava. Volá `enter` (idle queue) i lobby (ruční
-   * formace). Iniciátor seeduje běh; nereálným… resp. neiniciátorům pošle push.
+   * udělí odměny všem reálným účastníkům. Vrací run + mapu odměn per postava.
+   * Volá `enter` (idle queue), group launch i lobby. Iniciátor seeduje běh.
    */
   async finalizeRun(
     raid: (typeof RAIDS)[keyof typeof RAIDS],
@@ -490,7 +520,6 @@ export class RaidService {
         name: a.name,
         role: a.role,
         maxHealth: a.maxHealth,
-        isNpc: a.name.startsWith('Mercenary '),
       })),
       bosses: (raid?.bosses ?? []).map((b) => ({ name: b.name })),
       events: visible,

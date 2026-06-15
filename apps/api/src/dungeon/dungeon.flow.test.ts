@@ -141,23 +141,22 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     expect(lootCount).toBe(run.myReward!.items.length);
   });
 
-  it('group enter (size 3) doplní NPC backfill a každý reálný účastník dostane loot', async () => {
+  it('group enter (size 3) bez fronty → party jen iniciátor (žádný NPC backfill)', async () => {
     const c = await strongCharacter('d6', 'Leader');
     const run = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm', 3);
-    expect(run.size).toBe(3);
-    expect(run.party).toHaveLength(3);
-    expect(run.party.filter((p) => p.isNpc)).toHaveLength(2); // sólo + 2 NPC
+    // Backfill odebrán: nikdo další ve frontě → běží sám, žádní NPC.
+    expect(run.party).toHaveLength(1);
     expect(run.myReward).not.toBeNull();
   });
 
-  it('fronta: čekající hráč je vytažen do party iniciátora', async () => {
+  it('fronta: čekající hráč je vytažen do party iniciátora (žádný NPC fill)', async () => {
     const waiter = await strongCharacter('d9', 'Waiter');
     const leader = await strongCharacter('d10', 'Puller');
     const q = await dungeons.queueForDungeon(waiter.accountId, waiter.id, 'ragefire_chasm', 'healer');
     expect(q.queued).toBe(true);
 
     const run = await dungeons.enter(leader.accountId, leader.id, 'ragefire_chasm', 3);
-    expect(run.party.filter((p) => p.isNpc)).toHaveLength(1); // leader + waiter + 1 NPC
+    expect(run.party).toHaveLength(2); // leader + vytažený waiter, žádný NPC
     // Waiter dostal vlastní participant řádek (personal loot).
     const recent = await dungeons.recentRuns(waiter.accountId, waiter.id);
     expect(recent[0]?.runId).toBe(run.runId);
@@ -181,10 +180,22 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     await invRepo.addItem(c.id, 'ashkandi');
     await invRepo.equip(c.id, 'main_hand', 'ashkandi');
 
+    // Před clearem: scarlet má lockout, ale postava ještě není saved.
+    const listBefore = await dungeons.listDungeons(c.accountId, c.id);
+    const scarletBefore = listBefore.find((d) => d.id === 'scarlet_monastery')!;
+    expect(scarletBefore.hasLockout).toBe(true);
+    expect(scarletBefore.lockedOut).toBe(false);
+    // Ragefire lockout nemá → vždy false.
+    expect(listBefore.find((d) => d.id === 'ragefire_chasm')!.hasLockout).toBe(false);
+
     const first = await dungeons.enter(c.accountId, c.id, 'scarlet_monastery');
     expect(first.myReward!.xp).toBeGreaterThan(0);
     expect(first.myLockedOut).toBe(false);
     const xpAfterFirst = (await charRepo.findById(c.id))!.totalXp;
+
+    // Po clearu se v seznamu objeví „saved this week".
+    const listAfter = await dungeons.listDungeons(c.accountId, c.id);
+    expect(listAfter.find((d) => d.id === 'scarlet_monastery')!.lockedOut).toBe(true);
 
     const second = await dungeons.enter(c.accountId, c.id, 'scarlet_monastery');
     expect(second.myReward!.xp).toBe(0);

@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RAIDS, RAID_PARTY_SIZE } from '@game/shared';
+import { RAIDS } from '@game/shared';
 import { AuthService } from '../auth/auth.service';
 import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
@@ -96,16 +96,16 @@ describe('M8 flow: raids (MP PVE)', () => {
     await expect(raid.enter(a.accountId, a.id, 'molten_core', 'dps')).rejects.toThrow();
   });
 
-  it('attuned hráč spustí raid sólo (NPC backfill) a dostane odměnu', async () => {
+  it('attuned hráč spustí raid sólo (jen on sám, žádný NPC backfill) a dostane odměnu', async () => {
     const a = await raider('rd_solo', 'Soloist', { attune: 'tn_galak_ogres', weapon: 'ashkandi' });
     const list = await raid.listRaids(a.accountId, a.id);
     expect(list.find((r) => r.id === 'molten_core')?.unlocked).toBe(true);
 
     const run = await raid.enter(a.accountId, a.id, 'molten_core', 'dps');
-    expect(run.party).toHaveLength(RAID_PARTY_SIZE);
+    // Backfill odebrán: nikdo ve frontě → party = jen reálný hráč (boss se
+    // škáluje velikostí party). Žádní NPC.
+    expect(run.party).toHaveLength(1);
     expect(run.myRole).toBe('dps');
-    // 4 NPC backfill (tank/heal/2 dps), 1 reálný hráč.
-    expect(run.party.filter((p) => p.isNpc)).toHaveLength(4);
     expect(run.myReward).not.toBeNull();
     expect(run.myReward!.xp).toBeGreaterThan(0);
 
@@ -183,8 +183,8 @@ describe('M8 flow: raids (MP PVE)', () => {
     expect((await raid.listRaids(b.accountId, b.id)).find((r) => r.id === 'molten_core')?.queuedRole).toBe('tank');
 
     const run = await raid.enter(a.accountId, a.id, 'molten_core', 'dps');
-    // B byl vytažen → 3 NPC backfill (heal + 2 dps), tank je reálný B.
-    expect(run.party.filter((p) => p.isNpc)).toHaveLength(3);
+    // B (tank) byl vytažen → party = A (dps) + B (tank), žádní NPC.
+    expect(run.party).toHaveLength(2);
 
     // B už nečeká ve frontě a má run ve své historii.
     expect((await raid.listRaids(b.accountId, b.id)).find((r) => r.id === 'molten_core')?.queuedRole).toBeNull();
@@ -214,17 +214,16 @@ describe('M8 flow: raids (MP PVE)', () => {
     await expect(raid.enter(a.accountId, a.id, 'molten_core', 'bard')).rejects.toThrow();
   });
 
-  it('spustí 10-player raid s vlastní kompozicí (víc NPC backfill)', async () => {
+  it('10-player raid bez fronty → party jen iniciátor (žádný NPC backfill)', async () => {
     const a = await raider('rd_ten', 'Tenman', { attune: 'tn_galak_ogres', weapon: 'ashkandi' });
     const run = await raid.enter(a.accountId, a.id, 'molten_core', 'tank', 10, {
       tank: 2,
       healer: 3,
       dps: 5,
     });
-    expect(run.party).toHaveLength(10);
-    // 1 reálný (iniciátor tank), 9 NPC backfill.
-    expect(run.party.filter((p) => p.isNpc)).toHaveLength(9);
-    expect(run.party.filter((p) => p.role === 'healer')).toHaveLength(3);
+    // Kompozice je jen cíl; bez čekajících hráčů běží sám (žádní NPC).
+    expect(run.party).toHaveLength(1);
+    expect(run.party[0]!.role).toBe('tank');
   });
 
   it('odmítne nepovolenou velikost a nesedící kompozici', async () => {

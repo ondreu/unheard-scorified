@@ -88,11 +88,19 @@ export class InventoryService {
       throw new BadRequestException(`Item cannot go in slot "${slot}" (expected ${itemDef.slot})`);
     }
 
-    // Ověř, že postava item vlastní
-    const invRows = await this.inventory.listInventory(characterId);
-    const has = invRows.some((r) => r.itemId === itemId && r.quantity > 0);
-    if (!has) throw new BadRequestException('Item not in inventory');
+    // Ověř, že postava item vlastní (a má volný kus k nasazení)
+    const available = await this.inventory.getQuantity(characterId, itemId);
+    if (available <= 0) throw new BadRequestException('Item not in inventory');
 
+    // Pokud je cílový slot obsazený, vrať dosavadní item zpět do inventáře (swap).
+    const current = await this.inventory.getEquippedInSlot(characterId, slot);
+    if (current) {
+      await this.inventory.addItem(characterId, current.itemId);
+    }
+
+    // Item se z inventáře přesune do slotu (consume → equip), takže není
+    // vidět na dvou místech a tentýž kus nelze nasadit do dvou slotů.
+    await this.inventory.consume(characterId, itemId, 1);
     await this.inventory.equip(characterId, slot, itemId);
     return this.listEquipment(accountId, characterId);
   }
@@ -107,6 +115,12 @@ export class InventoryService {
     if (!character) throw new NotFoundException('Character not found');
 
     if (!isEquipmentSlot(slot)) throw new BadRequestException('Invalid equipment slot');
+
+    // Item ze slotu se vrátí do inventáře (opak equipu).
+    const current = await this.inventory.getEquippedInSlot(characterId, slot);
+    if (current) {
+      await this.inventory.addItem(characterId, current.itemId);
+    }
 
     await this.inventory.unequip(characterId, slot);
     return this.listEquipment(accountId, characterId);

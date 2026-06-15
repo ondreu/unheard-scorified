@@ -45,7 +45,7 @@
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}/team-arena`} class="text-sm text-amber-300 underline">{ui.back}</a>
+  <a href={`/characters/${characterId}/group`} class="text-sm text-amber-300 underline">{ui.back}</a>
   <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
 
   {#if error}
@@ -76,7 +76,7 @@
     {/if}
 
     <section class="mt-4 max-h-96 overflow-y-auto rounded border border-amber-900/40 bg-black/30 p-3 text-xs">
-      {#each m.events as e, i (i)}
+      {#each [...m.events].reverse() as e, i (m.events.length - 1 - i)}
         <p class="text-amber-100/80">
           <span class="text-amber-100/30">[{e.t.toFixed(1)}s]</span>
           {e.message}

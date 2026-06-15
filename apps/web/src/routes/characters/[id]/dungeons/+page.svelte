@@ -17,6 +17,8 @@
     reqLevel: 'Requires level',
     party: 'Party',
     solo: 'Solo',
+    savedThisWeek: '🔒 Saved this week',
+    savedHint: 'Already cleared this week — no further reward until reset.',
   };
 
   let dungeons = $state<DungeonListItem[]>([]);
@@ -85,7 +87,17 @@
         >
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="font-semibold text-amber-200">{d.name}</h2>
+              <h2 class="flex items-center gap-2 font-semibold text-amber-200">
+                {d.name}
+                {#if d.lockedOut}
+                  <span
+                    title={ui.savedHint}
+                    class="rounded border border-amber-700/50 bg-amber-900/30 px-1.5 py-0.5 text-xs font-medium text-amber-300"
+                  >
+                    {ui.savedThisWeek}
+                  </span>
+                {/if}
+              </h2>
               <p class="text-xs uppercase tracking-wide text-amber-100/40">
                 {ui.reqLevel}
                 {d.requiredLevel} · {d.encounterCount}

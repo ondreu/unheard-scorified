@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { ITEMS } from '@game/shared';
 import { PGlite } from '@electric-sql/pglite';
 import { JwtService } from '@nestjs/jwt';
 import { drizzle } from 'drizzle-orm/pglite';
@@ -103,6 +104,64 @@ describe('M4 flow: inventory & equipment', () => {
 
     expect(after.equipped).toHaveLength(1);
     expect(after.equipped[0]?.itemId).toBe('stormfury_blade');
+  });
+
+  it('equip přesune item z inventáře (není vidět na dvou místech), unequip ho vrátí', async () => {
+    const { accountId, id } = await newCharacter('inv8', 'Tyrande');
+    await invRepo.addItem(id, 'iron_shortsword');
+
+    await invService.equip(accountId, id, 'iron_shortsword', 'main_hand');
+    let inv = await invService.listInventory(accountId, id);
+    expect(inv).toHaveLength(0); // item už je jen ve slotu, ne v inventáři
+
+    await invService.unequip(accountId, id, 'main_hand');
+    inv = await invService.listInventory(accountId, id);
+    expect(inv).toHaveLength(1);
+    expect(inv[0]?.itemId).toBe('iron_shortsword');
+    expect(inv[0]?.quantity).toBe(1);
+  });
+
+  it('jeden prsten nelze nasadit do dvou slotů zároveň', async () => {
+    const { accountId, id } = await newCharacter('inv9', 'Malfurion');
+    // Najdi libovolný prsten (slot finger) v katalogu.
+    const ringId = Object.values(ITEMS).find((it) => it.slot === 'finger')?.id;
+    expect(ringId).toBeDefined();
+    await invRepo.addItem(id, ringId!);
+
+    await invService.equip(accountId, id, ringId!, 'finger1');
+    // Druhý slot už nemá co nasadit — kus byl spotřebován z inventáře.
+    await expect(invService.equip(accountId, id, ringId!, 'finger2')).rejects.toThrow();
+
+    const eq = await invService.listEquipment(accountId, id);
+    expect(eq.equipped).toHaveLength(1);
+  });
+
+  it('dva kusy téhož prstenu lze nasadit do obou slotů', async () => {
+    const { accountId, id } = await newCharacter('inv10', 'Illidan');
+    const ringId = Object.values(ITEMS).find((it) => it.slot === 'finger')?.id;
+    await invRepo.addItem(id, ringId!);
+    await invRepo.addItem(id, ringId!);
+
+    await invService.equip(accountId, id, ringId!, 'finger1');
+    const after = await invService.equip(accountId, id, ringId!, 'finger2');
+    expect(after.equipped).toHaveLength(2);
+    const inv = await invService.listInventory(accountId, id);
+    expect(inv).toHaveLength(0);
+  });
+
+  it('swap obsazeného slotu vrátí starý item do inventáře', async () => {
+    const { accountId, id } = await newCharacter('inv11', 'Maiev');
+    await invRepo.addItem(id, 'iron_shortsword');
+    await invRepo.addItem(id, 'stormfury_blade');
+
+    await invService.equip(accountId, id, 'iron_shortsword', 'main_hand');
+    await invService.equip(accountId, id, 'stormfury_blade', 'main_hand');
+
+    const inv = await invService.listInventory(accountId, id);
+    // iron_shortsword se vrátil do inventáře, stormfury_blade je ve slotu
+    expect(inv).toHaveLength(1);
+    expect(inv[0]?.itemId).toBe('iron_shortsword');
+    expect(inv[0]?.quantity).toBe(1);
   });
 
   it('cizí účet nemůže spravovat inventář postavy', async () => {

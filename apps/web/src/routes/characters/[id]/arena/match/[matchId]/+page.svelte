@@ -108,7 +108,7 @@
     <!-- Combat log -->
     <section class="mt-4 rounded-lg border border-amber-900/40 bg-black/30 p-4">
       <ul class="space-y-1 font-mono text-xs">
-        {#each m.events as e, i (i)}
+        {#each [...m.events].reverse() as e, i (m.events.length - 1 - i)}
           <li class={eventClass(e)}>
             <span class="text-stone-500">{e.t.toFixed(1)}s</span>
             {e.message}

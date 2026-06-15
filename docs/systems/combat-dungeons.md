@@ -50,19 +50,27 @@ lifesteal. Capstone tagy (`SIGNATURE_ABILITIES`) odemykají **signature ability*
 `mutilate`, `chaos_bolt`, `stormstrike`. **Nenamapované tagy = no-op** (flavor /
 budoucí rozšíření, žádný tichý fail).
 
-### Simulace — `simulateDungeonRun(player, enemies, seed)`
+### Simulace — sdílené primitivy v `combat.ts`, run engine v `raid.ts`
 
-Událostmi řízená (swing timery + ability timery), deterministická:
+`combat.ts` je **jediný zdroj per-hit vzorců** (žádná duplikace):
 
-- Postava začíná na plné HP, mezi souboji se doléčí o 30 % maxHP (klid 3 s).
-- Každý úder: variance 0.85–1.15 → crit (×2) → armor mitigace.
-- **Enrage**: po 60 s v jednom souboji nepřítel ztrojnásobí poškození (zabrání
-  nekonečným fightům — fight vždy skončí).
-- Vrací kompletní `CombatEvent[]` timeline (čas `t` v sekundách + anglická
-  hláška), `victory`, `durationSec`.
+- `computeHit(attacker, defender, rng, mult, enraged)` — variance 0.85–1.15 →
+  crit (×2) → armor mitigace. Sdílí ho group PVE run, dungeon i PVP.
+- `deriveCombatProfile` → `CombatActor`; `determinationFactor` /
+  `wipeRewardMultiplier` (křivka obtížnosti + škálování odměn, sdílí s raidem).
+
+Vlastní událostmi řízenou simulaci (swing + ability timery, enrage, wipe/retry)
+dělá **`simulateRaidRun` v `raid.ts`** — dungeon i raid jedou na jednom group-run
+enginu (viz „Sjednocený group PVE run" níže). Vrací kompletní `CombatEvent[]`
+timeline (čas `t` v sekundách + anglická hláška), `victory`, `durationSec`, `wipes`.
+
+> ℹ️ Původní single-actor `simulateDungeonRun`/`fightEncounter`/`easeActor`/
+> `DungeonCombatResult` (M5) byly **odstraněny v M9** — runtime je nepoužíval od
+> M8.5-B. Zachované sdílené helpery: `computeHit`, `determinationFactor`,
+> `wipeRewardMultiplier`, `round1`, `buildEnemyActor`.
 
 „Živý" log = filtr `events.filter(e => e.t <= elapsedSec)` — žádný per-process
-stav (stateless, škálovatelné). Klient polluje (REST). WS transport je práce M7.
+stav (stateless, škálovatelné). Klient polluje (REST) / WS (M7).
 
 ## Dungeony (`packages/shared/src/data/dungeons.ts`)
 
@@ -100,14 +108,15 @@ aktivity = délka předpočítaného boje.
 
 Dungeon už **není idle aktivita** (`character_activities`), ale **group PVE run**
 sdílený s raidy (`raid_runs` + `content_type='dungeon'`, ADR 0014). SP = party 1 dps,
-group 3/5 = role + NPC backfill (idle matchmaking fronta `dungeon:<id>`). Combat =
+group 3/5 = role, jen reální hráči z fronty `dungeon:<id>` (žádný NPC backfill —
+chybí-li hráči, party je menší a encountery se škálují její velikostí). Combat =
 `simulateRaidRun` (party vs sekvence encounterů, členové používají signature abilities),
 encountery škálované velikostí party. **Personal loot** per účastník
 (`computeGroupReward`, seed per postava). Odměna padá při resolve (žádný separátní
 claim). API: `enter(size?,role?,composition?)`, `queue`/`leave`, `getRun`, `recentRuns`.
 
-> Legacy: single-actor `simulateDungeonRun`/`computeDungeonReward` zůstávají v shared
-> jen pro unit testy formulí; runtime je nepoužívá (úklid → M9).
+> ✅ Legacy single-actor path (`simulateDungeonRun`/`computeDungeonReward`/
+> `DungeonActivityParams`) **odstraněn v M9** — dungeon jede výhradně přes group run.
 
 ## Web (`apps/web/src/routes/characters/[id]/`)
 
@@ -124,14 +133,14 @@ claim). API: `enter(size?,role?,composition?)`, `queue`/`leave`, `getRun`, `rece
 
 ## Iterativní wipe/retry (M8.5-A)
 
-`simulateDungeonRun` je teď **orchestrátor per-encounter pullů** (helper
-`fightEncounter` = jeden pull). Wipe na encounteru → retry téhož encounteru
-(`ENCOUNTER_ATTEMPT_CAP` = 7 pullů), encounter se **zlehčí** (`determinationFactor`,
-HP/dmg ×factor). První wipe je „zdarma"; křivka obtížnosti
-`1 → 1 → 0.95 → 0.9 → 0.85 → 0.8 → 0.75`, pak **hard fail** (0 odměny, žádná
-útěcha). Vyčištěné encountery zůstávají; po wipu se postava resetuje na plnou HP.
+`simulateRaidRun` (group engine v `raid.ts`) je **orchestrátor per-boss/encounter
+pullů** (helper `fightBoss` = jeden pull). Wipe na encounteru → retry téhož
+(7 pullů), encounter se **zlehčí** (`determinationFactor`, HP/dmg ×factor). První
+wipe je „zdarma"; křivka obtížnosti `1 → 1 → 0.95 → 0.9 → 0.85 → 0.8 → 0.75`, pak
+**hard fail** (0 odměny, žádná útěcha). Vyčištěné encountery zůstávají; po wipu se
+party resetuje na plnou HP.
 
-`DungeonCombatResult.wipes` řídí odměnu přes `wipeRewardMultiplier`, která sleduje
+Počet wipů (`wipes` ve výsledku runu) řídí odměnu přes `wipeRewardMultiplier`, která sleduje
 obtížnost (XP, zlato i loot šance; plná za 0–1 wipe, dno 0.3 na obtížnosti 0.75).
 Combat log zobrazí retry pully
 (`encounter_start (pull N, weakened)` + opakované `player_defeated`); dungeon log

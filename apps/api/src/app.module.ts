@@ -7,6 +7,7 @@ import { CharacterModule } from './character/character.module';
 import { DbModule } from './db/db.module';
 import { DevModule } from './dev/dev.module';
 import { DungeonModule } from './dungeon/dungeon.module';
+import { GroupModule } from './group/group.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { ProfessionModule } from './profession/profession.module';
@@ -46,6 +47,7 @@ const devModules =
     SocialModule,
     TradeModule,
     ProgressionModule,
+    GroupModule,
     ...devModules,
   ],
 })
