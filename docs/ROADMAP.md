@@ -613,6 +613,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       „1 slot" (vanilla), stackovatelné dle `maxStack`. Návaznosti: vendor odkup,
       bank (úložiště mimo batoh), loot „bag full" stav. Vyžaduje **systém
       profesí/craftingu** (nový podsystém — kandidát na vlastní ADR).
+- [ ] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** Aukční dům doplnit
+      o NPC/bot listingy, aby působil obydleně (zvlášť při malém počtu hráčů).
+      Generovat **deterministicky přes `SeededRng`** (ne `Math.random()`) — rotace
+      nabídek dle UTC dne/hodiny, ceny v rozumném rozpětí kolem referenční hodnoty
+      itemu, omezené množství. Hráč může od NPC listingu koupit (gold sink); NPC
+      „nakupují" jen virtuálně (nezasahují do reálných hráčských aukcí). Vyžaduje
+      **aukční dům** jako systém (zatím není — kandidát na vlastní ADR; sdílí
+      ekonomiku s vendory/goldem).
 - [ ] 🤖 Vendoři (NPC odkup/prodej) + „use" consumables/buffů (zbytek z M6).
 - [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid, 2v2 bracket.
 
