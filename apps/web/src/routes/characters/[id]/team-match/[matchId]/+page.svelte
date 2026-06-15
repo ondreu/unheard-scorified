@@ -76,7 +76,7 @@
     {/if}
 
     <section class="mt-4 max-h-96 overflow-y-auto rounded border border-amber-900/40 bg-black/30 p-3 text-xs">
-      {#each m.events as e, i (i)}
+      {#each [...m.events].reverse() as e, i (m.events.length - 1 - i)}
         <p class="text-amber-100/80">
           <span class="text-amber-100/30">[{e.t.toFixed(1)}s]</span>
           {e.message}

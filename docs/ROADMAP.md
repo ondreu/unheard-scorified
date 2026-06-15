@@ -667,10 +667,12 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ### FIX
 
-- [ ] 🧑‍💼 Otočit combat log — **nejnovější události nahoře**.
-- [ ] 🧑‍💼 **Equip bug**: jeden prsten lze nasadit do dvou slotů zároveň.
-  - [ ] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje).
-  - [ ] Equip přes **drag & drop**.
+- [x] 🧑‍💼 Otočit combat log — **nejnovější události nahoře**. (dungeon/raid/arena/team-match)
+- [x] 🧑‍💼 **Equip bug**: jeden prsten lze nasadit do dvou slotů zároveň.
+  - [x] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje). Equip teď
+        kus z inventáře spotřebuje (consume→equip), unequip/swap ho vrátí; tentýž
+        kus nelze nasadit do dvou slotů. Testy v `inventory.flow.test.ts`.
+  - [ ] Equip přes **drag & drop**. (samostatné UX, zbývá)
 - [ ] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
 - [ ] 🧑‍💼 **Odstranit legacy** (single-actor `simulateDungeonRun`/`computeDungeonReward`/
       `DungeonActivityParams` + větev `'dungeon'` v activity modelu; pozor na sdílené
