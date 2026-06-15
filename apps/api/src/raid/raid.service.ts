@@ -269,6 +269,7 @@ export class RaidService {
     const result = simulateRaidRun(party, bosses, seed);
 
     const run = await this.repo.createRun({
+      contentType: 'raid',
       raidId,
       party,
       seed,
@@ -299,7 +300,7 @@ export class RaidService {
     if (!character) throw new NotFoundException('Character not found');
 
     const run = await this.repo.findRun(runId);
-    if (!run) throw new NotFoundException('Raid run not found');
+    if (!run || run.contentType !== 'raid') throw new NotFoundException('Raid run not found');
     const participants = await this.repo.listParticipants(runId);
     const mine = participants.find((p) => p.characterId === characterId);
     if (!mine) throw new ForbiddenException('Not a participant of this raid run');
@@ -318,7 +319,7 @@ export class RaidService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
-    const rows = await this.repo.listRecentForCharacter(characterId, RECENT_RUNS_LIMIT);
+    const rows = await this.repo.listRecentForCharacter(characterId, RECENT_RUNS_LIMIT, 'raid');
     return rows.map(({ run, participant }) => ({
       runId: run.id,
       raidId: run.raidId,

@@ -259,13 +259,17 @@ export const arenaSeasonRewards = pgTable(
 );
 
 /**
- * Odehraný raid run (M8, MP PVE). Jako arena match: ukládá snapshot celé party
- * (`RaidActor[]`, vč. NPC backfillu) + seed → timeline se přepočítá deterministicky
- * (anti-cheat). Resolve je okamžitý (idle-first), `durationSec` slouží k reveal
- * combat logu při sledování. Účast a odměny jsou v `raid_run_participants`.
+ * Odehraný **group PVE run** (M8, rozšířeno M8.5-B). Sdílená tabulka pro raid
+ * i dungeon (`contentType`): ukládá snapshot celé party (`RaidActor[]`, vč. NPC
+ * backfillu) + seed → timeline se přepočítá deterministicky (anti-cheat). Resolve
+ * je okamžitý (idle-first), `durationSec` slouží k reveal combat logu. Účast a
+ * odměny jsou v `raid_run_participants`.
  */
 export const raidRuns = pgTable('raid_runs', {
   id: uuid('id').defaultRandom().primaryKey(),
+  /** 'raid' | 'dungeon' (druh group PVE obsahu). */
+  contentType: varchar('content_type', { length: 16 }).notNull().default('raid'),
+  /** Id obsahu (raidId nebo dungeonId). */
   raidId: varchar('raid_id', { length: 32 }).notNull(),
   /** Snapshot celé party (pořadí = pořadí v simulaci). */
   party: jsonb('party').$type<RaidActor[]>().notNull(),

@@ -365,10 +365,10 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 ### M8.5 — Iterativní (wipe/retry) combat, skupinové módy & personal loot (návrh PM)
 
-> Status: **rozpracováno** — část **A (iterativní wipe/retry combat) ✅ hotovo**;
-> B/C/D naplánováno (viz Pořadí). Ekonomická pravidla (původní E) vyčleněna do
-> samostatného milníku **M8.6**. Rozšiřuje model raidů, dungeonů i arén. Část
-> (ruční formace v guildě) závisí na sociálním systému (M9) — viz Pořadí/rizika.
+> Status: **rozpracováno** — **A (wipe/retry) ✅**, **B-idle (group PVE run +
+> group dungeony) ✅**, **D-personal-loot ✅**. Zbývá: C (týmové arény, ruční →
+> M9), B-ruční-formace (→ M9), D-trade (→ M9). Ekonomická pravidla (původní E)
+> vyčleněna do samostatného milníku **M8.6**.
 
 #### A) Iterativní wipe/retry combat — ✅ hotovo
 
@@ -415,13 +415,21 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 - **Idle režim**: auto-retry do clearu nebo hard failu (hráč není u toho). **Ruční
   režim**: leader může re-pull / odejít.
 
-#### B) Skupinové PVE módy + manuální formace (raid + dungeon)
+#### B) Skupinové PVE módy + manuální formace (raid + dungeon) — ✅ idle část hotová
 
-- **Dungeon dostane SP mód i skupinový 3/5 mód** (potvrzeno PM). Sjednotit
-  raid + group dungeon pod společný „group PVE run" model (vlastní run tabulky,
-  role, NPC backfill) — SP dungeon je jeho speciální případ (1 hráč).
-- **Raid leader + lobby**: leader sestaví, zve hráče, ručně spustí; realtime
-  obsazení přes WS (recykluje M7/M8 vrstvu). Pozvánky/výběr **v guildě → po M9**.
+- [x] **Sjednocený „group PVE run" model**: `raid_runs` rozšířeno o `content_type`
+      (raid|dungeon), sdílený `RaidRepository` + `RaidQueue` + `simulateRaidRun` +
+      content-agnostické helpery `@game/shared/group.ts`. Migrace `0009`.
+- [x] **Dungeon přesunut z `character_activities` na run model**: SP (party 1 dps)
+      i **skupinový 3/5** (role + NPC backfill, idle matchmaking fronta `dungeon:<id>`).
+      Combat = party-vs-sekvence (členové používají signature abilities). Encountery
+      škálované velikostí party. Web: výběr velikosti + run watch `dungeon/[runId]`.
+- [x] Testy: shared `group.test.ts` + přepsaný `dungeon.flow.test.ts` (SP + group +
+      fronta). Build/test/lint/typecheck zelené. Detail: ADR 0014.
+- [ ] **Raid leader + lobby (ruční formace)**: leader sestaví/zve/spustí → **po M9
+      social** (pozvánky vyžadují friends/guild).
+- ℹ️ Konvergence `RaidService` na společný `GroupRunService` je nepovinný úklid
+  (data/sim/helpery už sdílené); legacy single-actor `simulateDungeonRun` → úklid M9.
 
 #### C) Arény — rozšíření o 3v3 a 5v5 (ruční týmy) → **závisí na M9 social**
 
@@ -446,10 +454,10 @@ Perzistentní týmy lze přidat později bez refaktoru (bracket je datový atrib
 
 #### D) Personal loot + trade mezi hráči (modern-WoW styl)
 
-- **Každý účastník dostane vlastní loot** (raid loot už dnes rolluje per postava —
-  rozšířit i na dungeony). Šance na loot **klesá s počtem wipů** (viz A).
-- **P2P trade**: hráči si mohou loot mezi sebou vyměnit (jako moderní WoW). Nový
-  trade systém (oddělený od AH), provázaný s **trade-window** soulbound itemů (viz E).
+- [x] **Personal loot per účastník i pro dungeony** (`computeGroupReward`, seed per
+      postava; raid měl per-participant už od M8). Šance na loot klesá s wipy (viz A). ✅
+- [ ] **P2P trade**: výměna lootu mezi hráči (oddělený systém od AH), provázaný
+      s **trade-window** soulbound itemů (viz M8.6) → **po M9 social**.
 
 #### E) Ekonomická pravidla → **vyčleněno do samostatného milníku M8.6** (viz níže)
 

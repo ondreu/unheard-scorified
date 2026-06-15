@@ -96,12 +96,31 @@ Při `enter` se **snapshotne bojový profil** do `params.player` (anti-cheat +
 determinismus — boj nezávisí na pozdější změně gearu/talentů). `durationSec`
 aktivity = délka předpočítaného boje.
 
+## Sjednocený group PVE run (M8.5-B)
+
+Dungeon už **není idle aktivita** (`character_activities`), ale **group PVE run**
+sdílený s raidy (`raid_runs` + `content_type='dungeon'`, ADR 0014). SP = party 1 dps,
+group 3/5 = role + NPC backfill (idle matchmaking fronta `dungeon:<id>`). Combat =
+`simulateRaidRun` (party vs sekvence encounterů, členové používají signature abilities),
+encountery škálované velikostí party. **Personal loot** per účastník
+(`computeGroupReward`, seed per postava). Odměna padá při resolve (žádný separátní
+claim). API: `enter(size?,role?,composition?)`, `queue`/`leave`, `getRun`, `recentRuns`.
+
+> Legacy: single-actor `simulateDungeonRun`/`computeDungeonReward` zůstávají v shared
+> jen pro unit testy formulí; runtime je nepoužívá (úklid → M9).
+
 ## Web (`apps/web/src/routes/characters/[id]/`)
 
-- `dungeons/` — seznam dungeonů (zamčené/odemčené), tlačítko **Enter**.
-- `dungeon/` — sledování boje: progress bar + **combat log** (poll po 1.5 s),
-  po dokončení **Claim loot** (vítězství) nebo defeat.
-- Character page: link na Dungeons + běžící dungeon run s „Watch fight →".
+- `dungeons/` — seznam dungeonů (zamčené/odemčené) + **výběr velikosti** (Solo/3/5) +
+  **Enter** → naviguje na run.
+- `dungeon/[runId]/` — sledování boje: progress bar + party (group) + **combat log**
+  (poll), po dokončení **personal reward** (XP/zlato/loot) + případně „reduced reward"
+  dle wipů. (`dungeon/` bez parametru jen přesměruje na seznam.)
+- Character page: link na Dungeons.
+
+> ℹ️ Tabulka API výše je z M5 (activity model). Od M8.5-B je dungeon **group PVE
+> run** (viz níže + ADR 0014): `POST .../dungeons/:id/enter`, `.../queue`, `.../leave`,
+> `GET .../dungeons/run/:runId`, `.../dungeons/runs`. Žádný `activity/claim`.
 
 ## Iterativní wipe/retry (M8.5-A)
 

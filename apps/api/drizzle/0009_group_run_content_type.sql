@@ -1,0 +1,1 @@
+ALTER TABLE "raid_runs" ADD COLUMN "content_type" varchar(16) DEFAULT 'raid' NOT NULL;
