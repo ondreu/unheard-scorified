@@ -169,6 +169,13 @@
       "when": 1781545854346,
       "tag": "0023_exotic_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1781546402088,
+      "tag": "0024_light_wonder_man",
+      "breakpoints": true
     }
   ]
 }

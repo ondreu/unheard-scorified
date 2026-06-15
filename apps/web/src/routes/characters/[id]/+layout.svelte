@@ -8,6 +8,7 @@
     getCharacter,
     getGroup,
     getGuild,
+    getMailbox,
     type CharacterView,
     type GroupState,
   } from '$lib/api';
@@ -39,6 +40,7 @@
     inviteCharterShort: (g: string) => `Charter signature request: ${g}`,
     inviteGroup: (n: string) => `${n} invited you to a group`,
     whisper: (n: string, b: string) => `${n} whispers: ${b}`,
+    mailUnread: (n: number) => `You have ${n} unread mail`,
   };
 
   let character = $state<CharacterView | null>(null);
@@ -110,6 +112,13 @@
         notifications.push('social', ui.inviteCharterShort(req.guildName));
     } catch {
       // best-effort; guild panel still reachable from nav
+    }
+    // Unread mail badge (offline messages arrived).
+    try {
+      const box = await getMailbox(id);
+      if (box.unread > 0) notifications.push('info', ui.mailUnread(box.unread));
+    } catch {
+      // best-effort
     }
   }
 

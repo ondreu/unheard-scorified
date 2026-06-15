@@ -609,6 +609,39 @@ export const guildCharterSignatures = pgTable(
 );
 
 /**
+ * Pošta (M9). Offline doručitelná zpráva mezi postavami (whisper je jen online).
+ * Může nést **přílohy**: itemy (`mail_items`) a zlato — escrow ze sendera při
+ * odeslání, příjemce si je vyzvedne (`claimed`). `fromName` je snapshot (přežije
+ * přejmenování/smazání odesílatele). Systémová pošta má `fromCharacterId=null`.
+ */
+export const mail = pgTable('mail', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  toCharacterId: uuid('to_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  fromCharacterId: uuid('from_character_id').references(() => characters.id, {
+    onDelete: 'set null',
+  }),
+  fromName: varchar('from_name', { length: 16 }).notNull(),
+  subject: varchar('subject', { length: 64 }).notNull(),
+  body: varchar('body', { length: 512 }).notNull().default(''),
+  gold: integer('gold').notNull().default(0),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  claimed: boolean('claimed').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Přílohy pošty (itemy). Escrow při odeslání, do inventáře při vyzvednutí. */
+export const mailItems = pgTable('mail_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  mailId: uuid('mail_id')
+    .notNull()
+    .references(() => mail.id, { onDelete: 'cascade' }),
+  itemId: varchar('item_id', { length: 64 }).notNull(),
+  quantity: integer('quantity').notNull(),
+});
+
+/**
  * Nárokované achievementy postavy (M9). Jeden řádek = postava si vyzvedla odměnu
  * za achievement (`achievementId` z `@game/shared` katalogu). Splnění se odvozuje
  * lazy z herního stavu; tady se drží jen fakt vyzvednutí (jednorázová odměna).
@@ -849,3 +882,7 @@ export type GuildCharter = typeof guildCharters.$inferSelect;
 export type NewGuildCharter = typeof guildCharters.$inferInsert;
 export type GuildCharterSignature = typeof guildCharterSignatures.$inferSelect;
 export type NewGuildCharterSignature = typeof guildCharterSignatures.$inferInsert;
+export type Mail = typeof mail.$inferSelect;
+export type NewMail = typeof mail.$inferInsert;
+export type MailItem = typeof mailItems.$inferSelect;
+export type NewMailItem = typeof mailItems.$inferInsert;

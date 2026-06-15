@@ -32,6 +32,7 @@
     noGear: 'No gear equipped.',
     stats: 'Stats',
     whisper: 'Whisper',
+    mail: 'Send mail',
     friend: 'Add friend',
     group: 'Invite to group',
     requestGroup: 'Request to join',
@@ -100,6 +101,13 @@
     if (!data) return;
     startWhisper(data.id, data.name);
     close();
+  }
+
+  async function mail(): Promise<void> {
+    if (!data) return;
+    const name = data.name;
+    close();
+    await goto(`/characters/${viewerId}/mail?to=${encodeURIComponent(name)}`);
   }
 
   function doGroup(): void {
@@ -249,6 +257,9 @@
             <div class="grid grid-cols-2 gap-2">
               <button class="btn btn-sm" onclick={whisper} disabled={actionBusy}>
                 💬 {ui.whisper}
+              </button>
+              <button class="btn btn-sm" onclick={mail} disabled={actionBusy}>
+                ✉️ {ui.mail}
               </button>
               <button class="btn btn-sm" onclick={doFriend} disabled={actionBusy}>
                 ➕ {ui.friend}

@@ -565,11 +565,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       adaptér z M7; REST (`/chat`) autoritativní fallback. Sdílená normalizace
       (`sanitizeChatMessage`). Web chat panel na `/characters/[id]/social` + live
       friend notifikace (`social:subscribe`). Testy: API `chat.flow.test.ts` (+4).
-- [ ] 🧑‍💼 **Whisper (soukromé 1:1 zprávy)** — **priorita**. Zatím jen globální chat;
-      „Whisper" v profilu hráče dočasně předvyplní globální chat `@Jméno`. Doplnit
-      skutečný 1:1 kanál: perzistence (`whispers`/DM), realtime přes WS room
-      `char:<id>` (recykluje vrstvu z M7), unread odznak, integrace do chat bubliny
-      a profil-modalu (akce „Whisper").
+- [x] **Whisper (online-only 1:1)** ✅: realtime přes WS (`whisper:send` →
+      doručení jen když je příjemce online, `fetchSockets` napříč instancemi přes
+      Redis adaptér; bez perzistence). Chat bublina má whisper režim (z karty
+      hráče), příchozí/odchozí whispery + notifikace. Offline → fallback na Mail.
+- [x] **Mail (offline zprávy + přílohy)** ✅: perzistentní pošta mezi postavami
+      (alternativa k online whisperu). Přílohy itemů (jen obchodovatelné,
+      `canTradeItem`) + zlato s **escrow** při odeslání a vyzvednutím příjemcem.
+      Tabulky `mail` + `mail_items` (migrace `0024`), `MailModule`, web
+      `/characters/[id]/mail` (compose s přílohami + inbox read/claim/delete),
+      akce „Send mail" na kartě hráče, unread notifikace. Test `mail.flow.test.ts`.
 - [x] **Guild základ**: per-postava členství (nejvýše jedna guilda), ranky
       member/officer/leader, pozvánky (accept/decline), kick/promote/demote,
       leave s auto-předáním vedení (nebo disband posledního). Tabulky `guilds` +

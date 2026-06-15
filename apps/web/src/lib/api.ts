@@ -665,6 +665,65 @@ export function cancelAuction(characterId: string, auctionId: string): Promise<A
   });
 }
 
+// Mail (M9): offline messages + item/gold attachments.
+
+export interface MailItemView {
+  itemId: string;
+  name: string;
+  quantity: number;
+}
+
+export interface MailView {
+  id: string;
+  fromName: string;
+  fromCharacterId: string | null;
+  subject: string;
+  body: string;
+  gold: number;
+  items: MailItemView[];
+  read: boolean;
+  claimed: boolean;
+  hasAttachments: boolean;
+  sentAt: string;
+}
+
+export interface Mailbox {
+  mail: MailView[];
+  unread: number;
+}
+
+export function getMailbox(characterId: string): Promise<Mailbox> {
+  return request<Mailbox>(`/characters/${characterId}/mail`);
+}
+
+export function sendMail(
+  characterId: string,
+  input: {
+    toName: string;
+    subject: string;
+    body?: string;
+    items?: { itemId: string; quantity: number }[];
+    gold?: number;
+  },
+): Promise<{ sent: true }> {
+  return request<{ sent: true }>(`/characters/${characterId}/mail`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function readMail(characterId: string, mailId: string): Promise<Mailbox> {
+  return request<Mailbox>(`/characters/${characterId}/mail/${mailId}/read`, { method: 'POST' });
+}
+
+export function claimMail(characterId: string, mailId: string): Promise<Mailbox> {
+  return request<Mailbox>(`/characters/${characterId}/mail/${mailId}/claim`, { method: 'POST' });
+}
+
+export function deleteMail(characterId: string, mailId: string): Promise<Mailbox> {
+  return request<Mailbox>(`/characters/${characterId}/mail/${mailId}`, { method: 'DELETE' });
+}
+
 export function getVapidPublicKey(): Promise<{ key: string }> {
   return request<{ key: string }>('/push/vapid-public-key', {}, false);
 }
