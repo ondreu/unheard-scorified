@@ -4,6 +4,7 @@
     inspectCharacter,
     inviteToGroup,
     inviteToGuild,
+    sendFriendRequest,
     startTrade,
     type InspectView,
     type RaidRole,
@@ -30,6 +31,7 @@
     noGear: 'No gear equipped.',
     stats: 'Stats',
     whisper: 'Whisper',
+    friend: 'Add friend',
     group: 'Invite to group',
     trade: 'Invite to trade',
     guild: 'Invite to guild',
@@ -108,6 +110,14 @@
     void act(
       () => inviteToGuild(viewerId, data!.name).then(() => undefined),
       `Invited ${data.name} to your guild.`,
+    );
+  }
+
+  function doFriend(): void {
+    if (!data) return;
+    void act(
+      () => sendFriendRequest(viewerId, data!.name).then(() => undefined),
+      `Friend request sent to ${data.name}.`,
     );
   }
 
@@ -227,6 +237,9 @@
             <div class="grid grid-cols-2 gap-2">
               <button class="btn btn-sm" onclick={whisper} disabled={actionBusy}>
                 💬 {ui.whisper}
+              </button>
+              <button class="btn btn-sm" onclick={doFriend} disabled={actionBusy}>
+                ➕ {ui.friend}
               </button>
               <button class="btn btn-sm" onclick={doTrade} disabled={actionBusy}>
                 🤝 {ui.trade}
