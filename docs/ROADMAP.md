@@ -665,13 +665,22 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       Detail: `docs/systems/items.md`.
   - [ ] **Více gearu** (zbývá): víc kusů napříč tiery/typy pro plnou itemizaci
         (tank/melee-dps/caster-dps/heal). Mechanika hotová, jde o obsah/balanc.
-- [ ] 🧑‍💼 **Omezený inventář + craftovatelné batohy** (WoW styl). Konečný počet
-      slotů v základním batohu + další **bag sloty**, do nichž se vkládají batohy
-      o N slotech. Batohy se **craftí** (tailoring/leatherworking → gating
-      profesí/levelem; vzácnější materiály = větší batoh). Itemy mají velikost
-      „1 slot" (vanilla), stackovatelné dle `maxStack`. Návaznosti: vendor odkup,
-      bank (úložiště mimo batoh), loot „bag full" stav. Vyžaduje **systém
-      profesí/craftingu** (nový podsystém — kandidát na vlastní ADR).
+- [x] 🧑‍💼 **Omezený inventář + batohy** (WoW styl) ✅: konečný počet slotů
+      (`BASE_BACKPACK_SLOTS` 16) + `BAG_SLOT_COUNT` (4) bag slotů, do nichž se
+      vkládají batohy o N slotech (`bagSlots`). Stackování přes `itemMaxStack`
+      (gear/batoh 1, materiál/spotřebák `STACKABLE_MAX` 20); využité sloty se
+      dopočítávají (`usedSlots`/`planGrant`, `@game/shared/inventory.ts`). Tabulka
+      `character_bags` (migrace `0026`), `BagService`/`BagController`. **„Bag full"
+      → overflow do pošty** (rozhodnutí PM, vanilla): centrální `InventoryGrantService`
+      protáhne všechny reward/transfer cesty (quest/dungeon/raid loot, aukce,
+      trade); player-akce (vendor nákup, claim pošty) se při plném blokují.
+      `MailRepository` vyčleněn do leaf `MailDataModule` (bez DI cyklu). Web:
+      kapacita + bag sloty na `/inventory`. Testy: shared `inventory.test.ts` (+10)
+      + API `bag.flow.test.ts` (+5). Detail: `docs/systems/inventory-bags.md`.
+  - [ ] **Craftovatelné batohy** (zbývá): tailoring/leatherworking + cloth/leather
+        materiály (vzácnější = větší batoh) — vyžaduje novou profesi. Batohy zatím
+        u vendora.
+  - [ ] **Banka** (úložiště mimo batoh) — follow-up.
 - [ ] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** Aukční dům doplnit
       o NPC/bot listingy, aby působil obydleně (zvlášť při malém počtu hráčů).
       Generovat **deterministicky přes `SeededRng`** (ne `Math.random()`) — rotace

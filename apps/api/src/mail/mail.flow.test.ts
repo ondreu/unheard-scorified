@@ -11,6 +11,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { MailRepository } from './mail.repository';
+import { makeGrant } from '../inventory/test-grant';
 import { MailService } from './mail.service';
 
 /**
@@ -34,7 +35,7 @@ describe('M9 flow: mail', () => {
     charRepo = new CharacterRepository(db);
     characters = new CharacterService(charRepo);
     invRepo = new InventoryRepository(db);
-    mail = new MailService(charRepo, invRepo, new MailRepository(db));
+    mail = new MailService(charRepo, invRepo, makeGrant(db, invRepo), new MailRepository(db));
   });
 
   async function player(name: string): Promise<{ accountId: string; id: string; name: string }> {

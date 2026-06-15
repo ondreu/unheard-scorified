@@ -3,6 +3,7 @@ export * from './leveling';
 export * from './rng';
 export * from './character';
 export * from './activity';
+export * from './inventory';
 export * from './data/races';
 export * from './data/classes';
 export * from './data/zones';

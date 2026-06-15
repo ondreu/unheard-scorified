@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { canTradeItem, itemDisplayName } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { MailRepository } from './mail.repository';
 
 /** Příloha pošty ve view. */
@@ -44,6 +45,7 @@ export class MailService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryRepository,
+    private readonly grant: InventoryGrantService,
     private readonly mail: MailRepository,
   ) {}
 
@@ -169,7 +171,11 @@ export class MailService {
     if (m.claimed) throw new BadRequestException('Already claimed');
 
     const items = await this.mail.listItems(m.id);
-    for (const it of items) await this.inventory.addItemQty(characterId, it.itemId, it.quantity);
+    // Vyzvednutí je player-akce → blokuje se při plném inventáři (žádný re-overflow).
+    if (items.length > 0 && !(await this.grant.fits(characterId, items.map((it) => ({ itemId: it.itemId, quantity: it.quantity }))))) {
+      throw new BadRequestException('Not enough bag space to claim the attachments');
+    }
+    for (const it of items) await this.grant.grant(characterId, [{ itemId: it.itemId, quantity: it.quantity }]);
     if (m.gold > 0) await this.characters.addGold(characterId, m.gold);
     await this.mail.markClaimed(m.id);
     if (m.readAt === null) await this.mail.markRead(m.id);

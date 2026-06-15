@@ -9,6 +9,7 @@ import {
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryGrantService } from '../inventory/inventory-grant.service';
 
 /** Položka v sortimentu vendora (k nákupu). */
 export interface VendorStockView {
@@ -36,6 +37,7 @@ export class VendorService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryRepository,
+    private readonly grant: InventoryGrantService,
   ) {}
 
   /** Panel vendora: gold + sortiment k nákupu + prodejné věci z inventáře. */
@@ -76,11 +78,16 @@ export class VendorService {
     }
     if (!isVendorStock(itemId)) throw new BadRequestException('Vendor does not sell this item');
 
+    // Nákup je player-akce → blokuje se při plném inventáři (žádný overflow).
+    if (!(await this.grant.fits(characterId, [{ itemId, quantity }]))) {
+      throw new BadRequestException('Not enough bag space');
+    }
+
     const total = vendorBuyPrice(itemId) * quantity;
     const paid = await this.characters.spendGold(characterId, total);
     if (!paid) throw new BadRequestException('Not enough gold');
 
-    await this.inventory.addItemQty(characterId, itemId, quantity);
+    await this.grant.grant(characterId, [{ itemId, quantity }]);
     return this.getVendor(accountId, characterId);
   }
 

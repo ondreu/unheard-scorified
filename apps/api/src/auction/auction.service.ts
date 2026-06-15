@@ -19,6 +19,7 @@ import {
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import type { Auction } from '../db/schema';
 import { AuctionRepository } from './auction.repository';
 import { AuctionSettler } from './auction.settler';
@@ -68,6 +69,7 @@ export class AuctionService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryRepository,
+    private readonly grant: InventoryGrantService,
     private readonly repo: AuctionRepository,
     private readonly settler: AuctionSettler,
     @Inject(AUCTION_SCHEDULER) private readonly scheduler: AuctionScheduler,
@@ -238,7 +240,7 @@ export class AuctionService {
 
     const settled = await this.repo.settle(auction.id, 'cancelled', null, null);
     if (!settled) throw new ConflictException('Auction was just settled');
-    await this.inventory.addItemQty(characterId, auction.itemId, auction.quantity);
+    await this.grant.grantOne(characterId, auction.itemId, auction.quantity);
     await this.scheduler.cancel(auction.id);
     const updated = await this.repo.findById(auctionId);
     return this.toView(updated!, characterId);

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { canTradeItem, itemDisplayName, tradeReady, type TradeSide } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import type { Character, Trade } from '../db/schema';
 import { TradeRepository } from './trade.repository';
 
@@ -48,6 +49,7 @@ export class TradeService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryRepository,
+    private readonly grant: InventoryGrantService,
     private readonly trades: TradeRepository,
   ) {}
 
@@ -234,11 +236,11 @@ export class TradeService {
     // Položky.
     for (const it of initItems) {
       await this.inventory.consume(trade.initiatorCharacterId, it.itemId, it.quantity);
-      await this.inventory.addItemQty(trade.partnerCharacterId, it.itemId, it.quantity);
+      await this.grant.grantOne(trade.partnerCharacterId, it.itemId, it.quantity);
     }
     for (const it of partnerItems) {
       await this.inventory.consume(trade.partnerCharacterId, it.itemId, it.quantity);
-      await this.inventory.addItemQty(trade.initiatorCharacterId, it.itemId, it.quantity);
+      await this.grant.grantOne(trade.initiatorCharacterId, it.itemId, it.quantity);
     }
 
     await this.trades.setStatus(trade.id, 'completed');

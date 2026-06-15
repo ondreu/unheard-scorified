@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
@@ -56,6 +57,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       charRepo,
       invService,
       invRepo,
+      makeGrant(db, invRepo),
       new TalentRepository(db),
       new PushService(new PushRepository(db)),
       new RaidRepository(db),

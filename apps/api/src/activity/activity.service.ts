@@ -36,6 +36,7 @@ import {
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import { MountRepository } from '../mount/mount.repository';
@@ -119,6 +120,7 @@ export class ActivityService {
     private readonly activities: ActivityRepository,
     private readonly completed: CompletedQuestRepository,
     private readonly inventoryRepo: InventoryRepository,
+    private readonly grant: InventoryGrantService,
     private readonly professionRepo: ProfessionRepository,
     private readonly reputationRepo: ReputationRepository,
     private readonly mounts: MountRepository,
@@ -207,12 +209,12 @@ export class ActivityService {
       }
     }
 
-    // Přidá loot/materiály/output do inventáře
-    const grantedItems: string[] = [];
-    for (const itemId of reward.items) {
-      await this.inventoryRepo.addItem(characterId, itemId);
-      grantedItems.push(itemId);
-    }
+    // Přidá loot/materiály/output do inventáře (přebytek nad kapacitu → pošta).
+    const grantedItems: string[] = [...reward.items];
+    await this.grant.grant(
+      characterId,
+      reward.items.map((itemId) => ({ itemId, quantity: 1 })),
+    );
 
     // Profese (M6): skill-up + reputace u gather/craft běhů.
     const professionRewards = await this.applyProfessionRewards(row);

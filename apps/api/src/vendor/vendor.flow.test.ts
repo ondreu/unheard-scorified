@@ -11,6 +11,7 @@ import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { makeGrant } from '../inventory/test-grant';
 import { VendorService } from './vendor.service';
 
 /** Integrační test M10 vendor systému (pglite). */
@@ -30,7 +31,7 @@ describe('M10 flow: vendor (buy/sell)', () => {
     charRepo = new CharacterRepository(db);
     invRepo = new InventoryRepository(db);
     characters = new CharacterService(charRepo, invRepo);
-    vendor = new VendorService(charRepo, invRepo);
+    vendor = new VendorService(charRepo, invRepo, makeGrant(db, invRepo));
   });
 
   async function newCharacter(

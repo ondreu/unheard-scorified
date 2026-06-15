@@ -183,6 +183,13 @@
       "when": 1781550610141,
       "tag": "0025_lethal_maddog",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1781551464402,
+      "tag": "0026_tricky_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

@@ -9,10 +9,14 @@ export type EquipmentSlot =
   | 'head' | 'neck' | 'shoulder' | 'chest' | 'waist' | 'legs' | 'feet' | 'wrist'
   | 'hands' | 'back' | 'main_hand' | 'off_hand' | 'finger1' | 'finger2' | 'trinket1' | 'trinket2';
 
-/** Sloty sdílející "typ" (prsten, trinket → 2 fyzické sloty). */
+/**
+ * Sloty sdílející "typ" (prsten, trinket → 2 fyzické sloty). `bag` je speciální:
+ * NEpatří do equipment slotů (do `SLOT_TO_ITEM_SLOT` se nemapuje), batoh se
+ * „equipne" do samostatného bag slotu — viz `inventory.ts`.
+ */
 export type ItemSlotType =
   | 'head' | 'neck' | 'shoulder' | 'chest' | 'waist' | 'legs' | 'feet' | 'wrist'
-  | 'hands' | 'back' | 'main_hand' | 'off_hand' | 'finger' | 'trinket';
+  | 'hands' | 'back' | 'main_hand' | 'off_hand' | 'finger' | 'trinket' | 'bag';
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
@@ -61,6 +65,11 @@ export interface ItemDef {
    * item nemá armor omezení (zbraně/šperky/plášť/off-hand → nosí každá classa).
    */
   armorClass?: ArmorClass;
+  /**
+   * Počet slotů, které batoh přidá, je-li vložen do bag slotu (M10 limited
+   * inventory). Vyplněné jen u `slot: 'bag'`. Viz `inventory.ts`.
+   */
+  bagSlots?: number;
 }
 
 export const ITEMS: Record<ItemId, ItemDef> = {
@@ -391,6 +400,29 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     rarity: 'uncommon', itemLevel: 22, vendorGold: 11,
     stats: { intellect: 7, spirit: 5, spell_power: 5 },
   },
+
+  // --- Batohy (M10 limited inventory): vloží se do bag slotu a přidají sloty.
+  // Žádné staty; vendor prodává malé, větší jsou cíl craftu (follow-up). ---
+  small_pouch: {
+    id: 'small_pouch', name: 'Small Pouch', slot: 'bag',
+    rarity: 'common', itemLevel: 1, vendorGold: 2, stats: {}, bagSlots: 4,
+  },
+  traveler_backpack: {
+    id: 'traveler_backpack', name: "Traveler's Backpack", slot: 'bag',
+    rarity: 'common', itemLevel: 1, vendorGold: 8, stats: {}, bagSlots: 6,
+  },
+  reinforced_pack: {
+    id: 'reinforced_pack', name: 'Reinforced Pack', slot: 'bag',
+    rarity: 'uncommon', itemLevel: 1, vendorGold: 25, stats: {}, bagSlots: 8,
+  },
+  woven_satchel: {
+    id: 'woven_satchel', name: 'Woven Satchel', slot: 'bag',
+    rarity: 'uncommon', itemLevel: 1, vendorGold: 50, stats: {}, bagSlots: 10,
+  },
+  enchanted_runecloth_bag: {
+    id: 'enchanted_runecloth_bag', name: 'Enchanted Runecloth Bag', slot: 'bag',
+    rarity: 'rare', itemLevel: 1, vendorGold: 120, stats: {}, bagSlots: 12,
+  },
 };
 
 /**
@@ -521,6 +553,21 @@ export const EQUIPMENT_SLOTS: EquipmentSlot[] = [
 
 export function isEquipmentSlot(value: string): value is EquipmentSlot {
   return EQUIPMENT_SLOTS.includes(value as EquipmentSlot);
+}
+
+/** Id všech batohů (slot 'bag'). */
+export const BAG_IDS: ItemId[] = (Object.values(ITEMS) as ItemDef[])
+  .filter((i) => i.slot === 'bag')
+  .map((i) => i.id);
+
+/** Je item batoh (vkládá se do bag slotu)? */
+export function isBagId(itemId: string): boolean {
+  return ITEMS[itemId]?.slot === 'bag';
+}
+
+/** Počet slotů, které batoh přidá; 0 pokud item není batoh. */
+export function bagSlots(itemId: string): number {
+  return ITEMS[itemId]?.bagSlots ?? 0;
 }
 
 /** Sečte staty všech equipnutých itemů. */

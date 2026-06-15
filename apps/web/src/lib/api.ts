@@ -1361,6 +1361,36 @@ export function selectMount(characterId: string, mountId: string): Promise<Mount
   });
 }
 
+// --- Bags & inventory capacity (M10) ---
+export interface BagSlotView {
+  slotIndex: number;
+  bagId: string | null;
+  name: string | null;
+  slots: number;
+}
+export interface BagsView {
+  slotCount: number;
+  capacity: number;
+  usedSlots: number;
+  freeSlots: number;
+  bags: BagSlotView[];
+}
+
+export function getBags(characterId: string): Promise<BagsView> {
+  return request<BagsView>(`/characters/${characterId}/bags`);
+}
+
+export function equipBag(characterId: string, slotIndex: number, itemId: string): Promise<BagsView> {
+  return request<BagsView>(`/characters/${characterId}/bags/${slotIndex}`, {
+    method: 'POST',
+    body: JSON.stringify({ itemId }),
+  });
+}
+
+export function unequipBag(characterId: string, slotIndex: number): Promise<BagsView> {
+  return request<BagsView>(`/characters/${characterId}/bags/${slotIndex}`, { method: 'DELETE' });
+}
+
 // --- Vendor (M10) ---
 export interface VendorStockView {
   itemId: string;

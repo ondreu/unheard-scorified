@@ -11,6 +11,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushRepository } from '../push/push.repository';
@@ -69,11 +70,11 @@ describe('M9 flow: groups (party)', () => {
     const arenaRepo = new ArenaRepository(db);
 
     const raids = new RaidService(
-      charRepo, invService, invRepo, talents, completed, push, raidRepo,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, completed, push, raidRepo,
       new RaidEventsRelay(), lockouts, queue,
     );
     const dungeons = new DungeonService(
-      charRepo, invService, invRepo, talents, push, raidRepo, lockouts, queue,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, queue,
     );
     const arena = new ArenaService(
       charRepo, invService, talents, arenaRepo, push,

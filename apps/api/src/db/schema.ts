@@ -827,6 +827,30 @@ export const characterBuffsRelations = relations(characterBuffs, ({ one }) => ({
   }),
 }));
 
+/**
+ * Vložené batohy (M10 limited inventory). Jeden řádek na bag slot (PK
+ * character+slotIndex, 0..BAG_SLOT_COUNT-1). Přidaná kapacita se odvozuje z
+ * `bagSlots(bagId)` (@game/shared).
+ */
+export const characterBags = pgTable(
+  'character_bags',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    slotIndex: integer('slot_index').notNull(),
+    bagId: varchar('bag_id', { length: 64 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.slotIndex] })],
+);
+
+export const characterBagsRelations = relations(characterBags, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterBags.characterId],
+    references: [characters.id],
+  }),
+}));
+
 export const characterProfessionsRelations = relations(characterProfessions, ({ one }) => ({
   character: one(characters, {
     fields: [characterProfessions.characterId],
@@ -861,6 +885,8 @@ export type CharacterSkin = typeof characterSkins.$inferSelect;
 export type NewCharacterSkin = typeof characterSkins.$inferInsert;
 export type CharacterBuff = typeof characterBuffs.$inferSelect;
 export type NewCharacterBuff = typeof characterBuffs.$inferInsert;
+export type CharacterBag = typeof characterBags.$inferSelect;
+export type NewCharacterBag = typeof characterBags.$inferInsert;
 export type CharacterMount = typeof characterMounts.$inferSelect;
 export type NewCharacterMount = typeof characterMounts.$inferInsert;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;

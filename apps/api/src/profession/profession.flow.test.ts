@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { makeGrant } from '../inventory/test-grant';
 import { MountRepository } from '../mount/mount.repository';
 import { ActivityRepository } from '../activity/activity.repository';
 import { ActivityService } from '../activity/activity.service';
@@ -64,6 +65,7 @@ describe('M6 flow: profese & reputace', () => {
       activityRepo,
       new CompletedQuestRepository(db),
       invRepo,
+      makeGrant(db, invRepo),
       profRepo,
       repRepo,
       mountRepo,
