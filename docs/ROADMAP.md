@@ -367,8 +367,9 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 > Status: **rozpracováno** — **A (wipe/retry) ✅**, **B-idle (group PVE run +
 > group dungeony) ✅**, **B-ruční-formace (raid lobby) ✅** (ADR 0018),
-> **D-personal-loot ✅**, **D-trade (P2P) ✅** (ADR 0019). Zbývá: C (týmové arény,
-> ruční). Ekonomická pravidla (původní E) vyčleněna do samostatného milníku **M8.6**.
+> **D-personal-loot ✅**, **D-trade (P2P) ✅** (ADR 0019), **C (týmové arény
+> 3v3/5v5) ✅** (ADR 0020). **M8.5 kompletní.** Ekonomická pravidla (původní E)
+> vyčleněna do samostatného milníku **M8.6**.
 
 #### A) Iterativní wipe/retry combat — ✅ hotovo
 
@@ -437,7 +438,18 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 - ℹ️ Konvergence `RaidService` na společný `GroupRunService` je nepovinný úklid
   (data/sim/helpery už sdílené); legacy single-actor `simulateDungeonRun` → úklid M9.
 
-#### C) Arény — rozšíření o 3v3 a 5v5 (ruční týmy) → **závisí na M9 social**
+#### C) Arény — rozšíření o 3v3 a 5v5 (ruční týmy) — ✅ hotovo (ADR 0020)
+
+- [x] Brackety `3v3`/`5v5` (rozšířený `ArenaBracket`), team-vs-team engine
+      `simulateTeamFight` (recykluje `computeHit`, focus-fire, rampage), Elo per
+      postava proti průměru soupeřů (`eloDelta`). Ruční tým přes social graf
+      (parťák = friend/guild), snapshot fronta bez NPC backfillu, párování bez
+      překryvu členů. Persistence `arena_team_matches` (migrace `0016`) + watch
+      (REST reveal). `TeamArenaService`/controller/queue v `ArenaModule`. Web
+      `/characters/[id]/team-arena` + `/team-match/[matchId]`. Testy: shared
+      `pvp.test.ts` (+), API `team-arena.flow.test.ts` (+7).
+
+> Historický kontext rozhodnutí PM níže.
 
 Upřesnění PM: v PVP **NEjde o wipe/retry**, ale o **nové brackety 3v3 a 5v5** vedle
 1v1. **Rozhodnutí PM:** **idle (NPC backfill / auto-matchmaking) zůstává jen u 1v1**;

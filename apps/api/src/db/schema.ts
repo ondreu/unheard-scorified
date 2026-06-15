@@ -247,6 +247,27 @@ export const arenaMatches = pgTable('arena_matches', {
 });
 
 /**
+ * Odehraný týmový arénový zápas (M8.5-C, 3v3/5v5). Ukládá snapshoty obou týmů
+ * (`CombatActor[]`) + seed → timeline se přepočítá deterministicky
+ * (`simulateTeamFight`), stejně jako 1v1 `arena_matches`. `*MemberIds` drží
+ * pořadí postav pro perspektivu „můj tým / soupeř". Rating se ukládá do
+ * `arena_ratings` (per postava per bracket). Týmy jsou ad-hoc (per zápas).
+ */
+export const arenaTeamMatches = pgTable('arena_team_matches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  seasonId: varchar('season_id', { length: 32 }).notNull(),
+  bracket: varchar('bracket', { length: 8 }).$type<ArenaBracket>().notNull(),
+  aMembers: jsonb('a_members').$type<CombatActor[]>().notNull(),
+  bMembers: jsonb('b_members').$type<CombatActor[]>().notNull(),
+  aMemberIds: jsonb('a_member_ids').$type<string[]>().notNull(),
+  bMemberIds: jsonb('b_member_ids').$type<string[]>().notNull(),
+  seed: bigint('seed', { mode: 'number' }).notNull(),
+  winner: varchar('winner', { length: 1 }).$type<DuelSide>().notNull(),
+  durationSec: integer('duration_sec').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
  * Archivovaný výsledek sezóny + udělená odměna (M7). Vzniká LAZY při prvním
  * dotazu postavy po skončení sezóny (idempotentní díky PK → žádné dvojité
  * udělení). Reset ratingu = nový řádek v `arena_ratings` pro novou sezónu.
@@ -692,6 +713,8 @@ export type ArenaRating = typeof arenaRatings.$inferSelect;
 export type NewArenaRating = typeof arenaRatings.$inferInsert;
 export type ArenaMatch = typeof arenaMatches.$inferSelect;
 export type NewArenaMatch = typeof arenaMatches.$inferInsert;
+export type ArenaTeamMatch = typeof arenaTeamMatches.$inferSelect;
+export type NewArenaTeamMatch = typeof arenaTeamMatches.$inferInsert;
 export type ArenaSeasonReward = typeof arenaSeasonRewards.$inferSelect;
 export type NewArenaSeasonReward = typeof arenaSeasonRewards.$inferInsert;
 export type RaidRun = typeof raidRuns.$inferSelect;

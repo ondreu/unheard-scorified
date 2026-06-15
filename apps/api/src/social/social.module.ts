@@ -32,6 +32,7 @@ import { SocialService } from './social.service';
     SocialEventsRelay,
     SocialGateway,
   ],
-  exports: [SocialEventsRelay],
+  // GuildRepository + SocialRepository sdílené týmovými arénami (M8.5-C gate).
+  exports: [SocialEventsRelay, SocialRepository, GuildRepository],
 })
 export class SocialModule {}
