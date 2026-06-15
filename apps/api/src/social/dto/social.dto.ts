@@ -53,3 +53,25 @@ export class SetGuildRankDto {
   @IsIn(['member', 'officer'])
   rank!: 'member' | 'officer';
 }
+
+export class StartGuildCharterDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(24)
+  name!: string;
+}
+
+export class InviteCharterSignDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(16)
+  name!: string;
+}
+
+export class RespondCharterSignDto {
+  @IsString()
+  charterId!: string;
+
+  @IsBoolean()
+  accept!: boolean;
+}

@@ -5,8 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  canFoundGuild,
   canInvite,
   canManageMember,
+  GUILD_CHARTER_COST,
+  GUILD_CHARTER_SIGNATURES_REQUIRED,
   isValidGuildName,
   levelFromXp,
   MAX_GUILD_MEMBERS,
@@ -48,10 +51,37 @@ export interface GuildInviteView {
   sentAt: string;
 }
 
+export interface CharterSignatureView {
+  characterId: string;
+  name: string;
+  signed: boolean;
+}
+
+export interface GuildCharterView {
+  id: string;
+  name: string;
+  cost: number;
+  signedCount: number;
+  required: number;
+  canFound: boolean;
+  signatures: CharterSignatureView[];
+}
+
+export interface CharterInviteView {
+  charterId: string;
+  /** Navrhované jméno guildy. */
+  guildName: string;
+  founderName: string | null;
+}
+
 export interface GuildState {
   guild: GuildView | null;
   /** Příchozí pozvánky (relevantní, když postava není v guildě). */
   invites: GuildInviteView[];
+  /** Vlastní rozpracovaný charter (zakladatel sbírá podpisy), pokud existuje. */
+  charter: GuildCharterView | null;
+  /** Příchozí žádosti o podpis cizích charterů. */
+  charterInvites: CharterInviteView[];
 }
 
 /**
@@ -101,7 +131,50 @@ export class GuildService {
         sentAt: inv.createdAt.toISOString(),
       });
     }
-    return { guild, invites };
+
+    // Vlastní charter (zakladatel) + jeho podpisy.
+    const ownCharter = await this.guilds.charterOf(characterId);
+    const charter = ownCharter ? await this.buildCharterView(ownCharter) : null;
+
+    // Příchozí žádosti o podpis cizích charterů.
+    const pendingSigns = await this.guilds.listPendingSignaturesForCharacter(characterId);
+    const charterInvites: CharterInviteView[] = [];
+    for (const sig of pendingSigns) {
+      const ch = await this.guilds.findCharterById(sig.charterId);
+      if (!ch) continue;
+      const founder = await this.characters.findById(ch.founderCharacterId);
+      charterInvites.push({
+        charterId: ch.id,
+        guildName: ch.name,
+        founderName: founder?.name ?? null,
+      });
+    }
+
+    return { guild, invites, charter, charterInvites };
+  }
+
+  private async buildCharterView(charter: {
+    id: string;
+    name: string;
+  }): Promise<GuildCharterView> {
+    const sigRows = await this.guilds.listSignatures(charter.id);
+    const chars = await this.characters.findByIds(sigRows.map((s) => s.characterId));
+    const byId = new Map(chars.map((c) => [c.id, c]));
+    const signatures: CharterSignatureView[] = sigRows.map((s) => ({
+      characterId: s.characterId,
+      name: byId.get(s.characterId)?.name ?? '?',
+      signed: s.signed,
+    }));
+    const signedCount = signatures.filter((s) => s.signed).length;
+    return {
+      id: charter.id,
+      name: charter.name,
+      cost: GUILD_CHARTER_COST,
+      signedCount,
+      required: GUILD_CHARTER_SIGNATURES_REQUIRED,
+      canFound: canFoundGuild(signedCount),
+      signatures,
+    };
   }
 
   private async buildGuildView(membership: GuildMember): Promise<GuildView> {
@@ -156,6 +229,97 @@ export class GuildService {
       throw new BadRequestException('Guild name already taken');
     }
     await this.guilds.createGuild(name, characterId);
+    return this.stateFor(characterId);
+  }
+
+  // ── Charter flow (vanilla-WoW: poplatek + podpisy) ─────────────────────────
+
+  /** Založí charter: rezervuje jméno a strhne zlatý poplatek (zakladatel). */
+  async startCharter(accountId: string, characterId: string, rawName: string): Promise<GuildState> {
+    await this.own(accountId, characterId);
+    const name = rawName.trim();
+    if (!isValidGuildName(name)) throw new BadRequestException('Invalid guild name');
+    if (await this.guilds.membershipOf(characterId)) {
+      throw new BadRequestException('You are already in a guild');
+    }
+    if (await this.guilds.charterOf(characterId)) {
+      throw new BadRequestException('You already have a guild charter');
+    }
+    if (await this.guilds.findByName(name)) {
+      throw new BadRequestException('Guild name already taken');
+    }
+    if (await this.guilds.findCharterByName(name)) {
+      throw new BadRequestException('That guild name is already on another charter');
+    }
+    // Atomicky strhne poplatek (zabraňuje zápornému zůstatku / souběhu).
+    const paid = await this.characters.spendGold(characterId, GUILD_CHARTER_COST);
+    if (!paid) throw new BadRequestException(`Not enough gold (need ${GUILD_CHARTER_COST})`);
+
+    await this.guilds.createCharter(name, characterId);
+    return this.stateFor(characterId);
+  }
+
+  /** Zakladatel pozve postavu (dle jména) k podpisu svého charteru. */
+  async inviteSign(accountId: string, characterId: string, targetName: string): Promise<GuildState> {
+    await this.own(accountId, characterId);
+    const charter = await this.guilds.charterOf(characterId);
+    if (!charter) throw new BadRequestException('You do not have a guild charter');
+
+    const target = await this.characters.findByName(targetName.trim());
+    if (!target) throw new NotFoundException('No character with that name');
+    if (target.id === characterId) throw new BadRequestException('You cannot sign your own charter');
+    if (await this.guilds.findSignature(charter.id, target.id)) {
+      throw new BadRequestException('Already asked that character to sign');
+    }
+    await this.guilds.createSignatureRequest(charter.id, target.id);
+    const founder = await this.characters.findById(characterId);
+    if (founder) this.relay.guildCharterInvite(target.id, charter.name, founder.name);
+    return this.stateFor(characterId);
+  }
+
+  /** Postava odpoví na žádost o podpis (accept = podepíše, jinak žádost smaže). */
+  async respondSign(
+    accountId: string,
+    characterId: string,
+    charterId: string,
+    accept: boolean,
+  ): Promise<GuildState> {
+    await this.own(accountId, characterId);
+    const sig = await this.guilds.findSignature(charterId, characterId);
+    if (!sig) throw new NotFoundException('Signature request not found');
+    if (accept) await this.guilds.markSigned(sig.id);
+    else await this.guilds.deleteSignature(sig.id);
+    return this.stateFor(characterId);
+  }
+
+  /** Založí guildu z charteru (dost podpisů). Charter (i podpisy) se smaže. */
+  async found(accountId: string, characterId: string): Promise<GuildState> {
+    await this.own(accountId, characterId);
+    const charter = await this.guilds.charterOf(characterId);
+    if (!charter) throw new BadRequestException('You do not have a guild charter');
+    if (await this.guilds.membershipOf(characterId)) {
+      throw new BadRequestException('You are already in a guild');
+    }
+    const signed = await this.guilds.countSignatures(charter.id);
+    if (!canFoundGuild(signed)) {
+      throw new BadRequestException(
+        `Need ${GUILD_CHARTER_SIGNATURES_REQUIRED} signatures (have ${signed})`,
+      );
+    }
+    if (await this.guilds.findByName(charter.name)) {
+      throw new BadRequestException('Guild name already taken');
+    }
+    await this.guilds.createGuild(charter.name, characterId);
+    await this.guilds.deleteCharter(charter.id);
+    return this.stateFor(characterId);
+  }
+
+  /** Zruší vlastní charter (poplatek se nevrací — gold sink). */
+  async cancelCharter(accountId: string, characterId: string): Promise<GuildState> {
+    await this.own(accountId, characterId);
+    const charter = await this.guilds.charterOf(characterId);
+    if (!charter) throw new BadRequestException('You do not have a guild charter');
+    await this.guilds.deleteCharter(charter.id);
     return this.stateFor(characterId);
   }
 

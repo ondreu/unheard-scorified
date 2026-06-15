@@ -12,6 +12,7 @@ import * as schema from '../db/schema';
 import { GuildRepository } from './guild.repository';
 import { GuildService } from './guild.service';
 import { SocialEventsRelay } from './social.events';
+import { GUILD_CHARTER_COST, GUILD_CHARTER_SIGNATURES_REQUIRED } from '@game/shared';
 
 /**
  * Integrační test M9 guildy nad pglite (relay bez WS serveru = no-op).
@@ -22,6 +23,7 @@ describe('M9 flow: guild', () => {
   let characters: CharacterService;
   let guild: GuildService;
   let guilds: GuildRepository;
+  let charRepo: CharacterRepository;
   let seq = 0;
 
   beforeAll(async () => {
@@ -29,7 +31,7 @@ describe('M9 flow: guild', () => {
     db = drizzle(client, { schema }) as unknown as Database;
     await migrate(db as never, { migrationsFolder: resolve(process.cwd(), 'drizzle') });
 
-    const charRepo = new CharacterRepository(db);
+    charRepo = new CharacterRepository(db);
     auth = new AuthService(db, new JwtService());
     characters = new CharacterService(charRepo);
     guilds = new GuildRepository(db);
@@ -154,5 +156,42 @@ describe('M9 flow: guild', () => {
     const a = await player('Medivh');
     const intruder = await player('Garona');
     await expect(guild.getState(intruder.accountId, a.id)).rejects.toThrow();
+  });
+
+  it('charter: poplatek + 5 podpisů → lze založit guildu', async () => {
+    const founder = await player('Saurfang');
+    // Bez zlata charter nelze koupit.
+    await expect(guild.startCharter(founder.accountId, founder.id, 'High Overlords')).rejects.toThrow();
+
+    await charRepo.addGold(founder.id, GUILD_CHARTER_COST);
+    let state = await guild.startCharter(founder.accountId, founder.id, 'High Overlords');
+    expect(state.charter?.name).toBe('High Overlords');
+    expect(state.charter?.signedCount).toBe(0);
+    // Poplatek byl stržen.
+    expect((await charRepo.findById(founder.id))!.gold).toBe(0);
+
+    // Bez dost podpisů nelze založit.
+    await expect(guild.found(founder.accountId, founder.id)).rejects.toThrow();
+
+    // Pět hráčů podepíše.
+    const signerNames = ['Eitrigg', 'Nazgrel', 'Gamon', 'Rexxar', 'Broxigar'];
+    for (let i = 0; i < GUILD_CHARTER_SIGNATURES_REQUIRED; i++) {
+      const signer = await player(signerNames[i]!);
+      await guild.inviteSign(founder.accountId, founder.id, signer.name);
+      const sState = await guild.getState(signer.accountId, signer.id);
+      const req = sState.charterInvites.find((c) => c.guildName === 'High Overlords');
+      expect(req).toBeTruthy();
+      await guild.respondSign(signer.accountId, signer.id, req!.charterId, true);
+    }
+
+    state = await guild.getState(founder.accountId, founder.id);
+    expect(state.charter?.signedCount).toBe(GUILD_CHARTER_SIGNATURES_REQUIRED);
+    expect(state.charter?.canFound).toBe(true);
+
+    // Teď lze založit → vznikne guilda, charter zmizí.
+    const founded = await guild.found(founder.accountId, founder.id);
+    expect(founded.guild?.name).toBe('High Overlords');
+    expect(founded.guild?.myRank).toBe('leader');
+    expect(founded.charter).toBeNull();
   });
 });

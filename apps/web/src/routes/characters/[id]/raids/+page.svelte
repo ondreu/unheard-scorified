@@ -18,7 +18,6 @@
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Raids',
-    back: '← Back to character',
     empty: 'No raids available.',
     enter: 'Enter raid',
     entering: 'Forming party…',
@@ -128,93 +127,73 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <div class="mt-4 flex items-center justify-between">
-    <h1 class="text-3xl font-bold text-amber-200">{ui.title}</h1>
-    <a
-      href={`/characters/${characterId}/group`}
-      class="rounded bg-red-800/40 px-3 py-1.5 text-sm font-medium text-red-200 hover:bg-red-700/50"
-    >
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
+    <a href={`/characters/${characterId}/group`} class="btn btn-sm">
       Form a group →
     </a>
   </div>
-  <p class="mt-1 text-xs text-amber-100/40">{ui.party}</p>
+  <p class="text-xs text-[var(--text-faint)]">{ui.party}</p>
 
   {#if error}
-    <p class="mt-4 text-red-400">{error}</p>
+    <p class="text-[var(--danger)]">{error}</p>
   {/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if raids.length === 0}
-    <p class="mt-6 text-amber-100/60">{ui.empty}</p>
+    <p class="text-[var(--text-dim)]">{ui.empty}</p>
   {:else}
-    <ul class="mt-6 space-y-4">
+    <ul class="space-y-3">
       {#each raids as r (r.id)}
-        <li
-          class="rounded-lg border p-5 {r.unlocked
-            ? 'border-amber-900/40 bg-black/20'
-            : 'border-stone-800/60 bg-black/10 opacity-60'}"
-        >
+        <li class="panel panel-pad {r.unlocked ? '' : 'opacity-60'}">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="flex items-center gap-2 font-semibold text-amber-200">
+              <h2 class="panel-title flex items-center gap-2">
                 {r.name}
                 {#if r.lockedOut}
-                  <span
-                    title={ui.savedHint}
-                    class="rounded border border-amber-700/50 bg-amber-900/30 px-1.5 py-0.5 text-xs font-medium text-amber-300"
-                  >
+                  <span title={ui.savedHint} class="chip">
                     {ui.savedThisWeek}
                   </span>
                 {/if}
               </h2>
-              <p class="text-xs uppercase tracking-wide text-amber-100/40">
+              <p class="text-xs uppercase tracking-wide text-[var(--text-faint)]">
                 {ui.reqLevel} {r.requiredLevel} · {ui.bosses}: {r.bossNames.join(', ')}
               </p>
             </div>
             {#if !r.unlocked}
-              <span
-                class="shrink-0 rounded border border-stone-700 px-3 py-1.5 text-xs text-stone-400"
-              >
+              <span class="chip shrink-0">
                 {ui.locked}
               </span>
             {/if}
           </div>
-          <p class="mt-2 text-sm text-amber-100/70">{r.description}</p>
+          <p class="mt-2 text-sm text-[var(--text-dim)]">{r.description}</p>
 
           {#if r.unlocked}
             {#if r.queuedRole}
               <div class="mt-4 flex items-center justify-between">
-                <span class="text-sm text-sky-300">{ui.queuedAs} {r.queuedRole}</span>
-                <button
-                  onclick={() => leave(r)}
-                  disabled={busyId !== null}
-                  class="rounded border border-stone-600 px-3 py-1.5 text-sm text-stone-300 hover:bg-stone-800 disabled:opacity-50"
-                >
+                <span class="text-sm text-[var(--info)]">{ui.queuedAs} {r.queuedRole}</span>
+                <button onclick={() => leave(r)} disabled={busyId !== null} class="btn btn-sm">
                   {ui.leave}
                 </button>
               </div>
             {:else}
               <div class="mt-4 flex flex-wrap items-end gap-3">
-                <label class="text-sm text-amber-100/70">
+                <label class="field-label">
                   {ui.role}
-                  <select
-                    bind:value={role[r.id]}
-                    class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
-                  >
+                  <select bind:value={role[r.id]} class="input mt-1 block w-auto">
                     {#each ROLES as ro (ro)}
                       <option value={ro}>{ro}</option>
                     {/each}
                   </select>
                 </label>
-                <label class="text-sm text-amber-100/70">
+                <label class="field-label">
                   {ui.size}
                   <select
                     value={size[r.id]}
                     onchange={(e) => onSize(r, Number((e.target as HTMLSelectElement).value))}
-                    class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
+                    class="input mt-1 block w-auto"
                   >
                     {#each r.sizes as s (s)}
                       <option value={s}>{s} {ui.players}</option>
@@ -222,7 +201,7 @@
                   </select>
                 </label>
                 {#if comp[r.id]}
-                  <div class="text-sm text-amber-100/70">
+                  <div class="field-label">
                     {ui.comp}
                     <div class="mt-1 flex items-center gap-1">
                       {#each ROLES as ro (ro)}
@@ -231,13 +210,12 @@
                           min="0"
                           max={size[r.id]}
                           bind:value={comp[r.id]![ro]}
-                          class="w-12 rounded border border-amber-900/40 bg-black/40 px-1 py-1 text-center text-sm text-amber-100"
+                          class="input w-12 px-1 text-center"
                         />
                       {/each}
                       <span
-                        class="ml-1 text-xs {compSum(r) === size[r.id]
-                          ? 'text-emerald-300'
-                          : 'text-red-400'}"
+                        class="ml-1 text-xs"
+                        style={`color:${compSum(r) === size[r.id] ? 'var(--success)' : 'var(--danger)'}`}
                       >
                         Σ{compSum(r)}/{size[r.id]}
                       </span>
@@ -248,15 +226,11 @@
                   <button
                     onclick={() => enter(r)}
                     disabled={busyId !== null || compSum(r) !== size[r.id]}
-                    class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
+                    class="btn btn-primary btn-sm"
                   >
                     {busyId === r.id ? ui.entering : ui.enter}
                   </button>
-                  <button
-                    onclick={() => queue(r)}
-                    disabled={busyId !== null}
-                    class="rounded border border-amber-700/60 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
-                  >
+                  <button onclick={() => queue(r)} disabled={busyId !== null} class="btn btn-sm">
                     {ui.queue}
                   </button>
                 </div>
@@ -268,22 +242,24 @@
     </ul>
 
     {#if recent.length > 0}
-      <h2 class="mt-8 text-lg font-semibold text-amber-200">{ui.recent}</h2>
-      <ul class="mt-3 space-y-2">
-        {#each recent as run (run.runId)}
-          <li class="rounded border border-amber-900/30 bg-black/20 px-4 py-2 text-sm">
-            <a
-              href={`/characters/${characterId}/raid/${run.runId}`}
-              class="flex items-center justify-between gap-3"
-            >
-              <span class="text-amber-100/80">{run.raidName} · {run.role}</span>
-              <span class={run.victory ? 'text-emerald-300' : 'text-red-400'}>
-                {run.victory ? ui.victory : ui.wipe} · +{run.reward.xp} XP
-              </span>
-            </a>
-          </li>
-        {/each}
-      </ul>
+      <div>
+        <h2 class="panel-title mb-2">{ui.recent}</h2>
+        <ul class="space-y-2">
+          {#each recent as run (run.runId)}
+            <li class="panel px-4 py-2 text-sm">
+              <a
+                href={`/characters/${characterId}/raid/${run.runId}`}
+                class="flex items-center justify-between gap-3"
+              >
+                <span class="text-[var(--text-dim)]">{run.raidName} · {run.role}</span>
+                <span style={`color:${run.victory ? 'var(--success)' : 'var(--danger)'}`}>
+                  {run.victory ? ui.victory : ui.wipe} · +{run.reward.xp} XP
+                </span>
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </div>
     {/if}
   {/if}
-</main>
+</div>

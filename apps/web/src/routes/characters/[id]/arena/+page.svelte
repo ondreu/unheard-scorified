@@ -11,10 +11,10 @@
     type ArenaView,
   } from '$lib/api';
   import { connectArena, subscribeMatchFound } from '$lib/arena-socket';
+  import { openProfile } from '$lib/ui-stores';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
-    back: '← Back to character',
     title: 'Arena',
     rating: 'Rating',
     rank: 'Rank',
@@ -111,122 +111,109 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-
+<div class="space-y-6">
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if error && !arena}
-    <p class="mt-6 text-red-400">{error}</p>
+    <p class="text-[var(--danger)]">{error}</p>
   {:else if arena}
     {@const a = arena}
-    <div class="mt-4 flex items-center justify-between">
-      <h1 class="text-3xl font-bold text-amber-200">⚔️ {ui.title}</h1>
-      <a
-        href={`/characters/${characterId}/group`}
-        class="rounded bg-red-800/40 px-3 py-1.5 text-sm font-medium text-red-200 hover:bg-red-700/50"
-      >
-        Group (3v3/5v5) →
-      </a>
+    <div class="flex items-center justify-between">
+      <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">⚔️ {ui.title}</h1>
+      <a href={`/characters/${characterId}/group`} class="btn">Group (3v3/5v5) →</a>
     </div>
-    <p class="mt-1 text-sm text-amber-100/60">
+    <p class="text-sm text-[var(--text-dim)]">
       {a.season.name} · {a.bracket} · {ui.seasonEnds} {fmtDate(a.season.endsAt)}
     </p>
 
     {#if error}
-      <p class="mt-4 text-red-400">{error}</p>
+      <p class="text-[var(--danger)]">{error}</p>
     {/if}
 
     <!-- Season reward banner (lazy rollover) -->
     {#each a.newSeasonRewards as reward (reward.seasonId)}
-      <section class="mt-4 rounded-lg border border-amber-600/50 bg-amber-900/20 p-4">
-        <p class="font-semibold text-amber-300">🏅 {reward.seasonName} reward</p>
-        <p class="mt-1 text-sm text-amber-200">
-          Finished as <strong>{reward.finalTier}</strong> ({reward.finalRating}) · +{reward.rewardGold} gold
+      <section class="panel panel-pad">
+        <p class="panel-title">🏅 {reward.seasonName} reward</p>
+        <p class="mt-1 text-sm text-[var(--text-dim)]">
+          Finished as <strong class="text-[var(--text)]">{reward.finalTier}</strong> ({reward.finalRating}) · <span class="text-[var(--gold-bright)]">+{reward.rewardGold} gold</span>
         </p>
       </section>
     {/each}
 
     <!-- Rating panel -->
-    <section class="mt-4 rounded-lg border border-amber-900/40 bg-black/20 p-5">
+    <section class="panel panel-pad">
       <div class="flex items-end justify-between">
         <div>
-          <p class="text-3xl font-bold text-amber-200">{a.rating}</p>
-          <p class="text-sm text-amber-300">{a.tierName}</p>
+          <p class="font-display text-3xl font-bold text-[var(--gold-bright)]">{a.rating}</p>
+          <p class="text-sm text-[var(--gold)]">{a.tierName}</p>
         </div>
-        <div class="text-right text-sm text-amber-100/70">
+        <div class="text-right text-sm text-[var(--text-dim)]">
           <p>{ui.rank}: {a.rank ?? '—'}</p>
-          <p>{ui.record}: <span class="text-emerald-300">{a.wins}W</span> / <span class="text-red-400">{a.losses}L</span></p>
+          <p>{ui.record}: <span class="text-[var(--success)]">{a.wins}W</span> / <span class="text-[var(--danger)]">{a.losses}L</span></p>
         </div>
       </div>
       {#if a.nextTierAt}
-        <p class="mt-2 text-xs text-amber-100/50">{ui.nextTier} {a.nextTierAt}</p>
+        <p class="mt-2 text-xs text-[var(--text-faint)]">{ui.nextTier} {a.nextTierAt}</p>
       {/if}
     </section>
 
     <!-- Queue control -->
-    <section class="mt-4">
+    <section>
       {#if !a.eligible}
-        <p class="rounded bg-stone-800/50 px-4 py-3 text-sm text-amber-100/60">
+        <p class="panel panel-pad text-sm text-[var(--text-dim)]">
           {ui.ineligible} (Level {a.minLevel})
         </p>
       {:else if a.queued}
-        <p class="text-sm text-amber-200">{notice ?? ui.searching}</p>
-        <button
-          onclick={leave}
-          disabled={pending}
-          class="mt-2 rounded bg-stone-700 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-stone-600 disabled:opacity-50"
-        >
+        <p class="text-sm text-[var(--text)]">{notice ?? ui.searching}</p>
+        <button onclick={leave} disabled={pending} class="btn mt-2">
           {ui.leave}
         </button>
       {:else}
-        {#if notice}<p class="mb-2 text-sm text-emerald-300">{notice}</p>{/if}
-        <button
-          onclick={enterQueue}
-          disabled={pending}
-          class="rounded bg-red-700 px-5 py-2 text-sm font-semibold text-amber-50 hover:bg-red-600 disabled:opacity-50"
-        >
+        {#if notice}<p class="mb-2 text-sm text-[var(--success)]">{notice}</p>{/if}
+        <button onclick={enterQueue} disabled={pending} class="btn btn-primary">
           {pending ? ui.queuing : ui.queue}
         </button>
       {/if}
     </section>
 
     <!-- Leaderboard -->
-    <section class="mt-6">
-      <h2 class="text-lg font-semibold text-amber-200">{ui.leaderboard}</h2>
-      <ul class="mt-2 divide-y divide-amber-900/30 rounded-lg border border-amber-900/40 bg-black/20">
+    <section class="panel panel-pad">
+      <h2 class="panel-title">{ui.leaderboard}</h2>
+      <ul class="mt-3 divide-y divide-[var(--border)]">
         {#each a.leaderboard as row (row.characterId)}
           <li
-            class="flex items-center justify-between px-4 py-2 text-sm {row.isSelf
-              ? 'bg-amber-900/20 text-amber-200'
-              : 'text-amber-100/80'}"
+            class="flex items-center justify-between px-1 py-2 text-sm {row.isSelf
+              ? 'text-[var(--gold-bright)]'
+              : 'text-[var(--text-dim)]'}"
           >
-            <span class="w-8 text-stone-400">#{row.rank}</span>
-            <span class="flex-1">{row.name}</span>
-            <span class="text-amber-300/70">{row.tierName}</span>
-            <span class="ml-4 font-mono text-amber-200">{row.rating}</span>
+            <span class="w-8 text-[var(--text-faint)]">#{row.rank}</span>
+            <span class="flex-1">
+              <button class="hover:underline" onclick={() => openProfile(row.characterId, row.name)}>{row.name}</button>
+            </span>
+            <span class="text-[var(--gold)]">{row.tierName}</span>
+            <span class="ml-4 font-mono text-[var(--gold-bright)]">{row.rating}</span>
           </li>
         {/each}
       </ul>
     </section>
 
     <!-- Recent matches -->
-    <section class="mt-6">
-      <h2 class="text-lg font-semibold text-amber-200">{ui.history}</h2>
+    <section class="panel panel-pad">
+      <h2 class="panel-title">{ui.history}</h2>
       {#if a.recentMatches.length === 0}
-        <p class="mt-2 text-sm text-amber-100/50">{ui.noHistory}</p>
+        <p class="mt-2 text-sm text-[var(--text-faint)]">{ui.noHistory}</p>
       {:else}
-        <ul class="mt-2 space-y-1">
+        <ul class="mt-3 space-y-1">
           {#each a.recentMatches as m (m.matchId)}
             <li>
               <a
                 href={`/characters/${characterId}/arena/match/${m.matchId}`}
-                class="flex items-center justify-between rounded px-3 py-2 text-sm hover:bg-amber-900/20"
+                class="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-[var(--surface-2)]"
               >
-                <span class={m.won ? 'text-emerald-300' : 'text-red-400'}>
+                <span class={m.won ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
                   {m.won ? ui.win : ui.loss} vs {m.opponentName}
                 </span>
-                <span class="font-mono {m.ratingDelta >= 0 ? 'text-emerald-300' : 'text-red-400'}">
+                <span class="font-mono {m.ratingDelta >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}">
                   {m.ratingDelta >= 0 ? '+' : ''}{m.ratingDelta} → {m.ratingAfter}
                 </span>
               </a>
@@ -236,4 +223,4 @@
       {/if}
     </section>
   {/if}
-</main>
+</div>

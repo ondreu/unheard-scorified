@@ -24,11 +24,14 @@
     type RaidRole,
     type TeamArenaView,
   } from '$lib/api';
+  import { CLASSES } from '@game/shared';
+  import { ROLE_META } from '$lib/cosmetics';
+  import { openProfile } from '$lib/ui-stores';
+  import Avatar from '$lib/components/Avatar.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Group',
-    back: '← Back to character',
     none: 'You are not in a group.',
     create: 'Create group',
     invites: 'Invites',
@@ -150,32 +153,31 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+<div class="space-y-6">
+  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
 
-  {#if error}<p class="mt-3 text-red-400">{error}</p>{/if}
+  {#if error}<p class="text-[var(--danger)]">{error}</p>{/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if gs}
     <!-- Incoming invites -->
     {#if gs.invites.length > 0}
-      <section class="mt-6">
-        <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.invites}</h2>
+      <section class="panel panel-pad">
+        <h2 class="panel-title">{ui.invites}</h2>
         {#each gs.invites as inv (inv.groupId)}
-          <div class="mt-2 flex items-center justify-between rounded border border-sky-900/50 bg-black/20 px-3 py-2">
-            <span class="text-amber-100/80">{inv.leaderName}'s group · <span class="uppercase text-amber-300/70">{inv.role}</span></span>
+          <div class="mt-2 flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2">
+            <span class="text-[var(--text-dim)]">{inv.leaderName}'s group · <span class="uppercase text-[var(--gold-bright)]">{inv.role}</span></span>
             <span class="flex gap-2">
               <button
                 disabled={busy}
                 onclick={() => act(() => respondGroupInvite(characterId, inv.groupId, true))}
-                class="rounded bg-emerald-600 px-3 py-1 text-sm font-medium text-black hover:bg-emerald-500 disabled:opacity-50"
+                class="btn btn-primary btn-sm"
               >{ui.accept}</button>
               <button
                 disabled={busy}
                 onclick={() => act(() => respondGroupInvite(characterId, inv.groupId, false))}
-                class="rounded border border-stone-600 px-3 py-1 text-sm text-stone-300 hover:bg-stone-800 disabled:opacity-50"
+                class="btn btn-sm"
               >{ui.decline}</button>
             </span>
           </div>
@@ -185,40 +187,47 @@
 
     {#if !gs.group}
       <!-- No group → create -->
-      <section class="mt-6 rounded-lg border border-amber-900/40 bg-black/20 p-5">
-        <p class="text-amber-100/70">{ui.none}</p>
+      <section class="panel panel-pad">
+        <p class="text-[var(--text-dim)]">{ui.none}</p>
         <div class="mt-3 flex items-end gap-2">
-          <label class="text-sm text-amber-100/70">
+          <label class="field-label">
             {ui.myRole}
-            <select bind:value={createRole} class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100">
+            <select bind:value={createRole} class="input mt-1">
               {#each ROLES as r (r)}<option value={r}>{r}</option>{/each}
             </select>
           </label>
           <button
             disabled={busy}
             onclick={() => act(() => createGroup(characterId, createRole))}
-            class="rounded bg-red-700 px-4 py-2 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
+            class="btn btn-primary"
           >{ui.create}</button>
         </div>
       </section>
     {:else}
       {@const g = gs.group}
       <!-- Members -->
-      <section class="mt-6">
-        <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.members} ({g.joinedCount})</h2>
-        <ul class="mt-2 space-y-1">
+      <section class="panel panel-pad">
+        <h2 class="panel-title">{ui.members} ({g.joinedCount})</h2>
+        <ul class="mt-3 space-y-2">
           {#each g.members as m (m.characterId)}
-            <li class="flex items-center justify-between rounded bg-black/20 px-3 py-1.5 text-sm">
-              <span class="text-amber-100/80">
-                {m.name}
-                <span class="ml-1 uppercase text-amber-300/70">{m.role}</span>
-                {#if m.isLeader}<span class="ml-1 text-xs text-amber-400">★ {ui.leader}</span>{/if}
-                {#if m.status === 'invited'}<span class="ml-1 text-xs text-stone-500">(invited)</span>{/if}
+            <li class="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+              <span class="flex min-w-0 items-center gap-2">
+                <Avatar name={m.name} race={m.race} klass={m.class} size={32} />
+                <span class="min-w-0">
+                  <span class="flex items-center gap-1.5">
+                    <button class="hover:underline" onclick={() => openProfile(m.characterId, m.name)}>{m.name}</button>
+                    {#if m.isLeader}<span class="text-xs text-[var(--gold-bright)]" title={ui.leader}>★</span>{/if}
+                    {#if m.status === 'invited'}<span class="text-xs text-[var(--text-faint)]">(invited)</span>{/if}
+                  </span>
+                  <span class="block text-xs" style={`color:${ROLE_META[m.role].color}`}>
+                    {ROLE_META[m.role].icon} {m.role} · Lv {m.level} {CLASSES[m.class as keyof typeof CLASSES]?.name}
+                  </span>
+                </span>
               </span>
               {#if g.iAmLeader && !m.isLeader && m.status === 'joined'}
-                <span class="flex gap-2">
-                  <button disabled={busy} onclick={() => act(() => promoteGroupMember(characterId, m.characterId))} class="text-xs text-amber-300 underline disabled:opacity-50">{ui.promote}</button>
-                  <button disabled={busy} onclick={() => act(() => kickGroupMember(characterId, m.characterId))} class="text-xs text-red-400 underline disabled:opacity-50">{ui.kick}</button>
+                <span class="flex shrink-0 gap-2">
+                  <button disabled={busy} onclick={() => act(() => promoteGroupMember(characterId, m.characterId))} class="btn btn-sm">{ui.promote}</button>
+                  <button disabled={busy} onclick={() => act(() => kickGroupMember(characterId, m.characterId))} class="btn btn-danger btn-sm">{ui.kick}</button>
                 </span>
               {/if}
             </li>
@@ -226,68 +235,68 @@
         </ul>
 
         <!-- My role + leave/disband -->
-        <div class="mt-3 flex flex-wrap items-end gap-2">
-          <label class="text-sm text-amber-100/70">
+        <div class="mt-4 flex flex-wrap items-end gap-2">
+          <label class="field-label">
             {ui.myRole}
             <select
               bind:value={roleSel}
               onchange={() => act(() => setGroupRole(characterId, roleSel))}
-              class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
+              class="input mt-1"
             >
               {#each ROLES as r (r)}<option value={r}>{r}</option>{/each}
             </select>
           </label>
-          <button disabled={busy} onclick={() => act(() => leaveGroup(characterId))} class="rounded border border-stone-600 px-3 py-1.5 text-sm text-stone-300 hover:bg-stone-800 disabled:opacity-50">{ui.leave}</button>
+          <button disabled={busy} onclick={() => act(() => leaveGroup(characterId))} class="btn">{ui.leave}</button>
           {#if g.iAmLeader}
-            <button disabled={busy} onclick={() => act(() => disbandGroup(characterId))} class="rounded border border-red-800 px-3 py-1.5 text-sm text-red-300 hover:bg-red-950 disabled:opacity-50">{ui.disband}</button>
+            <button disabled={busy} onclick={() => act(() => disbandGroup(characterId))} class="btn btn-danger">{ui.disband}</button>
           {/if}
         </div>
       </section>
 
       {#if g.iAmLeader}
         <!-- Invite -->
-        <section class="mt-6 rounded-lg border border-amber-900/40 bg-black/20 p-4">
-          <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.invite}</h2>
+        <section class="panel panel-pad">
+          <h2 class="panel-title">{ui.invite}</h2>
           <div class="mt-2 flex flex-wrap items-end gap-2">
-            <input bind:value={inviteName} placeholder={ui.inviteName} class="rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-sm text-amber-100" />
-            <select bind:value={inviteRole} class="rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-sm text-amber-100">
+            <input bind:value={inviteName} placeholder={ui.inviteName} class="input flex-1" />
+            <select bind:value={inviteRole} class="input w-auto">
               {#each ROLES as r (r)}<option value={r}>{r}</option>{/each}
             </select>
             <button
               disabled={busy || !inviteName.trim()}
               onclick={() => act(async () => { const s = await inviteToGroup(characterId, inviteName.trim(), inviteRole); inviteName = ''; return s; })}
-              class="rounded bg-sky-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-sky-600 disabled:opacity-50"
+              class="btn btn-primary"
             >{ui.invite}</button>
           </div>
-          <p class="mt-1 text-xs text-amber-100/40">Invite friends or guild members.</p>
+          <p class="mt-1 text-xs text-[var(--text-faint)]">Invite friends or guild members.</p>
         </section>
 
         <!-- Launch -->
-        <section class="mt-6 rounded-lg border border-amber-900/40 bg-black/20 p-4">
-          <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.launch}</h2>
+        <section class="panel panel-pad">
+          <h2 class="panel-title">{ui.launch}</h2>
           <div class="mt-3 space-y-3">
             <div class="flex items-end gap-2">
-              <select bind:value={dungeonId} class="flex-1 rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-sm text-amber-100">
+              <select bind:value={dungeonId} class="input flex-1">
                 {#each dungeons as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
               </select>
-              <button disabled={busy || !dungeonId} onclick={() => launch('dungeon')} class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50">{ui.dungeon} {ui.launch}</button>
+              <button disabled={busy || !dungeonId} onclick={() => launch('dungeon')} class="btn btn-primary btn-sm">{ui.dungeon} {ui.launch}</button>
             </div>
             <div class="flex items-end gap-2">
-              <select bind:value={raidId} class="flex-1 rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-sm text-amber-100">
+              <select bind:value={raidId} class="input flex-1">
                 {#each raids as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
               </select>
-              <button disabled={busy || !raidId} onclick={() => launch('raid')} class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50">{ui.raid} {ui.launch}</button>
+              <button disabled={busy || !raidId} onclick={() => launch('raid')} class="btn btn-primary btn-sm">{ui.raid} {ui.launch}</button>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-xs text-amber-100/40">
+              <span class="text-xs text-[var(--text-faint)]">
                 {arenaBracket ? `Arena: ${arenaBracket}` : ui.arenaHint}
               </span>
-              <button disabled={busy || !arenaBracket} onclick={() => launch('arena')} class="rounded bg-purple-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-purple-600 disabled:opacity-50">{ui.arena} {ui.launch}</button>
+              <button disabled={busy || !arenaBracket} onclick={() => launch('arena')} class="btn btn-primary btn-sm">{ui.arena} {ui.launch}</button>
             </div>
             {#if teamArena}
-              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-100/50">
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-dim)]">
                 {#each teamArena.brackets as br (br.bracket)}
-                  <span>{br.bracket}: <span class="text-amber-200/80">{br.rating}</span> ({br.tier}) · {br.wins}W/{br.losses}L</span>
+                  <span>{br.bracket}: <span class="text-[var(--gold-bright)]">{br.rating}</span> ({br.tier}) · {br.wins}W/{br.losses}L</span>
                 {/each}
               </div>
             {/if}
@@ -296,4 +305,4 @@
       {/if}
     {/if}
   {/if}
-</main>
+</div>

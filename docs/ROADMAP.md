@@ -565,6 +565,11 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       adaptér z M7; REST (`/chat`) autoritativní fallback. Sdílená normalizace
       (`sanitizeChatMessage`). Web chat panel na `/characters/[id]/social` + live
       friend notifikace (`social:subscribe`). Testy: API `chat.flow.test.ts` (+4).
+- [ ] 🧑‍💼 **Whisper (soukromé 1:1 zprávy)** — **priorita**. Zatím jen globální chat;
+      „Whisper" v profilu hráče dočasně předvyplní globální chat `@Jméno`. Doplnit
+      skutečný 1:1 kanál: perzistence (`whispers`/DM), realtime přes WS room
+      `char:<id>` (recykluje vrstvu z M7), unread odznak, integrace do chat bubliny
+      a profil-modalu (akce „Whisper").
 - [x] **Guild základ**: per-postava členství (nejvýše jedna guilda), ranky
       member/officer/leader, pozvánky (accept/decline), kick/promote/demote,
       leave s auto-předáním vedení (nebo disband posledního). Tabulky `guilds` +
@@ -572,6 +577,13 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `SocialModule`. Web `/characters/[id]/guild` + realtime `guild:invite`.
       Testy: shared `guild.test.ts` (+5) + API `guild.flow.test.ts` (+9). Detail:
       **ADR 0017**, `docs/systems/social.md`. Odemyká M8.5-B/C (ruční formace).
+- [x] **Guild charter (vanilla-WoW založení)** ✅: místo okamžitého vytvoření se
+      guilda zakládá přes charter — **zlatý poplatek** (`GUILD_CHARTER_COST`) +
+      **5 podpisů** od jiných hráčů (`GUILD_CHARTER_SIGNATURES_REQUIRED`). Tabulky
+      `guild_charters` + `guild_charter_signatures` (migrace `0022`), endpointy
+      `guild/charter*` (start/invite/sign/found/cancel), realtime
+      `guild:charter_invite`. Web flow na `/characters/[id]/guild`. Test:
+      `guild.flow.test.ts` (+1). Poplatek = gold sink (bez refundu při zrušení).
 - [x] **Achievementy** ✅: odvozené z herního stavu (level/gold/questy/dungeony/
       raidy/arény/přátelé — žádné invazivní countery), katalog ve `@game/shared`,
       jednorázové odměny (`character_achievements`, migrace `0017`),
@@ -590,7 +602,17 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       run/aréna enginy. `GroupModule`, web `/characters/[id]/group`. Testy: shared
       `party.test.ts` (+3) + API `group.flow.test.ts` (+7). **ADR 0022**,
       `docs/systems/groups.md`.
-- [ ] PixiJS pixel scénky, nahrazení placeholderů.
+- [x] **UI refresh (modern fantasy) — jádro** ✅: design system (tokeny +
+      komponentní třídy v `app.css`), sdílené komponenty (Avatar, Badge, HubCard,
+      PlayerProfile/inspect, NotificationBell, Toasts, ChatBubble), perzistentní
+      shell (`characters/[id]/+layout.svelte`) s top barem, **group stripem**
+      (členové/role/level/class viditelní odkudkoli), kompaktní nav, notifikacemi
+      a chat bublinou. Login/register/landing/výběr postav + všechny podstránky
+      převedeny na design system. Nový backend `GET /characters/:id/inspect`
+      (gear/ilvl/staty); klik na jméno hráče (chat/party/friends) → profil-modal
+      s inspectem a akcemi (whisper/group/trade/guild). Trade tlačítko odebráno
+      (obchod z profilu hráče). Asset spec pro malířku: `docs/systems/ui-art-assets.md`.
+- [ ] PixiJS pixel scénky, nahrazení placeholderů (art dle `ui-art-assets.md`).
 - [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
 

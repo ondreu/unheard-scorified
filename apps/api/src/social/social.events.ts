@@ -47,6 +47,11 @@ export class SocialEventsRelay {
     this.emit(SocialEventsRelay.room(toCharacterId), 'guild:invite', { guildName, byName });
   }
 
+  /** Oznámí postavě žádost o podpis guild charteru. */
+  guildCharterInvite(toCharacterId: string, guildName: string, byName: string): void {
+    this.emit(SocialEventsRelay.room(toCharacterId), 'guild:charter_invite', { guildName, byName });
+  }
+
   private emit(room: string, event: string, payload: unknown): void {
     if (!this.server) return;
     try {

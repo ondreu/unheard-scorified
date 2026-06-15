@@ -8,7 +8,6 @@
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Talents',
-    back: '← Back to character',
     available: 'Available Points',
     spent: 'Spent',
     total: 'Total',
@@ -149,46 +148,40 @@
     return parts.join(' · ') || '—';
   }
 
-  const TREE_COLORS = ['text-amber-300', 'text-blue-300', 'text-emerald-300'];
-  const TREE_BORDER = ['border-amber-700/40', 'border-blue-700/40', 'border-emerald-700/40'];
+  const TREE_COLORS = ['var(--gold-bright)', 'var(--info)', 'var(--success)'];
 </script>
 
-<main class="mx-auto max-w-5xl px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+<div class="space-y-6">
+  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
 
   {#if error}
-    <p class="mt-4 text-red-400">{error}</p>
+    <p class="text-[var(--danger)]">{error}</p>
   {/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if talents}
     {@const t = talents}
     <!-- Header: points summary -->
-    <div class="mt-4 flex flex-wrap items-center gap-4">
-      <div class="rounded border border-amber-700/40 bg-black/20 px-4 py-2 text-sm">
-        <span class="text-amber-100/60">{ui.available}: </span>
-        <span class="font-bold text-amber-300">{t.availablePoints}</span>
-        <span class="ml-2 text-amber-100/40">({ui.spent}: {t.spentPoints} / {ui.total}: {t.totalPoints})</span>
+    <div class="flex flex-wrap items-center gap-4">
+      <div class="panel px-4 py-2 text-sm">
+        <span class="text-[var(--text-dim)]">{ui.available}: </span>
+        <span class="font-bold text-[var(--gold-bright)]">{t.availablePoints}</span>
+        <span class="ml-2 text-[var(--text-faint)]">({ui.spent}: {t.spentPoints} / {ui.total}: {t.totalPoints})</span>
       </div>
       {#if t.spentPoints > 0}
-        <button
-          onclick={resetAll}
-          disabled={resetting}
-          class="rounded border border-red-800/60 px-3 py-2 text-sm text-red-400 hover:border-red-600 disabled:opacity-40"
-        >
+        <button onclick={resetAll} disabled={resetting} class="btn btn-danger btn-sm">
           {resetting ? ui.resetting : ui.reset}
         </button>
       {/if}
     </div>
 
     <!-- Talent Trees -->
-    <div class="mt-6 grid gap-6 md:grid-cols-3">
+    <div class="grid gap-6 md:grid-cols-3">
       {#each t.trees as tree, treeIdx (tree.name)}
-        <section class="rounded-lg border {TREE_BORDER[treeIdx]} bg-black/20 p-4">
-          <h2 class="mb-1 text-lg font-bold {TREE_COLORS[treeIdx]}">{tree.name}</h2>
-          <p class="mb-4 text-xs text-amber-100/40">{tree.pointsSpent} pts spent</p>
+        <section class="panel panel-pad">
+          <h2 class="panel-title" style={`color:${TREE_COLORS[treeIdx] ?? 'var(--gold-bright)'}`}>{tree.name}</h2>
+          <p class="mb-4 text-xs text-[var(--text-faint)]">{tree.pointsSpent} pts spent</p>
 
           <div class="space-y-3">
             {#each tree.nodes as node (node.id)}
@@ -197,35 +190,31 @@
               {@const canAlloc = canAllocate(node, tree, t.availablePoints)}
 
               <div
-                class="rounded border p-3 transition-colors
-                  {locked ? 'border-gray-800/40 opacity-50' : maxed ? 'border-amber-700/60' : 'border-amber-900/40'}
-                  bg-black/10"
+                class="rounded-lg border bg-[var(--surface-2)] p-3 transition-colors
+                  {locked ? 'border-[var(--border)] opacity-50' : maxed ? 'border-[var(--border-strong)]' : 'border-[var(--border)]'}"
               >
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <p class="text-sm font-semibold {locked ? 'text-gray-500' : maxed ? 'text-amber-300' : 'text-amber-100'}">
+                    <p class="text-sm font-semibold {locked ? 'text-[var(--text-faint)]' : maxed ? 'text-[var(--gold-bright)]' : 'text-[var(--text)]'}">
                       {node.name}
-                      {#if maxed}<span class="ml-1 text-xs text-amber-500">[{ui.maxRank}]</span>{/if}
+                      {#if maxed}<span class="ml-1 text-xs text-[var(--gold)]">[{ui.maxRank}]</span>{/if}
                     </p>
-                    <p class="mt-0.5 text-xs text-amber-100/50">
+                    <p class="mt-0.5 text-xs text-[var(--text-dim)]">
                       Rank {node.allocatedPoints} / {node.maxRanks}
                     </p>
                   </div>
                   <button
                     onclick={() => allocate(node.id)}
                     disabled={!canAlloc || pendingTalentId !== null}
-                    class="shrink-0 rounded px-2 py-1 text-sm font-bold transition-colors
-                      {canAlloc && pendingTalentId === null
-                        ? 'bg-amber-600 text-black hover:bg-amber-500'
-                        : 'bg-gray-800 text-gray-600 cursor-not-allowed'}"
+                    class="btn btn-sm shrink-0 {canAlloc && pendingTalentId === null ? 'btn-primary' : ''}"
                   >
                     {pendingTalentId === node.id ? ui.allocating : ui.allocate}
                   </button>
                 </div>
-                <p class="mt-1 text-xs text-amber-100/60">{node.description}</p>
-                <p class="mt-1 text-xs text-amber-100/30">{effectLabel(node)}</p>
+                <p class="mt-1 text-xs text-[var(--text-dim)]">{node.description}</p>
+                <p class="mt-1 text-xs text-[var(--text-faint)]">{effectLabel(node)}</p>
                 {#if node.tierRequirement > 0}
-                  <p class="mt-1 text-xs text-amber-100/30">
+                  <p class="mt-1 text-xs text-[var(--text-faint)]">
                     {ui.tierReq} {node.tierRequirement} {ui.pointsInTree}
                   </p>
                 {/if}
@@ -236,4 +225,4 @@
       {/each}
     </div>
   {/if}
-</main>
+</div>

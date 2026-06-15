@@ -4,10 +4,10 @@
   import { onDestroy, onMount } from 'svelte';
   import { ApiError, getRaidRun, type CombatEvent, type RaidRunView } from '$lib/api';
   import { ITEMS } from '@game/shared';
+  import { ROLE_META } from '$lib/cosmetics';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
-    back: '← Back to raids',
     notFound: 'Raid run not found.',
     victory: '🏆 Raid cleared!',
     defeat: '☠️ The raid wiped.',
@@ -66,55 +66,56 @@
     return ITEMS[id as keyof typeof ITEMS]?.name ?? id;
   }
 
-  function eventClass(e: CombatEvent): string {
-    if (e.type === 'victory') return 'text-emerald-300 font-semibold';
-    if (e.type === 'defeat' || e.type === 'player_defeated') return 'text-red-400 font-semibold';
-    if (e.type === 'encounter_start') return 'text-amber-300 font-semibold';
-    if (e.type === 'enemy_defeated') return 'text-emerald-200';
-    if (e.type === 'heal') return 'text-green-300';
-    if (e.type === 'ability') return 'text-sky-300';
-    return 'text-stone-300/80';
+  function eventStyle(e: CombatEvent): string {
+    if (e.type === 'victory') return 'color:var(--success);font-weight:600';
+    if (e.type === 'defeat' || e.type === 'player_defeated') return 'color:var(--danger);font-weight:600';
+    if (e.type === 'encounter_start') return 'color:var(--gold-bright);font-weight:600';
+    if (e.type === 'enemy_defeated') return 'color:var(--success)';
+    if (e.type === 'heal') return 'color:var(--success)';
+    if (e.type === 'ability') return 'color:var(--info)';
+    return 'color:var(--text-dim)';
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}/raids`} class="text-sm text-amber-300 underline">{ui.back}</a>
-
+<div class="space-y-6">
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if error || !run}
-    <p class="mt-6 text-red-400">{error ?? ui.notFound}</p>
+    <p class="text-[var(--danger)]">{error ?? ui.notFound}</p>
   {:else}
     {@const r = run}
-    <h1 class="mt-4 text-3xl font-bold text-amber-200">{r.raidName}</h1>
-    <p class="mt-1 text-sm text-amber-100/60">{r.party.length}-player party · {r.bosses.length} bosses</p>
+    <div>
+      <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{r.raidName}</h1>
+      <p class="mt-1 text-sm text-[var(--text-dim)]">{r.party.length}-player party · {r.bosses.length} bosses</p>
+    </div>
 
     <!-- Progress -->
-    <div class="mt-4 h-2 w-full overflow-hidden rounded bg-black/40">
-      <div
-        class="h-full bg-red-500 transition-all"
-        style={`width: ${Math.round(r.progress.progress * 100)}%`}
-      ></div>
+    <div class="bar">
+      <div class="bar-fill" style={`width:${Math.round(r.progress.progress * 100)}%`}></div>
     </div>
 
     <!-- Party -->
-    <section class="mt-4 grid grid-cols-1 gap-1 text-sm">
-      <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.party}</h2>
-      {#each r.party as p (p.name)}
-        <div class="flex items-center justify-between rounded bg-black/20 px-3 py-1">
-          <span class="text-amber-100/80">{p.name}</span>
-          <span class="text-xs uppercase text-amber-300/70">{p.role}</span>
-        </div>
-      {/each}
+    <section class="panel panel-pad">
+      <h2 class="panel-title">{ui.party}</h2>
+      <div class="mt-2 grid grid-cols-1 gap-1 text-sm">
+        {#each r.party as p (p.name)}
+          <div class="flex items-center justify-between rounded-lg bg-black/20 px-3 py-1.5">
+            <span class="text-[var(--text)]">{p.name}</span>
+            <span class="shrink-0 text-sm" style={`color:${ROLE_META[p.role].color}`} title={ROLE_META[p.role].label}>
+              {ROLE_META[p.role].icon}
+            </span>
+          </div>
+        {/each}
+      </div>
     </section>
 
     <!-- Outcome + reward -->
     {#if r.progress.completed}
-      <div class="mt-4 flex items-center justify-between">
-        <span class="text-lg {r.victory ? 'text-emerald-300' : 'text-red-400'} font-bold">
+      <div class="flex items-center justify-between">
+        <span class="text-lg font-bold" style={`color:${r.victory ? 'var(--success)' : 'var(--danger)'}`}>
           {r.victory ? ui.victory : ui.defeat}
           {#if r.wipes && r.wipes > 0}
-            <span class="ml-2 text-xs font-normal text-amber-200/70">
+            <span class="ml-2 text-xs font-normal text-[var(--text-dim)]">
               {r.victory
                 ? `(${r.wipes} ${r.wipes === 1 ? 'wipe' : 'wipes'} — reduced reward)`
                 : `(${r.wipes} ${r.wipes === 1 ? 'wipe' : 'wipes'})`}
@@ -123,35 +124,35 @@
         </span>
       </div>
       {#if r.myLockedOut}
-        <section class="mt-3 rounded-lg border border-amber-700/50 bg-amber-900/20 p-4">
-          <p class="font-semibold text-amber-300">{ui.lockout}</p>
+        <section class="panel panel-pad">
+          <p class="font-semibold text-[var(--gold-bright)]">{ui.lockout}</p>
         </section>
       {:else if r.myReward}
-        <section class="mt-3 rounded-lg border border-emerald-700/50 bg-emerald-900/20 p-4">
-          <p class="font-semibold text-emerald-300">
+        <section class="panel panel-pad">
+          <p class="font-semibold text-[var(--success)]">
             {ui.reward}: +{r.myReward.xp} XP, +{r.myReward.gold} gold
           </p>
           {#if r.myReward.items.length > 0}
-            <p class="mt-1 text-sm text-amber-200">
+            <p class="mt-1 text-sm text-[var(--text-dim)]">
               🎁 {ui.loot}: {r.myReward.items.map(itemName).join(', ')}
             </p>
           {/if}
         </section>
       {/if}
     {:else}
-      <p class="mt-3 text-sm text-amber-100/60">{ui.fighting}</p>
+      <p class="text-sm text-[var(--text-dim)]">{ui.fighting}</p>
     {/if}
 
     <!-- Combat log -->
-    <section class="mt-4 rounded-lg border border-amber-900/40 bg-black/30 p-4">
+    <section class="panel panel-pad">
       <ul class="space-y-1 font-mono text-xs">
         {#each [...r.events].reverse() as e, i (r.events.length - 1 - i)}
-          <li class={eventClass(e)}>
-            <span class="text-stone-500">{e.t.toFixed(1)}s</span>
+          <li style={eventStyle(e)}>
+            <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
             {e.message}
           </li>
         {/each}
       </ul>
     </section>
   {/if}
-</main>
+</div>

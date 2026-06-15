@@ -14,7 +14,6 @@
   } from '$lib/api';
 
   const ui = {
-    back: '← Back to character',
     title: 'Achievements',
     goalsDaily: 'Daily goals',
     goalsWeekly: 'Weekly goals',
@@ -86,103 +85,99 @@
 </script>
 
 {#snippet goalRow(g: GoalView)}
-  <li class="rounded border bg-black/20 p-3 {g.completed ? 'border-emerald-900/50' : 'border-amber-900/40'}">
+  <li class="rounded-lg border border-[var(--border)] p-3">
     <div class="flex items-center justify-between">
-      <span class="text-sm {g.completed ? 'text-emerald-300' : 'text-amber-200'}">{g.name}</span>
+      <span class="text-sm" style={g.completed ? 'color:var(--success)' : 'color:var(--text)'}>{g.name}</span>
       {#if g.claimed}
-        <span class="text-xs text-amber-100/40">{ui.claimed}</span>
+        <span class="text-xs text-[var(--text-faint)]">{ui.claimed}</span>
       {:else if g.claimable}
         <button
           onclick={() => claimG(g.id, g.rewardGold)}
           disabled={busy === g.id}
-          class="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-black hover:bg-emerald-500 disabled:opacity-40"
+          class="btn btn-primary btn-sm"
         >
           {ui.claim} +{g.rewardGold}{ui.reward}
         </button>
       {:else}
-        <span class="text-xs text-amber-300">+{g.rewardGold}{ui.reward}</span>
+        <span class="text-xs text-[var(--gold-bright)]">+{g.rewardGold}{ui.reward}</span>
       {/if}
     </div>
-    <p class="text-xs text-amber-100/50">{g.description}</p>
+    <p class="text-xs text-[var(--text-dim)]">{g.description}</p>
     <div class="mt-1.5 flex items-center gap-2">
-      <div class="h-1.5 flex-1 overflow-hidden rounded bg-black/40">
-        <div class="h-full {g.completed ? 'bg-emerald-500' : 'bg-amber-500'}" style={`width: ${g.pct * 100}%`}></div>
+      <div class="bar">
+        <div class="bar-fill" style={`width: ${g.pct * 100}%`}></div>
       </div>
-      <span class="text-xs text-amber-100/40">{ui.progress(g.value, g.target)}</span>
+      <span class="text-xs text-[var(--text-faint)]">{ui.progress(g.value, g.target)}</span>
     </div>
   </li>
 {/snippet}
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
+<div class="space-y-6">
   {#if view}
-    <div class="mt-4 flex items-center justify-between">
-      <h1 class="text-3xl font-bold text-amber-200">{ui.title}</h1>
-      <span class="text-sm text-amber-100/60">{view.completedCount} / {view.total}</span>
+    <div class="flex items-center justify-between">
+      <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
+      <span class="text-sm text-[var(--text-dim)]">{view.completedCount} / {view.total}</span>
     </div>
+  {:else}
+    <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
   {/if}
 
-  {#if notice}<p class="mt-3 text-sm text-emerald-300">{notice}</p>{/if}
-  {#if error}<p class="mt-3 text-sm text-red-400">{error}</p>{/if}
+  {#if notice}<p class="text-sm text-[var(--success)]">{notice}</p>{/if}
+  {#if error}<p class="text-sm text-[var(--danger)]">{error}</p>{/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if view}
     {#if goals}
-      <section class="mt-6">
-        <h2 class="text-lg font-semibold text-amber-200">{ui.goalsDaily}</h2>
+      <section class="panel panel-pad">
+        <h2 class="panel-title">{ui.goalsDaily}</h2>
         <ul class="mt-2 space-y-2">
           {#each goals.daily as g (g.id)}{@render goalRow(g)}{/each}
         </ul>
-        <h2 class="mt-4 text-lg font-semibold text-amber-200">{ui.goalsWeekly}</h2>
+        <h2 class="panel-title mt-4">{ui.goalsWeekly}</h2>
         <ul class="mt-2 space-y-2">
           {#each goals.weekly as g (g.id)}{@render goalRow(g)}{/each}
         </ul>
       </section>
-      <h2 class="mt-8 text-lg font-semibold text-amber-200">{ui.title}</h2>
     {/if}
-    <ul class="mt-3 space-y-2">
-      {#each view.achievements as a (a.id)}
-        <li
-          class="rounded border bg-black/20 p-4 {a.completed
-            ? 'border-emerald-900/50'
-            : 'border-amber-900/40'}"
-        >
-          <div class="flex items-center justify-between">
-            <div>
-              <span class="font-semibold {a.completed ? 'text-emerald-300' : 'text-amber-200'}"
-                >{a.name}</span
-              >
-              <p class="text-xs text-amber-100/60">{a.description}</p>
-            </div>
-            <div class="text-right">
-              {#if a.claimed}
-                <span class="text-xs text-amber-100/40">{ui.claimed}</span>
-              {:else if a.claimable}
-                <button
-                  onclick={() => claim(a.id, a.rewardGold)}
-                  disabled={busy === a.id}
-                  class="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-black hover:bg-emerald-500 disabled:opacity-40"
+    <section class="panel panel-pad">
+      <h2 class="panel-title">{ui.title}</h2>
+      <ul class="mt-3 space-y-2">
+        {#each view.achievements as a (a.id)}
+          <li class="rounded-lg border border-[var(--border)] p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold" style={a.completed ? 'color:var(--success)' : 'color:var(--text)'}
+                  >{a.name}</span
                 >
-                  {ui.claim} +{a.rewardGold}{ui.reward}
-                </button>
-              {:else}
-                <span class="text-xs text-amber-300">+{a.rewardGold}{ui.reward}</span>
-              {/if}
+                <p class="text-xs text-[var(--text-dim)]">{a.description}</p>
+              </div>
+              <div class="text-right">
+                {#if a.claimed}
+                  <span class="text-xs text-[var(--text-faint)]">{ui.claimed}</span>
+                {:else if a.claimable}
+                  <button
+                    onclick={() => claim(a.id, a.rewardGold)}
+                    disabled={busy === a.id}
+                    class="btn btn-primary btn-sm"
+                  >
+                    {ui.claim} +{a.rewardGold}{ui.reward}
+                  </button>
+                {:else}
+                  <span class="text-xs text-[var(--gold-bright)]">+{a.rewardGold}{ui.reward}</span>
+                {/if}
+              </div>
             </div>
-          </div>
-          <!-- progress bar -->
-          <div class="mt-2 flex items-center gap-2">
-            <div class="h-1.5 flex-1 overflow-hidden rounded bg-black/40">
-              <div
-                class="h-full {a.completed ? 'bg-emerald-500' : 'bg-amber-500'}"
-                style={`width: ${a.pct * 100}%`}
-              ></div>
+            <!-- progress bar -->
+            <div class="mt-2 flex items-center gap-2">
+              <div class="bar">
+                <div class="bar-fill" style={`width: ${a.pct * 100}%`}></div>
+              </div>
+              <span class="text-xs text-[var(--text-faint)]">{ui.progress(a.value, a.threshold)}</span>
             </div>
-            <span class="text-xs text-amber-100/40">{ui.progress(a.value, a.threshold)}</span>
-          </div>
-        </li>
-      {/each}
-    </ul>
+          </li>
+        {/each}
+      </ul>
+    </section>
   {/if}
-</main>
+</div>

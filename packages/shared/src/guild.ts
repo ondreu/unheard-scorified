@@ -48,3 +48,19 @@ export function isValidGuildName(name: string): boolean {
     GUILD_NAME.pattern.test(name)
   );
 }
+
+/**
+ * Guild charter (vanilla-WoW styl založení): místo okamžitého vytvoření musí
+ * zakladatel zaplatit **zlatý poplatek** a získat **podpisy** od dalších hráčů.
+ * Teprve s dostatkem podpisů lze guildu založit. Hodnoty = laditelné konstanty
+ * (jediný zdroj pravdy pro API i web).
+ */
+export const GUILD_CHARTER_COST = 1000;
+
+/** Počet podpisů (od jiných postav) nutných k založení guildy. */
+export const GUILD_CHARTER_SIGNATURES_REQUIRED = 5;
+
+/** True, pokud charter posbíral dost podpisů na založení guildy. */
+export function canFoundGuild(signedSignatures: number): boolean {
+  return signedSignatures >= GUILD_CHARTER_SIGNATURES_REQUIRED;
+}

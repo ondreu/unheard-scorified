@@ -15,10 +15,10 @@
     type TradeState,
   } from '$lib/api';
   import { canTradeItem, itemDisplayName } from '@game/shared';
+  import { openProfile } from '$lib/ui-stores';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
-    back: '← Back to character',
     title: 'Trade',
     startPlaceholder: 'Character name…',
     start: 'Open trade',
@@ -154,94 +154,95 @@
   }
 </script>
 
-<main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+<div class="space-y-6">
+  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
 
   {#if notice}
-    <p class="mt-3 text-sm text-emerald-300">{notice}</p>
+    <p class="text-sm text-[var(--success)]">{notice}</p>
   {/if}
   {#if error}
-    <p class="mt-3 text-sm text-red-400">{error}</p>
+    <p class="text-sm text-[var(--danger)]">{error}</p>
   {/if}
 
   {#if loading}
-    <p class="mt-6 text-amber-100/50">Loading…</p>
+    <p class="text-[var(--text-dim)]">Loading…</p>
   {:else if ts?.trade}
     {@const t = ts.trade}
     <!-- Their offer -->
-    <section class="mt-6 rounded-lg border border-amber-900/40 bg-black/20 p-4">
+    <section class="panel panel-pad">
       <div class="flex items-center justify-between">
-        <h2 class="font-semibold text-sky-300">{t.them.name}</h2>
-        <span class="text-xs {t.them.confirmed ? 'text-emerald-400' : 'text-amber-100/40'}">
+        <h2 class="panel-title">
+          <button class="hover:underline" onclick={() => openProfile(t.them.characterId, t.them.name)}>{t.them.name}</button>
+        </h2>
+        <span class="text-xs" style={t.them.confirmed ? 'color:var(--success)' : 'color:var(--text-faint)'}>
           {t.them.confirmed ? ui.confirmed : ui.waiting}
         </span>
       </div>
-      <ul class="mt-2 text-sm text-amber-100/90">
+      <ul class="mt-2 text-sm text-[var(--text)]">
         {#each t.them.items as it (it.itemId)}
           <li>{it.name} ×{it.quantity}</li>
         {/each}
-        {#if t.them.gold > 0}<li class="text-amber-300">{t.them.gold} {ui.gold}</li>{/if}
+        {#if t.them.gold > 0}<li class="text-[var(--gold-bright)]">{t.them.gold} {ui.gold}</li>{/if}
         {#if t.them.items.length === 0 && t.them.gold === 0}
-          <li class="text-amber-100/30">{ui.empty}</li>
+          <li class="text-[var(--text-faint)]">{ui.empty}</li>
         {/if}
       </ul>
     </section>
 
     <!-- My offer editor -->
-    <section class="mt-4 rounded-lg border border-amber-900/40 bg-black/20 p-4">
+    <section class="panel panel-pad">
       <div class="flex items-center justify-between">
-        <h2 class="font-semibold text-amber-200">{ui.yourOffer}</h2>
-        <span class="text-xs {t.me.confirmed ? 'text-emerald-400' : 'text-amber-100/40'}">
+        <h2 class="panel-title">{ui.yourOffer}</h2>
+        <span class="text-xs" style={t.me.confirmed ? 'color:var(--success)' : 'color:var(--text-faint)'}>
           {t.me.confirmed ? ui.confirmed : ui.waiting}
         </span>
       </div>
 
       {#if tradeable.length === 0}
-        <p class="mt-2 text-sm text-amber-100/50">{ui.noItems}</p>
+        <p class="mt-2 text-sm text-[var(--text-dim)]">{ui.noItems}</p>
       {:else}
         <ul class="mt-2 space-y-1">
           {#each tradeable as it (it.itemId)}
             <li class="flex items-center justify-between text-sm">
-              <span class="text-amber-100/90">{itemDisplayName(it.itemId)} <span class="text-amber-100/40">({it.quantity})</span></span>
+              <span class="text-[var(--text)]">{itemDisplayName(it.itemId)} <span class="text-[var(--text-faint)]">({it.quantity})</span></span>
               <input
                 type="number"
                 min="0"
                 max={it.quantity}
                 value={qtyFor(it.itemId)}
                 oninput={(e) => setQty(it.itemId, it.quantity, e.currentTarget.value)}
-                class="w-16 rounded border border-amber-900/50 bg-black/30 px-2 py-1 text-right text-amber-100"
+                class="input w-16 text-right"
               />
             </li>
           {/each}
         </ul>
       {/if}
 
-      <label class="mt-3 flex items-center justify-between text-sm text-amber-100/80">
+      <label class="mt-3 flex items-center justify-between text-sm text-[var(--text-dim)]">
         {ui.gold}
         <input
           type="number"
           min="0"
           bind:value={goldDraft}
-          class="w-24 rounded border border-amber-900/50 bg-black/30 px-2 py-1 text-right text-amber-300"
+          class="input w-24 text-right"
         />
       </label>
 
       <button
         onclick={updateOffer}
         disabled={busy}
-        class="mt-3 rounded bg-amber-700/60 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-amber-600/60 disabled:opacity-40"
+        class="btn mt-3"
       >
         {ui.update}
       </button>
     </section>
 
-    <div class="mt-4 flex gap-3">
+    <div class="flex gap-3">
       {#if t.me.confirmed}
         <button
           onclick={() => act(() => unconfirmTrade(characterId))}
           disabled={busy}
-          class="rounded border border-amber-900/50 px-4 py-2 text-sm text-amber-100/70 hover:border-amber-600 disabled:opacity-40"
+          class="btn"
         >
           {ui.unconfirm}
         </button>
@@ -249,7 +250,7 @@
         <button
           onclick={confirm}
           disabled={busy}
-          class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-black hover:bg-emerald-500 disabled:opacity-40"
+          class="btn btn-primary"
         >
           {ui.confirm}
         </button>
@@ -257,7 +258,7 @@
       <button
         onclick={cancel}
         disabled={busy}
-        class="rounded border border-amber-900/50 px-4 py-2 text-sm text-amber-100/70 hover:border-red-700/60 hover:text-red-400 disabled:opacity-40"
+        class="btn btn-danger"
       >
         {ui.cancel}
       </button>
@@ -265,7 +266,7 @@
   {:else}
     <!-- Start a trade -->
     <form
-      class="mt-6 flex gap-2"
+      class="flex gap-2"
       onsubmit={(e) => {
         e.preventDefault();
         start();
@@ -275,15 +276,15 @@
         bind:value={partnerName}
         maxlength="16"
         placeholder={ui.startPlaceholder}
-        class="flex-1 rounded border border-amber-900/50 bg-black/30 px-3 py-2 text-sm text-amber-100 placeholder:text-amber-100/30"
+        class="input flex-1"
       />
       <button
         type="submit"
         disabled={busy || partnerName.trim().length === 0}
-        class="rounded bg-amber-600 px-4 py-2 text-sm font-medium text-black hover:bg-amber-500 disabled:opacity-40"
+        class="btn btn-primary"
       >
         {ui.start}
       </button>
     </form>
   {/if}
-</main>
+</div>

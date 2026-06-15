@@ -793,9 +793,33 @@ export interface GuildInviteView {
   sentAt: string;
 }
 
+export interface CharterSignatureView {
+  characterId: string;
+  name: string;
+  signed: boolean;
+}
+
+export interface GuildCharterView {
+  id: string;
+  name: string;
+  cost: number;
+  signedCount: number;
+  required: number;
+  canFound: boolean;
+  signatures: CharterSignatureView[];
+}
+
+export interface CharterInviteView {
+  charterId: string;
+  guildName: string;
+  founderName: string | null;
+}
+
 export interface GuildState {
   guild: GuildView | null;
   invites: GuildInviteView[];
+  charter: GuildCharterView | null;
+  charterInvites: CharterInviteView[];
 }
 
 export function getGuild(characterId: string): Promise<GuildState> {
@@ -807,6 +831,41 @@ export function createGuild(characterId: string, name: string): Promise<GuildSta
     method: 'POST',
     body: JSON.stringify({ name }),
   });
+}
+
+// Guild charter (vanilla-WoW style founding: gold cost + signatures).
+
+export function startGuildCharter(characterId: string, name: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/charter`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function inviteGuildCharterSign(characterId: string, name: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/charter/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function respondGuildCharterSign(
+  characterId: string,
+  charterId: string,
+  accept: boolean,
+): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/charter/sign`, {
+    method: 'POST',
+    body: JSON.stringify({ charterId, accept }),
+  });
+}
+
+export function foundGuildFromCharter(characterId: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/charter/found`, { method: 'POST' });
+}
+
+export function cancelGuildCharter(characterId: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/charter`, { method: 'DELETE' });
 }
 
 export function inviteToGuild(characterId: string, name: string): Promise<GuildState> {
