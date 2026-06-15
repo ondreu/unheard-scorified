@@ -27,14 +27,19 @@ export interface FriendRequestEvent {
 export interface FriendAcceptedEvent {
   byName: string;
 }
+export interface GuildInviteEvent {
+  guildName: string;
+  byName: string;
+}
 
-/** Přihlásí postavu k realtime notifikacím přátelství. Vrací odhlašovací funkci. */
+/** Přihlásí postavu k realtime notifikacím (přátelství + guild pozvánky). */
 export function subscribeSocial(
   socket: Socket,
   characterId: string,
   handlers: {
     onFriendRequest?: (e: FriendRequestEvent) => void;
     onFriendAccepted?: (e: FriendAcceptedEvent) => void;
+    onGuildInvite?: (e: GuildInviteEvent) => void;
   },
 ): () => void {
   const join = (): void => {
@@ -44,10 +49,12 @@ export function subscribeSocial(
   if (socket.connected) join();
   if (handlers.onFriendRequest) socket.on('social:friend_request', handlers.onFriendRequest);
   if (handlers.onFriendAccepted) socket.on('social:friend_accepted', handlers.onFriendAccepted);
+  if (handlers.onGuildInvite) socket.on('guild:invite', handlers.onGuildInvite);
   return () => {
     socket.off('connect', join);
     if (handlers.onFriendRequest) socket.off('social:friend_request', handlers.onFriendRequest);
     if (handlers.onFriendAccepted) socket.off('social:friend_accepted', handlers.onFriendAccepted);
+    if (handlers.onGuildInvite) socket.off('guild:invite', handlers.onGuildInvite);
   };
 }
 

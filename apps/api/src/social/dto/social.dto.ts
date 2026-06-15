@@ -1,4 +1,11 @@
-import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class SendFriendRequestDto {
   @IsString()
@@ -21,4 +28,28 @@ export class SendChatMessageDto {
   @IsOptional()
   @IsString()
   channel?: string;
+}
+
+export class CreateGuildDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(24)
+  name!: string;
+}
+
+export class InviteToGuildDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(16)
+  name!: string;
+}
+
+export class RespondGuildInviteDto {
+  @IsBoolean()
+  accept!: boolean;
+}
+
+export class SetGuildRankDto {
+  @IsIn(['member', 'officer'])
+  rank!: 'member' | 'officer';
 }

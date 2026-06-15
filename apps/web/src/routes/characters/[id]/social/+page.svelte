@@ -40,6 +40,7 @@
     send: 'Send',
     newRequest: (name: string): string => `${name} sent you a friend request.`,
     accepted: (name: string): string => `${name} accepted your friend request.`,
+    guildInvite: (guild: string, by: string): string => `${by} invited you to ${guild}.`,
   };
 
   let social = $state<SocialView | null>(null);
@@ -72,6 +73,9 @@
       onFriendAccepted: (e) => {
         notice = ui.accepted(e.byName);
         void loadSocialOnly();
+      },
+      onGuildInvite: (e) => {
+        notice = ui.guildInvite(e.guildName, e.byName);
       },
     });
     unsubChat = joinChat(

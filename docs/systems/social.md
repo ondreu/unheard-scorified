@@ -38,6 +38,32 @@ Redis pub/sub adaptér z M7 (multi-instance). Normalizace (`sanitizeChatMessage`
 trim + sjednocení bílých znaků + ořez na `MAX_CHAT_MESSAGE_LENGTH` = 256) je
 sdílená čistá funkce v `@game/shared`.
 
+## Guild
+
+> Viz ADR `docs/adr/0017-guild.md`. Per-postava členství (jako friends).
+
+Guilda (`guilds`) má jméno (globálně unikátní) a vůdce. Členství (`guild_members`)
+je **per-postava unikátní** → postava je nejvýše v jedné guildě. Ranky
+`member` / `officer` / `leader` (oprávnění v `@game/shared/guild`).
+
+### Tok
+
+1. **Založení** — `POST /characters/:id/guild` `{ name }`. Zakladatel = `leader`.
+2. **Pozvánka** — `POST .../guild/invites` `{ name }` (officer+). Cíl nesmí být
+   v guildě. Příchozí pozvánky vidí postava v `GET .../guild` → `invites`.
+3. **Odpověď** — `POST .../guild/invites/:inviteId/respond` `{ accept }`. Přijetí
+   → členství (`member`), jinak smazání.
+4. **Správa** — `DELETE .../guild/members/:target` (kick; officer+ a striktně
+   vyšší rank), `POST .../guild/members/:target/rank` `{ rank }` (jen vůdce;
+   member ↔ officer).
+5. **Odchod** — `POST .../guild/leave`. Odchod vůdce **předá vedení** nejstaršímu
+   zbývajícímu členovi (nejvyšší rank, pak nejdříve vstoupivší); poslední člen →
+   guilda se rozpustí. `DELETE .../guild` rozpustí guildu (jen vůdce).
+
+### Realtime
+
+Pozvaný dostane `guild:invite` do room `char:<characterId>` (přes `social:subscribe`).
+
 ## Sdílené helpery (`@game/shared/social.ts`)
 
 - `friendCounterpart(self, requester, addressee)` — protistrana vztahu.
@@ -45,6 +71,9 @@ sdílená čistá funkce v `@game/shared`.
 - `MAX_FRIENDS`, `FRIEND_REQUEST_STATUSES`.
 - `CHAT_CHANNELS`, `isChatChannel`, `sanitizeChatMessage`, `isValidChatMessage`,
   `MAX_CHAT_MESSAGE_LENGTH`, `CHAT_HISTORY_LIMIT`.
+
+Guild (`@game/shared/guild.ts`): `GUILD_RANKS`, `rankAtLeast`, `canManageMember`,
+`canInvite`, `MAX_GUILD_MEMBERS`, `isValidGuildName`.
 
 ## Architektura
 

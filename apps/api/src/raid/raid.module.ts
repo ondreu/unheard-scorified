@@ -9,6 +9,9 @@ import { TalentModule } from '../talent/talent.module';
 import { RaidController } from './raid.controller';
 import { RaidEventsRelay } from './raid.events';
 import { RaidGateway } from './raid.gateway';
+import { RaidLobbyController } from './raid-lobby.controller';
+import { RaidLobbyRepository } from './raid-lobby.repository';
+import { RaidLobbyService } from './raid-lobby.service';
 import { RAID_QUEUE, RedisRaidQueue } from './raid.matchmaking';
 import { RaidRepository } from './raid.repository';
 import { RaidService } from './raid.service';
@@ -29,10 +32,12 @@ import { RaidService } from './raid.service';
     PushModule,
     LockoutModule,
   ],
-  controllers: [RaidController],
+  controllers: [RaidController, RaidLobbyController],
   providers: [
     RaidService,
     RaidRepository,
+    RaidLobbyService,
+    RaidLobbyRepository,
     RaidEventsRelay,
     RaidGateway,
     { provide: RAID_QUEUE, useClass: RedisRaidQueue },
