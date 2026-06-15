@@ -119,12 +119,13 @@
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   }
 
-  const stats: { key: keyof CharacterView['sheet']['primary']; label: string }[] = [
-    { key: 'strength', label: 'STR' },
-    { key: 'agility', label: 'AGI' },
-    { key: 'stamina', label: 'STA' },
-    { key: 'intellect', label: 'INT' },
-    { key: 'spirit', label: 'SPI' },
+  // Full stat words; CSS shows the short code on very narrow cells (see markup).
+  const stats: { key: keyof CharacterView['sheet']['primary']; label: string; short: string }[] = [
+    { key: 'strength', label: 'Strength', short: 'STR' },
+    { key: 'agility', label: 'Agility', short: 'AGI' },
+    { key: 'stamina', label: 'Stamina', short: 'STA' },
+    { key: 'intellect', label: 'Intellect', short: 'INT' },
+    { key: 'spirit', label: 'Spirit', short: 'SPI' },
   ];
 
   const groups: NavSection['group'][] = ['play', 'progress', 'social', 'economy'];
@@ -190,7 +191,11 @@
         </div>
         {#each stats as s (s.key)}
           <div class="rounded-lg bg-black/20 px-3 py-2">
-            <div class="text-xs text-[var(--text-faint)]">{s.label}</div>
+            <!-- Full word when there's room; short code on the narrowest layout. -->
+            <div class="text-xs text-[var(--text-faint)]">
+              <span class="hidden sm:inline">{s.label}</span>
+              <span class="sm:hidden">{s.short}</span>
+            </div>
             <div class="font-semibold">{c.sheet.primary[s.key]}</div>
           </div>
         {/each}
