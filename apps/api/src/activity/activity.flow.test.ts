@@ -14,6 +14,7 @@ import { CompletedQuestRepository } from '../quest/quest.repository';
 import { QuestService } from '../quest/quest.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
+import { MountRepository } from '../mount/mount.repository';
 import { ActivityRepository } from './activity.repository';
 import { ActivityService } from './activity.service';
 import { NoopActivityScheduler } from './activity.scheduler';
@@ -51,6 +52,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
       new InventoryRepository(db),
       new ProfessionRepository(db),
       new ReputationRepository(db),
+      new MountRepository(db),
       new NoopActivityScheduler(),
     );
   });

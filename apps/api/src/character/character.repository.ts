@@ -71,6 +71,16 @@ export class CharacterRepository {
     return rows.length > 0;
   }
 
+  /** Nastaví kosmeticky zvolený („active") mount postavy (M10+). */
+  async setActiveMount(id: string, mountId: string | null): Promise<Character> {
+    const [row] = await this.db
+      .update(characters)
+      .set({ activeMountId: mountId })
+      .where(eq(characters.id, id))
+      .returning();
+    return row!;
+  }
+
   /** Připíše zlato postavě (návrat bidu/depositu, výnos z prodeje). */
   async addGold(id: string, amount: number): Promise<void> {
     if (amount === 0) return;

@@ -8,6 +8,7 @@ import {
 import {
   activityProgress,
   activitySeed,
+  applyMountSpeed,
   applyXpGain,
   buildCharacterSheet,
   computeActivityReward,
@@ -16,6 +17,7 @@ import {
   isQuestAvailable,
   isQuestId,
   levelFromXp,
+  mountSpeedBonus,
   professionReputationGains,
   professionSkillUp,
   PROFESSIONS,
@@ -36,6 +38,7 @@ import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
+import { MountRepository } from '../mount/mount.repository';
 import type { Character, CharacterActivity } from '../db/schema';
 import { ActivityRepository } from './activity.repository';
 import { ACTIVITY_SCHEDULER, type ActivityScheduler } from './activity.scheduler';
@@ -118,6 +121,7 @@ export class ActivityService {
     private readonly inventoryRepo: InventoryRepository,
     private readonly professionRepo: ProfessionRepository,
     private readonly reputationRepo: ReputationRepository,
+    private readonly mounts: MountRepository,
     @Inject(ACTIVITY_SCHEDULER) private readonly scheduler: ActivityScheduler,
   ) {}
 
@@ -149,16 +153,19 @@ export class ActivityService {
 
     const startAt = new Date();
     const seed = activitySeed(characterId, quest.id, startAt.getTime());
+    // Mount speed (M10+): questing je pohybová aktivita → zkracuje se durationSec.
+    const ownedMounts = await this.mounts.ownedIds(characterId);
+    const durationSec = applyMountSpeed(quest.durationSec, mountSpeedBonus(ownedMounts));
     const row = await this.activities.create({
       characterId,
       activityType: 'quest',
       params: { questId: quest.id },
       startAt,
-      durationSec: quest.durationSec,
+      durationSec,
       seed,
     });
 
-    await this.scheduler.schedule(row.id, characterId, quest.durationSec * 1000);
+    await this.scheduler.schedule(row.id, characterId, durationSec * 1000);
     return this.toActivityView(row, Date.now());
   }
 

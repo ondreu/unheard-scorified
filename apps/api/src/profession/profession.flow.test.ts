@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { MountRepository } from '../mount/mount.repository';
 import { ActivityRepository } from '../activity/activity.repository';
 import { ActivityService } from '../activity/activity.service';
 import { NoopActivityScheduler } from '../activity/activity.scheduler';
@@ -48,12 +49,14 @@ describe('M6 flow: profese & reputace', () => {
     profRepo = new ProfessionRepository(db);
     repRepo = new ReputationRepository(db);
     const activityRepo = new ActivityRepository(db);
+    const mountRepo = new MountRepository(db);
     professions = new ProfessionService(
       charRepo,
       invRepo,
       profRepo,
       repRepo,
       activityRepo,
+      mountRepo,
       new NoopActivityScheduler(),
     );
     activity = new ActivityService(
@@ -63,6 +66,7 @@ describe('M6 flow: profese & reputace', () => {
       invRepo,
       profRepo,
       repRepo,
+      mountRepo,
       new NoopActivityScheduler(),
     );
   });

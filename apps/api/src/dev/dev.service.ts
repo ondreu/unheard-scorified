@@ -3,6 +3,7 @@ import { eq, ilike, sql } from 'drizzle-orm';
 import {
   buildCharacterSheet,
   ITEMS,
+  MOUNT_LIST,
   PROFESSIONS,
   isItemId,
   isProfessionId,
@@ -18,6 +19,7 @@ import {
   characterEquipment,
   characterTalents,
   characterProfessions,
+  characterMounts,
 } from '../db/schema';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
@@ -91,6 +93,22 @@ export class DevService {
     return this.getState(characterId);
   }
 
+  /** Grant všech mountů postavě (dev/testing speed bonusu, M10+). */
+  async grantAllMounts(characterId: string): Promise<DevCharacterState> {
+    const char = await this.charactersRepo.findById(characterId);
+    if (!char) throw new NotFoundException('Character not found');
+    for (const m of MOUNT_LIST) {
+      await this.db
+        .insert(characterMounts)
+        .values({ characterId, mountId: m.id })
+        .onConflictDoNothing();
+    }
+    if (!char.activeMountId && MOUNT_LIST[0]) {
+      await this.charactersRepo.setActiveMount(characterId, MOUNT_LIST[0].id);
+    }
+    return this.getState(characterId);
+  }
+
   async addItem(characterId: string, itemId: string, quantity = 1): Promise<{ itemId: string; quantity: number; name: string }> {
     const char = await this.charactersRepo.findById(characterId);
     if (!char) throw new NotFoundException('Character not found');
@@ -137,7 +155,11 @@ export class DevService {
     await this.db.delete(characterInventory).where(eq(characterInventory.characterId, characterId));
     await this.db.delete(characterEquipment).where(eq(characterEquipment.characterId, characterId));
     await this.db.delete(characterTalents).where(eq(characterTalents.characterId, characterId));
-    await this.db.update(characters).set({ totalXp: 0, gold: 0 }).where(eq(characters.id, characterId));
+    await this.db.delete(characterMounts).where(eq(characterMounts.characterId, characterId));
+    await this.db
+      .update(characters)
+      .set({ totalXp: 0, gold: 0, activeMountId: null })
+      .where(eq(characters.id, characterId));
     return { reset: true };
   }
 
