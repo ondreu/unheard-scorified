@@ -13,13 +13,28 @@ import { SeededRng, seedFromString } from './rng';
 import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET, DUNGEON_LOOT_TABLES } from './loot';
 import { DUNGEONS } from './data/dungeons';
 import { buildEnemyActor, simulateDungeonRun, type CombatActor, type DungeonCombatResult } from './combat';
+import { GATHERING_NODES, RECIPES } from './data/professions';
+import { rollGatherYield } from './professions';
 
-/** Typ idle aktivity. M2: quest; M5: dungeon. Rozšiřitelné o profese. */
-export type ActivityType = 'quest' | 'dungeon';
+/** Typ idle aktivity. M2: quest; M5: dungeon; M6: gather/craft (profese). */
+export type ActivityType = 'quest' | 'dungeon' | 'gather' | 'craft';
 
 /** Parametry questovací aktivity. */
 export interface QuestActivityParams {
   questId: string;
+}
+
+/** Parametry gathering aktivity (M6). `nodeId` určuje materiálový výnos. */
+export interface GatherActivityParams {
+  nodeId: string;
+}
+
+/**
+ * Parametry crafting aktivity (M6). Vstupní materiály se spotřebují už při startu
+ * (anti-double-spend); zde stačí `recipeId` (výstup je deterministický).
+ */
+export interface CraftActivityParams {
+  recipeId: string;
 }
 
 /**
@@ -32,7 +47,11 @@ export interface DungeonActivityParams {
   player: CombatActor;
 }
 
-export type ActivityParams = QuestActivityParams | DungeonActivityParams;
+export type ActivityParams =
+  | QuestActivityParams
+  | DungeonActivityParams
+  | GatherActivityParams
+  | CraftActivityParams;
 
 /** Perzistovaný stav běžící aktivity (vstup pro dopočet). */
 export interface ActivityState {
@@ -146,6 +165,31 @@ export function computeDungeonReward(params: DungeonActivityParams, seed: number
 }
 
 /**
+ * Odměna za dokončený gathering běh: materiály (rollnuté deterministicky) +
+ * character XP. Profession skill a reputace se připisují zvlášť při claimu
+ * (mají vlastní perzistenci, nejsou součástí generické `ActivityReward`).
+ */
+export function computeGatherReward(params: GatherActivityParams, seed: number): ActivityReward {
+  const node = GATHERING_NODES[params.nodeId];
+  if (!node) return { xp: 0, gold: 0, items: [] };
+  const rng = new SeededRng(seed);
+  const items = rollGatherYield(node, rng);
+  return { xp: node.baseXp, gold: 0, items };
+}
+
+/**
+ * Odměna za dokončený crafting běh: vyrobený item (deterministický) + character
+ * XP. Vstupní materiály se spotřebovaly už při startu.
+ */
+export function computeCraftReward(params: CraftActivityParams): ActivityReward {
+  const recipe = RECIPES[params.recipeId];
+  if (!recipe) return { xp: 0, gold: 0, items: [] };
+  const items: string[] = [];
+  for (let i = 0; i < recipe.outputQuantity; i++) items.push(recipe.outputItemId);
+  return { xp: recipe.baseXp, gold: 0, items };
+}
+
+/**
  * Odměna za aktivitu, je-li v okamžiku `now` dokončená; jinak `null`.
  * Jediný vstupní bod pro dopočet odměn (lazy i z BullMQ jobu).
  */
@@ -160,6 +204,10 @@ export function computeActivityReward(state: ActivityState, now: number): Activi
     }
     case 'dungeon':
       return computeDungeonReward(state.params as DungeonActivityParams, state.seed);
+    case 'gather':
+      return computeGatherReward(state.params as GatherActivityParams, state.seed);
+    case 'craft':
+      return computeCraftReward(state.params as CraftActivityParams);
     default:
       return null;
   }

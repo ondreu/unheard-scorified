@@ -6,6 +6,7 @@ import { DbModule } from './db/db.module';
 import { DungeonModule } from './dungeon/dungeon.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { ProfessionModule } from './profession/profession.module';
 import { PushModule } from './push/push.module';
 import { QuestModule } from './quest/quest.module';
 import { RedisModule } from './redis/redis.module';
@@ -28,6 +29,7 @@ import { TalentModule } from './talent/talent.module';
     InventoryModule,
     TalentModule,
     DungeonModule,
+    ProfessionModule,
   ],
 })
 export class AppModule {}

@@ -17,6 +17,7 @@ import { TalentRepository } from '../talent/talent.repository';
 import { ActivityRepository } from '../activity/activity.repository';
 import { ActivityService } from '../activity/activity.service';
 import { NoopActivityScheduler } from '../activity/activity.scheduler';
+import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import { DungeonService } from './dungeon.service';
 
 /**
@@ -59,6 +60,8 @@ describe('M5 flow: dungeony & combat', () => {
       activityRepo,
       new CompletedQuestRepository(db),
       invRepo,
+      new ProfessionRepository(db),
+      new ReputationRepository(db),
       new NoopActivityScheduler(),
     );
   });

@@ -254,10 +254,34 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Zbývá doladit:** balanc (HP/AP/loot/XP, M9); **WebSocket** realtime transport
   (Redis pub/sub, multi-instance) → M7; plné využití všech combat tagů (DoTy/štíty/CC).
 
-### M6 — Profese & reputace (deep time-sinks)
+### M6 — Profese & reputace (deep time-sinks) — ✅ hotovo
 
-- Gathering + crafting profese; reputace s frakcemi.
-- **Výstup:** dlouhodobé filler aktivity vedle questování.
+- [x] **2 gathering + 2 crafting profese** (rozhodnutí PM): Mining→Blacksmithing
+      (gear), Herbalism→Alchemy (consumables). Profession skill 1–150 (3 tiery),
+      deterministický skill-up („zelený" node/recept dává +1, pak zešedne).
+- [x] **Gathering/crafting běh = idle aktivita** typu `gather`/`craft`
+      (`@game/shared`: `data/professions.ts`, `data/materials.ts`, `professions.ts`
+      vzorce). Žádná nová activity tabulka — recykluje M2 activity infra (repository,
+      BullMQ scheduler, push, generický claim). Crafting spotřebuje materiály při startu.
+- [x] **Materiály/spotřebáky** = ne-equip položky v existující `character_inventory`;
+      crafted gear žije v `ITEMS` (equipovatelné). Deterministický gather yield přes `SeededRng`.
+- [x] **Reputace** se 3 frakcemi (Miners' League, Herbalist Circle, Explorers' Guild),
+      tiers Neutral→Exalted (odvozené z `standing`), rep gain z profesí, **rep-gated
+      recepty** (Masterwork Blade, Elixir of Strength @ Honored). DB: `character_professions`
+      + `character_reputation` (migrace `0004_overrated_lady_ursula`).
+- [x] `ProfessionModule` (NestJS): `GET /professions` panel, `POST .../gather/:nodeId`,
+      `POST .../craft/:recipeId`; skill + reputace se připisují v generickém claimu.
+      `ProfessionDataModule` (leaf) → bez modulového cyklu.
+- [x] Web: `/characters/[id]/professions` (skilly, reputace, materiály, gather/craft);
+      character page link + claim banner se skill-up/rep zisky. Texty anglicky, oddělené od logiky.
+- [x] Testy: shared unit (`professions.test.ts`, +13) + API integrační flow
+      (`profession.flow.test.ts` přes pglite, +7). Build/test/lint/typecheck zelené
+      (118 testů: 69 shared + 49 API). DI graf ověřen reálným bootem (tsc).
+- Detail: `docs/systems/professions-reputation.md`, ADR `docs/adr/0009-professions-and-reputation.md`.
+- **Výstup:** sbírám materiály, craftím z nich itemy/spotřebáky, stoupám v profession
+  skillu i reputaci (vč. rep-gated receptur). ✅
+- **Zbývá doladit:** „use" consumables/buffy (M9); prodej materiálů (vendor/AH, M8);
+  reputace i z questů/dungeonů (retrofit); balanc (M9).
 
 ### M7 — Multiplayer infra & Areny (MP PVP)
 
@@ -289,7 +313,7 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 ### Menší rozhodnutí do dalších fází
 
-- Hloubka profesí v MVP. → M6
+- ~~Hloubka profesí v MVP. → M6~~ ✅ vyřešeno v M6: 2 gathering + 2 crafting (Mining→Blacksmithing, Herbalism→Alchemy) + 3 frakce s rep-gated recepty.
 - Síla PVP vs PVE balancu. → M5/M7
 - ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
 - Sezónní model (reset ladderu) pro PVP. → M7

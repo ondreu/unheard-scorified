@@ -43,6 +43,22 @@ export interface ActivityView {
   progress: ActivityProgress;
 }
 
+export interface ProfessionGainView {
+  id: string;
+  name: string;
+  skillBefore: number;
+  skillAfter: number;
+}
+
+export interface ReputationGainView {
+  factionId: string;
+  name: string;
+  gained: number;
+  standing: number;
+  tier: string;
+  tierName: string;
+}
+
 export interface ClaimResult {
   reward: { xp: number; gold: number; items: string[] };
   levelBefore: number;
@@ -54,6 +70,10 @@ export interface ClaimResult {
   offlineDurationSec: number;
   /** Itemy přidané do inventáře při claimu. */
   items: string[];
+  /** Profession skill-up (jen u gather/craft). */
+  profession?: ProfessionGainView;
+  /** Reputační zisky (jen u gather/craft). */
+  reputation?: ReputationGainView[];
 }
 
 export interface DungeonListItem {
@@ -211,6 +231,94 @@ export function enterDungeon(characterId: string, dungeonId: string): Promise<Du
 
 export function getDungeonLog(characterId: string): Promise<DungeonLogView | null> {
   return request<DungeonLogView | null>(`/characters/${characterId}/dungeons/log`);
+}
+
+export interface ProfessionSkillView {
+  id: string;
+  name: string;
+  kind: 'gathering' | 'crafting';
+  skill: number;
+  maxSkill: number;
+  factionId: string;
+}
+
+export interface ReputationView {
+  factionId: string;
+  name: string;
+  standing: number;
+  tier: string;
+  tierName: string;
+  currentMin: number;
+  nextMin: number | null;
+}
+
+export interface MaterialStackView {
+  itemId: string;
+  name: string;
+  kind: 'material' | 'consumable';
+  rarity: string;
+  quantity: number;
+}
+
+export interface GatheringNodeView {
+  id: string;
+  professionId: string;
+  name: string;
+  description: string;
+  requiredSkill: number;
+  durationSec: number;
+  baseXp: number;
+  repReward: number;
+  skill: number;
+  unlocked: boolean;
+}
+
+export interface RecipeInputView {
+  materialId: string;
+  name: string;
+  quantity: number;
+  have: number;
+}
+
+export interface RecipeView {
+  id: string;
+  professionId: string;
+  name: string;
+  description: string;
+  requiredSkill: number;
+  durationSec: number;
+  baseXp: number;
+  repReward: number;
+  skill: number;
+  inputs: RecipeInputView[];
+  output: { itemId: string; name: string; quantity: number };
+  requiredReputation?: { factionId: string; factionName: string; tier: string; tierName: string; met: boolean };
+  unlocked: boolean;
+  craftable: boolean;
+}
+
+export interface ProfessionPanel {
+  skills: ProfessionSkillView[];
+  reputation: ReputationView[];
+  materials: MaterialStackView[];
+  gathering: GatheringNodeView[];
+  recipes: RecipeView[];
+}
+
+export function getProfessions(characterId: string): Promise<ProfessionPanel> {
+  return request<ProfessionPanel>(`/characters/${characterId}/professions`);
+}
+
+export function startGather(characterId: string, nodeId: string): Promise<ProfessionPanel> {
+  return request<ProfessionPanel>(`/characters/${characterId}/professions/gather/${nodeId}`, {
+    method: 'POST',
+  });
+}
+
+export function startCraft(characterId: string, recipeId: string): Promise<ProfessionPanel> {
+  return request<ProfessionPanel>(`/characters/${characterId}/professions/craft/${recipeId}`, {
+    method: 'POST',
+  });
 }
 
 export function getVapidPublicKey(): Promise<{ key: string }> {
