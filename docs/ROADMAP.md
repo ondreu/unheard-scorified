@@ -613,6 +613,7 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 ### FEAT — obsah & systémy
 
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
+  - [x] +6 repeatable filler questů (1 na zónu, M9) — víc idle obsahu napříč brackety.
   - [ ] Příběhové (story) questlinky.
   - [ ] Questy s **combatem** (kill/clear cíl řešený combat enginem, ne jen idle timer).
   - [ ] Každý dungeon má vlastní **questlinku** (attunement/lore → odemykání).
