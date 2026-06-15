@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, or, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, or, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import {
   arenaRatings,
   characterAchievements,
+  characterGoalClaims,
   completedQuests,
   friendships,
   raidRunParticipants,
@@ -87,6 +88,70 @@ export class ProgressionRepository {
     const rows = await this.db
       .insert(characterAchievements)
       .values({ characterId, achievementId })
+      .onConflictDoNothing()
+      .returning();
+    return rows.length > 0;
+  }
+
+  // ── Denní/týdenní cíle (M9) ──────────────────────────────────────────────────
+
+  /** Počet questů dokončených od `sinceMs` (období cíle). */
+  questsCompletedSince(characterId: string, sinceMs: number): Promise<number> {
+    return this.count(
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(completedQuests)
+        .where(
+          and(
+            eq(completedQuests.characterId, characterId),
+            gte(completedQuests.completedAt, new Date(sinceMs)),
+          ),
+        ),
+    );
+  }
+
+  /** Počet vítězných clearů daného typu od `sinceMs`. */
+  clearsSince(
+    characterId: string,
+    contentType: 'dungeon' | 'raid',
+    sinceMs: number,
+  ): Promise<number> {
+    return this.count(
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(raidRunParticipants)
+        .innerJoin(raidRuns, eq(raidRunParticipants.raidRunId, raidRuns.id))
+        .where(
+          and(
+            eq(raidRunParticipants.characterId, characterId),
+            eq(raidRuns.contentType, contentType),
+            eq(raidRuns.victory, 1),
+            gte(raidRuns.createdAt, new Date(sinceMs)),
+          ),
+        ),
+    );
+  }
+
+  /** Vyzvednuté cíle postavy v daných obdobích (set `"goalId"`). */
+  async claimedGoalIds(characterId: string, periodIds: string[]): Promise<Set<string>> {
+    if (periodIds.length === 0) return new Set();
+    const rows = await this.db
+      .select({ id: characterGoalClaims.goalId })
+      .from(characterGoalClaims)
+      .where(
+        and(
+          eq(characterGoalClaims.characterId, characterId),
+          inArray(characterGoalClaims.periodId, periodIds),
+        ),
+      );
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /** Idempotentní zápis nároku cíle pro období. Vrací true při prvním. */
+  async claimGoal(characterId: string, goalId: string, periodId: string): Promise<boolean> {
+    const rows = await this.db
+      .insert(characterGoalClaims)
+      .values({ characterId, goalId, periodId })
       .onConflictDoNothing()
       .returning();
     return rows.length > 0;

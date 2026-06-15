@@ -96,4 +96,30 @@ describe('M9 flow: achievements', () => {
     const intruder = await player('Snoopa');
     await expect(progression.getAchievements(intruder.accountId, a.id)).rejects.toThrow();
   });
+
+  it('denní cíl: 3 questy splní daily_quests_3 a claim přidá zlato', async () => {
+    const a = await player('Dailya');
+    for (let i = 0; i < 3; i++) await completed.markCompleted(a.id, `dq_${i}`);
+
+    let goals = await progression.getGoals(a.accountId, a.id);
+    const dq = goals.daily.find((g) => g.id === 'daily_quests_3')!;
+    expect(dq.value).toBe(3);
+    expect(dq.claimable).toBe(true);
+    // Týdenní cíl 15 questů ještě splněný není.
+    expect(goals.weekly.find((g) => g.id === 'weekly_quests_15')?.completed).toBe(false);
+
+    const goldBefore = (await charRepo.findById(a.id))!.gold;
+    const res = await progression.claimGoal(a.accountId, a.id, 'daily_quests_3');
+    expect((await charRepo.findById(a.id))!.gold).toBe(goldBefore + res.rewardGold);
+
+    // Druhý claim ve stejném období selže.
+    await expect(progression.claimGoal(a.accountId, a.id, 'daily_quests_3')).rejects.toThrow();
+    goals = await progression.getGoals(a.accountId, a.id);
+    expect(goals.daily.find((g) => g.id === 'daily_quests_3')?.claimed).toBe(true);
+  });
+
+  it('nelze vyzvednout nesplněný cíl', async () => {
+    const a = await player('Slackera');
+    await expect(progression.claimGoal(a.accountId, a.id, 'weekly_raid_3')).rejects.toThrow();
+  });
 });

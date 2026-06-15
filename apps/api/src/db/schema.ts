@@ -590,6 +590,24 @@ export const characterAchievements = pgTable(
 );
 
 /**
+ * Vyzvednuté denní/týdenní cíle (M9). PK = (postava, cíl, období) → cíl jde
+ * splnit znovu v dalším období (`periodId` = UTC den / pondělí). `goalId` z
+ * `@game/shared` katalogu. Splnění se odvozuje lazy z herního stavu v období.
+ */
+export const characterGoalClaims = pgTable(
+  'character_goal_claims',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    goalId: varchar('goal_id', { length: 48 }).notNull(),
+    periodId: varchar('period_id', { length: 16 }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.goalId, t.periodId] })],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -748,6 +766,8 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
 export type CharacterAchievement = typeof characterAchievements.$inferSelect;
 export type NewCharacterAchievement = typeof characterAchievements.$inferInsert;
+export type CharacterGoalClaim = typeof characterGoalClaims.$inferSelect;
+export type NewCharacterGoalClaim = typeof characterGoalClaims.$inferInsert;
 export type Trade = typeof trades.$inferSelect;
 export type NewTrade = typeof trades.$inferInsert;
 export type TradeItem = typeof tradeItems.$inferSelect;

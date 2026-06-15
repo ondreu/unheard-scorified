@@ -127,6 +127,13 @@
       "when": 1781527239811,
       "tag": "0017_sharp_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781527670080,
+      "tag": "0018_noisy_thunderbolt",
+      "breakpoints": true
     }
   ]
 }

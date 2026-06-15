@@ -1101,6 +1101,41 @@ export function claimAchievement(
   );
 }
 
+export interface GoalView {
+  id: string;
+  name: string;
+  description: string;
+  period: 'daily' | 'weekly';
+  metric: string;
+  target: number;
+  rewardGold: number;
+  value: number;
+  pct: number;
+  completed: boolean;
+  claimed: boolean;
+  claimable: boolean;
+}
+
+export interface GoalsView {
+  daily: GoalView[];
+  weekly: GoalView[];
+  resetsAt: { daily: string; weekly: string };
+}
+
+export function getGoals(characterId: string): Promise<GoalsView> {
+  return request<GoalsView>(`/characters/${characterId}/achievements/goals`);
+}
+
+export function claimGoal(
+  characterId: string,
+  goalId: string,
+): Promise<{ goalId: string; rewardGold: number; goldAfter: number }> {
+  return request<{ goalId: string; rewardGold: number; goldAfter: number }>(
+    `/characters/${characterId}/achievements/goals/${goalId}/claim`,
+    { method: 'POST' },
+  );
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

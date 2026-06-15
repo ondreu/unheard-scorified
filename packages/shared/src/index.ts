@@ -28,3 +28,4 @@ export * from './guild';
 export * from './lobby';
 export * from './trade';
 export * from './achievements';
+export * from './goals';

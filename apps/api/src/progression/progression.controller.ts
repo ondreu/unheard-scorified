@@ -5,6 +5,8 @@ import {
   ProgressionService,
   type AchievementsView,
   type ClaimResult,
+  type GoalClaimResult,
+  type GoalsView,
 } from './progression.service';
 
 /**
@@ -32,5 +34,24 @@ export class ProgressionController {
     @Param('achievementId') achievementId: string,
   ): Promise<ClaimResult> {
     return this.progression.claim(user.accountId, characterId, achievementId);
+  }
+
+  /** Denní/týdenní cíle s progresem a stavem nároku. */
+  @Get('goals')
+  goals(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+  ): Promise<GoalsView> {
+    return this.progression.getGoals(user.accountId, characterId);
+  }
+
+  /** Vyzvedne odměnu za splněný cíl v aktuálním období. */
+  @Post('goals/:goalId/claim')
+  claimGoal(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('goalId') goalId: string,
+  ): Promise<GoalClaimResult> {
+    return this.progression.claimGoal(user.accountId, characterId, goalId);
   }
 }

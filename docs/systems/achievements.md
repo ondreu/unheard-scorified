@@ -30,7 +30,16 @@ Katalog `ACHIEVEMENTS` (id, name, description, metric, threshold, rewardGold).
 
 `/characters/[id]/achievements` — progress bary, tlačítko Claim u splněných.
 
-## Follow-up
+## Denní / týdenní cíle (M9)
 
-Denní/týdenní **cíle** (časově omezené, recyklují metriky + period id jako
-weekly lockout) jsou navazující krok.
+Časově omezené cíle (`@game/shared/goals.ts`) recyklují metriky, ale počítají se
+**v rámci období**: UTC den (`daily`) nebo UTC týden (`weekly`, sdílí pondělní
+kotvu s weekly lockoutem). Po resetu se dají splnit znovu. Metriky musí být
+časově ukotvené (`questsCompleted`, `dungeonClears`, `raidClears` — mají
+timestamp ve zdroji); progres = počet od `periodStartMs`.
+
+- `GET /characters/:id/achievements/goals` → `{ daily, weekly, resetsAt }`.
+- `POST /characters/:id/achievements/goals/:goalId/claim` → odměna jednou za
+  období (`character_goal_claims`, PK `(postava, cíl, periodId)`, migrace `0018`).
+
+Web: sekce „Daily goals" / „Weekly goals" nahoře na stránce achievementů.
