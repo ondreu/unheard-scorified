@@ -64,6 +64,13 @@
   let raidId = $state('');
 
   const characterId = $derived($page.params.id ?? '');
+
+  // My own joined membership → keep the "My role" select in sync with reality.
+  const myMember = $derived(gs?.group?.members.find((m) => m.characterId === characterId) ?? null);
+  let roleSel = $state<RaidRole>('dps');
+  $effect(() => {
+    if (myMember) roleSel = myMember.role;
+  });
   let poller: ReturnType<typeof setInterval> | undefined;
 
   onMount(async () => {
@@ -215,8 +222,8 @@
           <label class="text-sm text-amber-100/70">
             {ui.myRole}
             <select
-              bind:value={createRole}
-              onchange={() => act(() => setGroupRole(characterId, createRole))}
+              bind:value={roleSel}
+              onchange={() => act(() => setGroupRole(characterId, roleSel))}
               class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
             >
               {#each ROLES as r (r)}<option value={r}>{r}</option>{/each}
