@@ -2,6 +2,8 @@
 
 > Living document. Po každém milníku se aktualizuje (odškrtnutí hotového, doplnění detailů další fáze).
 > Toto je **single source of truth** roadmapy projektu.
+>
+> **Dev & Admin panel:** `/dev` (viz `docs/systems/dev-panel.md`). Každý nový systém přidává odpovídající dev/mod akce — viz konvence v tom dokumentu.
 
 ## Context
 

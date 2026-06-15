@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { eq } from 'drizzle-orm';
@@ -55,6 +55,10 @@ export class AuthService {
 
     if (!account || !(await compare(password, account.passwordHash))) {
       throw new UnauthorizedException('Invalid username or password');
+    }
+
+    if (account.bannedAt) {
+      throw new ForbiddenException('Account is banned');
     }
 
     return this.issueTokens({ sub: account.id, username: account.username });

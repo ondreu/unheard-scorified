@@ -44,6 +44,7 @@ export const accounts = pgTable('accounts', {
   username: varchar('username', { length: 32 }).notNull().unique(),
   email: varchar('email', { length: 255 }),
   passwordHash: text('password_hash').notNull(),
+  bannedAt: timestamp('banned_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
