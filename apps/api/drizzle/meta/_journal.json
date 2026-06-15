@@ -57,6 +57,13 @@
       "when": 1781499939965,
       "tag": "0007_spotty_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781505876678,
+      "tag": "0008_useful_stingray",
+      "breakpoints": true
     }
   ]
 }

@@ -597,3 +597,146 @@ export function subscribePushApi(payload: {
 export function unsubscribePushApi(endpoint: string): Promise<void> {
   return request<void>('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) });
 }
+
+// Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
+
+export interface DevCharacterState {
+  id: string;
+  name: string;
+  level: number;
+  totalXp: number;
+  gold: number;
+}
+
+export interface DevItemDef {
+  id: string;
+  name: string;
+  slot: string;
+  rarity: string;
+  itemLevel: number;
+}
+
+export interface DevProfessionDef {
+  id: string;
+  name: string;
+}
+
+export interface DevAccountView {
+  id: string;
+  username: string;
+  email: string | null;
+  bannedAt: string | null;
+  createdAt: string;
+  characterCount: number;
+}
+
+export interface DevCharacterInspect {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  faction: string;
+  level: number;
+  totalXp: number;
+  gold: number;
+  accountId: string;
+  activity: { type: string; startAt: string; durationSec: number } | null;
+  inventory: { itemId: string; name: string; quantity: number }[];
+  equipment: { slot: string; itemId: string; name: string }[];
+  professions: { professionId: string; skill: number }[];
+}
+
+export interface DevCharacterSearchResult {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  level: number;
+  accountId: string;
+}
+
+function devRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const secret = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('dev_secret') ?? '') : '';
+  const headers: Record<string, string> = {
+    ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    ...(secret ? { 'X-Dev-Secret': secret } : {}),
+  };
+  return fetch(`/api${path}`, { ...init, headers }).then(async (res) => {
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((body as { message?: string })?.message ?? `HTTP ${res.status}`);
+    return body as T;
+  });
+}
+
+export function devVerifyAuth(secret: string): Promise<{ ok: boolean }> {
+  return devRequest('/dev/auth', { method: 'POST', body: JSON.stringify({ secret }) });
+}
+
+export function devGetState(characterId: string): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/state`);
+}
+
+export function devListItems(characterId: string): Promise<DevItemDef[]> {
+  return devRequest(`/dev/characters/${characterId}/items`);
+}
+
+export function devListProfessions(characterId: string): Promise<DevProfessionDef[]> {
+  return devRequest(`/dev/characters/${characterId}/professions`);
+}
+
+export function devSetLevel(characterId: string, level: number): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/set-level`, { method: 'POST', body: JSON.stringify({ level }) });
+}
+
+export function devAddGold(characterId: string, amount: number): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/add-gold`, { method: 'POST', body: JSON.stringify({ amount }) });
+}
+
+export function devAddItem(characterId: string, itemId: string, quantity: number): Promise<{ itemId: string; quantity: number; name: string }> {
+  return devRequest(`/dev/characters/${characterId}/add-item`, { method: 'POST', body: JSON.stringify({ itemId, quantity }) });
+}
+
+export function devCompleteActivity(characterId: string): Promise<{ completed: boolean; message: string }> {
+  return devRequest(`/dev/characters/${characterId}/complete-activity`, { method: 'POST' });
+}
+
+export function devTimeWarp(characterId: string, hours: number): Promise<{ warped: boolean; message: string }> {
+  return devRequest(`/dev/characters/${characterId}/time-warp`, { method: 'POST', body: JSON.stringify({ hours }) });
+}
+
+export function devSetProfession(characterId: string, professionId: string, skill: number): Promise<{ professionId: string; skill: number }> {
+  return devRequest(`/dev/characters/${characterId}/set-profession`, { method: 'POST', body: JSON.stringify({ professionId, skill }) });
+}
+
+export function devResetCharacter(characterId: string): Promise<{ reset: boolean }> {
+  return devRequest(`/dev/characters/${characterId}/reset`, { method: 'POST' });
+}
+
+// Moderation
+export function devListAccounts(): Promise<DevAccountView[]> {
+  return devRequest('/dev/mod/accounts');
+}
+
+export function devBanAccount(accountId: string): Promise<{ banned: boolean }> {
+  return devRequest(`/dev/mod/accounts/${accountId}/ban`, { method: 'POST' });
+}
+
+export function devUnbanAccount(accountId: string): Promise<{ banned: boolean }> {
+  return devRequest(`/dev/mod/accounts/${accountId}/unban`, { method: 'POST' });
+}
+
+export function devDeleteAccount(accountId: string): Promise<{ deleted: boolean }> {
+  return devRequest(`/dev/mod/accounts/${accountId}`, { method: 'DELETE' });
+}
+
+export function devSearchCharacters(name: string): Promise<DevCharacterSearchResult[]> {
+  return devRequest(`/dev/mod/characters/search?name=${encodeURIComponent(name)}`);
+}
+
+export function devInspectCharacter(characterId: string): Promise<DevCharacterInspect> {
+  return devRequest(`/dev/mod/characters/${characterId}/inspect`);
+}
+
+export function devDeleteCharacter(characterId: string): Promise<{ deleted: boolean }> {
+  return devRequest(`/dev/mod/characters/${characterId}`, { method: 'DELETE' });
+}
