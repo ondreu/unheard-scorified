@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
+  import { arenaBracketForSize } from '@game/shared';
   import {
     ApiError,
     createGroup,
@@ -71,6 +72,9 @@
   $effect(() => {
     if (myMember) roleSel = myMember.role;
   });
+
+  // Aréna: bracket plyne z velikosti (1/2/3/5); jinak nelze (null → tlačítko off).
+  const arenaBracket = $derived(arenaBracketForSize(gs?.group?.joinedCount ?? 0));
   let poller: ReturnType<typeof setInterval> | undefined;
 
   onMount(async () => {
@@ -271,8 +275,10 @@
               <button disabled={busy || !raidId} onclick={() => launch('raid')} class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50">{ui.raid} {ui.launch}</button>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-xs text-amber-100/40">{ui.arenaHint}</span>
-              <button disabled={busy} onclick={() => launch('arena')} class="rounded bg-purple-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-purple-600 disabled:opacity-50">{ui.arena} {ui.launch}</button>
+              <span class="text-xs text-amber-100/40">
+                {arenaBracket ? `Arena: ${arenaBracket}` : ui.arenaHint}
+              </span>
+              <button disabled={busy || !arenaBracket} onclick={() => launch('arena')} class="rounded bg-purple-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-purple-600 disabled:opacity-50">{ui.arena} {ui.launch}</button>
             </div>
           </div>
         </section>
