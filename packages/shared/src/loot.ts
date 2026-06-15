@@ -34,6 +34,7 @@ export const ZONE_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'scout_vest', dropChance: 0.08 },
       { itemId: 'runed_staff', dropChance: 0.08 },
       { itemId: 'adventurer_ring', dropChance: 0.08 },
+      { itemId: 'oak_buckler', dropChance: 0.12 },
     ],
   },
   // Alliance/Horde Tier 2 zóny (level 10–25)
@@ -54,6 +55,7 @@ export const ZONE_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'spellweave_robe', dropChance: 0.05 },
       { itemId: 'defender_shield', dropChance: 0.07 },
       { itemId: 'mage_trinket', dropChance: 0.07 },
+      { itemId: 'huntsman_cloak', dropChance: 0.10 },
     ],
   },
   // Alliance/Horde Tier 3 zóny (level 25–40)
@@ -72,6 +74,7 @@ export const ZONE_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'shadow_vambraces', dropChance: 0.08 },
       { itemId: 'moonfire_cloak', dropChance: 0.08 },
       { itemId: 'emerald_trinket', dropChance: 0.10 },
+      { itemId: 'sentinel_legguards', dropChance: 0.10 },
       // Epic
       { itemId: 'arcane_robes', dropChance: 0.03 },
     ],

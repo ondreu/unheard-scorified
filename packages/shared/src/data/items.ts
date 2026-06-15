@@ -322,6 +322,22 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     rarity: 'epic', itemLevel: 62, vendorGold: 140,
     stats: { strength: 18, stamina: 14, attack_power: 20 },
   },
+  // --- Doplňkový gear (M9): víc voleb napříč tiery ---
+  oak_buckler: {
+    id: 'oak_buckler', name: 'Oak Buckler', slot: 'off_hand',
+    rarity: 'common', itemLevel: 8, vendorGold: 2,
+    stats: { stamina: 4, armor: 18 },
+  },
+  huntsman_cloak: {
+    id: 'huntsman_cloak', name: "Huntsman's Cloak", slot: 'back',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 14,
+    stats: { agility: 7, stamina: 5, crit_rating: 4 },
+  },
+  sentinel_legguards: {
+    id: 'sentinel_legguards', name: 'Sentinel Legguards', slot: 'legs',
+    rarity: 'rare', itemLevel: 34, vendorGold: 34,
+    stats: { strength: 9, stamina: 11, armor: 48 },
+  },
 };
 
 /**
