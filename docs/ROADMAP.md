@@ -361,6 +361,67 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Zbývá doladit:** balanc (boss HP/AP, role tuning, loot, AH poplatky → M9);
   větší party / weekly lockout; vendoři (NPC odkup); AH vyhledávání/filtry.
 
+### M8.5 — Ruční sestavování skupin & wipe/retry combat (návrh PM)
+
+> Status: **naplánováno** (zapsáno na žádost PM po reviewu M8). Rozšiřuje model
+> raidů + dungeonů + arén. Část závisí na sociálním systému (M9) — viz Rizika níže.
+
+**Cíl:** vedle stávajícího idle „instant-form" matchmakingu přidat **manuální
+sestavení skupiny** (raid leader, ruční výběr hráčů, pozvánky) a **wipe/retry
+combat s klesající odměnou**.
+
+#### A) Manuální formace skupin (raid / dungeon / arena)
+
+- **Raid leader** = iniciátor s pravomocemi (sestaví party, zve hráče, ručně
+  spustí). Dnes `initiator` flag existuje, ale bez pravomocí/lobby.
+- **Lobby / „forming" stav**: skupina se plní (real hráči na konkrétní role),
+  leader vidí obsazení (realtime přes WS — recykluje M7/M8 vrstvu), na konci NPC
+  backfill (zachován idle styl) a leader ručně spustí.
+- **Pozvánky + výběr hráčů**: cílené zvaní konkrétních hráčů (ne slepá fronta).
+  Primárně **v rámci guildy** → vyžaduje sociální systém (friends/guild/chat).
+- Sjednotit napříč PVE (raid 5/10/20, dungeon 5) i PVP (arena 2v2/3v3 týmy).
+
+#### B) Wipe/retry combat s klesající odměnou (PVE)
+
+- Combat přejde z „jedna simulace, celý run uspěje/selže" na **per-boss pully**:
+  wipe na bossovi → **další pull** (retry téhož bosse, nový seed), progres
+  předchozích bossů zůstává.
+- **Odměna klesá s počtem wipů**; **maximální odměna za 0 wipů**. Strop počtu
+  wipů (terminální stav „raid failed/locked") proti nekonečnému zacyklení.
+- Determinismus zachován: seed per pokus (`seed ⊕ attemptIndex`).
+
+#### Otevřená rozhodnutí (rozmyslet s PM na začátku M8.5)
+
+- Klesající křivka odměn (lineární? kolik % za wipe? floor > 0?) a zda klesá
+  i **loot** (šance/počet), nebo jen XP/zlato.
+- Strop wipů per boss / per run; co se stane po dosažení stropu.
+- Granularita retry: per-boss progres (faithful WoW) vs retry celého runu.
+- Aplikuje se wipe/retry i na **dungeony** (dnes SP idle aktivita) → refaktor na
+  raid-like run model?
+
+#### Rizika / posouzení (na žádost PM)
+
+1. **Sekvenční závislost na social (M9).** Ruční formace s pozvánkami/guildou
+   reálně potřebuje friends/guild/chat z M9. Doporučení: **rozdělit M8.5** na
+   (A) formaci — až po/spolu s M9 social — a (B) wipe/retry combat — lze udělat
+   nezávisle a hned (čistě PVE engine + reward změna). Pořadí by pak bylo
+   M8 → M8.5-B → M9 (social) → M8.5-A.
+2. **Wipe/retry nesedí na arény (PVP).** V PVP je prohra prostě prohra (rating),
+   „retry se sníženou odměnou" nemá smysl. Wipe/retry tedy jen **raid + dungeon**;
+   pro arény z M8.5 platí jen manuální formace (2v2/3v3 týmy).
+3. **Dungeony = dnes SP idle aktivita** v `character_activities` (1 per postava).
+   Skupinové dungeony + wipe/retry = nezanedbatelný refaktor na raid-like model
+   (vlastní run tabulky). Zvážit, zda dungeony zůstanou SP a wipe/retry se omezí
+   na raidy.
+4. **Idle vs „ruční start".** Ruční lobby (čekání na hráče + manuální start) je
+   v napětí s idle-first („set & forget"). NPC backfill to drží hratelné i sólo,
+   ale UX dvou režimů (idle quick-start vs manuální lobby) je třeba navrhnout.
+5. **Anti-griefing / escrow.** Pozvánky + odměny pro vytažené hráče: ošetřit
+   souhlas (opt-in pozvánka vs auto-pull z fronty) a férové rozdělení lootu.
+
+S těmito výhradami **nevidím v přístupu zásadní problém** — je konzistentní s idle
+modelem a determinismem; hlavní je vyřešit pořadí vůči M9 social a rozsah u dungeonů.
+
 ### M9 — Polish, balanc, pixel grafika, sociální
 
 - PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
