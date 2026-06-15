@@ -150,6 +150,13 @@
         <div class="mt-4 flex items-center justify-between">
           <span class="text-lg {l.victory ? 'text-emerald-300' : 'text-red-400'} font-bold">
             {l.victory ? ui.victory : ui.defeat}
+            {#if l.wipes && l.wipes > 0}
+              <span class="ml-2 text-xs font-normal text-amber-200/70">
+                {l.victory
+                  ? `(${l.wipes} ${l.wipes === 1 ? 'wipe' : 'wipes'} — reduced reward)`
+                  : `(${l.wipes} ${l.wipes === 1 ? 'wipe' : 'wipes'})`}
+              </span>
+            {/if}
           </span>
           <button
             onclick={claim}

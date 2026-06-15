@@ -137,7 +137,7 @@ describe('simulateRaidRun', () => {
     expect(result.events.at(-1)?.type).toBe('victory');
   });
 
-  it('a weak party wipes (defeat)', () => {
+  it('a weak party hard-fails after exhausting attempts', () => {
     const weak: RaidActor[] = [
       deriveRaidActor(strongActor('T', 2, 50), 'tank'),
       deriveRaidActor(strongActor('H', 2, 50), 'healer'),
@@ -148,6 +148,14 @@ describe('simulateRaidRun', () => {
     expect(result.victory).toBe(false);
     expect(result.defeatedAtBoss).toBeDefined();
     expect(result.events.at(-1)?.type).toBe('defeat');
+    expect(result.wipes).toBeGreaterThan(1);
+  });
+
+  it('a clean clear reports zero wipes', () => {
+    const bosses = RAIDS.molten_core!.bosses.map(buildRaidBoss);
+    const result = simulateRaidRun(buildParty(3), bosses, 999);
+    expect(result.victory).toBe(true);
+    expect(result.wipes).toBe(0);
   });
 
   it('produces heal events from the healer', () => {
@@ -200,11 +208,18 @@ describe('computeRaidReward', () => {
     expect(a.xp).toBe(raid.baseXp);
   });
 
-  it('wipe grants only consolation xp and no loot', () => {
+  it('hard fail grants no reward (no consolation)', () => {
     const raid = RAIDS.molten_core!;
     const r = computeRaidReward(raid, false, 1);
-    expect(r.xp).toBeLessThan(raid.baseXp);
-    expect(r.gold).toBe(0);
-    expect(r.items).toHaveLength(0);
+    expect(r).toEqual({ xp: 0, gold: 0, items: [] });
+  });
+
+  it('reward scales down with wipes (max at 0 wipes)', () => {
+    const raid = RAIDS.blackwing_lair!;
+    const clean = computeRaidReward(raid, true, 123, 0);
+    const wiped = computeRaidReward(raid, true, 123, 3);
+    expect(clean.xp).toBe(raid.baseXp);
+    expect(wiped.xp).toBeLessThan(clean.xp);
+    expect(wiped.gold).toBeLessThanOrEqual(clean.gold);
   });
 });

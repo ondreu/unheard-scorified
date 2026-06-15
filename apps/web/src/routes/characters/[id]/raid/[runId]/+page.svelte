@@ -116,6 +116,13 @@
       <div class="mt-4 flex items-center justify-between">
         <span class="text-lg {r.victory ? 'text-emerald-300' : 'text-red-400'} font-bold">
           {r.victory ? ui.victory : ui.defeat}
+          {#if r.wipes && r.wipes > 0}
+            <span class="ml-2 text-xs font-normal text-amber-200/70">
+              {r.victory
+                ? `(${r.wipes} ${r.wipes === 1 ? 'wipe' : 'wipes'} — reduced reward)`
+                : `(${r.wipes} ${r.wipes === 1 ? 'wipe' : 'wipes'})`}
+            </span>
+          {/if}
         </span>
       </div>
       {#if r.myReward}

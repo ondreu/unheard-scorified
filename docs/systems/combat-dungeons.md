@@ -103,9 +103,24 @@ aktivity = délka předpočítaného boje.
   po dokončení **Claim loot** (vítězství) nebo defeat.
 - Character page: link na Dungeons + běžící dungeon run s „Watch fight →".
 
+## Iterativní wipe/retry (M8.5-A)
+
+`simulateDungeonRun` je teď **orchestrátor per-encounter pullů** (helper
+`fightEncounter` = jeden pull). Wipe na encounteru → retry téhož encounteru
+(`ENCOUNTER_ATTEMPT_CAP`× max), encounter se **zlehčí** (determination, HP/dmg
+×`factor(attempt)` s dolní hranicí `DETERMINATION_FLOOR`). Vyčištěné encountery
+zůstávají; po wipu se postava resetuje na plnou HP. Vyčerpání pokusů = **hard
+fail** (0 odměny, žádná útěcha).
+
+`DungeonCombatResult.wipes` řídí odměnu přes `wipeRewardMultiplier` (XP, zlato i
+loot šance; maximum za 0 wipů, dno 0.25). Combat log zobrazí retry pully
+(`encounter_start (pull N, weakened)` + opakované `player_defeated`); dungeon log
+view vystaví `wipes` po dokončení. Detail: ADR 0013.
+
 ## Co zbývá / navazuje
 
-- **Balanc** (HP/AP nepřátel, loot šance, XP, weaponPower model) → M9.
+- **Balanc** (HP/AP nepřátel, loot šance, XP, weaponPower model, determination
+  křivka/strop pokusů) → M9.
 - **WebSocket realtime** transport (Redis pub/sub, multi-instance) → M7.
 - Plné využití všech combat tagů (DoTy, štíty, CC) → budoucí rozšíření.
 - Set bonusy a zbraňové typy (M4 TODO) → budoucí.

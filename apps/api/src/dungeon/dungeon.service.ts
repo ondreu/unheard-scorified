@@ -60,6 +60,8 @@ export interface DungeonLogView {
   events: CombatEvent[];
   /** null dokud boj neskončí; pak true/false. */
   victory: boolean | null;
+  /** Počet wipů (jen po dokončení; řídí snížení odměny). Null dokud běží. */
+  wipes: number | null;
 }
 
 @Injectable()
@@ -194,6 +196,7 @@ export class DungeonService {
       enemies: dungeon.encounters.map((e) => ({ name: e.name, isBoss: e.isBoss ?? false })),
       events: visible,
       victory: p.completed ? result.victory : null,
+      wipes: p.completed ? result.wipes : null,
     };
   }
 }

@@ -12,7 +12,13 @@ import { QUESTS, type QuestDef } from './data/quests';
 import { SeededRng, seedFromString } from './rng';
 import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET, DUNGEON_LOOT_TABLES } from './loot';
 import { DUNGEONS } from './data/dungeons';
-import { buildEnemyActor, simulateDungeonRun, type CombatActor, type DungeonCombatResult } from './combat';
+import {
+  buildEnemyActor,
+  simulateDungeonRun,
+  wipeRewardMultiplier,
+  type CombatActor,
+  type DungeonCombatResult,
+} from './combat';
 import { GATHERING_NODES, RECIPES } from './data/professions';
 import { rollGatherYield } from './professions';
 
@@ -137,9 +143,11 @@ export function simulateDungeonFromParams(
 }
 
 /**
- * Odměna za dokončený dungeon run. Při vítězství plné XP/zlato + boss loot;
- * při prohře malá „útěcha" XP a žádný loot. Loot rolluje na nezávislém,
- * deterministicky odvozeném seedu (neinterferuje s combat RNG).
+ * Odměna za dokončený dungeon run (M8.5-A). Při **hard failu** (žádný clear ani
+ * po vyčerpání pokusů) je odměna NULOVÁ — žádná útěcha. Při vítězství plné
+ * XP/zlato + boss loot **škálované počtem wipů** (`wipeRewardMultiplier`):
+ * maximum za 0 wipů, klesá s každým wipem (i šance na loot). Loot rolluje na
+ * nezávislém, deterministicky odvozeném seedu (neinterferuje s combat RNG).
  */
 export function computeDungeonReward(params: DungeonActivityParams, seed: number): ActivityReward {
   const dungeon = DUNGEONS[params.dungeonId];
@@ -147,19 +155,20 @@ export function computeDungeonReward(params: DungeonActivityParams, seed: number
 
   const result = simulateDungeonFromParams(params, seed);
   if (!result || !result.victory) {
-    // Útěcha: zlomek XP za pokus, žádný loot ani zlato.
-    return { xp: Math.round(dungeon.baseXp * 0.1), gold: 0, items: [] };
+    // Hard fail: žádná útěcha (M8.5-A).
+    return { xp: 0, gold: 0, items: [] };
   }
 
+  const mult = wipeRewardMultiplier(result.wipes);
   const lootRng = new SeededRng((seed ^ 0x9e3779b9) >>> 0);
   const goldRoll = lootRng.next();
   const factor = 1 - dungeon.goldVariance + goldRoll * 2 * dungeon.goldVariance;
   const lootTable = DUNGEON_LOOT_TABLES[dungeon.id];
-  const items = lootTable ? rollLoot(lootTable, lootRng) : [];
+  const items = lootTable ? rollLoot(lootTable, lootRng, mult) : [];
 
   return {
-    xp: dungeon.baseXp,
-    gold: Math.max(0, Math.round(dungeon.baseGold * factor)),
+    xp: Math.round(dungeon.baseXp * mult),
+    gold: Math.max(0, Math.round(dungeon.baseGold * factor * mult)),
     items,
   };
 }

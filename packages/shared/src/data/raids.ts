@@ -10,7 +10,7 @@
  * je per-frakce (paralelní questy se stejným efektem — frakce kosmetická).
  */
 import { SeededRng } from '../rng';
-import { buildEnemyActor, type CombatActor, type EnemyStats } from '../combat';
+import { buildEnemyActor, wipeRewardMultiplier, type CombatActor, type EnemyStats } from '../combat';
 import { rollLoot, RAID_LOOT_TABLES } from '../loot';
 import type { RaidRole } from '../raid';
 
@@ -178,16 +178,28 @@ export interface RaidReward {
 }
 
 /**
- * Odměna jednoho účastníka za raid. Při vítězství plné XP/zlato + raid loot
- * (rollnutý na předaném seedu — service jej odvodí per účastník); při wipu jen
- * zlomek XP. Loot rolluje deterministicky přes `SeededRng`.
+ * Odměna jednoho účastníka za raid (M8.5-A). **Hard fail** (raid nevyčistěn) =
+ * nulová odměna, žádná útěcha. Při clearu plné XP/zlato + raid loot **škálované
+ * počtem wipů** (`wipeRewardMultiplier`): maximum za 0 wipů, klesá s každým wipem
+ * (i šance na loot). Loot rolluje deterministicky přes `SeededRng` (service
+ * odvodí seed per účastník).
  */
-export function computeRaidReward(raid: RaidDef, victory: boolean, seed: number): RaidReward {
-  if (!victory) return { xp: Math.round(raid.baseXp * 0.1), gold: 0, items: [] };
+export function computeRaidReward(
+  raid: RaidDef,
+  victory: boolean,
+  seed: number,
+  wipes = 0,
+): RaidReward {
+  if (!victory) return { xp: 0, gold: 0, items: [] };
+  const mult = wipeRewardMultiplier(wipes);
   const rng = new SeededRng(seed);
   const goldRoll = rng.next();
   const factor = 1 - raid.goldVariance + goldRoll * 2 * raid.goldVariance;
   const table = RAID_LOOT_TABLES[raid.id];
-  const items = table ? rollLoot(table, rng) : [];
-  return { xp: raid.baseXp, gold: Math.max(0, Math.round(raid.baseGold * factor)), items };
+  const items = table ? rollLoot(table, rng, mult) : [];
+  return {
+    xp: Math.round(raid.baseXp * mult),
+    gold: Math.max(0, Math.round(raid.baseGold * factor * mult)),
+    items,
+  };
 }

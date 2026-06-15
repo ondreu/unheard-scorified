@@ -365,9 +365,30 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 ### M8.5 — Iterativní (wipe/retry) combat, skupinové módy & personal loot (návrh PM)
 
-> Status: **naplánováno** (zapsáno + upřesněno PM po reviewu M8). Rozšiřuje model
-> raidů, dungeonů i arén. Část (ruční formace v guildě) závisí na sociálním
-> systému (M9) — viz Pořadí/rizika.
+> Status: **rozpracováno** — část **A (iterativní wipe/retry combat) ✅ hotovo**;
+> B/C/D/E naplánováno (viz Pořadí). Rozšiřuje model raidů, dungeonů i arén. Část
+> (ruční formace v guildě) závisí na sociálním systému (M9) — viz Pořadí/rizika.
+
+#### A) Iterativní wipe/retry combat — ✅ hotovo
+
+- [x] **Per-encounter (per-boss) pully** ve sdíleném enginu: `combat.ts` extrahoval
+      `fightEncounter` + orchestrátor `simulateDungeonRun`; `raid.ts` `fightBoss` +
+      orchestrátor `simulateRaidRun`. Žádná duplikace per-hit vzorců (`computeHit`).
+- [x] **Determination**: encounter/boss se za každý wipe zlehčí (HP i dmg
+      ×`factor(attempt)`, dolní hranice `*_DETERMINATION_FLOOR`); poražené encountery
+      zůstávají, po wipu reset HP na plnou, auto-retry do `*_ATTEMPT_CAP`.
+- [x] **Odměny škálované wipy** (`wipeRewardMultiplier`, max za 0 wipů, dno 0.25):
+      klesá XP, zlato i šance na loot (`rollLoot` má `dropChanceMult`).
+- [x] **Hard fail** (vyčerpání pokusů bez clearu) = 0 odměny, žádná útěcha
+      (ruší dosavadní 10% útěchu z M5/M8).
+- [x] Idle auto-retry; live combat log zobrazí retry pully (`(pull N, weakened)`).
+      `wipes` vystaveno v dungeon/raid run view; web zobrazí „reduced reward".
+- [x] Testy: shared unit (combat/raid wipe/retry + `wipeRewardMultiplier`) + API
+      flow aktualizovány. Build/test/lint/typecheck zelené.
+- Detail: ADR `docs/adr/0013-iterative-wipe-retry-combat.md`,
+  `docs/systems/combat-dungeons.md`, `docs/systems/raids.md`.
+
+> Níže původní plán M8.5 (B/C/D/E zbývá implementovat).
 
 **Dva režimy napříč obsahem (potvrzeno PM):**
 

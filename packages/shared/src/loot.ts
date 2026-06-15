@@ -176,10 +176,14 @@ export const RAID_LOOT_TABLES: Record<string, LootTable> = {
 /**
  * Roluje loot z tabulky. Vrátí pole itemId (obvykle 0 nebo 1 item).
  * Seeduje se z aktivity → deterministické.
+ *
+ * `dropChanceMult` (default 1) škáluje šanci, že vůbec něco padne — používá
+ * M8.5-A k snížení šance na loot s počtem wipů. Vždy spotřebuje stejný počet
+ * `rng.next()` volání → škálování nemění determinismus zbytku runu.
  */
-export function rollLoot(table: LootTable, rng: SeededRng): ItemId[] {
+export function rollLoot(table: LootTable, rng: SeededRng, dropChanceMult = 1): ItemId[] {
   // Náhodně rozhodne, zda vůbec padne item
-  if (rng.next() > table.anyDropChance) return [];
+  if (rng.next() > table.anyDropChance * dropChanceMult) return [];
 
   // Zvolí konkrétní item váhovaným rollem
   const roll = rng.next();

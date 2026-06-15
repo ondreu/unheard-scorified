@@ -109,6 +109,7 @@ export interface DungeonLogView {
   enemies: { name: string; isBoss: boolean }[];
   events: CombatEvent[];
   victory: boolean | null;
+  wipes: number | null;
 }
 
 export class ApiError extends Error {
@@ -446,6 +447,7 @@ export interface RaidRunView {
   bosses: { name: string }[];
   events: CombatEvent[];
   victory: boolean | null;
+  wipes: number | null;
   myReward: RaidReward | null;
   myRole: RaidRole | null;
 }
