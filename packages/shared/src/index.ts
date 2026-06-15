@@ -26,3 +26,4 @@ export * from './auction';
 export * from './social';
 export * from './guild';
 export * from './lobby';
+export * from './trade';

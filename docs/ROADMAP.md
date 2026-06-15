@@ -367,8 +367,8 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 > Status: **rozpracováno** — **A (wipe/retry) ✅**, **B-idle (group PVE run +
 > group dungeony) ✅**, **B-ruční-formace (raid lobby) ✅** (ADR 0018),
-> **D-personal-loot ✅**. Zbývá: C (týmové arény, ruční), D-trade. Ekonomická
-> pravidla (původní E) vyčleněna do samostatného milníku **M8.6**.
+> **D-personal-loot ✅**, **D-trade (P2P) ✅** (ADR 0019). Zbývá: C (týmové arény,
+> ruční). Ekonomická pravidla (původní E) vyčleněna do samostatného milníku **M8.6**.
 
 #### A) Iterativní wipe/retry combat — ✅ hotovo
 
@@ -462,8 +462,13 @@ Perzistentní týmy lze přidat později bez refaktoru (bracket je datový atrib
 
 - [x] **Personal loot per účastník i pro dungeony** (`computeGroupReward`, seed per
       postava; raid měl per-participant už od M8). Šance na loot klesá s wipy (viz A). ✅
-- [ ] **P2P trade**: výměna lootu mezi hráči (oddělený systém od AH), provázaný
-      s **trade-window** soulbound itemů (viz M8.6) → **po M9 social**.
+- [x] **P2P trade** ✅ (M8.5-D): přímá výměna itemů + zlata mezi dvěma postavami
+      (oddělený systém od AH), oboustranné potvrzení + atomický převod bez escrow;
+      jakákoli změna nabídky resetuje potvrzení; BoP nelze běžně obchodovat
+      (`canTradeItem`). Tabulky `trades` + `trade_items` (migrace `0015`),
+      `TradeModule`. Web `/characters/[id]/trade` (+ „Trade" u přátel). Testy:
+      shared `trade.test.ts` (+3) + API `trade.flow.test.ts` (+6). Detail:
+      **ADR 0019**. Trade-window pro soulbound (BoP) loot = follow-up.
 
 #### E) Ekonomická pravidla → **vyčleněno do samostatného milníku M8.6** (viz níže)
 

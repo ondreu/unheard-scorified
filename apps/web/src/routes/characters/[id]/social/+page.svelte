@@ -32,6 +32,7 @@
     decline: 'Decline',
     cancel: 'Cancel',
     remove: 'Remove',
+    trade: 'Trade',
     nowFriends: 'You are now friends!',
     requestSent: 'Friend request sent.',
     level: 'Lv',
@@ -284,13 +285,21 @@
                 {f.name}
                 <span class="text-xs text-amber-100/50">· {ui.level} {f.level} {className(f.class)}</span>
               </span>
-              <button
-                onclick={() => remove(f.characterId)}
-                disabled={busy}
-                class="rounded border border-amber-900/50 px-3 py-1 text-xs text-amber-100/60 hover:border-red-700/60 hover:text-red-400 disabled:opacity-40"
-              >
-                {ui.remove}
-              </button>
+              <span class="flex gap-2">
+                <a
+                  href={`/characters/${characterId}/trade?with=${encodeURIComponent(f.name)}`}
+                  class="rounded border border-amber-900/50 px-3 py-1 text-xs text-sky-300 hover:border-sky-600"
+                >
+                  {ui.trade}
+                </a>
+                <button
+                  onclick={() => remove(f.characterId)}
+                  disabled={busy}
+                  class="rounded border border-amber-900/50 px-3 py-1 text-xs text-amber-100/60 hover:border-red-700/60 hover:text-red-400 disabled:opacity-40"
+                >
+                  {ui.remove}
+                </button>
+              </span>
             </li>
           {/each}
         </ul>

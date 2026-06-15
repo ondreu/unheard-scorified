@@ -16,6 +16,7 @@ import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
 import { SocialModule } from './social/social.module';
 import { TalentModule } from './talent/talent.module';
+import { TradeModule } from './trade/trade.module';
 
 const devModules =
   process.env['NODE_ENV'] === 'development' || !!process.env['DEV_SECRET'] ? [DevModule] : [];
@@ -42,6 +43,7 @@ const devModules =
     RaidModule,
     AuctionModule,
     SocialModule,
+    TradeModule,
     ...devModules,
   ],
 })
