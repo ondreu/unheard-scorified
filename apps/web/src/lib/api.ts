@@ -87,6 +87,8 @@ export interface DungeonListItem {
   sizes: number[];
   unlocked: boolean;
   queuedRole: RaidRole | null;
+  hasLockout: boolean;
+  lockedOut: boolean;
 }
 
 export interface CombatEvent {
@@ -477,6 +479,8 @@ export interface RaidListItem {
   defaultComposition: Record<number, RaidComposition>;
   unlocked: boolean;
   queuedRole: RaidRole | null;
+  hasLockout: boolean;
+  lockedOut: boolean;
 }
 
 export interface RaidReward {

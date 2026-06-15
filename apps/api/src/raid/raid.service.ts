@@ -64,6 +64,10 @@ export interface RaidListItem {
   unlocked: boolean;
   /** Role, ve které postava čeká ve frontě (nebo null). */
   queuedRole: RaidRole | null;
+  /** Raidy mají vždy weekly lockout (M8.6) — clear se počítá jednou týdně. */
+  hasLockout: boolean;
+  /** Postava už tento raid tento týden vyčistila (žádná další odměna). */
+  lockedOut: boolean;
 }
 
 export interface RaidRewardView {
@@ -145,6 +149,7 @@ export class RaidService {
 
     const level = levelFromXp(character.totalXp);
     const completedIds = await this.completed.completedIds(characterId);
+    const weekId = weeklyLockoutId(Date.now());
     const result: RaidListItem[] = [];
     for (const raid of Object.values(RAIDS).sort(
       (a, b) => a.attunement.requiredLevel - b.attunement.requiredLevel,
@@ -152,6 +157,8 @@ export class RaidService {
       const queuedRole = await this.queue.queuedRole(raid.id, characterId);
       const defaultComposition: Record<number, RaidComposition> = {};
       for (const size of raid.sizes) defaultComposition[size] = defaultRaidComposition(size);
+      const lockoutId = lockoutIdForContent('raid', raid.id);
+      const lockedOut = lockoutId !== null && (await this.lockouts.isLocked(characterId, lockoutId, weekId));
       result.push({
         id: raid.id,
         name: raid.name,
@@ -163,6 +170,8 @@ export class RaidService {
         defaultComposition,
         unlocked: isRaidUnlocked(raid.id, level, completedIds),
         queuedRole,
+        hasLockout: lockoutId !== null,
+        lockedOut,
       });
     }
     return result;

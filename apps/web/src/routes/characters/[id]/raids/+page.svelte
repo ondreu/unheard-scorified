@@ -37,6 +37,8 @@
     recent: 'Recent runs',
     victory: 'Victory',
     wipe: 'Wipe',
+    savedThisWeek: '🔒 Saved this week',
+    savedHint: 'Already cleared this week — no further reward until reset.',
     party:
       'Pick size (5/10/20) and compose your party (tanks / healers / dps). Empty slots are filled by mercenaries.',
   };
@@ -157,7 +159,17 @@
         >
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="font-semibold text-amber-200">{r.name}</h2>
+              <h2 class="flex items-center gap-2 font-semibold text-amber-200">
+                {r.name}
+                {#if r.lockedOut}
+                  <span
+                    title={ui.savedHint}
+                    class="rounded border border-amber-700/50 bg-amber-900/30 px-1.5 py-0.5 text-xs font-medium text-amber-300"
+                  >
+                    {ui.savedThisWeek}
+                  </span>
+                {/if}
+              </h2>
               <p class="text-xs uppercase tracking-wide text-amber-100/40">
                 {ui.reqLevel} {r.requiredLevel} · {ui.bosses}: {r.bossNames.join(', ')}
               </p>

@@ -67,6 +67,10 @@ export interface DungeonListItem {
   unlocked: boolean;
   /** Role, ve které postava čeká ve frontě group dungeonu (nebo null). */
   queuedRole: RaidRole | null;
+  /** Tato instance má weekly lockout (M8.6) — clear se počítá jen jednou týdně. */
+  hasLockout: boolean;
+  /** Postava už tuto instanci tento týden vyčistila (žádná další odměna). */
+  lockedOut: boolean;
 }
 
 export interface DungeonRewardView {
@@ -138,9 +142,12 @@ export class DungeonService {
     if (!character) throw new NotFoundException('Character not found');
 
     const level = levelFromXp(character.totalXp);
+    const weekId = weeklyLockoutId(Date.now());
     const result: DungeonListItem[] = [];
     for (const d of Object.values(DUNGEONS).sort((a, b) => a.requiredLevel - b.requiredLevel)) {
       const queuedRole = await this.queue.queuedRole(queueKey(d.id), characterId);
+      const lockoutId = lockoutIdForContent('dungeon', d.id);
+      const lockedOut = lockoutId !== null && (await this.lockouts.isLocked(characterId, lockoutId, weekId));
       result.push({
         id: d.id,
         name: d.name,
@@ -152,6 +159,8 @@ export class DungeonService {
         sizes: [...DUNGEON_SIZES],
         unlocked: isDungeonUnlocked(d.id, level),
         queuedRole,
+        hasLockout: lockoutId !== null,
+        lockedOut,
       });
     }
     return result;

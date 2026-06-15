@@ -575,9 +575,17 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       odměna za období (`character_goal_claims`, migrace `0018`). Sdílené
       `@game/shared/goals.ts`. Web: sekce na `/characters/[id]/achievements`.
       Testy: shared `goals.test.ts` (+5) + API (+2). ADR 0021.
-- [ ] PixiJS pixel scénky, nahrazení placeholderů; tutoriál/onboarding.
+- [ ] PixiJS pixel scénky, nahrazení placeholderů.
 - [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
+
+> ℹ️ **Onboarding/tutoriál odložen do M11** (rozhodnutí PM) — viz níže.
+
+### M11 — Onboarding & tutoriál (odloženo)
+
+- [ ] Tutoriál/onboarding nového hráče: provedení základní idle smyčkou
+      (vytvoř postavu → pošli questovat → claim odměn → equip gearu → talenty),
+      kontextové nápovědy, bez nové herní mechaniky (čistě UX vrstva).
 
 ---
 
@@ -673,7 +681,9 @@ lobby) a M8.5-D (P2P trade) — staví se první.
         kus z inventáře spotřebuje (consume→equip), unequip/swap ho vrátí; tentýž
         kus nelze nasadit do dvou slotů. Testy v `inventory.flow.test.ts`.
   - [ ] Equip přes **drag & drop**. (samostatné UX, zbývá)
-- [ ] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
+- [x] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
+      Seznam dungeonů i raidů vystavuje `hasLockout`/`lockedOut`; web zobrazí
+      „🔒 Saved this week" badge u instancí vyčištěných tento UTC týden.
 - [ ] 🧑‍💼 **Odstranit legacy** (single-actor `simulateDungeonRun`/`computeDungeonReward`/
       `DungeonActivityParams` + větev `'dungeon'` v activity modelu; pozor na sdílené
       combat helpery `determinationFactor`/`easeActor` — ty zůstávají).
