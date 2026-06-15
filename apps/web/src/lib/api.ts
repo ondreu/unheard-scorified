@@ -597,3 +597,98 @@ export function subscribePushApi(payload: {
 export function unsubscribePushApi(endpoint: string): Promise<void> {
   return request<void>('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) });
 }
+
+// Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
+
+export interface DevCharacterState {
+  id: string;
+  name: string;
+  level: number;
+  totalXp: number;
+  gold: number;
+}
+
+export interface DevItemDef {
+  id: string;
+  name: string;
+  slot: string;
+  rarity: string;
+  itemLevel: number;
+}
+
+export interface DevProfessionDef {
+  id: string;
+  name: string;
+}
+
+function devRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return request<T>(path, init, false);
+}
+
+export function devGetState(characterId: string): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/state`);
+}
+
+export function devListItems(characterId: string): Promise<DevItemDef[]> {
+  return devRequest(`/dev/characters/${characterId}/items`);
+}
+
+export function devListProfessions(characterId: string): Promise<DevProfessionDef[]> {
+  return devRequest(`/dev/characters/${characterId}/professions`);
+}
+
+export function devSetLevel(characterId: string, level: number): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/set-level`, {
+    method: 'POST',
+    body: JSON.stringify({ level }),
+  });
+}
+
+export function devAddGold(characterId: string, amount: number): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/add-gold`, {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export function devAddItem(
+  characterId: string,
+  itemId: string,
+  quantity: number,
+): Promise<{ itemId: string; quantity: number; name: string }> {
+  return devRequest(`/dev/characters/${characterId}/add-item`, {
+    method: 'POST',
+    body: JSON.stringify({ itemId, quantity }),
+  });
+}
+
+export function devCompleteActivity(
+  characterId: string,
+): Promise<{ completed: boolean; message: string }> {
+  return devRequest(`/dev/characters/${characterId}/complete-activity`, { method: 'POST' });
+}
+
+export function devTimeWarp(
+  characterId: string,
+  hours: number,
+): Promise<{ warped: boolean; message: string }> {
+  return devRequest(`/dev/characters/${characterId}/time-warp`, {
+    method: 'POST',
+    body: JSON.stringify({ hours }),
+  });
+}
+
+export function devSetProfession(
+  characterId: string,
+  professionId: string,
+  skill: number,
+): Promise<{ professionId: string; skill: number }> {
+  return devRequest(`/dev/characters/${characterId}/set-profession`, {
+    method: 'POST',
+    body: JSON.stringify({ professionId, skill }),
+  });
+}
+
+export function devResetCharacter(characterId: string): Promise<{ reset: boolean }> {
+  return devRequest(`/dev/characters/${characterId}/reset`, { method: 'POST' });
+}

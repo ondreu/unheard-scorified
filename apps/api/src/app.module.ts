@@ -5,6 +5,7 @@ import { AuctionModule } from './auction/auction.module';
 import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { DbModule } from './db/db.module';
+import { DevModule } from './dev/dev.module';
 import { DungeonModule } from './dungeon/dungeon.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -14,6 +15,8 @@ import { QuestModule } from './quest/quest.module';
 import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
 import { TalentModule } from './talent/talent.module';
+
+const devModules = process.env['NODE_ENV'] === 'development' ? [DevModule] : [];
 
 /**
  * Kořenový modul. Každý herní systém je vlastní feature modul
@@ -36,6 +39,7 @@ import { TalentModule } from './talent/talent.module';
     ArenaModule,
     RaidModule,
     AuctionModule,
+    ...devModules,
   ],
 })
 export class AppModule {}

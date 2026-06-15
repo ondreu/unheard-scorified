@@ -13,6 +13,7 @@
   } from '$lib/api';
   import { getPushState, isPushSupported, subscribePush, unsubscribePush } from '$lib/push';
   import { RACES, CLASSES, ITEMS } from '@game/shared';
+  import DevPanel from '$lib/DevPanel.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -379,3 +380,5 @@
     </section>
   {/if}
 </main>
+
+<DevPanel {characterId} />
