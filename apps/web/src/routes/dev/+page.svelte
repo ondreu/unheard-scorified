@@ -54,8 +54,8 @@
       } else {
         loginError = 'Wrong password';
       }
-    } catch {
-      loginError = 'Server unreachable';
+    } catch (e) {
+      loginError = `Error: ${e instanceof Error ? e.message : String(e)}`;
     } finally {
       loginBusy = false;
     }
