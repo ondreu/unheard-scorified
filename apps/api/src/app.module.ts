@@ -16,7 +16,8 @@ import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
 import { TalentModule } from './talent/talent.module';
 
-const devModules = process.env['NODE_ENV'] === 'development' ? [DevModule] : [];
+const devModules =
+  process.env['NODE_ENV'] === 'development' || !!process.env['DEV_SECRET'] ? [DevModule] : [];
 
 /**
  * Kořenový modul. Každý herní systém je vlastní feature modul
