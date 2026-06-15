@@ -381,9 +381,13 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 
 - Wipe na bossovi → **další pull** (retry téhož bosse, nový seed `seed ⊕ attempt`),
   progres už poražených bossů zůstává.
-- **Odměna klesá s počtem wipů; maximum za 0 wipů.** Strop wipů (terminální stav)
-  proti zacyklení.
-- **Idle režim**: auto-retry do clearu nebo stropu (hráč není u toho). **Ruční
+- **Boss se s každým wipem zlehčuje** (stacking „determination"/rally nerf — HP/dmg
+  dolů) **až po dolní hranici** (potvrzeno PM) → odhodlaní hráči nakonec clear dají.
+- **Odměna klesá s počtem wipů**: klesá **XP, zlato i šance na loot** (potvrzeno PM);
+  **maximum za 0 wipů**.
+- **Hard fail** = vyčerpání stropu pokusů bez clearu → **prostě fail, žádná útěcha**
+  (jen vlídná slova, 0 XP/zlato/loot) (potvrzeno PM). Ruší se dnešní M8 „10 % útěcha".
+- **Idle režim**: auto-retry do clearu nebo hard failu (hráč není u toho). **Ruční
   režim**: leader může re-pull / odejít.
 
 #### B) Skupinové PVE módy + manuální formace (raid + dungeon)
@@ -398,36 +402,54 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 
 Upřesnění PM: v PVP **NEjde o wipe/retry**, ale o **nové brackety 3v3 a 5v5** vedle
 1v1 a **ruční sestavení týmu** (vybrat parťáky). Matchmaking týmů recykluje M7
-(snapshot fronta); ruční výběr týmu **po M9 social**. Rating model pro týmy (per
-tým vs per hráč) = otevřené rozhodnutí.
+(snapshot fronta); ruční výběr týmu **po M9 social**.
+
+**Rating model — rozhodnutí (PM přenechal na mně): per hráč per bracket, ad-hoc týmy.**
+Žádná perzistentní „arena team" entita (jako vanilla 2v2 týmy), ale **ad-hoc tým per
+zápas** s ratingem **per postava per bracket per sezóna** (rozšiřuje M7 `arena_ratings`
+o brackety `3v3`/`5v5`). Důvody: (a) drží idle-first snapshot model z M7 beze změny,
+(b) žádná těžká týmová entita/správa členů, (c) snadno škáluje na malou základnu a
+NPC backfill. Po výhře/prohře se Elo aplikuje každému členu (průměr ratingu soupeřů).
+Perzistentní týmy lze přidat později bez refaktoru (bracket je datový atribut).
 
 #### D) Personal loot + trade mezi hráči (modern-WoW styl)
 
 - **Každý účastník dostane vlastní loot** (raid loot už dnes rolluje per postava —
-  rozšířit i na dungeony). 
+  rozšířit i na dungeony). Šance na loot **klesá s počtem wipů** (viz A).
 - **P2P trade**: hráči si mohou loot mezi sebou vyměnit (jako moderní WoW). Nový
-  trade systém (oddělený od AH); pravidla trade-window (komu/kdy lze, ilvl/času
-  omezení) = otevřené rozhodnutí.
+  trade systém (oddělený od AH), provázaný s **trade-window** soulbound itemů (viz E).
 
-#### Pořadí (doporučení) & otevřená rozhodnutí
+#### E) Ekonomická pravidla (potvrzeno PM)
+
+- **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Raid/dungeon personal loot je
+  **BoP**: na AH neprodejný; obchodovatelný jen v **trade-window** (krátce po dropu,
+  jen účastníkům daného runu). Chrání ekonomiku a progrese před zaplavením AH.
+  Nový atribut itemů (dnes je vše volně obchodovatelné) → migrace + filtr v AH.
+- **Weekly lockout / raid ID.** Loot z raidu (a vyššího dungeonu) je limitován
+  týdenním lockoutem per postava → idle farmení nezaplaví AH a drží progresi.
+
+#### Pořadí (doporučení) & zbývající rozhodnutí
 
 Doporučené pořadí kvůli závislosti na social:
-`M8 → M8.5-A (wipe/retry, lze hned) + M8.5-C-matchmaking + M8.5-D-personal-loot
+`M8 → M8.5-A (wipe/retry) + M8.5-C-matchmaking + M8.5-D-personal-loot + M8.5-E
 → M9 (social) → M8.5-B (guild formace) + M8.5-C-ruční-týmy + M8.5-D-trade`.
 
-Otevřená rozhodnutí na začátek M8.5:
-- Klesající křivka odměn (lineární? % za wipe? floor > 0?) a zda klesá i **loot**
-  (šance/počet) nebo jen XP/zlato.
-- Strop wipů per boss / per run; chování po dosažení stropu.
-- Rating model arén pro týmy (per tým vs průměr hráčů); kompozice týmů PVP.
-- Trade pravidla (trade window, omezení, anti-griefing/escrow).
+Vyřešeno PM: rozsah módů (SP+3/5+raid, vše iterativní), boss-easing per wipe + hard
+fail bez útěchy, klesá XP/zlato/loot-šance, arena 3v3/5v5 + ad-hoc rating per hráč,
+personal loot + trade, soulbound/BoP + weekly lockout.
+
+Zbývá doladit (balanc, M9-ish, na začátek M8.5):
+- Konkrétní křivky: boss-easing per wipe, klesání odměn/loot-šance, strop pokusů.
+- Trade-window délka + omezení (anti-griefing/escrow).
+- Group dungeon scaling 3 vs 5 (analog `scaleBoss`).
 - Architektura: sjednotit dungeon+raid pod „group PVE run" (refaktor SP dungeonu
   z `character_activities` na run model).
 
-**Posouzení (na žádost PM):** s upřesněními **nevidím zásadní problém** — model je
-konzistentní s idle-first i determinismem (seed per pokus). Hlavní práce: (1) refaktor
-combat na per-boss iterace + reward curve, (2) sjednocení dungeon/raid run modelu,
-(3) trade systém, (4) arena týmy. Guild-vázané části čekají na M9 social.
+**Posouzení (na žádost PM):** model je **soudržný a realizovatelný**, konzistentní
+s idle-first i determinismem (seed per pokus). Hlavní práce: (1) refaktor combat na
+per-boss iterace + boss-easing + reward/loot curve + hard fail, (2) sjednocení
+dungeon/raid run modelu (+ SP/3/5 módy), (3) `bindType`/soulbound + trade systém +
+weekly lockout, (4) arena 3v3/5v5. Guild-vázané části čekají na M9 social.
 
 ### M9 — Polish, balanc, pixel grafika, sociální
 
