@@ -932,6 +932,68 @@ export function startRaidLobby(characterId: string, lobbyId: string): Promise<{ 
   });
 }
 
+// P2P trade (M8.5-D)
+
+export interface TradeOfferItem {
+  itemId: string;
+  name: string;
+  quantity: number;
+}
+
+export interface TradeSideView {
+  characterId: string;
+  name: string;
+  gold: number;
+  confirmed: boolean;
+  items: TradeOfferItem[];
+}
+
+export interface TradeView {
+  id: string;
+  status: string;
+  mySide: 'initiator' | 'partner';
+  me: TradeSideView;
+  them: TradeSideView;
+}
+
+export interface TradeState {
+  trade: TradeView | null;
+}
+
+export function getTrade(characterId: string): Promise<TradeState> {
+  return request<TradeState>(`/characters/${characterId}/trade`);
+}
+
+export function startTrade(characterId: string, partnerName: string): Promise<TradeState> {
+  return request<TradeState>(`/characters/${characterId}/trade`, {
+    method: 'POST',
+    body: JSON.stringify({ partnerName }),
+  });
+}
+
+export function setTradeOffer(
+  characterId: string,
+  items: { itemId: string; quantity: number }[],
+  gold: number,
+): Promise<TradeState> {
+  return request<TradeState>(`/characters/${characterId}/trade/offer`, {
+    method: 'PUT',
+    body: JSON.stringify({ items, gold }),
+  });
+}
+
+export function confirmTrade(characterId: string): Promise<TradeState> {
+  return request<TradeState>(`/characters/${characterId}/trade/confirm`, { method: 'POST' });
+}
+
+export function unconfirmTrade(characterId: string): Promise<TradeState> {
+  return request<TradeState>(`/characters/${characterId}/trade/unconfirm`, { method: 'POST' });
+}
+
+export function cancelTrade(characterId: string): Promise<TradeState> {
+  return request<TradeState>(`/characters/${characterId}/trade/cancel`, { method: 'POST' });
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

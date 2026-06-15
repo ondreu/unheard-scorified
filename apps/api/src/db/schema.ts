@@ -38,6 +38,8 @@ import type {
   RaidComposition,
   RaidLobbyStatus,
   RaidRole,
+  TradeSide,
+  TradeStatus,
 } from '@game/shared';
 
 export const healthLog = pgTable('health_log', {
@@ -353,6 +355,47 @@ export const raidLobbyMembers = pgTable(
 );
 
 /**
+ * P2P trade session (M8.5-D). Přímá výměna mezi dvěma postavami: `open` →
+ * completed | cancelled. Nabídka každé strany = zlato (sloupec) + položky
+ * (`trade_items`). Potvrzení obou stran (`*_confirmed`) spustí atomickou výměnu;
+ * jakákoli změna nabídky potvrzení resetuje. Žádný escrow během vyjednávání —
+ * vlastnictví se ověří a převede až při provedení. Viz ADR 0019.
+ */
+export const trades = pgTable('trades', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  initiatorCharacterId: uuid('initiator_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  partnerCharacterId: uuid('partner_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  initiatorGold: integer('initiator_gold').notNull().default(0),
+  partnerGold: integer('partner_gold').notNull().default(0),
+  initiatorConfirmed: integer('initiator_confirmed').notNull().default(0),
+  partnerConfirmed: integer('partner_confirmed').notNull().default(0),
+  status: varchar('status', { length: 12 }).$type<TradeStatus>().notNull().default('open'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+});
+
+/**
+ * Položka v nabídce trade (M8.5-D). Jeden řádek = stack itemu nabídnutý jednou
+ * stranou. `side` = která strana item nabízí.
+ */
+export const tradeItems = pgTable(
+  'trade_items',
+  {
+    tradeId: uuid('trade_id')
+      .notNull()
+      .references(() => trades.id, { onDelete: 'cascade' }),
+    side: varchar('side', { length: 10 }).$type<TradeSide>().notNull(),
+    itemId: varchar('item_id', { length: 64 }).notNull(),
+    quantity: integer('quantity').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tradeId, t.side, t.itemId] })],
+);
+
+/**
  * Auction House listing (M8, ekonomika). Hráčský obchod: buyout + bidding
  * s depositem (gold sink) a AH cut. Item se při výpisu „escrowuje" (odebere
  * z inventáře prodejce); aktuální bid escrowuje zlato kupce. Vypořádání je
@@ -663,6 +706,10 @@ export type Friendship = typeof friendships.$inferSelect;
 export type NewFriendship = typeof friendships.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type Trade = typeof trades.$inferSelect;
+export type NewTrade = typeof trades.$inferInsert;
+export type TradeItem = typeof tradeItems.$inferSelect;
+export type NewTradeItem = typeof tradeItems.$inferInsert;
 export type RaidLobby = typeof raidLobbies.$inferSelect;
 export type NewRaidLobby = typeof raidLobbies.$inferInsert;
 export type RaidLobbyMember = typeof raidLobbyMembers.$inferSelect;
