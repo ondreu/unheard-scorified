@@ -319,11 +319,137 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Zbývá doladit:** PVP-specifický balanc vs PVE (M9); rating-window matchmaking,
   2v2/3v3 brackety, sezónní cosmetic odměny (M8/M9).
 
-### M8 — Raidy (MP PVE) & Auction House
+### M8 — Raidy (MP PVE) & Auction House — ✅ hotovo
 
-- Raidy: MP skupiny, role, idle boss fighty, attunement gating, raid loot.
-- Auction House: hráčský obchod, aukce, vendoři.
-- **Výstup:** organizovaný MP PVE content + ekonomika.
+- [x] **Raidy** (MP PVE): **flex velikosti 5 / 10 / 20** (modern-WoW styl,
+      rozhodnutí PM) s **hráčem volenou kompozicí** tank/healer/dps (default 5:
+      1/1/3 · 10: 2/2/6 · 20: 2/5/13; chybějící sloty doplní NPC). Boss se škáluje
+      dle velikosti (`scaleBoss`, HP+dmg ×size/5). Combat engine z M5 rozšířen o
+      **party-vs-boss** simulaci (`packages/shared/src/raid.ts::simulateRaidRun`,
+      recykluje `computeHit`): tank drží aggro + mitigace, healer léčí (event
+      `heal`), dps dmg; boss enrage, wipe = defeat. `deriveRaidActor` škáluje profil dle role.
+- [x] **2 raidy × 3 bossy** (rozhodnutí PM): Molten Core (~lvl 40), Blackwing Lair
+      (~lvl 55) — `data/raids.ts`. **Attunement = level + dokončený questline**
+      (rozhodnutí PM; `isRaidUnlocked` recykluje `completed_quests` z M2; pro BWL
+      přidán per-frakce attunement quest). Raid loot (`RAID_LOOT_TABLES` +
+      epic/legendary raid gear).
+- [x] **Idle-first matchmaking + NPC backfill**: `queue` (čekání v roli, Redis
+      hash snapshot) + `enter` (vytáhne čekající reálné hráče pro chybějící role,
+      zbytek doplní NPC → vyřeší se i sólo; vytažení hráči dostanou odměnu + push).
+      Fronta za `RaidQueue` (Redis + in-memory). Raidy mají vlastní tabulky
+      `raid_runs` + `raid_run_participants` (jako arena, ne `character_activities`).
+- [x] **Realtime watch** přes WS gateway + Redis pub/sub (recykluje vrstvu z M7);
+      REST autoritativní fallback. `RaidEventsRelay` rozplétá service↔gateway.
+- [x] **Auction House** (rozhodnutí PM: **buyout + bidding s depositem a expirací**):
+      `packages/shared/src/auction.ts` (deposit + 5 % cut = gold sinky, min-bid,
+      durace, sjednocený item lookup napříč ITEMS/MATERIALS/CONSUMABLES). Item
+      escrow z inventáře + gold escrow bidů; **vypořádání lazy při čtení** (zdroj
+      pravdy) + best-effort **BullMQ** expiry job (`AuctionSettler`/`Scheduler`).
+- [x] DB migrace `0006` (raid_runs + raid_run_participants) + `0007` (auctions),
+      auto-migrace při startu. `CharacterRepository.spendGold/addGold` (atomické).
+- [x] Web: `/characters/[id]/raids` + `/raid/[runId]` (watch); `/auctions`
+      (browse/mine/sell). Herní texty anglicky, oddělené od logiky.
+- [x] Testy: shared unit (`raid.test.ts` +16, `auction.test.ts` +7) + API
+      integrační flow (`raid.flow.test.ts` +7, `auction.flow.test.ts` +7 přes
+      pglite, in-memory fronta + Noop scheduler). Build/test/lint/typecheck zelené
+      (177 testů: 107 shared + 70 API). DI graf (vč. obou WS gateway + Redis
+      adaptér + BullMQ scheduler) ověřen reálným bootem.
+- Detail: `docs/systems/raids.md`, `docs/systems/auction-house.md`, ADR
+  `docs/adr/0011-raids-mp-pve.md`, `docs/adr/0012-auction-house.md`.
+- **Výstup:** zařadím party do raidu, sleduji idle boss fight, dostanu raid loot;
+  prodávám/kupuji na Auction House. ✅
+- **Zbývá doladit:** balanc (boss HP/AP, role tuning, loot, AH poplatky → M9);
+  větší party / weekly lockout; vendoři (NPC odkup); AH vyhledávání/filtry.
+
+### M8.5 — Iterativní (wipe/retry) combat, skupinové módy & personal loot (návrh PM)
+
+> Status: **naplánováno** (zapsáno + upřesněno PM po reviewu M8). Rozšiřuje model
+> raidů, dungeonů i arén. Část (ruční formace v guildě) závisí na sociálním
+> systému (M9) — viz Pořadí/rizika.
+
+**Dva režimy napříč obsahem (potvrzeno PM):**
+
+- **Idle „set & forget"** pro casual hráče — zachován current quick-start (queue +
+  NPC backfill, auto-resolve).
+- **Ruční sestavení** pro min-max/social hráče — leader, lobby, výběr hráčů,
+  pozvánky (v rámci guildy → **až po M9 social**).
+
+#### A) Iterativní wipe/retry combat — VŠECHNY PVE módy
+
+Platí pro **SP dungeon i skupinový dungeon (3/5) i raid (5/10/20)** (potvrzeno PM).
+Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
+
+- Wipe na bossovi → **další pull** (retry téhož bosse, nový seed `seed ⊕ attempt`),
+  progres už poražených bossů zůstává.
+- **Boss se s každým wipem zlehčuje** (stacking „determination"/rally nerf — HP/dmg
+  dolů) **až po dolní hranici** (potvrzeno PM) → odhodlaní hráči nakonec clear dají.
+- **Odměna klesá s počtem wipů**: klesá **XP, zlato i šance na loot** (potvrzeno PM);
+  **maximum za 0 wipů**.
+- **Hard fail** = vyčerpání stropu pokusů bez clearu → **prostě fail, žádná útěcha**
+  (jen vlídná slova, 0 XP/zlato/loot) (potvrzeno PM). Ruší se dnešní M8 „10 % útěcha".
+- **Idle režim**: auto-retry do clearu nebo hard failu (hráč není u toho). **Ruční
+  režim**: leader může re-pull / odejít.
+
+#### B) Skupinové PVE módy + manuální formace (raid + dungeon)
+
+- **Dungeon dostane SP mód i skupinový 3/5 mód** (potvrzeno PM). Sjednotit
+  raid + group dungeon pod společný „group PVE run" model (vlastní run tabulky,
+  role, NPC backfill) — SP dungeon je jeho speciální případ (1 hráč).
+- **Raid leader + lobby**: leader sestaví, zve hráče, ručně spustí; realtime
+  obsazení přes WS (recykluje M7/M8 vrstvu). Pozvánky/výběr **v guildě → po M9**.
+
+#### C) Arény — rozšíření o 3v3 a 5v5 + ruční sestavení týmů
+
+Upřesnění PM: v PVP **NEjde o wipe/retry**, ale o **nové brackety 3v3 a 5v5** vedle
+1v1 a **ruční sestavení týmu** (vybrat parťáky). Matchmaking týmů recykluje M7
+(snapshot fronta); ruční výběr týmu **po M9 social**.
+
+**Rating model — rozhodnutí (PM přenechal na mně): per hráč per bracket, ad-hoc týmy.**
+Žádná perzistentní „arena team" entita (jako vanilla 2v2 týmy), ale **ad-hoc tým per
+zápas** s ratingem **per postava per bracket per sezóna** (rozšiřuje M7 `arena_ratings`
+o brackety `3v3`/`5v5`). Důvody: (a) drží idle-first snapshot model z M7 beze změny,
+(b) žádná těžká týmová entita/správa členů, (c) snadno škáluje na malou základnu a
+NPC backfill. Po výhře/prohře se Elo aplikuje každému členu (průměr ratingu soupeřů).
+Perzistentní týmy lze přidat později bez refaktoru (bracket je datový atribut).
+
+#### D) Personal loot + trade mezi hráči (modern-WoW styl)
+
+- **Každý účastník dostane vlastní loot** (raid loot už dnes rolluje per postava —
+  rozšířit i na dungeony). Šance na loot **klesá s počtem wipů** (viz A).
+- **P2P trade**: hráči si mohou loot mezi sebou vyměnit (jako moderní WoW). Nový
+  trade systém (oddělený od AH), provázaný s **trade-window** soulbound itemů (viz E).
+
+#### E) Ekonomická pravidla (potvrzeno PM)
+
+- **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Raid/dungeon personal loot je
+  **BoP**: na AH neprodejný; obchodovatelný jen v **trade-window** (krátce po dropu,
+  jen účastníkům daného runu). Chrání ekonomiku a progrese před zaplavením AH.
+  Nový atribut itemů (dnes je vše volně obchodovatelné) → migrace + filtr v AH.
+- **Weekly lockout / raid ID.** Loot z raidu (a vyššího dungeonu) je limitován
+  týdenním lockoutem per postava → idle farmení nezaplaví AH a drží progresi.
+
+#### Pořadí (doporučení) & zbývající rozhodnutí
+
+Doporučené pořadí kvůli závislosti na social:
+`M8 → M8.5-A (wipe/retry) + M8.5-C-matchmaking + M8.5-D-personal-loot + M8.5-E
+→ M9 (social) → M8.5-B (guild formace) + M8.5-C-ruční-týmy + M8.5-D-trade`.
+
+Vyřešeno PM: rozsah módů (SP+3/5+raid, vše iterativní), boss-easing per wipe + hard
+fail bez útěchy, klesá XP/zlato/loot-šance, arena 3v3/5v5 + ad-hoc rating per hráč,
+personal loot + trade, soulbound/BoP + weekly lockout.
+
+Zbývá doladit (balanc, M9-ish, na začátek M8.5):
+- Konkrétní křivky: boss-easing per wipe, klesání odměn/loot-šance, strop pokusů.
+- Trade-window délka + omezení (anti-griefing/escrow).
+- Group dungeon scaling 3 vs 5 (analog `scaleBoss`).
+- Architektura: sjednotit dungeon+raid pod „group PVE run" (refaktor SP dungeonu
+  z `character_activities` na run model).
+
+**Posouzení (na žádost PM):** model je **soudržný a realizovatelný**, konzistentní
+s idle-first i determinismem (seed per pokus). Hlavní práce: (1) refaktor combat na
+per-boss iterace + boss-easing + reward/loot curve + hard fail, (2) sjednocení
+dungeon/raid run modelu (+ SP/3/5 módy), (3) `bindType`/soulbound + trade systém +
+weekly lockout, (4) arena 3v3/5v5. Guild-vázané části čekají na M9 social.
 
 ### M9 — Polish, balanc, pixel grafika, sociální
 
@@ -347,6 +473,9 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
 - ~~Sezónní model (reset ladderu) pro PVP. → M7~~ ✅ vyřešeno v M7: sezóny = data v shared, rating per sezóna (reset), lazy idempotentní rollover + sezónní odměny dle tieru.
 - ~~Rozsah Aren MVP (kolik bracketů, realtime watch). → M7~~ ✅ vyřešeno v M7: jen `1v1`, live watch přes WebSocket (Redis pub/sub).
+- ~~Velikost raid party a počet rolí v MVP. → M8~~ ✅ vyřešeno v M8: flex velikosti 5/10/20 (modern-WoW) + hráčem volená kompozice T/H/DPS, boss scaling dle velikosti, idle-first matchmaking s NPC backfillem.
+- ~~Kolik raidů/bossů + attunement model. → M8~~ ✅ vyřešeno v M8: 2 raidy × 3 bossy, attunement = level + dokončený questline.
+- ~~AH model (aukce vs buyout, poplatky/expirace). → M8~~ ✅ vyřešeno v M8: buyout + bidding s depositem a 5 % cut (gold sinky) + expirace; vypořádání lazy + BullMQ.
 
 ---
 

@@ -161,6 +161,21 @@ export const QUESTS: Record<string, QuestDef> = {
     goldVariance: 0.3,
   },
 
+  // ── Raid attunement (Alliance, M8) — gate to Blackwing Lair ──────────────
+  al_drakefire_attunement: {
+    id: 'al_drakefire_attunement',
+    name: 'The Drakefire Amulet',
+    description: 'Forge the Drakefire Amulet to breach the wards of Blackwing Lair.',
+    zoneId: 'duskwood',
+    kind: 'story',
+    requiredLevel: 50,
+    requiresQuest: 'dw_morbent_fel',
+    durationSec: 5400,
+    baseXp: 8000,
+    baseGold: 300,
+    goldVariance: 0.2,
+  },
+
   // ╔══ HORDE ═══════════════════════════════════════════════════════════════╗
   // ── Durotar (1–10) ───────────────────────────────────────────────────────
   dt_scorpid_sting: {
@@ -279,6 +294,21 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 2200,
     baseGold: 90,
     goldVariance: 0.3,
+  },
+
+  // ── Raid attunement (Horde, M8) — gate to Blackwing Lair ─────────────────
+  ho_drakefire_attunement: {
+    id: 'ho_drakefire_attunement',
+    name: 'The Drakefire Amulet',
+    description: 'Forge the Drakefire Amulet to breach the wards of Blackwing Lair.',
+    zoneId: 'thousand_needles',
+    kind: 'story',
+    requiredLevel: 50,
+    requiresQuest: 'tn_galak_ogres',
+    durationSec: 5400,
+    baseXp: 8000,
+    baseGold: 300,
+    goldVariance: 0.2,
   },
 };
 

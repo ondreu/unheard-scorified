@@ -45,4 +45,28 @@ export class CharacterRepository {
       .returning();
     return row!;
   }
+
+  /**
+   * Atomicky strhne zlato, jen pokud má postava dostatek (where gold >= amount).
+   * Vrací true při úspěchu (zabraňuje zápornému zůstatku i souběhu). Použito
+   * AH (deposit/bid/buyout escrow, M8).
+   */
+  async spendGold(id: string, amount: number): Promise<boolean> {
+    if (amount <= 0) return true;
+    const rows = await this.db
+      .update(characters)
+      .set({ gold: sql`${characters.gold} - ${amount}` })
+      .where(and(eq(characters.id, id), sql`${characters.gold} >= ${amount}`))
+      .returning({ id: characters.id });
+    return rows.length > 0;
+  }
+
+  /** Připíše zlato postavě (návrat bidu/depositu, výnos z prodeje). */
+  async addGold(id: string, amount: number): Promise<void> {
+    if (amount === 0) return;
+    await this.db
+      .update(characters)
+      .set({ gold: sql`${characters.gold} + ${amount}` })
+      .where(eq(characters.id, id));
+  }
 }

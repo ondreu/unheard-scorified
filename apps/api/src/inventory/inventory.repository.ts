@@ -57,6 +57,25 @@ export class InventoryRepository {
     }
   }
 
+  /** Přidá `qty` kusů itemu (upsert). Použito AH při doručení/vrácení stacku. */
+  async addItemQty(characterId: string, itemId: string, qty: number): Promise<void> {
+    if (qty <= 0) return;
+    const have = await this.getQuantity(characterId, itemId);
+    if (have > 0) {
+      await this.db
+        .update(characterInventory)
+        .set({ quantity: have + qty })
+        .where(
+          and(
+            eq(characterInventory.characterId, characterId),
+            eq(characterInventory.itemId, itemId),
+          ),
+        );
+    } else {
+      await this.db.insert(characterInventory).values({ characterId, itemId, quantity: qty });
+    }
+  }
+
   /** Počet kusů daného itemu v inventáři (0 pokud žádný). */
   async getQuantity(characterId: string, itemId: string): Promise<number> {
     const [row] = await this.db

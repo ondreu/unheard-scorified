@@ -406,6 +406,183 @@ export function getArenaMatch(characterId: string, matchId: string): Promise<Are
   return request<ArenaMatchView>(`/characters/${characterId}/arena/match/${matchId}`);
 }
 
+// ── Raids (M8, MP PVE) ───────────────────────────────────────────────────────
+
+export type RaidRole = 'tank' | 'healer' | 'dps';
+
+export interface RaidComposition {
+  tank: number;
+  healer: number;
+  dps: number;
+}
+
+export interface RaidListItem {
+  id: string;
+  name: string;
+  description: string;
+  requiredLevel: number;
+  attunementQuests: string[];
+  bossNames: string[];
+  sizes: number[];
+  defaultComposition: Record<number, RaidComposition>;
+  unlocked: boolean;
+  queuedRole: RaidRole | null;
+}
+
+export interface RaidReward {
+  xp: number;
+  gold: number;
+  items: string[];
+}
+
+export interface RaidRunView {
+  runId: string;
+  raidId: string;
+  raidName: string;
+  startAt: string;
+  durationSec: number;
+  progress: ActivityProgress;
+  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  bosses: { name: string }[];
+  events: CombatEvent[];
+  victory: boolean | null;
+  myReward: RaidReward | null;
+  myRole: RaidRole | null;
+}
+
+export interface RaidRunSummary {
+  runId: string;
+  raidId: string;
+  raidName: string;
+  role: RaidRole;
+  victory: boolean;
+  reward: RaidReward;
+  createdAt: string;
+}
+
+export function listRaids(characterId: string): Promise<RaidListItem[]> {
+  return request<RaidListItem[]>(`/characters/${characterId}/raids`);
+}
+
+export function recentRaidRuns(characterId: string): Promise<RaidRunSummary[]> {
+  return request<RaidRunSummary[]>(`/characters/${characterId}/raids/runs`);
+}
+
+export function getRaidRun(characterId: string, runId: string): Promise<RaidRunView> {
+  return request<RaidRunView>(`/characters/${characterId}/raids/run/${runId}`);
+}
+
+export function enterRaid(
+  characterId: string,
+  raidId: string,
+  role: RaidRole,
+  size?: number,
+  composition?: RaidComposition,
+): Promise<RaidRunView> {
+  return request<RaidRunView>(`/characters/${characterId}/raids/${raidId}/enter`, {
+    method: 'POST',
+    body: JSON.stringify({ role, size, composition }),
+  });
+}
+
+export function queueRaid(
+  characterId: string,
+  raidId: string,
+  role: RaidRole,
+): Promise<{ queued: true; role: RaidRole }> {
+  return request<{ queued: true; role: RaidRole }>(
+    `/characters/${characterId}/raids/${raidId}/queue`,
+    { method: 'POST', body: JSON.stringify({ role }) },
+  );
+}
+
+export function leaveRaidQueue(
+  characterId: string,
+  raidId: string,
+): Promise<{ left: boolean }> {
+  return request<{ left: boolean }>(`/characters/${characterId}/raids/${raidId}/leave`, {
+    method: 'POST',
+  });
+}
+
+// ── Auction House (M8, economy) ──────────────────────────────────────────────
+
+export interface AuctionView {
+  id: string;
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  sellerName: string;
+  startBid: number;
+  buyout: number | null;
+  currentBid: number | null;
+  minBid: number;
+  deposit: number;
+  status: 'active' | 'sold' | 'expired' | 'cancelled';
+  endsAt: string;
+  timeLeftSec: number;
+  isMine: boolean;
+  isMyBid: boolean;
+}
+
+export interface InventoryItemView {
+  itemId: string;
+  quantity: number;
+  item?: { name?: string };
+}
+
+export function listInventory(characterId: string): Promise<InventoryItemView[]> {
+  return request<InventoryItemView[]>(`/characters/${characterId}/inventory`);
+}
+
+export function browseAuctions(characterId: string, itemId?: string): Promise<AuctionView[]> {
+  const q = itemId ? `?itemId=${encodeURIComponent(itemId)}` : '';
+  return request<AuctionView[]>(`/characters/${characterId}/auctions${q}`);
+}
+
+export function myAuctions(characterId: string): Promise<AuctionView[]> {
+  return request<AuctionView[]>(`/characters/${characterId}/auctions/mine`);
+}
+
+export function createAuction(
+  characterId: string,
+  input: {
+    itemId: string;
+    quantity: number;
+    startBid: number;
+    buyout?: number | null;
+    duration: 'short' | 'medium' | 'long';
+  },
+): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function bidAuction(
+  characterId: string,
+  auctionId: string,
+  amount: number,
+): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions/${auctionId}/bid`, {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export function buyoutAuction(characterId: string, auctionId: string): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions/${auctionId}/buyout`, {
+    method: 'POST',
+  });
+}
+
+export function cancelAuction(characterId: string, auctionId: string): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions/${auctionId}/cancel`, {
+    method: 'POST',
+  });
+}
+
 export function getVapidPublicKey(): Promise<{ key: string }> {
   return request<{ key: string }>('/push/vapid-public-key', {}, false);
 }
