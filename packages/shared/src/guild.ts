@@ -60,6 +60,9 @@ export const GUILD_CHARTER_COST = 1000;
 /** Počet podpisů (od jiných postav) nutných k založení guildy. */
 export const GUILD_CHARTER_SIGNATURES_REQUIRED = 5;
 
+/** Minimální level postavy, aby mohla podepsat guild charter. */
+export const GUILD_CHARTER_MIN_SIGNER_LEVEL = 10;
+
 /** True, pokud charter posbíral dost podpisů na založení guildy. */
 export function canFoundGuild(signedSignatures: number): boolean {
   return signedSignatures >= GUILD_CHARTER_SIGNATURES_REQUIRED;

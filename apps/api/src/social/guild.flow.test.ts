@@ -12,7 +12,12 @@ import * as schema from '../db/schema';
 import { GuildRepository } from './guild.repository';
 import { GuildService } from './guild.service';
 import { SocialEventsRelay } from './social.events';
-import { GUILD_CHARTER_COST, GUILD_CHARTER_SIGNATURES_REQUIRED } from '@game/shared';
+import {
+  GUILD_CHARTER_COST,
+  GUILD_CHARTER_MIN_SIGNER_LEVEL,
+  GUILD_CHARTER_SIGNATURES_REQUIRED,
+  totalXpForLevel,
+} from '@game/shared';
 
 /**
  * Integrační test M9 guildy nad pglite (relay bez WS serveru = no-op).
@@ -175,14 +180,22 @@ describe('M9 flow: guild', () => {
 
     // Pět hráčů podepíše.
     const signerNames = ['Eitrigg', 'Nazgrel', 'Gamon', 'Rexxar', 'Broxigar'];
+    const signers: { accountId: string; id: string; name: string }[] = [];
     for (let i = 0; i < GUILD_CHARTER_SIGNATURES_REQUIRED; i++) {
       const signer = await player(signerNames[i]!);
+      // Signatáři musí být level 10+ (charter pravidlo).
+      await charRepo.addRewards(signer.id, totalXpForLevel(GUILD_CHARTER_MIN_SIGNER_LEVEL), 0);
+      signers.push(signer);
       await guild.inviteSign(founder.accountId, founder.id, signer.name);
       const sState = await guild.getState(signer.accountId, signer.id);
       const req = sState.charterInvites.find((c) => c.guildName === 'High Overlords');
       expect(req).toBeTruthy();
       await guild.respondSign(signer.accountId, signer.id, req!.charterId, true);
     }
+
+    // Level 1 hráč nesmí být pozván k podpisu.
+    const lowbie = await player('Lowbie');
+    await expect(guild.inviteSign(founder.accountId, founder.id, lowbie.name)).rejects.toThrow();
 
     state = await guild.getState(founder.accountId, founder.id);
     expect(state.charter?.signedCount).toBe(GUILD_CHARTER_SIGNATURES_REQUIRED);
@@ -193,5 +206,9 @@ describe('M9 flow: guild', () => {
     expect(founded.guild?.name).toBe('High Overlords');
     expect(founded.guild?.myRank).toBe('leader');
     expect(founded.charter).toBeNull();
+    // Signatáři automaticky vstoupili do guildy (leader + 5 = 6 členů).
+    expect(founded.guild?.memberCount).toBe(GUILD_CHARTER_SIGNATURES_REQUIRED + 1);
+    const signerState = await guild.getState(signers[0]!.accountId, signers[0]!.id);
+    expect(signerState.guild?.name).toBe('High Overlords');
   });
 });
