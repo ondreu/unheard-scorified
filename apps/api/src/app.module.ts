@@ -3,6 +3,7 @@ import { ActivityModule } from './activity/activity.module';
 import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { DbModule } from './db/db.module';
+import { DungeonModule } from './dungeon/dungeon.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PushModule } from './push/push.module';
@@ -26,6 +27,7 @@ import { TalentModule } from './talent/talent.module';
     ActivityModule,
     InventoryModule,
     TalentModule,
+    DungeonModule,
   ],
 })
 export class AppModule {}

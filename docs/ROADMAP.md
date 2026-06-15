@@ -227,11 +227,32 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Výstup:** sbírám gear z questů, oblékám ho, rozdávám talent body, vidím equipment staty. ✅
 - **Zbývá na M5:** combat tagy z talentů použít v combat enginu; set bonusy; zbraňové typy.
 
-### M5 — Combat engine & Dungeony (SP PVE)
+### M5 — Combat engine & Dungeony (SP PVE) — ✅ hotovo
 
-- Deterministický idle combat engine; server tick + WebSocket live combat log.
-- Dungeony: SP instance, odemykání dle levelu, boss loot, content gating.
-- **Výstup:** pošlu se do dungeonu, sleduji idle boj, dostanu loot.
+- [x] **Deterministický combat engine** (`packages/shared/src/combat.ts`):
+      `deriveCombatProfile` (base staty M1 + gear M4 + **talent combat tagy M4**
+      → crit/haste/damage/lifesteal + signature ability), `simulateDungeonRun`
+      (událostmi řízená simulace přes `SeededRng`, enrage timer, klid mezi
+      souboji) → kompletní `CombatEvent[]` timeline + výsledek. Unit testy.
+- [x] **Dungeony** (`packages/shared/src/data/dungeons.ts`): 4 SP instance
+      (Ragefire Chasm 8, Deadmines 15, Shadowfang Keep 20, Scarlet Monastery 30),
+      content gating dle levelu, trash + boss encountery. PVE neutrální.
+- [x] **Boss loot** (`DUNGEON_LOOT_TABLES` v `loot.ts`) + dungeon-only itemy
+      (`items.ts`); roll při vítězství na deterministicky odvozeném seedu.
+- [x] **Dungeon run = idle aktivita typu `dungeon`** — žádná nová tabulka/migrace;
+      recykluje M2 activity infra (repository, BullMQ scheduler, push) a generický
+      claim. Snapshot bojového profilu při vstupu (anti-cheat + determinismus).
+- [x] `DungeonModule` (NestJS): list dungeonů, enter, **živý combat log**
+      (odhalování předpočítaného timeline dle uplynulého času — stateless, žádný
+      per-process stav). Integrační testy (pglite, 7 testů).
+- [x] Web: `/characters/[id]/dungeons` (seznam + enter), `/characters/[id]/dungeon`
+      (sledování boje — combat log polling, claim loot); character page link +
+      běžící run „Watch fight →". Herní texty anglicky, oddělené od logiky.
+- [x] Build/test/lint/typecheck zelené (98 testů: 56 shared + 42 API).
+- Detail: `docs/systems/combat-dungeons.md`, ADR `docs/adr/0008-combat-and-dungeons.md`.
+- **Výstup:** pošlu se do dungeonu, sleduji idle boj (log událostí), dostanu loot. ✅
+- **Zbývá doladit:** balanc (HP/AP/loot/XP, M9); **WebSocket** realtime transport
+  (Redis pub/sub, multi-instance) → M7; plné využití všech combat tagů (DoTy/štíty/CC).
 
 ### M6 — Profese & reputace (deep time-sinks)
 

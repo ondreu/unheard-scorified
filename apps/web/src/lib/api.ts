@@ -23,24 +23,28 @@ export interface QuestView {
   baseGold: number;
 }
 
+export interface ActivityProgress {
+  elapsedSec: number;
+  remainingSec: number;
+  progress: number;
+  completed: boolean;
+  finishesAt: string;
+}
+
 export interface ActivityView {
   id: string;
   activityType: string;
-  questId: string;
+  title: string;
   startAt: string;
   durationSec: number;
-  quest: { id: string; name: string; zoneId: string; kind: string };
-  progress: {
-    elapsedSec: number;
-    remainingSec: number;
-    progress: number;
-    completed: boolean;
-    finishesAt: string;
-  };
+  questId?: string;
+  quest?: { id: string; name: string; zoneId: string; kind: string };
+  dungeon?: { id: string; name: string };
+  progress: ActivityProgress;
 }
 
 export interface ClaimResult {
-  reward: { xp: number; gold: number };
+  reward: { xp: number; gold: number; items: string[] };
   levelBefore: number;
   levelAfter: number;
   leveledUp: boolean;
@@ -48,6 +52,43 @@ export interface ClaimResult {
   character: CharacterView;
   /** Počet sekund, po které aktivita čekala na claim (offline progres). 0 = okamžitý claim. */
   offlineDurationSec: number;
+  /** Itemy přidané do inventáře při claimu. */
+  items: string[];
+}
+
+export interface DungeonListItem {
+  id: string;
+  name: string;
+  description: string;
+  requiredLevel: number;
+  recommendedLevel: number;
+  encounterCount: number;
+  bossName: string;
+  unlocked: boolean;
+}
+
+export interface CombatEvent {
+  t: number;
+  type: string;
+  message: string;
+  source?: string;
+  target?: string;
+  amount?: number;
+  crit?: boolean;
+  ability?: string;
+  targetHealthRemaining?: number;
+}
+
+export interface DungeonLogView {
+  dungeonId: string;
+  dungeonName: string;
+  startAt: string;
+  durationSec: number;
+  progress: ActivityProgress;
+  player: { name: string; maxHealth: number };
+  enemies: { name: string; isBoss: boolean }[];
+  events: CombatEvent[];
+  victory: boolean | null;
 }
 
 export class ApiError extends Error {
@@ -156,6 +197,20 @@ export function startActivity(characterId: string, questId: string): Promise<Act
 
 export function claimActivity(characterId: string): Promise<ClaimResult> {
   return request<ClaimResult>(`/characters/${characterId}/activity/claim`, { method: 'POST' });
+}
+
+export function listDungeons(characterId: string): Promise<DungeonListItem[]> {
+  return request<DungeonListItem[]>(`/characters/${characterId}/dungeons`);
+}
+
+export function enterDungeon(characterId: string, dungeonId: string): Promise<DungeonLogView> {
+  return request<DungeonLogView>(`/characters/${characterId}/dungeons/${dungeonId}/enter`, {
+    method: 'POST',
+  });
+}
+
+export function getDungeonLog(characterId: string): Promise<DungeonLogView | null> {
+  return request<DungeonLogView | null>(`/characters/${characterId}/dungeons/log`);
 }
 
 export function getVapidPublicKey(): Promise<{ key: string }> {

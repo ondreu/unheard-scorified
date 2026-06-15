@@ -1,6 +1,11 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { Queue, Worker, type ConnectionOptions } from 'bullmq';
-import { QUESTS } from '@game/shared';
+import {
+  DUNGEONS,
+  QUESTS,
+  type DungeonActivityParams,
+  type QuestActivityParams,
+} from '@game/shared';
 import { loadConfig } from '../config/config';
 import { CharacterRepository } from '../character/character.repository';
 import { PushService } from '../push/push.service';
@@ -67,11 +72,24 @@ export class BullMqActivityScheduler implements ActivityScheduler, OnModuleInit,
     const activity = await this.activities.findByCharacter(data.characterId);
     if (!activity) return;
 
-    const questName = QUESTS[activity.params.questId]?.name ?? 'your quest';
+    const { title, body } =
+      activity.activityType === 'dungeon'
+        ? {
+            title: 'Dungeon Complete!',
+            body: `${character.name} has cleared "${
+              DUNGEONS[(activity.params as DungeonActivityParams).dungeonId]?.name ?? 'the dungeon'
+            }". Return to claim your loot.`,
+          }
+        : {
+            title: 'Quest Complete!',
+            body: `${character.name} has finished "${
+              QUESTS[(activity.params as QuestActivityParams).questId]?.name ?? 'your quest'
+            }". Return to claim your rewards.`,
+          };
 
     await this.push.sendToAccount(character.accountId, {
-      title: 'Quest Complete!',
-      body: `${character.name} has finished "${questName}". Return to claim your rewards.`,
+      title,
+      body,
       characterId: character.id,
     });
   }

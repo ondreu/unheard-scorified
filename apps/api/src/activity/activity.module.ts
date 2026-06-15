@@ -17,5 +17,6 @@ import { ACTIVITY_SCHEDULER, BullMqActivityScheduler } from './activity.schedule
     ActivityRepository,
     { provide: ACTIVITY_SCHEDULER, useClass: BullMqActivityScheduler },
   ],
+  exports: [ActivityRepository, ACTIVITY_SCHEDULER],
 })
 export class ActivityModule {}

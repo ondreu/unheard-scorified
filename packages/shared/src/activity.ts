@@ -10,17 +10,29 @@
  */
 import { QUESTS, type QuestDef } from './data/quests';
 import { SeededRng, seedFromString } from './rng';
-import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET } from './loot';
+import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET, DUNGEON_LOOT_TABLES } from './loot';
+import { DUNGEONS } from './data/dungeons';
+import { buildEnemyActor, simulateDungeonRun, type CombatActor, type DungeonCombatResult } from './combat';
 
-/** Typ idle aktivity. Zatím jen quest; rozšiřitelné o profese/dungeony. */
-export type ActivityType = 'quest';
+/** Typ idle aktivity. M2: quest; M5: dungeon. Rozšiřitelné o profese. */
+export type ActivityType = 'quest' | 'dungeon';
 
-/** Parametry aktivity (typově dle activityType). */
+/** Parametry questovací aktivity. */
 export interface QuestActivityParams {
   questId: string;
 }
 
-export type ActivityParams = QuestActivityParams;
+/**
+ * Parametry dungeon aktivity (M5). `player` je snapshot bojového profilu při
+ * vstupu (anti-cheat + determinismus, viz ADR 0008) — boj nezávisí na pozdější
+ * změně gearu/talentů.
+ */
+export interface DungeonActivityParams {
+  dungeonId: string;
+  player: CombatActor;
+}
+
+export type ActivityParams = QuestActivityParams | DungeonActivityParams;
 
 /** Perzistovaný stav běžící aktivity (vstup pro dopočet). */
 export interface ActivityState {
@@ -94,6 +106,45 @@ export function computeQuestReward(quest: QuestDef, seed: number): ActivityRewar
   };
 }
 
+/** Deterministicky odbojuje dungeon run ze snapshotu v `params`. */
+export function simulateDungeonFromParams(
+  params: DungeonActivityParams,
+  seed: number,
+): DungeonCombatResult | null {
+  const dungeon = DUNGEONS[params.dungeonId];
+  if (!dungeon) return null;
+  const enemies = dungeon.encounters.map((e) => buildEnemyActor(e));
+  return simulateDungeonRun(params.player, enemies, seed);
+}
+
+/**
+ * Odměna za dokončený dungeon run. Při vítězství plné XP/zlato + boss loot;
+ * při prohře malá „útěcha" XP a žádný loot. Loot rolluje na nezávislém,
+ * deterministicky odvozeném seedu (neinterferuje s combat RNG).
+ */
+export function computeDungeonReward(params: DungeonActivityParams, seed: number): ActivityReward {
+  const dungeon = DUNGEONS[params.dungeonId];
+  if (!dungeon) return { xp: 0, gold: 0, items: [] };
+
+  const result = simulateDungeonFromParams(params, seed);
+  if (!result || !result.victory) {
+    // Útěcha: zlomek XP za pokus, žádný loot ani zlato.
+    return { xp: Math.round(dungeon.baseXp * 0.1), gold: 0, items: [] };
+  }
+
+  const lootRng = new SeededRng((seed ^ 0x9e3779b9) >>> 0);
+  const goldRoll = lootRng.next();
+  const factor = 1 - dungeon.goldVariance + goldRoll * 2 * dungeon.goldVariance;
+  const lootTable = DUNGEON_LOOT_TABLES[dungeon.id];
+  const items = lootTable ? rollLoot(lootTable, lootRng) : [];
+
+  return {
+    xp: dungeon.baseXp,
+    gold: Math.max(0, Math.round(dungeon.baseGold * factor)),
+    items,
+  };
+}
+
 /**
  * Odměna za aktivitu, je-li v okamžiku `now` dokončená; jinak `null`.
  * Jediný vstupní bod pro dopočet odměn (lazy i z BullMQ jobu).
@@ -103,10 +154,12 @@ export function computeActivityReward(state: ActivityState, now: number): Activi
   if (!completed) return null;
   switch (state.activityType) {
     case 'quest': {
-      const quest = QUESTS[state.params.questId];
+      const quest = QUESTS[(state.params as QuestActivityParams).questId];
       if (!quest) return null;
       return computeQuestReward(quest, state.seed);
     }
+    case 'dungeon':
+      return computeDungeonReward(state.params as DungeonActivityParams, state.seed);
     default:
       return null;
   }

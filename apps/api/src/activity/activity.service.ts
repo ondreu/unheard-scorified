@@ -11,6 +11,7 @@ import {
   applyXpGain,
   buildCharacterSheet,
   computeActivityReward,
+  DUNGEONS,
   isQuestAvailable,
   isQuestId,
   levelFromXp,
@@ -18,6 +19,8 @@ import {
   type ActivityReward,
   type ActivityState,
   type CharacterSheet,
+  type DungeonActivityParams,
+  type QuestActivityParams,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
@@ -29,10 +32,15 @@ import { ACTIVITY_SCHEDULER, type ActivityScheduler } from './activity.scheduler
 export interface ActivityView {
   id: string;
   activityType: string;
-  questId: string;
+  /** Zobrazovaný název aktivity (quest nebo dungeon). */
+  title: string;
   startAt: string;
   durationSec: number;
-  quest: { id: string; name: string; zoneId: string; kind: string };
+  /** Vyplněno jen pro `activityType === 'quest'`. */
+  questId?: string;
+  quest?: { id: string; name: string; zoneId: string; kind: string };
+  /** Vyplněno jen pro `activityType === 'dungeon'`. */
+  dungeon?: { id: string; name: string };
   progress: {
     elapsedSec: number;
     remainingSec: number;
@@ -152,8 +160,11 @@ export class ActivityService {
     const gain = applyXpGain(character.totalXp, reward.xp);
     const updated = await this.characters.addRewards(character.id, reward.xp, reward.gold);
 
-    if (row.activityType === 'quest' && QUESTS[row.params.questId]?.kind === 'story') {
-      await this.completed.markCompleted(characterId, row.params.questId);
+    if (row.activityType === 'quest') {
+      const questId = (row.params as QuestActivityParams).questId;
+      if (QUESTS[questId]?.kind === 'story') {
+        await this.completed.markCompleted(characterId, questId);
+      }
     }
 
     // Přidá loot do inventáře
@@ -181,21 +192,34 @@ export class ActivityService {
   private toActivityView(row: CharacterActivity, now: number): ActivityView {
     const state = toActivityState(row);
     const p = activityProgress(state, now);
-    const quest = QUESTS[row.params.questId]!;
-    return {
+    const progress = {
+      elapsedSec: p.elapsedSec,
+      remainingSec: p.remainingSec,
+      progress: p.progress,
+      completed: p.completed,
+      finishesAt: new Date(p.finishesAt).toISOString(),
+    };
+    const base = {
       id: row.id,
       activityType: row.activityType,
-      questId: row.params.questId,
       startAt: row.startAt.toISOString(),
       durationSec: row.durationSec,
+      progress,
+    };
+
+    if (row.activityType === 'dungeon') {
+      const params = row.params as DungeonActivityParams;
+      const dungeon = DUNGEONS[params.dungeonId];
+      return { ...base, title: dungeon?.name ?? params.dungeonId, dungeon: { id: params.dungeonId, name: dungeon?.name ?? params.dungeonId } };
+    }
+
+    const questId = (row.params as QuestActivityParams).questId;
+    const quest = QUESTS[questId]!;
+    return {
+      ...base,
+      title: quest.name,
+      questId,
       quest: { id: quest.id, name: quest.name, zoneId: quest.zoneId, kind: quest.kind },
-      progress: {
-        elapsedSec: p.elapsedSec,
-        remainingSec: p.remainingSec,
-        progress: p.progress,
-        completed: p.completed,
-        finishesAt: new Date(p.finishesAt).toISOString(),
-      },
     };
   }
 }
