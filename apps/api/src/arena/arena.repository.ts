@@ -6,11 +6,14 @@ import {
   arenaMatches,
   arenaRatings,
   arenaSeasonRewards,
+  arenaTeamMatches,
   type ArenaMatch,
   type ArenaRating,
   type ArenaSeasonReward,
+  type ArenaTeamMatch,
   type NewArenaMatch,
   type NewArenaSeasonReward,
+  type NewArenaTeamMatch,
 } from '../db/schema';
 
 @Injectable()
@@ -170,5 +173,21 @@ export class ArenaRepository {
       .where(or(eq(arenaMatches.aCharacterId, characterId), eq(arenaMatches.bCharacterId, characterId)))
       .orderBy(desc(arenaMatches.createdAt))
       .limit(limit);
+  }
+
+  // ── Týmové zápasy (M8.5-C) ───────────────────────────────────────────────────
+
+  async createTeamMatch(data: NewArenaTeamMatch): Promise<ArenaTeamMatch> {
+    const [row] = await this.db.insert(arenaTeamMatches).values(data).returning();
+    return row!;
+  }
+
+  async findTeamMatch(id: string): Promise<ArenaTeamMatch | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(arenaTeamMatches)
+      .where(eq(arenaTeamMatches.id, id))
+      .limit(1);
+    return row;
   }
 }

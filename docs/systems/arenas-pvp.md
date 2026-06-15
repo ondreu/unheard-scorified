@@ -82,7 +82,19 @@ Všechny herní texty jsou anglicky, oddělené od logiky (i18n-ready).
 - WS gateway se netestuje unit testem (viz ADR 0010 — vitest neumí Nest DI);
   ověřeno reálným bootem.
 
+## Týmové arény 3v3/5v5 (M8.5-C)
+
+Vedle 1v1 jsou rated brackety **3v3 a 5v5** s **ručně sestavenými týmy**: leader
+zařadí tým jedním voláním (`POST /characters/:id/team-arena/queue` s parťáky dle
+jména). Parťák musí být **friend nebo spoluhráč z guildy** (social graf = souhlas).
+Žádný NPC backfill — tým se páruje jen s jiným plným reálným týmem bez překryvu
+členů (snapshot fronta jako 1v1). Boj: `simulateTeamFight` (focus-fire, rampage,
+recykluje `computeHit`). Rating **per postava per bracket** přes `eloDelta` proti
+průměru soupeřova týmu (rozšiřuje `arena_ratings`). Zápas v `arena_team_matches`,
+watch přes REST reveal (`/team-arena/match/:id`; web polluje). Detail: **ADR 0020**.
+
 ## Známé follow-upy (M8/M9)
 
-- PVP-specifický balanc (vs PVE), rating-window matchmaking, 2v2/3v3 brackety,
-  sezónní cosmetic odměny (transmog titul), per-postavová push granularita.
+- PVP-specifický balanc (vs PVE), rating-window matchmaking, sezónní cosmetic
+  odměny (transmog titul), per-postavová push granularita, WS realtime watch pro
+  týmové zápasy (zatím REST polling), 2v2 bracket.

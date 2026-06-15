@@ -113,6 +113,27 @@
       "when": 1781525672846,
       "tag": "0015_magical_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1781526555890,
+      "tag": "0016_opposite_quicksilver",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1781527239811,
+      "tag": "0017_sharp_strong_guy",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781527670080,
+      "tag": "0018_noisy_thunderbolt",
+      "breakpoints": true
     }
   ]
 }

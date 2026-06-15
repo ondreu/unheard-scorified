@@ -247,6 +247,27 @@ export const arenaMatches = pgTable('arena_matches', {
 });
 
 /**
+ * Odehraný týmový arénový zápas (M8.5-C, 3v3/5v5). Ukládá snapshoty obou týmů
+ * (`CombatActor[]`) + seed → timeline se přepočítá deterministicky
+ * (`simulateTeamFight`), stejně jako 1v1 `arena_matches`. `*MemberIds` drží
+ * pořadí postav pro perspektivu „můj tým / soupeř". Rating se ukládá do
+ * `arena_ratings` (per postava per bracket). Týmy jsou ad-hoc (per zápas).
+ */
+export const arenaTeamMatches = pgTable('arena_team_matches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  seasonId: varchar('season_id', { length: 32 }).notNull(),
+  bracket: varchar('bracket', { length: 8 }).$type<ArenaBracket>().notNull(),
+  aMembers: jsonb('a_members').$type<CombatActor[]>().notNull(),
+  bMembers: jsonb('b_members').$type<CombatActor[]>().notNull(),
+  aMemberIds: jsonb('a_member_ids').$type<string[]>().notNull(),
+  bMemberIds: jsonb('b_member_ids').$type<string[]>().notNull(),
+  seed: bigint('seed', { mode: 'number' }).notNull(),
+  winner: varchar('winner', { length: 1 }).$type<DuelSide>().notNull(),
+  durationSec: integer('duration_sec').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
  * Archivovaný výsledek sezóny + udělená odměna (M7). Vzniká LAZY při prvním
  * dotazu postavy po skončení sezóny (idempotentní díky PK → žádné dvojité
  * udělení). Reset ratingu = nový řádek v `arena_ratings` pro novou sezónu.
@@ -552,6 +573,41 @@ export const guildInvites = pgTable(
 );
 
 /**
+ * Nárokované achievementy postavy (M9). Jeden řádek = postava si vyzvedla odměnu
+ * za achievement (`achievementId` z `@game/shared` katalogu). Splnění se odvozuje
+ * lazy z herního stavu; tady se drží jen fakt vyzvednutí (jednorázová odměna).
+ */
+export const characterAchievements = pgTable(
+  'character_achievements',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    achievementId: varchar('achievement_id', { length: 48 }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.achievementId] })],
+);
+
+/**
+ * Vyzvednuté denní/týdenní cíle (M9). PK = (postava, cíl, období) → cíl jde
+ * splnit znovu v dalším období (`periodId` = UTC den / pondělí). `goalId` z
+ * `@game/shared` katalogu. Splnění se odvozuje lazy z herního stavu v období.
+ */
+export const characterGoalClaims = pgTable(
+  'character_goal_claims',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    goalId: varchar('goal_id', { length: 48 }).notNull(),
+    periodId: varchar('period_id', { length: 16 }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.goalId, t.periodId] })],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -692,6 +748,8 @@ export type ArenaRating = typeof arenaRatings.$inferSelect;
 export type NewArenaRating = typeof arenaRatings.$inferInsert;
 export type ArenaMatch = typeof arenaMatches.$inferSelect;
 export type NewArenaMatch = typeof arenaMatches.$inferInsert;
+export type ArenaTeamMatch = typeof arenaTeamMatches.$inferSelect;
+export type NewArenaTeamMatch = typeof arenaTeamMatches.$inferInsert;
 export type ArenaSeasonReward = typeof arenaSeasonRewards.$inferSelect;
 export type NewArenaSeasonReward = typeof arenaSeasonRewards.$inferInsert;
 export type RaidRun = typeof raidRuns.$inferSelect;
@@ -706,6 +764,10 @@ export type Friendship = typeof friendships.$inferSelect;
 export type NewFriendship = typeof friendships.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type CharacterAchievement = typeof characterAchievements.$inferSelect;
+export type NewCharacterAchievement = typeof characterAchievements.$inferInsert;
+export type CharacterGoalClaim = typeof characterGoalClaims.$inferSelect;
+export type NewCharacterGoalClaim = typeof characterGoalClaims.$inferInsert;
 export type Trade = typeof trades.$inferSelect;
 export type NewTrade = typeof trades.$inferInsert;
 export type TradeItem = typeof tradeItems.$inferSelect;

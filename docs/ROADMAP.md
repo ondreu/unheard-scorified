@@ -367,8 +367,9 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 > Status: **rozpracováno** — **A (wipe/retry) ✅**, **B-idle (group PVE run +
 > group dungeony) ✅**, **B-ruční-formace (raid lobby) ✅** (ADR 0018),
-> **D-personal-loot ✅**, **D-trade (P2P) ✅** (ADR 0019). Zbývá: C (týmové arény,
-> ruční). Ekonomická pravidla (původní E) vyčleněna do samostatného milníku **M8.6**.
+> **D-personal-loot ✅**, **D-trade (P2P) ✅** (ADR 0019), **C (týmové arény
+> 3v3/5v5) ✅** (ADR 0020). **M8.5 kompletní.** Ekonomická pravidla (původní E)
+> vyčleněna do samostatného milníku **M8.6**.
 
 #### A) Iterativní wipe/retry combat — ✅ hotovo
 
@@ -437,7 +438,18 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 - ℹ️ Konvergence `RaidService` na společný `GroupRunService` je nepovinný úklid
   (data/sim/helpery už sdílené); legacy single-actor `simulateDungeonRun` → úklid M9.
 
-#### C) Arény — rozšíření o 3v3 a 5v5 (ruční týmy) → **závisí na M9 social**
+#### C) Arény — rozšíření o 3v3 a 5v5 (ruční týmy) — ✅ hotovo (ADR 0020)
+
+- [x] Brackety `3v3`/`5v5` (rozšířený `ArenaBracket`), team-vs-team engine
+      `simulateTeamFight` (recykluje `computeHit`, focus-fire, rampage), Elo per
+      postava proti průměru soupeřů (`eloDelta`). Ruční tým přes social graf
+      (parťák = friend/guild), snapshot fronta bez NPC backfillu, párování bez
+      překryvu členů. Persistence `arena_team_matches` (migrace `0016`) + watch
+      (REST reveal). `TeamArenaService`/controller/queue v `ArenaModule`. Web
+      `/characters/[id]/team-arena` + `/team-match/[matchId]`. Testy: shared
+      `pvp.test.ts` (+), API `team-arena.flow.test.ts` (+7).
+
+> Historický kontext rozhodnutí PM níže.
 
 Upřesnění PM: v PVP **NEjde o wipe/retry**, ale o **nové brackety 3v3 a 5v5** vedle
 1v1. **Rozhodnutí PM:** **idle (NPC backfill / auto-matchmaking) zůstává jen u 1v1**;
@@ -553,9 +565,131 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `SocialModule`. Web `/characters/[id]/guild` + realtime `guild:invite`.
       Testy: shared `guild.test.ts` (+5) + API `guild.flow.test.ts` (+9). Detail:
       **ADR 0017**, `docs/systems/social.md`. Odemyká M8.5-B/C (ruční formace).
-- [ ] Achievementy, denní/týdenní cíle.
-- [ ] PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
+- [x] **Achievementy** ✅: odvozené z herního stavu (level/gold/questy/dungeony/
+      raidy/arény/přátelé — žádné invazivní countery), katalog ve `@game/shared`,
+      jednorázové odměny (`character_achievements`, migrace `0017`),
+      `ProgressionModule`. Web `/characters/[id]/achievements`. Testy: shared
+      `achievements.test.ts` (+3) + API `progression.flow.test.ts` (+5). ADR 0021.
+- [x] **Denní/týdenní cíle** ✅: časově omezené (UTC den / pondělí, deterministický
+      reset), recyklují metriky (questy/dungeony/raidy v období), jednorázová
+      odměna za období (`character_goal_claims`, migrace `0018`). Sdílené
+      `@game/shared/goals.ts`. Web: sekce na `/characters/[id]/achievements`.
+      Testy: shared `goals.test.ts` (+5) + API (+2). ADR 0021.
+- [ ] PixiJS pixel scénky, nahrazení placeholderů; tutoriál/onboarding.
+- [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
+
+---
+
+## M10+ — Backlog & refinements (živý seznam)
+
+> Sběrný, **priorizovatelný** seznam dalšího směřování (PM zadání + návrhy agenta).
+> Položky se časem přesouvají do vlastních milníků/ADR, jakmile se rozpracují.
+> Legenda: 🧑‍💼 = zadáno PM, 🤖 = návrh agenta.
+
+### FEAT — obsah & systémy
+
+- [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
+  - [ ] Příběhové (story) questlinky.
+  - [ ] Questy s **combatem** (kill/clear cíl řešený combat enginem, ne jen idle timer).
+  - [ ] Každý dungeon má vlastní **questlinku** (attunement/lore → odemykání).
+- [ ] 🧑‍💼 **Mounty** — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
+      questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
+      (skin) od bonusu (speed) → kompatibilní s monetizací.
+- [ ] 🧑‍💼 **Admin panel**: u seznamu účtů rozkliknout jejich postavy (drill-down
+      account → characters → inspect). Rozšiřuje stávající `/dev/mod`.
+- [ ] 🧑‍💼 **Více gearu + armor typy** (cloth / leather / mail / plate).
+  - **Posouzení agenta (🤖): ano, realizovatelné a NE moc složité.** Návrh: přidat
+    `ItemDef.armorClass` + mapování `class → povolené armor typy` (gate při equipu,
+    rozšiřuje stávající `SLOT_TO_ITEM_SLOT` validaci). **Itemizace** přes stat
+    afinitu (str/agi/int/stam/spirit), kterou už staty itemů mají → podtextově
+    vznikne gear pro tank/melee-dps/caster-dps/heal bez nové mechaniky. Balanc
+    zůstává v `@game/shared` (jeden zdroj). Riziko nízké: čistě data + jedna
+    equip validace; combat dopad přes existující `deriveCombatProfile`.
+- [ ] 🧑‍💼 **Omezený inventář + craftovatelné batohy** (WoW styl). Konečný počet
+      slotů v základním batohu + další **bag sloty**, do nichž se vkládají batohy
+      o N slotech. Batohy se **craftí** (tailoring/leatherworking → gating
+      profesí/levelem; vzácnější materiály = větší batoh). Itemy mají velikost
+      „1 slot" (vanilla), stackovatelné dle `maxStack`. Návaznosti: vendor odkup,
+      bank (úložiště mimo batoh), loot „bag full" stav. Vyžaduje **systém
+      profesí/craftingu** (nový podsystém — kandidát na vlastní ADR).
+- [ ] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** Aukční dům doplnit
+      o NPC/bot listingy, aby působil obydleně (zvlášť při malém počtu hráčů).
+      Generovat **deterministicky přes `SeededRng`** (ne `Math.random()`) — rotace
+      nabídek dle UTC dne/hodiny, ceny v rozumném rozpětí kolem referenční hodnoty
+      itemu, omezené množství. Hráč může od NPC listingu koupit (gold sink); NPC
+      „nakupují" jen virtuálně (nezasahují do reálných hráčských aukcí). Vyžaduje
+      **aukční dům** jako systém (zatím není — kandidát na vlastní ADR; sdílí
+      ekonomiku s vendory/goldem).
+- [ ] 🤖 Vendoři (NPC odkup/prodej) + „use" consumables/buffů (zbytek z M6).
+- [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid, 2v2 bracket.
+
+### MIL — combat overhaul (WoW-like log + rotace/priority)
+
+> 🧑‍💼 Gigantický zásah do všech faktorů hry. Cíl: divácky zajímavý combat
+> (arény/dungeony/raidy) + hloubka pro min-max. **Mana zatím ne — jen cooldowny.**
+
+- [ ] **WoW-like combat log** — bohaté události („*X* cast Healing Touch, healed
+      *self* for N" / „*X* cast Drain Life on *Y* for N, healed for N"). Stávající
+      `CombatEvent[]` se rozšíří o `heal`/`drain`/`absorb` typy a strukturovaný text.
+- [ ] **Deklarativní rotace / spell priority** (idle-friendly, deterministické).
+  - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
+    postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
+    levným, deterministickým stavem actora (self HP%, target HP%, ability ready
+    (cooldown), počet nepřátel, role). Combat tick (už event-driven + seeded)
+    místo fixních signature abilit **vyhodnotí první splněné pravidlo** → zvolí
+    ability/úder. Tím zůstává **plně deterministické a server-authoritative**
+    (lze přehrát ze snapshotu+seedu jako dnes) a zároveň konfigurovatelné.
+  - [ ] Kontextové rotace (raid healer rotuje heal, ne dmg; tank threat/mitigace…).
+  - [ ] **Rebalance talentů**: na lvl 60 jde teď utratit ~vše + zbývají body →
+        cíl ~1,5 stromu. Přidat víc nodů + **stromová** struktura (ne seznam) pro
+        min-maxing.
+  - [ ] **Drobná náhoda** do combatu (už máme `SeededRng` — rozšířit varianci
+        hitů/proc šancí, stále reprodukovatelně).
+  - [ ] **Testovací target / healing dummy** (sandbox sim pro ladění rotací bez
+        soupeře) — využije idle sim engine.
+- [ ] 🧑‍💼 **Email login** (potvrzení e-mailu).
+- [ ] 🧑‍💼 **Monetizace** (návrh připraven od M0 — kosmetika oddělená od statů):
+      skiny, profilové obrázky, zrychlení, gold, volitelné reklamy.
+
+### CHORE
+
+- [ ] 🧑‍💼 Agresivní upozornění na nový update (verze klienta vs server → výzva
+      k reloadu; service worker už máme z M3).
+
+### BALANCE
+
+- [ ] 🧑‍💼 Délka všech aktivit — teď příliš rychlé (přeladit `durationSec`/křivky).
+- [ ] 🧑‍💼 Revize drop rate (loot tabulky napříč zónami/dungeony/raidy).
+- [ ] 🧑‍💼 Revize rychlosti progrese (XP křivka vs cílová doba na cap 60).
+- [ ] 🤖 PVP vs PVE balanc (společný `deriveCombatProfile` → samostatné ladění),
+      role tuning (tank/healer/dps), boss HP/AP, Elo K/rampage.
+
+### FIX
+
+- [ ] 🧑‍💼 Otočit combat log — **nejnovější události nahoře**.
+- [ ] 🧑‍💼 **Equip bug**: jeden prsten lze nasadit do dvou slotů zároveň.
+  - [ ] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje).
+  - [ ] Equip přes **drag & drop**.
+- [ ] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
+- [ ] 🧑‍💼 **Odstranit legacy** (single-actor `simulateDungeonRun`/`computeDungeonReward`/
+      `DungeonActivityParams` + větev `'dungeon'` v activity modelu; pozor na sdílené
+      combat helpery `determinationFactor`/`easeActor` — ty zůstávají).
+- [ ] 🧑‍💼 **Odstranit NPC backfill** pro dungeony a pro raidy > 5 (jen 5-man smí
+      NPC fill; větší obsah vyžaduje reálné hráče přes lobby). _Pozn.: mění
+      idle-first rozhodnutí pro velký obsah — potvrzeno PM._
+
+### Známé follow-upy (konsolidace „zbývá doladit", 🤖)
+
+- [ ] Auth: httpOnly cookie místo localStorage + refresh rotace/revokace (ADR 0005).
+- [ ] WS realtime tam, kde je teď REST polling: watch týmových arén, trade okno,
+      lobby pozvánky (recyklovat Redis pub/sub vrstvu z M7).
+- [ ] **Trade-window pro BoP loot** (výměna mezi účastníky téhož runu v okně) +
+      **BoE equip-bind tracking** (M8.6 follow-up).
+- [ ] Guild chat kanál + MOTD + (později) banka/perky.
+- [ ] PWA ikony 192/512, per-postavová push granularita, `docker compose up`
+      ověřit s běžícím daemonem.
+- [ ] (Nepovinné) konvergence `RaidService`/`DungeonService` → `GroupRunService`.
 
 ---
 

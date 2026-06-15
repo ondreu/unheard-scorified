@@ -994,6 +994,148 @@ export function cancelTrade(characterId: string): Promise<TradeState> {
   return request<TradeState>(`/characters/${characterId}/trade/cancel`, { method: 'POST' });
 }
 
+// Team arena (M8.5-C, 3v3/5v5)
+
+export interface TeamBracketView {
+  bracket: '3v3' | '5v5';
+  teamSize: number;
+  rating: number;
+  tier: string;
+  wins: number;
+  losses: number;
+  queued: boolean;
+}
+
+export interface TeamArenaView {
+  eligible: boolean;
+  minLevel: number;
+  seasonId: string;
+  brackets: TeamBracketView[];
+}
+
+export interface TeamQueueResult {
+  status: 'queued' | 'matched';
+  bracket: '3v3' | '5v5';
+  matchId?: string;
+}
+
+export interface TeamMatchView {
+  matchId: string;
+  bracket: string;
+  durationSec: number;
+  progress: { elapsedSec: number; remainingSec: number; completed: boolean };
+  myTeam: { name: string; maxHealth: number }[];
+  enemyTeam: { name: string; maxHealth: number }[];
+  events: { t: number; type: string; message?: string }[];
+  outcome: 'win' | 'loss' | null;
+}
+
+export function getTeamArena(characterId: string): Promise<TeamArenaView> {
+  return request<TeamArenaView>(`/characters/${characterId}/team-arena`);
+}
+
+export function queueTeam(
+  characterId: string,
+  bracket: '3v3' | '5v5',
+  teammateNames: string[],
+): Promise<TeamQueueResult> {
+  return request<TeamQueueResult>(`/characters/${characterId}/team-arena/queue`, {
+    method: 'POST',
+    body: JSON.stringify({ bracket, teammateNames }),
+  });
+}
+
+export function leaveTeamQueue(
+  characterId: string,
+  bracket: '3v3' | '5v5',
+): Promise<{ left: boolean }> {
+  return request<{ left: boolean }>(`/characters/${characterId}/team-arena/leave`, {
+    method: 'POST',
+    body: JSON.stringify({ bracket }),
+  });
+}
+
+export function getTeamMatch(characterId: string, matchId: string): Promise<TeamMatchView> {
+  return request<TeamMatchView>(`/characters/${characterId}/team-arena/match/${matchId}`);
+}
+
+// Achievements (M9)
+
+export interface AchievementView {
+  id: string;
+  name: string;
+  description: string;
+  metric: string;
+  threshold: number;
+  rewardGold: number;
+  value: number;
+  pct: number;
+  completed: boolean;
+  claimed: boolean;
+  claimable: boolean;
+}
+
+export interface AchievementsView {
+  achievements: AchievementView[];
+  completedCount: number;
+  total: number;
+}
+
+export interface AchievementClaimResult {
+  achievementId: string;
+  rewardGold: number;
+  goldAfter: number;
+}
+
+export function getAchievements(characterId: string): Promise<AchievementsView> {
+  return request<AchievementsView>(`/characters/${characterId}/achievements`);
+}
+
+export function claimAchievement(
+  characterId: string,
+  achievementId: string,
+): Promise<AchievementClaimResult> {
+  return request<AchievementClaimResult>(
+    `/characters/${characterId}/achievements/${achievementId}/claim`,
+    { method: 'POST' },
+  );
+}
+
+export interface GoalView {
+  id: string;
+  name: string;
+  description: string;
+  period: 'daily' | 'weekly';
+  metric: string;
+  target: number;
+  rewardGold: number;
+  value: number;
+  pct: number;
+  completed: boolean;
+  claimed: boolean;
+  claimable: boolean;
+}
+
+export interface GoalsView {
+  daily: GoalView[];
+  weekly: GoalView[];
+  resetsAt: { daily: string; weekly: string };
+}
+
+export function getGoals(characterId: string): Promise<GoalsView> {
+  return request<GoalsView>(`/characters/${characterId}/achievements/goals`);
+}
+
+export function claimGoal(
+  characterId: string,
+  goalId: string,
+): Promise<{ goalId: string; rewardGold: number; goldAfter: number }> {
+  return request<{ goalId: string; rewardGold: number; goldAfter: number }>(
+    `/characters/${characterId}/achievements/goals/${goalId}/claim`,
+    { method: 'POST' },
+  );
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

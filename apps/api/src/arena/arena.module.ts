@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { PushModule } from '../push/push.module';
+import { SocialModule } from '../social/social.module';
 import { TalentModule } from '../talent/talent.module';
 import { ArenaController } from './arena.controller';
 import { ArenaEventsRelay } from './arena.events';
@@ -11,6 +12,9 @@ import { ARENA_LEADERBOARD, RedisArenaLeaderboard } from './arena.leaderboard';
 import { MATCHMAKING_QUEUE, RedisMatchmakingQueue } from './arena.matchmaking';
 import { ArenaRepository } from './arena.repository';
 import { ArenaService } from './arena.service';
+import { TeamArenaController } from './team-arena.controller';
+import { TEAM_ARENA_QUEUE, RedisTeamArenaQueue } from './team-arena.queue';
+import { TeamArenaService } from './team-arena.service';
 
 /**
  * Areny (M7, MP PVP). Matchmaking (Redis fronta), deterministický 1v1 auto-resolve
@@ -21,15 +25,17 @@ import { ArenaService } from './arena.service';
  * in-memory ve flow testech).
  */
 @Module({
-  imports: [AuthModule, CharacterModule, InventoryModule, TalentModule, PushModule],
-  controllers: [ArenaController],
+  imports: [AuthModule, CharacterModule, InventoryModule, TalentModule, PushModule, SocialModule],
+  controllers: [ArenaController, TeamArenaController],
   providers: [
     ArenaService,
     ArenaRepository,
     ArenaEventsRelay,
     ArenaGateway,
+    TeamArenaService,
     { provide: MATCHMAKING_QUEUE, useClass: RedisMatchmakingQueue },
     { provide: ARENA_LEADERBOARD, useClass: RedisArenaLeaderboard },
+    { provide: TEAM_ARENA_QUEUE, useClass: RedisTeamArenaQueue },
   ],
 })
 export class ArenaModule {}
