@@ -684,9 +684,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - [x] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
       Seznam dungeonů i raidů vystavuje `hasLockout`/`lockedOut`; web zobrazí
       „🔒 Saved this week" badge u instancí vyčištěných tento UTC týden.
-- [ ] 🧑‍💼 **Odstranit legacy** (single-actor `simulateDungeonRun`/`computeDungeonReward`/
-      `DungeonActivityParams` + větev `'dungeon'` v activity modelu; pozor na sdílené
-      combat helpery `determinationFactor`/`easeActor` — ty zůstávají).
+- [x] 🧑‍💼 **Odstranit legacy** — single-actor `simulateDungeonRun`/`computeDungeonReward`/
+      `simulateDungeonFromParams`/`DungeonActivityParams`/`DungeonCombatResult` + privátní
+      `fightEncounter`/`easeActor` + jen-jimi-používané konstanty; větev `'dungeon'`
+      odstraněna z `ActivityType` i activity modelu (api scheduler/service, web). **Korekce
+      poznámky:** `easeActor` se NEsdílel (raid používá vlastní `easeBoss`) → odstraněn
+      spolu se `simulateDungeonRun`. **Zachováno** sdílené: `determinationFactor`,
+      `wipeRewardMultiplier`, `computeHit`, `round1`, `buildEnemyActor`. Ověřeno
+      typecheck/lint/testy (167 shared + 131 API zelené).
 - [ ] 🧑‍💼 **Odstranit NPC backfill** pro dungeony a pro raidy > 5 (jen 5-man smí
       NPC fill; větší obsah vyžaduje reálné hráče přes lobby). _Pozn.: mění
       idle-first rozhodnutí pro velký obsah — potvrzeno PM._

@@ -10,20 +10,17 @@
  */
 import { QUESTS, type QuestDef } from './data/quests';
 import { SeededRng, seedFromString } from './rng';
-import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET, DUNGEON_LOOT_TABLES } from './loot';
-import { DUNGEONS } from './data/dungeons';
-import {
-  buildEnemyActor,
-  simulateDungeonRun,
-  wipeRewardMultiplier,
-  type CombatActor,
-  type DungeonCombatResult,
-} from './combat';
+import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET } from './loot';
 import { GATHERING_NODES, RECIPES } from './data/professions';
 import { rollGatherYield } from './professions';
 
-/** Typ idle aktivity. M2: quest; M5: dungeon; M6: gather/craft (profese). */
-export type ActivityType = 'quest' | 'dungeon' | 'gather' | 'craft';
+/**
+ * Typ idle aktivity. M2: quest; M6: gather/craft (profese).
+ *
+ * ℹ️ Dungeony NEjsou idle aktivita — od M8.5-B (ADR 0014) běží na group-run
+ * modelu (`RaidRepository`/`simulateRaidRun`), ne přes `character_activities`.
+ */
+export type ActivityType = 'quest' | 'gather' | 'craft';
 
 /** Parametry questovací aktivity. */
 export interface QuestActivityParams {
@@ -43,19 +40,8 @@ export interface CraftActivityParams {
   recipeId: string;
 }
 
-/**
- * Parametry dungeon aktivity (M5). `player` je snapshot bojového profilu při
- * vstupu (anti-cheat + determinismus, viz ADR 0008) — boj nezávisí na pozdější
- * změně gearu/talentů.
- */
-export interface DungeonActivityParams {
-  dungeonId: string;
-  player: CombatActor;
-}
-
 export type ActivityParams =
   | QuestActivityParams
-  | DungeonActivityParams
   | GatherActivityParams
   | CraftActivityParams;
 
@@ -131,48 +117,6 @@ export function computeQuestReward(quest: QuestDef, seed: number): ActivityRewar
   };
 }
 
-/** Deterministicky odbojuje dungeon run ze snapshotu v `params`. */
-export function simulateDungeonFromParams(
-  params: DungeonActivityParams,
-  seed: number,
-): DungeonCombatResult | null {
-  const dungeon = DUNGEONS[params.dungeonId];
-  if (!dungeon) return null;
-  const enemies = dungeon.encounters.map((e) => buildEnemyActor(e));
-  return simulateDungeonRun(params.player, enemies, seed);
-}
-
-/**
- * Odměna za dokončený dungeon run (M8.5-A). Při **hard failu** (žádný clear ani
- * po vyčerpání pokusů) je odměna NULOVÁ — žádná útěcha. Při vítězství plné
- * XP/zlato + boss loot **škálované počtem wipů** (`wipeRewardMultiplier`):
- * maximum za 0 wipů, klesá s každým wipem (i šance na loot). Loot rolluje na
- * nezávislém, deterministicky odvozeném seedu (neinterferuje s combat RNG).
- */
-export function computeDungeonReward(params: DungeonActivityParams, seed: number): ActivityReward {
-  const dungeon = DUNGEONS[params.dungeonId];
-  if (!dungeon) return { xp: 0, gold: 0, items: [] };
-
-  const result = simulateDungeonFromParams(params, seed);
-  if (!result || !result.victory) {
-    // Hard fail: žádná útěcha (M8.5-A).
-    return { xp: 0, gold: 0, items: [] };
-  }
-
-  const mult = wipeRewardMultiplier(result.wipes);
-  const lootRng = new SeededRng((seed ^ 0x9e3779b9) >>> 0);
-  const goldRoll = lootRng.next();
-  const factor = 1 - dungeon.goldVariance + goldRoll * 2 * dungeon.goldVariance;
-  const lootTable = DUNGEON_LOOT_TABLES[dungeon.id];
-  const items = lootTable ? rollLoot(lootTable, lootRng, mult) : [];
-
-  return {
-    xp: Math.round(dungeon.baseXp * mult),
-    gold: Math.max(0, Math.round(dungeon.baseGold * factor * mult)),
-    items,
-  };
-}
-
 /**
  * Odměna za dokončený gathering běh: materiály (rollnuté deterministicky) +
  * character XP. Profession skill a reputace se připisují zvlášť při claimu
@@ -211,8 +155,6 @@ export function computeActivityReward(state: ActivityState, now: number): Activi
       if (!quest) return null;
       return computeQuestReward(quest, state.seed);
     }
-    case 'dungeon':
-      return computeDungeonReward(state.params as DungeonActivityParams, state.seed);
     case 'gather':
       return computeGatherReward(state.params as GatherActivityParams, state.seed);
     case 'craft':

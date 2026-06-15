@@ -158,16 +158,11 @@
     achievements: 'Achievements',
   };
 
-  const isDungeon = $derived(activity?.activityType === 'dungeon');
   const isProfession = $derived(
     activity?.activityType === 'gather' || activity?.activityType === 'craft',
   );
-  const activityLabel = $derived(
-    isDungeon ? '⚔️ In dungeon' : isProfession ? '🔨 Working' : ui.onQuest,
-  );
-  const completeLabel = $derived(
-    isDungeon ? 'Dungeon complete!' : isProfession ? 'Activity complete!' : ui.completed,
-  );
+  const activityLabel = $derived(isProfession ? '🔨 Working' : ui.onQuest);
+  const completeLabel = $derived(isProfession ? 'Activity complete!' : ui.completed);
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
@@ -367,18 +362,10 @@
         </p>
         <div class="mt-3 h-2 w-full overflow-hidden rounded bg-black/40">
           <div
-            class="h-full {isDungeon ? 'bg-red-500' : 'bg-amber-500'} transition-all"
+            class="h-full bg-amber-500 transition-all"
             style={`width: ${Math.min(100, (1 - remainingMs / (a.durationSec * 1000)) * 100)}%`}
           ></div>
         </div>
-        {#if isDungeon && !completed}
-          <a
-            href={`/characters/${characterId}/dungeon`}
-            class="mt-3 inline-block rounded bg-red-700/60 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-red-600/60"
-          >
-            Watch fight →
-          </a>
-        {/if}
         {#if completed}
           <p class="mt-3 font-medium text-emerald-300">
             {completeLabel}

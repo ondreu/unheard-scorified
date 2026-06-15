@@ -39,7 +39,6 @@ export interface ActivityView {
   durationSec: number;
   questId?: string;
   quest?: { id: string; name: string; zoneId: string; kind: string };
-  dungeon?: { id: string; name: string };
   progress: ActivityProgress;
 }
 
