@@ -42,7 +42,7 @@ Uzly na vyšších tierech vyžadují minimální počet bodů v daném stromě:
 - Tier 0 (uzly 1–2): `tierRequirement = 0`
 - Tier 1 (uzel 3): `tierRequirement = 5`
 - Tier 2 (uzel 4): `tierRequirement = 10`
-- Tier 3/capstone (uzel 5): `tierRequirement = 15`
+- Tier 3/capstone (uzel 5): `tierRequirement = 14` (uzly 1–4 dávají max 14 bodů v některých stromech, takže 14 je nutné, aby šel capstone vůbec odemknout)
 
 ## DB schéma
 
