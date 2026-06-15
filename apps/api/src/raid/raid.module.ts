@@ -28,5 +28,7 @@ import { RaidService } from './raid.service';
     RaidGateway,
     { provide: RAID_QUEUE, useClass: RedisRaidQueue },
   ],
+  // Sdílený run model (M8.5-B): dungeon modul recykluje run repository + frontu.
+  exports: [RaidRepository, RAID_QUEUE],
 })
 export class RaidModule {}

@@ -2,15 +2,15 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
-  import { ApiError, getRaidRun, type CombatEvent, type RaidRunView } from '$lib/api';
+  import { ApiError, getDungeonRun, type CombatEvent, type DungeonRunView } from '$lib/api';
   import { ITEMS } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
-    back: '← Back to raids',
-    notFound: 'Raid run not found.',
-    victory: '🏆 Raid cleared!',
-    defeat: '☠️ The raid wiped.',
+    back: '← Back to dungeons',
+    notFound: 'Dungeon run not found.',
+    victory: '🏆 Dungeon cleared!',
+    defeat: '☠️ The party wiped.',
     fighting: 'Fighting…',
     party: 'Party',
     reward: 'Your reward',
@@ -18,7 +18,7 @@
     npc: 'NPC',
   };
 
-  let run = $state<RaidRunView | null>(null);
+  let run = $state<DungeonRunView | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -28,11 +28,10 @@
 
   onMount(async () => {
     await load();
-    // Poll the precomputed timeline; events reveal as wall-clock passes (REST is
-    // the authoritative fallback to the WS gateway).
+    // Poll the precomputed timeline; events reveal as wall-clock passes.
     poller = setInterval(async () => {
       try {
-        run = await getRaidRun(characterId, runId);
+        run = await getDungeonRun(characterId, runId);
         if (run?.progress.completed) stopPolling();
       } catch {
         // transient — keep polling
@@ -50,7 +49,7 @@
   async function load(): Promise<void> {
     loading = true;
     try {
-      run = await getRaidRun(characterId, runId);
+      run = await getDungeonRun(characterId, runId);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
@@ -78,7 +77,7 @@
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}/raids`} class="text-sm text-amber-300 underline">{ui.back}</a>
+  <a href={`/characters/${characterId}/dungeons`} class="text-sm text-amber-300 underline">{ui.back}</a>
 
   {#if loading}
     <p class="mt-6 text-amber-100/50">Loading…</p>
@@ -86,8 +85,10 @@
     <p class="mt-6 text-red-400">{error ?? ui.notFound}</p>
   {:else}
     {@const r = run}
-    <h1 class="mt-4 text-3xl font-bold text-amber-200">{r.raidName}</h1>
-    <p class="mt-1 text-sm text-amber-100/60">{r.party.length}-player party · {r.bosses.length} bosses</p>
+    <h1 class="mt-4 text-3xl font-bold text-amber-200">{r.dungeonName}</h1>
+    <p class="mt-1 text-sm text-amber-100/60">
+      {r.size === 1 ? 'Solo' : `${r.size}-player`} · {r.encounters.length} encounters
+    </p>
 
     <!-- Progress -->
     <div class="mt-4 h-2 w-full overflow-hidden rounded bg-black/40">
@@ -97,19 +98,21 @@
       ></div>
     </div>
 
-    <!-- Party -->
-    <section class="mt-4 grid grid-cols-1 gap-1 text-sm">
-      <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.party}</h2>
-      {#each r.party as p (p.name)}
-        <div class="flex items-center justify-between rounded bg-black/20 px-3 py-1">
-          <span class="text-amber-100/80">
-            {p.name}
-            {#if p.isNpc}<span class="ml-1 text-xs text-stone-500">({ui.npc})</span>{/if}
-          </span>
-          <span class="text-xs uppercase text-amber-300/70">{p.role}</span>
-        </div>
-      {/each}
-    </section>
+    <!-- Party (group dungeons) -->
+    {#if r.party.length > 1}
+      <section class="mt-4 grid grid-cols-1 gap-1 text-sm">
+        <h2 class="text-xs uppercase tracking-wide text-amber-100/40">{ui.party}</h2>
+        {#each r.party as p (p.name)}
+          <div class="flex items-center justify-between rounded bg-black/20 px-3 py-1">
+            <span class="text-amber-100/80">
+              {p.name}
+              {#if p.isNpc}<span class="ml-1 text-xs text-stone-500">({ui.npc})</span>{/if}
+            </span>
+            <span class="text-xs uppercase text-amber-300/70">{p.role}</span>
+          </div>
+        {/each}
+      </section>
+    {/if}
 
     <!-- Outcome + reward -->
     {#if r.progress.completed}

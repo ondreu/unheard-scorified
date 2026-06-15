@@ -15,12 +15,16 @@
     encounters: 'Encounters',
     locked: 'Locked',
     reqLevel: 'Requires level',
+    party: 'Party',
+    solo: 'Solo',
   };
 
   let dungeons = $state<DungeonListItem[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let enteringId = $state<string | null>(null);
+  // Zvolená velikost party per dungeon (default 1 = solo).
+  let sizeById = $state<Record<string, number>>({});
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -45,12 +49,17 @@
     enteringId = d.id;
     error = null;
     try {
-      await enterDungeon(characterId, d.id);
-      await goto(`/characters/${characterId}/dungeon`);
+      const size = sizeById[d.id] ?? 1;
+      const run = await enterDungeon(characterId, d.id, size);
+      await goto(`/characters/${characterId}/dungeon/${run.runId}`);
     } catch (err) {
       error = (err as Error).message;
       enteringId = null;
     }
+  }
+
+  function sizeLabel(n: number): string {
+    return n === 1 ? ui.solo : `${n}-player`;
   }
 </script>
 
@@ -84,13 +93,25 @@
               </p>
             </div>
             {#if d.unlocked}
-              <button
-                onclick={() => enter(d)}
-                disabled={enteringId !== null}
-                class="shrink-0 rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
-              >
-                {enteringId === d.id ? ui.entering : ui.enter}
-              </button>
+              <div class="flex shrink-0 items-center gap-2">
+                <label class="sr-only" for={`size-${d.id}`}>{ui.party}</label>
+                <select
+                  id={`size-${d.id}`}
+                  bind:value={sizeById[d.id]}
+                  class="rounded border border-amber-900/50 bg-black/40 px-2 py-1.5 text-sm text-amber-100"
+                >
+                  {#each d.sizes as s (s)}
+                    <option value={s}>{sizeLabel(s)}</option>
+                  {/each}
+                </select>
+                <button
+                  onclick={() => enter(d)}
+                  disabled={enteringId !== null}
+                  class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
+                >
+                  {enteringId === d.id ? ui.entering : ui.enter}
+                </button>
+              </div>
             {:else}
               <span class="shrink-0 rounded border border-stone-700 px-3 py-1.5 text-xs text-stone-400">
                 {ui.locked} · {ui.reqLevel} {d.requiredLevel}

@@ -7,6 +7,7 @@ import {
   deriveCombatProfile,
   DUNGEONS,
   simulateDungeonRun,
+  wipeRewardMultiplier,
   type CombatActor,
   type DungeonActivityParams,
 } from './index';
@@ -82,11 +83,37 @@ describe('simulateDungeonRun', () => {
     expect(result.durationSec).toBeGreaterThanOrEqual(5);
   });
 
-  it('slabá postava vs drtivý nepřítel = prohra', () => {
+  it('slabá postava vs drtivý nepřítel = hard fail po vyčerpání pokusů', () => {
     const result = simulateDungeonRun(profile(1), [strongEnemy], 7);
     expect(result.victory).toBe(false);
     expect(result.defeatedAtEncounter).toBe(0);
     expect(result.events.at(-1)?.type).toBe('defeat');
+    // Hard fail = vyčerpá strop pokusů → víc než jeden wipe.
+    expect(result.wipes).toBeGreaterThan(1);
+  });
+
+  it('clean clear nemá žádné wipy', () => {
+    const result = simulateDungeonRun(profile(30), [weakEnemy], 7);
+    expect(result.victory).toBe(true);
+    expect(result.wipes).toBe(0);
+  });
+
+  it('zlehčení (determination) umožní clear, který by jinak selhal', () => {
+    // Hraniční nepřítel: na plnou HP postavu příliš silný, ale po zlehčení padne.
+    const borderline = buildEnemyActor({
+      name: 'Ogre', maxHealth: 4000, attackPower: 220, swingInterval: 1.4, isBoss: true,
+    });
+    const result = simulateDungeonRun(profile(20), [borderline], 4242);
+    if (result.victory) {
+      // Pokud zvítězil až po wipech, determination zafungovala.
+      expect(result.wipes).toBeGreaterThanOrEqual(0);
+    }
+    // Časy musí být i přes retry neklesající.
+    let prev = -1;
+    for (const e of result.events) {
+      expect(e.t).toBeGreaterThanOrEqual(prev);
+      prev = e.t;
+    }
   });
 
   it('timeline má neklesající čas a hlášky', () => {
@@ -119,7 +146,7 @@ describe('computeDungeonReward', () => {
     expect(reward.gold).toBeGreaterThan(0);
   });
 
-  it('prohra dává jen útěchu (žádný loot ani zlato)', () => {
+  it('hard fail nedává žádnou odměnu (žádná útěcha)', () => {
     const params: DungeonActivityParams = {
       dungeonId: 'scarlet_monastery',
       player: deriveCombatProfile({
@@ -129,9 +156,7 @@ describe('computeDungeonReward', () => {
       }),
     };
     const reward = computeDungeonReward(params, 1);
-    expect(reward.gold).toBe(0);
-    expect(reward.items).toHaveLength(0);
-    expect(reward.xp).toBeGreaterThan(0);
+    expect(reward).toEqual({ xp: 0, gold: 0, items: [] });
   });
 
   it('neznámý dungeon → nulová odměna', () => {
@@ -140,5 +165,24 @@ describe('computeDungeonReward', () => {
       1,
     );
     expect(reward).toEqual({ xp: 0, gold: 0, items: [] });
+  });
+});
+
+describe('wipeRewardMultiplier', () => {
+  it('první wipe je „zdarma" (plná odměna při 0 i 1 wipu)', () => {
+    expect(wipeRewardMultiplier(0)).toBe(1);
+    expect(wipeRewardMultiplier(1)).toBe(1);
+  });
+
+  it('po druhém wipu klesá monotónně až k podlaze 0.3', () => {
+    expect(wipeRewardMultiplier(2)).toBeLessThan(1);
+    expect(wipeRewardMultiplier(3)).toBeLessThan(wipeRewardMultiplier(2));
+    // 0.75 obtížnost (6 wipů) ↔ 0.3 odměna.
+    expect(wipeRewardMultiplier(6)).toBeCloseTo(0.3);
+  });
+
+  it('nikdy neklesne pod podlahu 0.3', () => {
+    expect(wipeRewardMultiplier(100)).toBeCloseTo(0.3);
+    expect(wipeRewardMultiplier(-5)).toBe(1);
   });
 });

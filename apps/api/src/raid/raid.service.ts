@@ -87,6 +87,8 @@ export interface RaidRunView {
   events: CombatEvent[];
   /** null dokud se boj „neodehraje" (reveal dle času); pak true/false. */
   victory: boolean | null;
+  /** Počet wipů (jen po dokončení; řídí snížení odměny). Null dokud běží. */
+  wipes: number | null;
   /** Odměna postavy (perspektiva volajícího). */
   myReward: RaidRewardView | null;
   myRole: RaidRole | null;
@@ -267,6 +269,7 @@ export class RaidService {
     const result = simulateRaidRun(party, bosses, seed);
 
     const run = await this.repo.createRun({
+      contentType: 'raid',
       raidId,
       party,
       seed,
@@ -275,11 +278,11 @@ export class RaidService {
     });
 
     // Odměny všem reálným účastníkům (deterministicky per postava).
-    const myReward = await this.grantParticipant(run.id, character, role, true, raidId, result.victory);
+    const myReward = await this.grantParticipant(run.id, character, role, true, raidId, result.victory, result.wipes);
     for (const p of pulled) {
       const pc = await this.characters.findById(p.characterId);
       if (!pc) continue;
-      await this.grantParticipant(run.id, pc, p.role, false, raidId, result.victory);
+      await this.grantParticipant(run.id, pc, p.role, false, raidId, result.victory, result.wipes);
       this.events.raidResolved(run.id, raidId, p.characterId);
       await this.push.sendToAccount(p.accountId, {
         title: 'Raid Complete!',
@@ -297,7 +300,7 @@ export class RaidService {
     if (!character) throw new NotFoundException('Character not found');
 
     const run = await this.repo.findRun(runId);
-    if (!run) throw new NotFoundException('Raid run not found');
+    if (!run || run.contentType !== 'raid') throw new NotFoundException('Raid run not found');
     const participants = await this.repo.listParticipants(runId);
     const mine = participants.find((p) => p.characterId === characterId);
     if (!mine) throw new ForbiddenException('Not a participant of this raid run');
@@ -316,7 +319,7 @@ export class RaidService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
-    const rows = await this.repo.listRecentForCharacter(characterId, RECENT_RUNS_LIMIT);
+    const rows = await this.repo.listRecentForCharacter(characterId, RECENT_RUNS_LIMIT, 'raid');
     return rows.map(({ run, participant }) => ({
       runId: run.id,
       raidId: run.raidId,
@@ -337,10 +340,11 @@ export class RaidService {
     initiator: boolean,
     raidId: string,
     victory: boolean,
+    wipes: number,
   ): Promise<RaidReward> {
     const raid = RAIDS[raidId]!;
     const rewardSeed = seedFromString(`${runId}:${character.id}`);
-    const reward = computeRaidReward(raid, victory, rewardSeed);
+    const reward = computeRaidReward(raid, victory, rewardSeed, wipes);
     await this.characters.addRewards(character.id, reward.xp, reward.gold);
     for (const itemId of reward.items) {
       await this.inventoryRepo.addItem(character.id, itemId);
@@ -427,6 +431,7 @@ export class RaidService {
       bosses: (raid?.bosses ?? []).map((b) => ({ name: b.name })),
       events: visible,
       victory: completed ? run.victory === 1 : null,
+      wipes: completed ? result.wipes : null,
       myReward: myReward ? { xp: myReward.xp, gold: myReward.gold, items: myReward.items } : null,
       myRole,
     };

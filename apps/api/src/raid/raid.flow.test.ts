@@ -124,10 +124,15 @@ describe('M8 flow: raids (MP PVE)', () => {
     expect(typeof done.victory).toBe('boolean');
     expect(['victory', 'defeat']).toContain(done.events.at(-1)?.type);
 
-    // Odměna odpovídá výsledku (plné XP při vítězství, jen útěcha při wipu).
+    // Odměna odpovídá výsledku (M8.5-A): clear dává XP škálované wipy
+    // (≤ baseXp, > 0), hard fail = nula (žádná útěcha).
     const raidDef = RAIDS.molten_core!;
-    const expectedXp = done.victory ? raidDef.baseXp : Math.round(raidDef.baseXp * 0.1);
-    expect(done.myReward!.xp).toBe(expectedXp);
+    if (done.victory) {
+      expect(done.myReward!.xp).toBeGreaterThan(0);
+      expect(done.myReward!.xp).toBeLessThanOrEqual(raidDef.baseXp);
+    } else {
+      expect(done.myReward!.xp).toBe(0);
+    }
   });
 
   it('iniciátor vytáhne čekajícího hráče z fronty do své party', async () => {

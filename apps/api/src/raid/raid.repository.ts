@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import {
   raidRunParticipants,
@@ -36,16 +36,26 @@ export class RaidRepository {
       .where(eq(raidRunParticipants.raidRunId, runId));
   }
 
-  /** Nedávné runy postavy (s jejím participant řádkem), nejnovější první. */
+  /**
+   * Nedávné runy postavy (s jejím participant řádkem), nejnovější první.
+   * Filtruje dle `contentType` (raid/dungeon) — sdílená tabulka, ale každá
+   * služba vidí jen svůj obsah.
+   */
   async listRecentForCharacter(
     characterId: string,
     limit: number,
+    contentType: string,
   ): Promise<{ run: RaidRun; participant: RaidRunParticipant }[]> {
     const rows = await this.db
       .select({ run: raidRuns, participant: raidRunParticipants })
       .from(raidRunParticipants)
       .innerJoin(raidRuns, eq(raidRunParticipants.raidRunId, raidRuns.id))
-      .where(eq(raidRunParticipants.characterId, characterId))
+      .where(
+        and(
+          eq(raidRunParticipants.characterId, characterId),
+          eq(raidRuns.contentType, contentType),
+        ),
+      )
       .orderBy(desc(raidRuns.createdAt))
       .limit(limit);
     return rows;

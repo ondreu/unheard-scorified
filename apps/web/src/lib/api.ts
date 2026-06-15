@@ -84,7 +84,9 @@ export interface DungeonListItem {
   recommendedLevel: number;
   encounterCount: number;
   bossName: string;
+  sizes: number[];
   unlocked: boolean;
+  queuedRole: RaidRole | null;
 }
 
 export interface CombatEvent {
@@ -99,16 +101,31 @@ export interface CombatEvent {
   targetHealthRemaining?: number;
 }
 
-export interface DungeonLogView {
+export interface DungeonRunView {
+  runId: string;
   dungeonId: string;
   dungeonName: string;
+  size: number;
   startAt: string;
   durationSec: number;
   progress: ActivityProgress;
-  player: { name: string; maxHealth: number };
-  enemies: { name: string; isBoss: boolean }[];
+  party: { name: string; role: RaidRole; maxHealth: number; isNpc: boolean }[];
+  encounters: { name: string; isBoss: boolean }[];
   events: CombatEvent[];
   victory: boolean | null;
+  wipes: number | null;
+  myReward: { xp: number; gold: number; items: string[] } | null;
+  myRole: RaidRole | null;
+}
+
+export interface DungeonRunSummary {
+  runId: string;
+  dungeonId: string;
+  dungeonName: string;
+  role: RaidRole;
+  victory: boolean;
+  reward: { xp: number; gold: number; items: string[] };
+  createdAt: string;
 }
 
 export class ApiError extends Error {
@@ -223,14 +240,45 @@ export function listDungeons(characterId: string): Promise<DungeonListItem[]> {
   return request<DungeonListItem[]>(`/characters/${characterId}/dungeons`);
 }
 
-export function enterDungeon(characterId: string, dungeonId: string): Promise<DungeonLogView> {
-  return request<DungeonLogView>(`/characters/${characterId}/dungeons/${dungeonId}/enter`, {
+export function enterDungeon(
+  characterId: string,
+  dungeonId: string,
+  size?: number,
+  role?: RaidRole,
+  composition?: RaidComposition,
+): Promise<DungeonRunView> {
+  return request<DungeonRunView>(`/characters/${characterId}/dungeons/${dungeonId}/enter`, {
     method: 'POST',
+    body: JSON.stringify({ size, role, composition }),
   });
 }
 
-export function getDungeonLog(characterId: string): Promise<DungeonLogView | null> {
-  return request<DungeonLogView | null>(`/characters/${characterId}/dungeons/log`);
+export function getDungeonRun(characterId: string, runId: string): Promise<DungeonRunView> {
+  return request<DungeonRunView>(`/characters/${characterId}/dungeons/run/${runId}`);
+}
+
+export function recentDungeonRuns(characterId: string): Promise<DungeonRunSummary[]> {
+  return request<DungeonRunSummary[]>(`/characters/${characterId}/dungeons/runs`);
+}
+
+export function queueDungeon(
+  characterId: string,
+  dungeonId: string,
+  role: RaidRole,
+): Promise<{ queued: true; role: RaidRole }> {
+  return request<{ queued: true; role: RaidRole }>(
+    `/characters/${characterId}/dungeons/${dungeonId}/queue`,
+    { method: 'POST', body: JSON.stringify({ role }) },
+  );
+}
+
+export function leaveDungeonQueue(
+  characterId: string,
+  dungeonId: string,
+): Promise<{ left: boolean }> {
+  return request<{ left: boolean }>(`/characters/${characterId}/dungeons/${dungeonId}/leave`, {
+    method: 'POST',
+  });
 }
 
 export interface ProfessionSkillView {
@@ -446,6 +494,7 @@ export interface RaidRunView {
   bosses: { name: string }[];
   events: CombatEvent[];
   victory: boolean | null;
+  wipes: number | null;
   myReward: RaidReward | null;
   myRole: RaidRole | null;
 }

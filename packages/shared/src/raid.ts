@@ -18,6 +18,7 @@
 import { SeededRng } from './rng';
 import {
   computeHit,
+  determinationFactor,
   round1,
   type CombatActor,
   type CombatEvent,
@@ -110,6 +111,25 @@ const RAID_MIN_DURATION_SEC = 8;
 /** Bezpečnostní strop iterací (determinismus). */
 const RAID_MAX_ITERATIONS = 40000;
 
+// ── Iterativní wipe/retry (M8.5-A) ──────────────────────────────────────────
+/**
+ * Max počet pokusů na jednoho bosse; po vyčerpání bez killu = hard fail. Sdílí
+ * křivku obtížnosti s dungeonem (`determinationFactor`): 1 → 1 → 0.95 → … → 0.75.
+ */
+const BOSS_ATTEMPT_CAP = 7;
+/** Prodleva (s), než se party po wipu sebere a pullne znovu. */
+const RAID_REGROUP_AFTER_WIPE_SEC = 8;
+
+/** Zlehčená kopie bosse (×factor na HP i attack power). */
+function easeBoss(boss: CombatActor, factor: number): CombatActor {
+  if (factor >= 1) return boss;
+  return {
+    ...boss,
+    maxHealth: Math.max(1, Math.round(boss.maxHealth * factor)),
+    attackPower: boss.attackPower * factor,
+  };
+}
+
 /**
  * Aktér v raidu = `CombatActor` + role + heal power. Plně serializovatelný
  * (snapshot do DB, stejně jako arena snapshot). `healPower` je 0 mimo healera.
@@ -165,14 +185,26 @@ export interface RaidCombatResult {
   victory: boolean;
   /** Celková délka runu v sekundách (≥ RAID_MIN_DURATION_SEC). */
   durationSec: number;
-  /** Index bosse, u kterého party padla (jinak undefined). */
+  /** Index bosse, na kterém raid hard-failnul (jinak undefined). */
   defeatedAtBoss?: number;
+  /** Celkový počet wipů napříč runem (M8.5-A) — řídí škálování odměn. */
+  wipes: number;
+}
+
+/** Výsledek jednoho pokusu o bosse (jeden „pull"). */
+interface BossAttemptResult {
+  events: CombatEvent[];
+  victory: boolean;
+  /** Čas (s od startu runu) po skončení pokusu. */
+  clock: number;
+  /** HP party po skončení (per index; 0 u mrtvých / při wipu). */
+  hp: number[];
 }
 
 interface RaidTimer {
   next: number;
   interval: number;
-  kind: 'member' | 'boss_basic' | 'boss_ability';
+  kind: 'member' | 'member_ability' | 'boss_basic' | 'boss_ability';
   memberIdx?: number;
   ability?: SignatureAbility;
 }
@@ -194,106 +226,95 @@ function chooseBossTarget(party: RaidActor[], hp: number[]): number {
 }
 
 /**
- * Deterministicky odbojuje raid: party (víc `RaidActor`) vs sekvence bossů.
- * Vrací kompletní timeline + výsledek. Wipe (celá party mrtvá) = defeat.
+ * Odbojuje JEDEN pokus o bosse (party vs jeden boss) od `startClock` a `startHp`.
+ * Vrací události + výsledek + koncové HP party. Sdílí per-hit vzorce s arenou
+ * i dungeonem (`computeHit`).
  */
-export function simulateRaidRun(
+function fightBoss(
   party: RaidActor[],
-  bosses: CombatActor[],
-  seed: number,
-): RaidCombatResult {
-  const rng = new SeededRng(seed);
+  boss: CombatActor,
+  rng: SeededRng,
+  startClock: number,
+  startHp: number[],
+  attempt: number,
+): BossAttemptResult {
   const events: CombatEvent[] = [];
-  const hp = party.map((p) => p.maxHealth);
-  let clock = 0;
-  let victory = true;
-  let defeatedAtBoss: number | undefined;
+  const hp = [...startHp];
+  let clock = startClock;
+  let bossHp = boss.maxHealth;
+  const encStart = clock;
+  const note = attempt > 0 ? ` (pull ${attempt + 1}, weakened)` : '';
 
   const livingCount = (): number => hp.reduce((n, h) => (h > 0 ? n + 1 : n), 0);
 
-  for (let bi = 0; bi < bosses.length; bi++) {
-    const boss = bosses[bi]!;
-    let bossHp = boss.maxHealth;
-    const encStart = clock;
+  events.push({
+    t: round1(clock),
+    type: 'encounter_start',
+    message: `⚔️ ${boss.name} (Boss) engages the raid!${note}`,
+    target: boss.name,
+    targetHealthRemaining: bossHp,
+  });
 
-    events.push({
-      t: round1(clock),
-      type: 'encounter_start',
-      message: `⚔️ ${boss.name} (Boss) engages the raid!`,
-      target: boss.name,
-      targetHealthRemaining: bossHp,
-    });
-
-    const timers: RaidTimer[] = [];
-    for (let i = 0; i < party.length; i++) {
-      timers.push({ next: clock + party[i]!.swingInterval, interval: party[i]!.swingInterval, kind: 'member', memberIdx: i });
-    }
-    timers.push({ next: clock + boss.swingInterval, interval: boss.swingInterval, kind: 'boss_basic' });
-    for (const ab of boss.signatureAbilities) {
-      timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'boss_ability', ability: ab });
-    }
-
-    let iterations = 0;
-    while (bossHp > 0 && livingCount() > 0 && iterations++ < RAID_MAX_ITERATIONS) {
-      let idx = 0;
-      for (let j = 1; j < timers.length; j++) {
-        if (timers[j]!.next < timers[idx]!.next) idx = j;
+  const timers: RaidTimer[] = [];
+  for (let i = 0; i < party.length; i++) {
+    timers.push({ next: clock + party[i]!.swingInterval, interval: party[i]!.swingInterval, kind: 'member', memberIdx: i });
+    // Útočné role (tank/dps) používají i signature abilities (M8.5: sjednocený
+    // party combat — solo dungeon dps takto neztratí abilities). Healeři léčí.
+    if (party[i]!.role !== 'healer') {
+      for (const ab of party[i]!.signatureAbilities) {
+        timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'member_ability', memberIdx: i, ability: ab });
       }
-      const timer = timers[idx]!;
-      clock = timer.next;
-      timer.next += timer.interval;
-      const enraged = clock - encStart >= RAID_ENRAGE_SEC;
+    }
+  }
+  timers.push({ next: clock + boss.swingInterval, interval: boss.swingInterval, kind: 'boss_basic' });
+  for (const ab of boss.signatureAbilities) {
+    timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'boss_ability', ability: ab });
+  }
 
-      if (timer.kind === 'member') {
-        const i = timer.memberIdx!;
-        if (hp[i]! <= 0) continue; // mrtvý člen mlčí
-        const member = party[i]!;
+  let iterations = 0;
+  while (bossHp > 0 && livingCount() > 0 && iterations++ < RAID_MAX_ITERATIONS) {
+    let idx = 0;
+    for (let j = 1; j < timers.length; j++) {
+      if (timers[j]!.next < timers[idx]!.next) idx = j;
+    }
+    const timer = timers[idx]!;
+    clock = timer.next;
+    timer.next += timer.interval;
+    const enraged = clock - encStart >= RAID_ENRAGE_SEC;
 
-        if (member.role === 'healer') {
-          // Léčí nejzraněnějšího živého spoluhráče (vč. sebe).
-          let tIdx = -1;
-          let worstMissing = 0;
-          for (let k = 0; k < party.length; k++) {
-            if (hp[k]! <= 0) continue;
-            const missing = party[k]!.maxHealth - hp[k]!;
-            if (missing > worstMissing) {
-              worstMissing = missing;
-              tIdx = k;
-            }
+    if (timer.kind === 'member') {
+      const i = timer.memberIdx!;
+      if (hp[i]! <= 0) continue; // mrtvý člen mlčí
+      const member = party[i]!;
+
+      if (member.role === 'healer') {
+        // Léčí nejzraněnějšího živého spoluhráče (vč. sebe).
+        let tIdx = -1;
+        let worstMissing = 0;
+        for (let k = 0; k < party.length; k++) {
+          if (hp[k]! <= 0) continue;
+          const missing = party[k]!.maxHealth - hp[k]!;
+          if (missing > worstMissing) {
+            worstMissing = missing;
+            tIdx = k;
           }
-          if (tIdx >= 0 && worstMissing > 0) {
-            const amount = Math.max(1, Math.round(member.healPower * (0.9 + rng.next() * 0.2)));
-            hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
-            events.push({
-              t: round1(clock),
-              type: 'heal',
-              source: member.name,
-              target: party[tIdx]!.name,
-              amount,
-              targetHealthRemaining: hp[tIdx],
-              message: `💚 ${member.name} heals ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
-            });
-          } else {
-            // Nikdo zraněný → symbolický úder bossovi.
-            const hit = computeHit(member, boss, rng, 1, false);
-            bossHp = Math.max(0, bossHp - hit.amount);
-            events.push({
-              t: round1(clock),
-              type: 'attack',
-              source: member.name,
-              target: boss.name,
-              amount: hit.amount,
-              crit: hit.crit,
-              targetHealthRemaining: bossHp,
-              message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
-            });
-          }
+        }
+        if (tIdx >= 0 && worstMissing > 0) {
+          const amount = Math.max(1, Math.round(member.healPower * (0.9 + rng.next() * 0.2)));
+          hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
+          events.push({
+            t: round1(clock),
+            type: 'heal',
+            source: member.name,
+            target: party[tIdx]!.name,
+            amount,
+            targetHealthRemaining: hp[tIdx],
+            message: `💚 ${member.name} heals ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
+          });
         } else {
+          // Nikdo zraněný → symbolický úder bossovi.
           const hit = computeHit(member, boss, rng, 1, false);
           bossHp = Math.max(0, bossHp - hit.amount);
-          if (member.lifesteal > 0) {
-            hp[i] = Math.min(member.maxHealth, hp[i]! + Math.round(hit.amount * member.lifesteal));
-          }
           events.push({
             t: round1(clock),
             type: 'attack',
@@ -306,61 +327,146 @@ export function simulateRaidRun(
           });
         }
       } else {
-        // Boss útočí.
-        const tIdx = chooseBossTarget(party, hp);
-        if (tIdx < 0) break;
-        const target = party[tIdx]!;
-        const ability = timer.kind === 'boss_ability' ? timer.ability : undefined;
-        const hit = computeHit(boss, target, rng, ability?.damageMult ?? 1, enraged);
-        let dmg = hit.amount;
-        if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
-        hp[tIdx] = Math.max(0, hp[tIdx]! - dmg);
+        const hit = computeHit(member, boss, rng, 1, false);
+        bossHp = Math.max(0, bossHp - hit.amount);
+        if (member.lifesteal > 0) {
+          hp[i] = Math.min(member.maxHealth, hp[i]! + Math.round(hit.amount * member.lifesteal));
+        }
         events.push({
           t: round1(clock),
-          type: ability ? 'ability' : 'attack',
+          type: 'attack',
+          source: member.name,
+          target: boss.name,
+          amount: hit.amount,
+          crit: hit.crit,
+          targetHealthRemaining: bossHp,
+          message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+        });
+      }
+    } else if (timer.kind === 'member_ability') {
+      const i = timer.memberIdx!;
+      if (hp[i]! <= 0) continue; // mrtvý člen nekouzlí
+      const member = party[i]!;
+      const ability = timer.ability!;
+      const hit = computeHit(member, boss, rng, ability.damageMult, false);
+      bossHp = Math.max(0, bossHp - hit.amount);
+      if (member.lifesteal > 0) {
+        hp[i] = Math.min(member.maxHealth, hp[i]! + Math.round(hit.amount * member.lifesteal));
+      }
+      events.push({
+        t: round1(clock),
+        type: 'ability',
+        source: member.name,
+        target: boss.name,
+        amount: hit.amount,
+        crit: hit.crit,
+        ability: ability.name,
+        targetHealthRemaining: bossHp,
+        message: `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+      });
+    } else {
+      // Boss útočí.
+      const tIdx = chooseBossTarget(party, hp);
+      if (tIdx < 0) break;
+      const target = party[tIdx]!;
+      const ability = timer.kind === 'boss_ability' ? timer.ability : undefined;
+      const hit = computeHit(boss, target, rng, ability?.damageMult ?? 1, enraged);
+      let dmg = hit.amount;
+      if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
+      hp[tIdx] = Math.max(0, hp[tIdx]! - dmg);
+      events.push({
+        t: round1(clock),
+        type: ability ? 'ability' : 'attack',
+        source: boss.name,
+        target: target.name,
+        amount: dmg,
+        crit: hit.crit,
+        ability: ability?.name,
+        targetHealthRemaining: hp[tIdx],
+        message: ability
+          ? `${boss.name} uses ${ability.name} on ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`
+          : `${boss.name} hits ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`,
+      });
+      if (hp[tIdx] === 0) {
+        events.push({
+          t: round1(clock),
+          type: 'player_defeated',
           source: boss.name,
           target: target.name,
-          amount: dmg,
-          crit: hit.crit,
-          ability: ability?.name,
-          targetHealthRemaining: hp[tIdx],
-          message: ability
-            ? `${boss.name} uses ${ability.name} on ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`
-            : `${boss.name} hits ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`,
+          message: `💀 ${target.name} has fallen!`,
         });
-        if (hp[tIdx] === 0) {
-          events.push({
-            t: round1(clock),
-            type: 'player_defeated',
-            source: boss.name,
-            target: target.name,
-            message: `💀 ${target.name} has fallen!`,
-          });
-        }
       }
     }
+  }
 
-    if (livingCount() === 0) {
-      victory = false;
-      defeatedAtBoss = bi;
-      break;
-    }
-
+  const victory = bossHp <= 0 && livingCount() > 0;
+  if (victory) {
     events.push({
       t: round1(clock),
       type: 'enemy_defeated',
       target: boss.name,
       message: `${boss.name} is defeated!`,
     });
+  }
+  return { events, victory, clock, hp };
+}
 
-    // Klid mezi bossy (kromě po posledním): doléč živé.
+/**
+ * Deterministicky odbojuje raid s **iterativním wipe/retry** (M8.5-A): party
+ * vs sekvence bossů. Po wipu (celá party mrtvá) se boss pullne znovu (party na
+ * plné HP) a **zlehčí** (determination až k `BOSS_DETERMINATION_FLOOR`); poražení
+ * bossové zůstávají. Vyčerpání pokusů bez killu = **hard fail**. Vrací počet wipů
+ * (řídí škálování odměn) + kompletní timeline.
+ */
+export function simulateRaidRun(
+  party: RaidActor[],
+  bosses: CombatActor[],
+  seed: number,
+): RaidCombatResult {
+  const rng = new SeededRng(seed);
+  const events: CombatEvent[] = [];
+  const fullHp = party.map((p) => p.maxHealth);
+  // HP nesená mezi PORAŽENÝMI bossy (po wipu se resetuje na plnou).
+  let carriedHp = [...fullHp];
+  let clock = 0;
+  let wipes = 0;
+  let victory = true;
+  let defeatedAtBoss: number | undefined;
+
+  for (let bi = 0; bi < bosses.length; bi++) {
+    const baseBoss = bosses[bi]!;
+    let attempt = 0;
+    let killed = false;
+    let hpAfter = carriedHp;
+
+    while (attempt < BOSS_ATTEMPT_CAP) {
+      const boss = easeBoss(baseBoss, determinationFactor(attempt));
+      const startHp = attempt === 0 ? carriedHp : fullHp;
+      const enc = fightBoss(party, boss, rng, clock, startHp, attempt);
+      for (const e of enc.events) events.push(e);
+      clock = enc.clock;
+      if (enc.victory) {
+        killed = true;
+        hpAfter = enc.hp;
+        break;
+      }
+      wipes++;
+      attempt++;
+      if (attempt < BOSS_ATTEMPT_CAP) clock += RAID_REGROUP_AFTER_WIPE_SEC;
+    }
+
+    if (!killed) {
+      victory = false;
+      defeatedAtBoss = bi;
+      break;
+    }
+
+    // Klid mezi poraženými bossy (kromě po posledním): doléč živé.
     if (bi < bosses.length - 1) {
       clock += RAID_REST_SEC;
-      for (let k = 0; k < party.length; k++) {
-        if (hp[k]! > 0) {
-          hp[k] = Math.min(party[k]!.maxHealth, hp[k]! + Math.round(party[k]!.maxHealth * RAID_REST_HEAL_FRACTION));
-        }
-      }
+      carriedHp = hpAfter.map((h, k) =>
+        h > 0 ? Math.min(party[k]!.maxHealth, h + Math.round(party[k]!.maxHealth * RAID_REST_HEAL_FRACTION)) : 0,
+      );
     }
   }
 
@@ -375,5 +481,6 @@ export function simulateRaidRun(
     victory,
     durationSec: Math.max(RAID_MIN_DURATION_SEC, Math.ceil(clock)),
     defeatedAtBoss,
+    wipes,
   };
 }

@@ -72,7 +72,21 @@ Při resolve se každému reálnému účastníkovi udělí XP/zlato/loot na see
 `/characters/[id]/raids` (list + role + queue/enter + recent runs),
 `/characters/[id]/raid/[runId]` (live watch + reward). Texty anglicky, oddělené.
 
+## Iterativní wipe/retry (M8.5-A)
+
+`simulateRaidRun` je **orchestrátor per-boss pullů** (helper `fightBoss` = jeden
+pull party vs boss). Wipe (celá party mrtvá) → retry téhož bosse (`BOSS_ATTEMPT_CAP`
+= 7 pullů), boss se **zlehčí** sdílenou křivkou `determinationFactor`
+(`1 → 1 → 0.95 → … → 0.75`, první wipe zdarma). Poražení bossové zůstávají; po wipu
+se party resetuje na plnou HP. Vyčerpání pokusů = **hard fail** (0 odměny, žádná
+útěcha — ruší dosavadní 10% útěchu).
+
+`RaidCombatResult.wipes` se propisuje do `computeRaidReward(raid, victory, seed,
+wipes)` → odměna všech účastníků škálovaná `wipeRewardMultiplier` (XP, zlato, loot
+šance). Run view vystaví `wipes` po dokončení. Detail: ADR 0013.
+
 ## Zbývá doladit (M9)
 
-Balanc (boss HP/AP, role tuning, loot, size scaling faktor), 40-player velikost,
-per-role gating dle classy, weekly raid lockout.
+Balanc (boss HP/AP, role tuning, loot, size scaling faktor, determination
+křivka/strop pokusů), 40-player velikost, per-role gating dle classy, weekly raid
+lockout.

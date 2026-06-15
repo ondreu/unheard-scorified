@@ -365,9 +365,32 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 
 ### M8.5 — Iterativní (wipe/retry) combat, skupinové módy & personal loot (návrh PM)
 
-> Status: **naplánováno** (zapsáno + upřesněno PM po reviewu M8). Rozšiřuje model
-> raidů, dungeonů i arén. Část (ruční formace v guildě) závisí na sociálním
-> systému (M9) — viz Pořadí/rizika.
+> Status: **rozpracováno** — **A (wipe/retry) ✅**, **B-idle (group PVE run +
+> group dungeony) ✅**, **D-personal-loot ✅**. Zbývá: C (týmové arény, ruční →
+> M9), B-ruční-formace (→ M9), D-trade (→ M9). Ekonomická pravidla (původní E)
+> vyčleněna do samostatného milníku **M8.6**.
+
+#### A) Iterativní wipe/retry combat — ✅ hotovo
+
+- [x] **Per-encounter (per-boss) pully** ve sdíleném enginu: `combat.ts` extrahoval
+      `fightEncounter` + orchestrátor `simulateDungeonRun`; `raid.ts` `fightBoss` +
+      orchestrátor `simulateRaidRun`. Žádná duplikace per-hit vzorců (`computeHit`).
+- [x] **Determination** (sdílená křivka dungeon+raid, první wipe „zdarma"):
+      obtížnost `1 → 1 → 0.95 → 0.9 → 0.85 → 0.8 → 0.75` (7 pullů), HP i dmg
+      ×factor; poražené encountery zůstávají, po wipu reset HP na plnou.
+- [x] **Odměny sledují obtížnost** (`wipeRewardMultiplier`): plná za 0–1 wipe,
+      lineárně dolů až k 0.3 na obtížnosti 0.75. Klesá XP, zlato i šance na loot
+      (`rollLoot` má `dropChanceMult`). Hodnoty: `1, 1, 0.86, 0.72, 0.58, 0.44, 0.3`.
+- [x] **Hard fail** (vyčerpání pokusů bez clearu) = 0 odměny, žádná útěcha
+      (ruší dosavadní 10% útěchu z M5/M8).
+- [x] Idle auto-retry; live combat log zobrazí retry pully (`(pull N, weakened)`).
+      `wipes` vystaveno v dungeon/raid run view; web zobrazí „reduced reward".
+- [x] Testy: shared unit (combat/raid wipe/retry + `wipeRewardMultiplier`) + API
+      flow aktualizovány. Build/test/lint/typecheck zelené.
+- Detail: ADR `docs/adr/0013-iterative-wipe-retry-combat.md`,
+  `docs/systems/combat-dungeons.md`, `docs/systems/raids.md`.
+
+> Níže původní plán M8.5 (B/C/D/E zbývá implementovat).
 
 **Dva režimy napříč obsahem (potvrzeno PM):**
 
@@ -392,19 +415,34 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
 - **Idle režim**: auto-retry do clearu nebo hard failu (hráč není u toho). **Ruční
   režim**: leader může re-pull / odejít.
 
-#### B) Skupinové PVE módy + manuální formace (raid + dungeon)
+#### B) Skupinové PVE módy + manuální formace (raid + dungeon) — ✅ idle část hotová
 
-- **Dungeon dostane SP mód i skupinový 3/5 mód** (potvrzeno PM). Sjednotit
-  raid + group dungeon pod společný „group PVE run" model (vlastní run tabulky,
-  role, NPC backfill) — SP dungeon je jeho speciální případ (1 hráč).
-- **Raid leader + lobby**: leader sestaví, zve hráče, ručně spustí; realtime
-  obsazení přes WS (recykluje M7/M8 vrstvu). Pozvánky/výběr **v guildě → po M9**.
+- [x] **Sjednocený „group PVE run" model**: `raid_runs` rozšířeno o `content_type`
+      (raid|dungeon), sdílený `RaidRepository` + `RaidQueue` + `simulateRaidRun` +
+      content-agnostické helpery `@game/shared/group.ts`. Migrace `0009`.
+- [x] **Dungeon přesunut z `character_activities` na run model**: SP (party 1 dps)
+      i **skupinový 3/5** (role + NPC backfill, idle matchmaking fronta `dungeon:<id>`).
+      Combat = party-vs-sekvence (členové používají signature abilities). Encountery
+      škálované velikostí party. Web: výběr velikosti + run watch `dungeon/[runId]`.
+- [x] Testy: shared `group.test.ts` + přepsaný `dungeon.flow.test.ts` (SP + group +
+      fronta). Build/test/lint/typecheck zelené. Detail: ADR 0014.
+- [ ] **Raid leader + lobby (ruční formace)**: leader sestaví/zve/spustí → **po M9
+      social** (pozvánky vyžadují friends/guild).
+- ℹ️ Konvergence `RaidService` na společný `GroupRunService` je nepovinný úklid
+  (data/sim/helpery už sdílené); legacy single-actor `simulateDungeonRun` → úklid M9.
 
-#### C) Arény — rozšíření o 3v3 a 5v5 + ruční sestavení týmů
+#### C) Arény — rozšíření o 3v3 a 5v5 (ruční týmy) → **závisí na M9 social**
 
 Upřesnění PM: v PVP **NEjde o wipe/retry**, ale o **nové brackety 3v3 a 5v5** vedle
-1v1 a **ruční sestavení týmu** (vybrat parťáky). Matchmaking týmů recykluje M7
-(snapshot fronta); ruční výběr týmu **po M9 social**.
+1v1. **Rozhodnutí PM:** **idle (NPC backfill / auto-matchmaking) zůstává jen u 1v1**;
+**týmové arény (3v3/5v5) se MUSÍ skládat ručně** (hráč si vybere parťáky). Ruční
+sestavení týmu vyžaduje **friends/guild → celá C tedy spadá až za M9 social.**
+Žádný idle team-matchmaking s NPC backfillem se nestaví (na rozdíl od raidů/group
+dungeonů, kde idle NPC backfill zůstává).
+
+> Důsledek: C **není pre-M9** (původní „C-matchmaking" v Pořadí padá). Bojový engine
+> tým-vs-tým + brackety se přidají až s M9 manuálním sestavením (žádné předčasné
+> half-feature v `ArenaBracket`).
 
 **Rating model — rozhodnutí (PM přenechal na mně): per hráč per bracket, ad-hoc týmy.**
 Žádná perzistentní „arena team" entita (jako vanilla 2v2 týmy), ale **ad-hoc tým per
@@ -416,25 +454,23 @@ Perzistentní týmy lze přidat později bez refaktoru (bracket je datový atrib
 
 #### D) Personal loot + trade mezi hráči (modern-WoW styl)
 
-- **Každý účastník dostane vlastní loot** (raid loot už dnes rolluje per postava —
-  rozšířit i na dungeony). Šance na loot **klesá s počtem wipů** (viz A).
-- **P2P trade**: hráči si mohou loot mezi sebou vyměnit (jako moderní WoW). Nový
-  trade systém (oddělený od AH), provázaný s **trade-window** soulbound itemů (viz E).
+- [x] **Personal loot per účastník i pro dungeony** (`computeGroupReward`, seed per
+      postava; raid měl per-participant už od M8). Šance na loot klesá s wipy (viz A). ✅
+- [ ] **P2P trade**: výměna lootu mezi hráči (oddělený systém od AH), provázaný
+      s **trade-window** soulbound itemů (viz M8.6) → **po M9 social**.
 
-#### E) Ekonomická pravidla (potvrzeno PM)
+#### E) Ekonomická pravidla → **vyčleněno do samostatného milníku M8.6** (viz níže)
 
-- **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Raid/dungeon personal loot je
-  **BoP**: na AH neprodejný; obchodovatelný jen v **trade-window** (krátce po dropu,
-  jen účastníkům daného runu). Chrání ekonomiku a progrese před zaplavením AH.
-  Nový atribut itemů (dnes je vše volně obchodovatelné) → migrace + filtr v AH.
-- **Weekly lockout / raid ID.** Loot z raidu (a vyššího dungeonu) je limitován
-  týdenním lockoutem per postava → idle farmení nezaplaví AH a drží progresi.
+> Po reviewu vyčleněno: soulbound/BoP (`bindType`) + weekly lockout + trade-window
+> jsou soudržný ekonomický balíček ortogonální k bojovým/mode změnám → vlastní
+> milník **M8.6** (viz níže). Trade-window samotné závisí na P2P trade (D, M9).
 
 #### Pořadí (doporučení) & zbývající rozhodnutí
 
-Doporučené pořadí kvůli závislosti na social:
-`M8 → M8.5-A (wipe/retry) + M8.5-C-matchmaking + M8.5-D-personal-loot + M8.5-E
-→ M9 (social) → M8.5-B (guild formace) + M8.5-C-ruční-týmy + M8.5-D-trade`.
+Doporučené pořadí kvůli závislosti na social (aktualizováno — týmové arény jsou
+ruční, tedy až po M9):
+`M8 → M8.5-A (wipe/retry) ✅ + M8.5-B-group-PVE (idle) + M8.5-D-personal-loot + M8.6
+→ M9 (social) → M8.5-B (guild ruční formace) + M8.5-C (3v3/5v5 ruční týmy) + M8.5-D-trade`.
 
 Vyřešeno PM: rozsah módů (SP+3/5+raid, vše iterativní), boss-easing per wipe + hard
 fail bez útěchy, klesá XP/zlato/loot-šance, arena 3v3/5v5 + ad-hoc rating per hráč,
@@ -449,9 +485,27 @@ Zbývá doladit (balanc, M9-ish, na začátek M8.5):
 
 **Posouzení (na žádost PM):** model je **soudržný a realizovatelný**, konzistentní
 s idle-first i determinismem (seed per pokus). Hlavní práce: (1) refaktor combat na
-per-boss iterace + boss-easing + reward/loot curve + hard fail, (2) sjednocení
-dungeon/raid run modelu (+ SP/3/5 módy), (3) `bindType`/soulbound + trade systém +
-weekly lockout, (4) arena 3v3/5v5. Guild-vázané části čekají na M9 social.
+per-boss iterace + boss-easing + reward/loot curve + hard fail ✅, (2) sjednocení
+dungeon/raid run modelu (+ SP/3/5 módy), (3) arena 3v3/5v5, (4) ekonomika (M8.6).
+Guild-vázané části čekají na M9 social.
+
+### M8.6 — Ekonomika: soulbound/BoP & weekly lockout
+
+> Status: **naplánováno** (vyčleněno z M8.5-E). Soudržný ekonomický balíček, který
+> chrání AH a progresi před zaplavením idle farmením. Ortogonální k bojovým módům.
+
+- **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Nový atribut itemů v
+  `@game/shared` (`none` | `bop` | `boe`); dnes je vše volně obchodovatelné. Raid/
+  dungeon personal loot je **BoP**: na AH **neprodejný** (filtr v AH listingu +
+  validace), obchodovatelný jen v **trade-window** (krátce po dropu, jen účastníkům
+  daného runu — závisí na P2P trade z M8.5-D, tj. M9).
+- **Weekly lockout / raid ID.** Loot z raidu (a vyššího dungeonu) limitován
+  **týdenním lockoutem per postava** (reset deterministicky dle UTC týdne) →
+  opakované idle farmení nezaplaví AH a drží progresi. DB: lockout tabulka +
+  kontrola při claimu/grantu.
+- **Výstup:** epic/raid loot je vázaný (BoP) a omezený weekly lockoutem; AH zobrazí
+  jen obchodovatelné itemy.
+- Zbývá doladit: délka trade-window, které dungeony spadají pod lockout, BoE chování.
 
 ### M9 — Polish, balanc, pixel grafika, sociální
 

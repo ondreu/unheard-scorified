@@ -10,28 +10,27 @@ import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
-import { CompletedQuestRepository } from '../quest/quest.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { TalentRepository } from '../talent/talent.repository';
-import { ActivityRepository } from '../activity/activity.repository';
-import { ActivityService } from '../activity/activity.service';
-import { NoopActivityScheduler } from '../activity/activity.scheduler';
-import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
+import { PushRepository } from '../push/push.repository';
+import { PushService } from '../push/push.service';
+import { RaidRepository } from '../raid/raid.repository';
+import { InMemoryRaidQueue } from '../raid/raid.matchmaking';
 import { DungeonService } from './dungeon.service';
 
 /**
- * Integrační test M5 dungeon smyčky nad pglite (bez Redisu, NoopScheduler).
- * Čas řídíme fake timers → deterministický předpočítaný combat.
+ * Integrační test sjednoceného dungeon group-run modelu (M8.5-B) nad pglite
+ * (bez Redisu — in-memory fronta). Čas řídíme fake timers → deterministický
+ * reveal předpočítaného combatu.
  */
-describe('M5 flow: dungeony & combat', () => {
+describe('M8.5 flow: dungeons (group PVE run)', () => {
   let db: Database;
   let auth: AuthService;
   let characters: CharacterService;
   let charRepo: CharacterRepository;
   let invRepo: InventoryRepository;
   let dungeons: DungeonService;
-  let activity: ActivityService;
 
   const RFC = DUNGEONS.ragefire_chasm!;
   const T0 = Date.UTC(2026, 5, 14, 12, 0, 0);
@@ -45,30 +44,21 @@ describe('M5 flow: dungeony & combat', () => {
     charRepo = new CharacterRepository(db);
     characters = new CharacterService(charRepo);
     invRepo = new InventoryRepository(db);
-    const invService = new InventoryService(charRepo, invRepo);
-    const talentRepo = new TalentRepository(db);
-    const activityRepo = new ActivityRepository(db);
-    dungeons = new DungeonService(
-      charRepo,
-      invService,
-      talentRepo,
-      activityRepo,
-      new NoopActivityScheduler(),
-    );
-    activity = new ActivityService(
-      charRepo,
-      activityRepo,
-      new CompletedQuestRepository(db),
-      invRepo,
-      new ProfessionRepository(db),
-      new ReputationRepository(db),
-      new NoopActivityScheduler(),
-    );
   });
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(T0);
+    const invService = new InventoryService(charRepo, invRepo);
+    dungeons = new DungeonService(
+      charRepo,
+      invService,
+      invRepo,
+      new TalentRepository(db),
+      new PushService(new PushRepository(db)),
+      new RaidRepository(db),
+      new InMemoryRaidQueue(),
+    );
   });
 
   afterEach(() => {
@@ -82,21 +72,22 @@ describe('M5 flow: dungeony & combat', () => {
     return { accountId, id: char.id };
   }
 
-  /** Silná postava: vysoký level + zbraň → deterministicky vyhraje ragefire. */
+  /** Silná postava: vysoký level + zbraň → deterministicky vyčistí ragefire solo. */
   async function strongCharacter(username: string, name: string): Promise<{ accountId: string; id: string }> {
     const c = await newCharacter(username, name);
-    await charRepo.addRewards(c.id, 10_000_000, 0); // vysoký level (cap 60)
+    await charRepo.addRewards(c.id, 50_000_000, 0); // cap level
     await invRepo.addItem(c.id, 'crusader_blade');
     await invRepo.equip(c.id, 'main_hand', 'crusader_blade');
     return c;
   }
 
-  it('listDungeons: lvl 1 vidí ragefire zamčený, vysoký lvl odemčený', async () => {
+  it('listDungeons: lvl 1 vidí ragefire zamčený, vysoký lvl odemčený; sizes 1/3/5', async () => {
     const low = await newCharacter('d1', 'Lowbie');
     const list = await dungeons.listDungeons(low.accountId, low.id);
     const rfc = list.find((d) => d.id === 'ragefire_chasm');
     expect(rfc?.unlocked).toBe(false);
     expect(rfc?.bossName).toBe('Taragaman the Hungerer');
+    expect(rfc?.sizes).toEqual([1, 3, 5]);
 
     const high = await strongCharacter('d2', 'Bigboss');
     const list2 = await dungeons.listDungeons(high.accountId, high.id);
@@ -104,62 +95,78 @@ describe('M5 flow: dungeony & combat', () => {
     expect(list2.find((d) => d.id === 'scarlet_monastery')?.unlocked).toBe(true);
   });
 
-  it('vstup do zamčeného dungeonu selže', async () => {
+  it('vstup do zamčeného / neznámého dungeonu selže', async () => {
     const low = await newCharacter('d3', 'Tooweak');
     await expect(dungeons.enter(low.accountId, low.id, 'ragefire_chasm')).rejects.toThrow();
-  });
-
-  it('neznámý dungeon selže', async () => {
     const c = await strongCharacter('d4', 'Hero');
     await expect(dungeons.enter(c.accountId, c.id, 'nonexistent')).rejects.toThrow();
   });
 
-  it('enter založí běžící run, druhý enter je konflikt', async () => {
+  it('SP enter založí run (party 1 dps), reveal odhalí výsledek dle času', async () => {
     const c = await strongCharacter('d5', 'Warlord');
-    const view = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm');
-    expect(view.dungeonId).toBe('ragefire_chasm');
-    expect(view.victory).toBeNull(); // ještě neskončilo
-    expect(view.progress.completed).toBe(false);
-    expect(view.events.length).toBeGreaterThan(0); // alespoň encounter_start
-    expect(view.enemies.at(-1)?.isBoss).toBe(true);
+    const run = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm');
+    expect(run.dungeonId).toBe('ragefire_chasm');
+    expect(run.size).toBe(1);
+    expect(run.party).toHaveLength(1);
+    expect(run.party[0]!.role).toBe('dps');
+    expect(run.victory).toBeNull(); // ještě neproběhlo
+    expect(run.events.length).toBeGreaterThan(0); // alespoň encounter_start
+    expect(run.encounters.at(-1)?.isBoss).toBe(true);
 
-    await expect(dungeons.enter(c.accountId, c.id, 'ragefire_chasm')).rejects.toThrow();
+    vi.setSystemTime(T0 + (run.durationSec + 1) * 1000);
+    const done = await dungeons.getRun(c.accountId, c.id, run.runId);
+    expect(done.progress.completed).toBe(true);
+    expect(done.victory).toBe(true);
+    expect(done.events.at(-1)?.type).toBe('victory');
   });
 
-  it('po uplynutí času je log kompletní a vítězný', async () => {
-    const c = await strongCharacter('d6', 'Champion');
-    const start = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm');
-
-    vi.setSystemTime(T0 + (start.durationSec + 1) * 1000);
-    const log = await dungeons.getCombatLog(c.accountId, c.id);
-    expect(log?.progress.completed).toBe(true);
-    expect(log?.victory).toBe(true);
-    expect(log?.events.at(-1)?.type).toBe('victory');
-  });
-
-  it('claim vítězného runu dá plné XP + loot do inventáře', async () => {
+  it('SP clear udělí personal loot + plné XP rovnou (žádný separátní claim)', async () => {
     const c = await strongCharacter('d7', 'Looter');
-    const start = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm');
+    const before = (await charRepo.findById(c.id))!.totalXp;
+    const run = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm');
 
-    vi.setSystemTime(T0 + (start.durationSec + 1) * 1000);
-    const result = await activity.claim(c.accountId, c.id);
-    expect(result.reward.xp).toBe(RFC.baseXp);
-    expect(result.reward.gold).toBeGreaterThan(0);
+    // Run se vyřeší okamžitě (reward udělen rovnou); `victory` v náhledu se
+    // odhaluje dle času (jako raid), proto se kontroluje odměna, ne flag.
+    expect(run.myReward!.xp).toBe(RFC.baseXp); // 0 wipů → plná odměna
+    expect(run.myReward!.gold).toBeGreaterThan(0);
 
-    // Loot (pokud padl) je v inventáři.
+    const after = (await charRepo.findById(c.id))!.totalXp;
+    expect(after).toBe(before + RFC.baseXp);
+
+    // Personal loot (pokud padl) je v inventáři.
     const inv = await invRepo.listInventory(c.id);
     const lootCount = inv.reduce((s, r) => s + (r.itemId === 'crusader_blade' ? 0 : r.quantity), 0);
-    expect(lootCount).toBe(result.items.length);
-
-    // Aktivita je pryč → lze jít znovu.
-    expect(await dungeons.getCombatLog(c.accountId, c.id)).toBeNull();
+    expect(lootCount).toBe(run.myReward!.items.length);
   });
 
-  it('cizí účet nemůže do dungeonu ani číst log', async () => {
+  it('group enter (size 3) doplní NPC backfill a každý reálný účastník dostane loot', async () => {
+    const c = await strongCharacter('d6', 'Leader');
+    const run = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm', 3);
+    expect(run.size).toBe(3);
+    expect(run.party).toHaveLength(3);
+    expect(run.party.filter((p) => p.isNpc)).toHaveLength(2); // sólo + 2 NPC
+    expect(run.myReward).not.toBeNull();
+  });
+
+  it('fronta: čekající hráč je vytažen do party iniciátora', async () => {
+    const waiter = await strongCharacter('d9', 'Waiter');
+    const leader = await strongCharacter('d10', 'Puller');
+    const q = await dungeons.queueForDungeon(waiter.accountId, waiter.id, 'ragefire_chasm', 'healer');
+    expect(q.queued).toBe(true);
+
+    const run = await dungeons.enter(leader.accountId, leader.id, 'ragefire_chasm', 3);
+    expect(run.party.filter((p) => p.isNpc)).toHaveLength(1); // leader + waiter + 1 NPC
+    // Waiter dostal vlastní participant řádek (personal loot).
+    const recent = await dungeons.recentRuns(waiter.accountId, waiter.id);
+    expect(recent[0]?.runId).toBe(run.runId);
+    expect(recent[0]?.role).toBe('healer');
+  });
+
+  it('cizí účet nemůže do dungeonu ani číst cizí run', async () => {
     const owner = await strongCharacter('d8a', 'Owner');
-    const other = await newCharacter('d8b', 'Intruder');
-    await dungeons.enter(owner.accountId, owner.id, 'ragefire_chasm');
-    await expect(dungeons.enter(other.accountId, owner.id, 'ragefire_chasm')).rejects.toThrow();
-    await expect(dungeons.getCombatLog(other.accountId, owner.id)).rejects.toThrow();
+    const intruder = await newCharacter('d8b', 'Intruder');
+    const run = await dungeons.enter(owner.accountId, owner.id, 'ragefire_chasm');
+    await expect(dungeons.enter(intruder.accountId, owner.id, 'ragefire_chasm')).rejects.toThrow();
+    await expect(dungeons.getRun(intruder.accountId, intruder.id, run.runId)).rejects.toThrow();
   });
 });
