@@ -38,6 +38,20 @@ export class MemberTargetDto {
   targetCharacterId!: string;
 }
 
+export class RequestJoinDto {
+  @IsString()
+  @MaxLength(40)
+  targetName!: string;
+}
+
+export class RespondJoinRequestDto {
+  @IsString()
+  requesterCharacterId!: string;
+
+  @IsBoolean()
+  accept!: boolean;
+}
+
 export class LaunchGroupDto {
   @IsIn(['dungeon', 'raid', 'arena'])
   activityType!: 'dungeon' | 'raid' | 'arena';

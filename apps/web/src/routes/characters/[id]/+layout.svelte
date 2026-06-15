@@ -245,7 +245,7 @@
 
 {#if c}
   <ChatBubble viewerId={c.id} viewerName={c.name} />
-  <PlayerProfile viewerId={c.id} />
+  <PlayerProfile viewerId={c.id} viewerInGroup={!!group?.group} />
 {/if}
 <Toasts />
 <DevPanel {characterId} />

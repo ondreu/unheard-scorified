@@ -6,7 +6,9 @@ import {
   InviteGroupDto,
   LaunchGroupDto,
   MemberTargetDto,
+  RequestJoinDto,
   RespondInviteDto,
+  RespondJoinRequestDto,
   SetRoleDto,
 } from './dto/group.dto';
 import { GroupService, type GroupLaunchResult, type GroupState } from './group.service';
@@ -53,6 +55,29 @@ export class GroupController {
     @Body() dto: RespondInviteDto,
   ): Promise<GroupState> {
     return this.groups.respondInvite(user.accountId, characterId, dto.groupId, dto.accept, dto.role);
+  }
+
+  @Post('request')
+  requestJoin(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Body() dto: RequestJoinDto,
+  ): Promise<GroupState> {
+    return this.groups.requestJoin(user.accountId, characterId, dto.targetName);
+  }
+
+  @Post('request/respond')
+  respondRequest(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Body() dto: RespondJoinRequestDto,
+  ): Promise<GroupState> {
+    return this.groups.respondJoinRequest(
+      user.accountId,
+      characterId,
+      dto.requesterCharacterId,
+      dto.accept,
+    );
   }
 
   @Post('role')

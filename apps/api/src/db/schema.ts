@@ -366,7 +366,8 @@ export const groupMembers = pgTable(
       .notNull()
       .references(() => characters.id, { onDelete: 'cascade' }),
     role: varchar('role', { length: 8 }).$type<RaidRole>().notNull(),
-    status: varchar('status', { length: 8 }).$type<GroupMemberStatus>().notNull(),
+    // 16 kvůli statusu 'requested' (M9 group join requests).
+    status: varchar('status', { length: 16 }).$type<GroupMemberStatus>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.groupId, t.characterId] })],

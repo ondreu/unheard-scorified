@@ -16,6 +16,9 @@ export function isGroupActivityType(value: string): value is GroupActivityType {
   return (GROUP_ACTIVITY_TYPES as readonly string[]).includes(value);
 }
 
-/** Stav člena skupiny: pozván (čeká na potvrzení) nebo připojen. */
-export const GROUP_MEMBER_STATUSES = ['invited', 'joined'] as const;
+/**
+ * Stav člena skupiny: `invited` (leader pozval, čeká na potvrzení), `requested`
+ * (hráč žádá o vstup, čeká na schválení leaderem) nebo `joined` (připojen).
+ */
+export const GROUP_MEMBER_STATUSES = ['invited', 'requested', 'joined'] as const;
 export type GroupMemberStatus = (typeof GROUP_MEMBER_STATUSES)[number];

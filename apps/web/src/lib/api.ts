@@ -236,6 +236,7 @@ export interface InspectView {
   class: string;
   faction: string;
   itemLevel: number;
+  inGroup: boolean;
   sheet: CharacterView['sheet'];
   equipment: InspectItemView[];
 }
@@ -925,7 +926,7 @@ export interface GroupMemberView {
   race: string;
   class: string;
   role: RaidRole;
-  status: 'invited' | 'joined';
+  status: 'invited' | 'requested' | 'joined';
   isLeader: boolean;
 }
 
@@ -984,6 +985,26 @@ export function respondGroupInvite(
   return request<GroupState>(`/characters/${characterId}/group/invite/respond`, {
     method: 'POST',
     body: JSON.stringify({ groupId, accept, role }),
+  });
+}
+
+/** Požádá o vstup do skupiny jiného hráče (když sám skupinu nemám a cíl ano). */
+export function requestGroupJoin(characterId: string, targetName: string): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/request`, {
+    method: 'POST',
+    body: JSON.stringify({ targetName }),
+  });
+}
+
+/** Leader schválí/odmítne žádost o vstup do skupiny. */
+export function respondGroupJoinRequest(
+  characterId: string,
+  requesterCharacterId: string,
+  accept: boolean,
+): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/request/respond`, {
+    method: 'POST',
+    body: JSON.stringify({ requesterCharacterId, accept }),
   });
 }
 

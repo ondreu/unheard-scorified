@@ -162,7 +162,18 @@ export class GroupService {
   ): Promise<GroupState> {
     await this.own(accountId, characterId);
     const memberRole = isRaidRole(role) ? role : 'dps';
-    const membership = await this.requireLeader(characterId);
+
+    // Auto-create skupiny, pokud volající žádnou nemá (pohodlné pozvání z karty hráče).
+    let active = await this.groups.activeMembership(characterId);
+    if (!active) {
+      const group = await this.groups.createGroup(characterId);
+      await this.groups.addMember(group.id, characterId, 'dps', 'joined');
+      active = (await this.groups.activeMembership(characterId))!;
+    }
+    if (active.group.leaderCharacterId !== characterId) {
+      throw new ForbiddenException('Only the group leader can invite');
+    }
+    const membership = active;
 
     const target = await this.characters.findByName(targetName.trim());
     if (!target) throw new NotFoundException('No character with that name');
@@ -174,6 +185,61 @@ export class GroupService {
       throw new BadRequestException(`${target.name} must be your friend or guild member`);
     }
     await this.groups.addMember(membership.group.id, target.id, memberRole, 'invited');
+    return this.stateFor(characterId);
+  }
+
+  /**
+   * Požádá o vstup do skupiny jiného hráče (když volající žádnou skupinu nemá a
+   * cíl ano). Vytvoří žádost (`requested`), kterou leader schválí/odmítne.
+   */
+  async requestJoin(
+    accountId: string,
+    characterId: string,
+    targetName: string,
+  ): Promise<GroupState> {
+    await this.own(accountId, characterId);
+    if (await this.groups.activeMembership(characterId)) {
+      throw new BadRequestException('Leave your current group first');
+    }
+    const target = await this.characters.findByName(targetName.trim());
+    if (!target) throw new NotFoundException('No character with that name');
+    if (target.id === characterId) throw new BadRequestException('That is you');
+
+    const theirGroup = await this.groups.activeMembership(target.id);
+    if (!theirGroup) throw new BadRequestException(`${target.name} is not in a group`);
+    if (!(await this.eligible(target.id, characterId))) {
+      throw new BadRequestException(`You must be a friend or guild member of ${target.name}`);
+    }
+    const existing = await this.groups.findMember(theirGroup.group.id, characterId);
+    if (existing) throw new BadRequestException('You already have a pending request or invite');
+
+    await this.groups.addMember(theirGroup.group.id, characterId, 'dps', 'requested');
+    return this.stateFor(characterId);
+  }
+
+  /** Leader schválí/odmítne žádost o vstup (`requested`). */
+  async respondJoinRequest(
+    accountId: string,
+    characterId: string,
+    requesterCharacterId: string,
+    accept: boolean,
+  ): Promise<GroupState> {
+    await this.own(accountId, characterId);
+    const membership = await this.requireLeader(characterId);
+    const member = await this.groups.findMember(membership.group.id, requesterCharacterId);
+    if (!member || member.status !== 'requested') {
+      throw new NotFoundException('Join request not found');
+    }
+    if (accept) {
+      if (await this.groups.activeMembership(requesterCharacterId)) {
+        // Mezitím vstoupil jinam — žádost zruš.
+        await this.groups.removeMember(membership.group.id, requesterCharacterId);
+        throw new BadRequestException('That player already joined another group');
+      }
+      await this.groups.setMember(membership.group.id, requesterCharacterId, 'joined');
+    } else {
+      await this.groups.removeMember(membership.group.id, requesterCharacterId);
+    }
     return this.stateFor(characterId);
   }
 

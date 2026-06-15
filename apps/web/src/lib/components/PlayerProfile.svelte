@@ -4,6 +4,7 @@
     inspectCharacter,
     inviteToGroup,
     inviteToGuild,
+    requestGroupJoin,
     sendFriendRequest,
     startTrade,
     type InspectView,
@@ -33,15 +34,19 @@
     whisper: 'Whisper',
     friend: 'Add friend',
     group: 'Invite to group',
+    requestGroup: 'Request to join',
     trade: 'Invite to trade',
     guild: 'Invite to guild',
     close: 'Close',
     self: 'This is you.',
   };
 
-  let { viewerId }: { viewerId: string } = $props();
+  let { viewerId, viewerInGroup = false }: { viewerId: string; viewerInGroup?: boolean } = $props();
 
   let data = $state<InspectView | null>(null);
+
+  // When I'm not in a group and the target is, the action becomes "request to join".
+  const requestMode = $derived(!viewerInGroup && (data?.inGroup ?? false));
   let loading = $state(false);
   let error = $state<string | null>(null);
   let actionBusy = $state(false);
@@ -99,10 +104,17 @@
 
   function doGroup(): void {
     if (!data) return;
-    void act(
-      () => inviteToGroup(viewerId, data!.name, inviteRole).then(() => undefined),
-      `Invited ${data.name} to your group.`,
-    );
+    if (requestMode) {
+      void act(
+        () => requestGroupJoin(viewerId, data!.name).then(() => undefined),
+        `Requested to join ${data.name}'s group.`,
+      );
+    } else {
+      void act(
+        () => inviteToGroup(viewerId, data!.name, inviteRole).then(() => undefined),
+        `Invited ${data.name} to your group.`,
+      );
+    }
   }
 
   function doGuild(): void {
@@ -247,16 +259,22 @@
               <button class="btn btn-sm" onclick={doGuild} disabled={actionBusy}>
                 🏰 {ui.guild}
               </button>
-              <div class="flex gap-1">
-                <select class="input btn-sm flex-1 px-1 py-0" bind:value={inviteRole}>
-                  {#each Object.entries(ROLE_META) as [r, meta] (r)}
-                    <option value={r}>{meta.label}</option>
-                  {/each}
-                </select>
-                <button class="btn btn-sm flex-1" onclick={doGroup} disabled={actionBusy}>
-                  ➕ {ui.group}
+              {#if requestMode}
+                <button class="btn btn-sm" onclick={doGroup} disabled={actionBusy}>
+                  ✋ {ui.requestGroup}
                 </button>
-              </div>
+              {:else}
+                <div class="flex gap-1">
+                  <select class="input btn-sm flex-1 px-1 py-0" bind:value={inviteRole}>
+                    {#each Object.entries(ROLE_META) as [r, meta] (r)}
+                      <option value={r}>{meta.label}</option>
+                    {/each}
+                  </select>
+                  <button class="btn btn-sm flex-1" onclick={doGroup} disabled={actionBusy}>
+                    ➕ {ui.group}
+                  </button>
+                </div>
+              {/if}
             </div>
           {/if}
 
