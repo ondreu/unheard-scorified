@@ -9,6 +9,8 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { CharacterRepository } from './character.repository';
 import { CharacterService } from './character.service';
+import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryService } from '../inventory/inventory.service';
 
 /**
  * Integrační test nad in-memory Postgresem (pglite) — ověřuje celý M1 flow
@@ -17,6 +19,9 @@ import { CharacterService } from './character.service';
 describe('M1 flow: účet + postava', () => {
   let auth: AuthService;
   let characters: CharacterService;
+  let charRepo: CharacterRepository;
+  let invRepo: InventoryRepository;
+  let inventory: InventoryService;
 
   beforeAll(async () => {
     const client = new PGlite();
@@ -24,7 +29,10 @@ describe('M1 flow: účet + postava', () => {
     await migrate(db as never, { migrationsFolder: resolve(process.cwd(), 'drizzle') });
 
     auth = new AuthService(db, new JwtService());
-    characters = new CharacterService(new CharacterRepository(db));
+    charRepo = new CharacterRepository(db);
+    invRepo = new InventoryRepository(db);
+    characters = new CharacterService(charRepo, invRepo);
+    inventory = new InventoryService(charRepo, invRepo);
   });
 
   async function registerAndGetId(username: string): Promise<string> {
@@ -81,5 +89,28 @@ describe('M1 flow: účet + postava', () => {
       class: 'mage',
     });
     await expect(characters.getOwned(other, char.id)).rejects.toThrow();
+  });
+
+  it('inspect vrací public combat info vč. equipnutého gearu a ilvl', async () => {
+    const owner = await registerAndGetId('grace');
+    const char = await characters.create(owner, {
+      name: 'Garrosh',
+      race: 'orc',
+      class: 'warrior',
+    });
+
+    // Bez gearu: ilvl 0, prázdný equipment.
+    const empty = await characters.inspect(char.id);
+    expect(empty.name).toBe('Garrosh');
+    expect(empty.itemLevel).toBe(0);
+    expect(empty.equipment).toHaveLength(0);
+
+    // Po equipnutí itemu se objeví v inspectu a ilvl odpovídá.
+    await invRepo.addItem(char.id, 'iron_shortsword');
+    await inventory.equip(owner, char.id, 'iron_shortsword', 'main_hand');
+    const geared = await characters.inspect(char.id);
+    expect(geared.equipment).toHaveLength(1);
+    expect(geared.equipment[0]!.itemId).toBe('iron_shortsword');
+    expect(geared.itemLevel).toBe(5);
   });
 });

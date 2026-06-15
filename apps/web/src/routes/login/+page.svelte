@@ -23,35 +23,29 @@
   }
 </script>
 
-<main class="mx-auto max-w-sm px-6 py-16">
-  <h1 class="text-2xl font-bold text-amber-200">Log in</h1>
-  <form class="mt-6 space-y-4" onsubmit={submit}>
+<main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-16">
+  <div class="mb-6 text-center">
+    <div class="text-4xl" aria-hidden="true">⚔️</div>
+    <h1 class="mt-2 font-display text-3xl font-bold text-[var(--gold-bright)]">Welcome back</h1>
+    <p class="mt-1 text-sm text-[var(--text-dim)]">Log in to continue your journey.</p>
+  </div>
+
+  <form class="panel panel-pad space-y-4" onsubmit={submit}>
     <label class="block">
-      <span class="text-sm text-amber-100/70">Username</span>
-      <input
-        bind:value={username}
-        required
-        class="mt-1 w-full rounded border border-amber-900/40 bg-black/30 px-3 py-2"
-      />
+      <span class="field-label">Username</span>
+      <input bind:value={username} required class="input mt-1" />
     </label>
     <label class="block">
-      <span class="text-sm text-amber-100/70">Password</span>
-      <input
-        type="password"
-        bind:value={password}
-        required
-        class="mt-1 w-full rounded border border-amber-900/40 bg-black/30 px-3 py-2"
-      />
+      <span class="field-label">Password</span>
+      <input type="password" bind:value={password} required class="input mt-1" />
     </label>
-    {#if error}<p class="text-sm text-red-400">{error}</p>{/if}
-    <button
-      disabled={busy}
-      class="w-full rounded bg-amber-700 px-4 py-2 font-semibold text-amber-50 hover:bg-amber-600 disabled:opacity-50"
-    >
+    {#if error}<p class="text-sm text-[var(--danger)]">{error}</p>{/if}
+    <button disabled={busy} class="btn btn-primary w-full">
       {busy ? 'Logging in…' : 'Log in'}
     </button>
   </form>
-  <p class="mt-4 text-sm text-amber-100/60">
-    No account? <a href="/register" class="text-amber-300 underline">Register</a>
+
+  <p class="mt-4 text-center text-sm text-[var(--text-dim)]">
+    No account? <a href="/register" class="text-[var(--gold)] hover:underline">Register</a>
   </p>
 </main>

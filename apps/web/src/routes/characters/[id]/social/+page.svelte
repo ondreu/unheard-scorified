@@ -16,6 +16,7 @@
   } from '$lib/api';
   import { connectSocial, joinChat, sendChat, subscribeSocial } from '$lib/social-socket';
   import { CLASSES } from '@game/shared';
+  import { openProfile } from '$lib/ui-stores';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -32,7 +33,7 @@
     decline: 'Decline',
     cancel: 'Cancel',
     remove: 'Remove',
-    trade: 'Trade',
+    inspect: 'Profile',
     nowFriends: 'You are now friends!',
     requestSent: 'Friend request sent.',
     level: 'Lv',
@@ -281,17 +282,17 @@
             <li
               class="flex items-center justify-between rounded border border-amber-900/40 bg-black/20 px-4 py-2"
             >
-              <span class="text-amber-100">
+              <button class="text-left text-amber-100 hover:text-amber-300" onclick={() => openProfile(f.characterId, f.name)}>
                 {f.name}
                 <span class="text-xs text-amber-100/50">· {ui.level} {f.level} {className(f.class)}</span>
-              </span>
+              </button>
               <span class="flex gap-2">
-                <a
-                  href={`/characters/${characterId}/trade?with=${encodeURIComponent(f.name)}`}
+                <button
+                  onclick={() => openProfile(f.characterId, f.name)}
                   class="rounded border border-amber-900/50 px-3 py-1 text-xs text-sky-300 hover:border-sky-600"
                 >
-                  {ui.trade}
-                </a>
+                  {ui.inspect}
+                </button>
                 <button
                   onclick={() => remove(f.characterId)}
                   disabled={busy}
@@ -337,7 +338,11 @@
       >
         {#each messages as m (m.id)}
           <li>
-            <span class="font-medium text-sky-300">{m.name}</span>
+            {#if m.characterId}
+              <button class="font-medium text-sky-300 hover:underline" onclick={() => openProfile(m.characterId!, m.name)}>{m.name}</button>
+            {:else}
+              <span class="font-medium text-amber-100/50">{m.name}</span>
+            {/if}
             <span class="text-amber-100/90">{m.body}</span>
           </li>
         {/each}

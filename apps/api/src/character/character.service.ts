@@ -11,9 +11,13 @@ import {
   isRaceId,
   isValidCharacterName,
   isValidRaceClass,
+  sumEquipmentStats,
+  ITEMS,
   type CharacterSheet,
+  type ItemStats,
 } from '@game/shared';
 import { CharacterRepository } from './character.repository';
+import { InventoryRepository } from '../inventory/inventory.repository';
 import type { Character } from '../db/schema';
 
 export interface CharacterView {
@@ -26,9 +30,36 @@ export interface CharacterView {
   sheet: CharacterSheet;
 }
 
+/** Veřejný „inspect" pohled na cizí postavu — jen public combat info (žádné zlato/účet). */
+export interface InspectItemView {
+  slot: string;
+  itemId: string;
+  name: string;
+  rarity: string;
+  itemLevel: number;
+  stats: ItemStats;
+}
+
+export interface InspectView {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  faction: string;
+  /** Průměrný item level equipnutého gearu (0 = nic nemá oblečeno). */
+  itemLevel: number;
+  sheet: CharacterSheet;
+  equipment: InspectItemView[];
+}
+
 @Injectable()
 export class CharacterService {
-  constructor(private readonly repo: CharacterRepository) {}
+  constructor(
+    private readonly repo: CharacterRepository,
+    // Volitelné kvůli jednoduchému instancování v unit/flow testech (1 arg).
+    // V produkci Nest vždy injektne (provider v CharacterModule).
+    private readonly inventory?: InventoryRepository,
+  ) {}
 
   async create(
     accountId: string,
@@ -73,6 +104,50 @@ export class CharacterService {
     const row = await this.repo.findOwned(accountId, id);
     if (!row) throw new NotFoundException('Character not found');
     return this.toView(row);
+  }
+
+  /**
+   * Veřejný inspect cizí postavy (chat → klik na jméno). Vrací jen public combat
+   * info: rasu/classu/level, equipnutý gear, ilvl a staty (vč. statů z gearu).
+   * Žádné zlato, inventář ani účet — to zůstává soukromé.
+   */
+  async inspect(id: string): Promise<InspectView> {
+    const row = await this.repo.findById(id);
+    if (!row) throw new NotFoundException('Character not found');
+
+    const equipRows = this.inventory ? await this.inventory.listEquipment(id) : [];
+    const equipment: InspectItemView[] = [];
+    const equippedDefs = [];
+    for (const e of equipRows) {
+      const def = ITEMS[e.itemId];
+      if (!def) continue;
+      equippedDefs.push(def);
+      equipment.push({
+        slot: e.slot,
+        itemId: def.id,
+        name: def.name,
+        rarity: def.rarity,
+        itemLevel: def.itemLevel,
+        stats: def.stats,
+      });
+    }
+
+    const equipmentStats = sumEquipmentStats(equippedDefs);
+    const itemLevel =
+      equippedDefs.length > 0
+        ? Math.round(equippedDefs.reduce((sum, d) => sum + d.itemLevel, 0) / equippedDefs.length)
+        : 0;
+
+    return {
+      id: row.id,
+      name: row.name,
+      race: row.race,
+      class: row.class,
+      faction: row.faction,
+      itemLevel,
+      sheet: buildCharacterSheet(row.race, row.class, row.totalXp, equipmentStats),
+      equipment,
+    };
   }
 
   private toView(c: Character): CharacterView {
