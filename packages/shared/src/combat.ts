@@ -19,6 +19,7 @@ import { CLASSES, type ClassId } from './data/classes';
 import type { ItemStats } from './data/items';
 import type { AggregatedTalentEffects } from './data/talents';
 import { SHIELD_TAGS, SIGNATURE_ABILITIES, type SignatureAbility } from './data/abilities';
+import type { CharacterRotation } from './rotation';
 
 export type { AbilityKind, SignatureAbility } from './data/abilities';
 export { SIGNATURE_ABILITIES, SHIELD_TAGS } from './data/abilities';
@@ -101,6 +102,11 @@ export interface CombatActor {
   /** Absorpční štít (pohlcuje příchozí poškození, než se vyčerpá). 0 = bez štítu. */
   shield: number;
   signatureAbilities: SignatureAbility[];
+  /**
+   * Deklarativní rotace (MIL) — řídí, zda/kdy se signature ability sešle.
+   * `undefined` = default „always" (zpětně kompatibilní). Součást snapshotu.
+   */
+  rotation?: CharacterRotation;
   /** Boss flag (jen pro log label u nepřátel). */
   isBoss?: boolean;
 }

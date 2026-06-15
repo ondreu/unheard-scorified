@@ -13,6 +13,8 @@ import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { BuffRepository } from '../buff/buff.repository';
 import { TalentRepository } from '../talent/talent.repository';
+import { RotationService } from '../rotation/rotation.service';
+import { RotationRepository } from '../rotation/rotation.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { ArenaRepository } from './arena.repository';
@@ -61,6 +63,7 @@ describe('M7 flow: arena PVP', () => {
       arenaRepo,
       push,
       new ArenaEventsRelay(),
+      new RotationService(charRepo, talentRepo, new RotationRepository(db)),
       new InMemoryMatchmakingQueue(),
       new InMemoryArenaLeaderboard(),
     );

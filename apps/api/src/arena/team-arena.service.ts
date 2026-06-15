@@ -32,6 +32,7 @@ import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
 import type { ArenaTeamMatch, Character } from '../db/schema';
 import { ArenaRepository } from './arena.repository';
+import { RotationService } from '../rotation/rotation.service';
 import {
   TEAM_ARENA_QUEUE,
   type TeamArenaQueue,
@@ -94,6 +95,7 @@ export class TeamArenaService {
     private readonly talents: TalentRepository,
     private readonly arena: ArenaRepository,
     private readonly push: PushService,
+    private readonly rotation: RotationService,
     @Inject(TEAM_ARENA_QUEUE) private readonly queue: TeamArenaQueue,
   ) {}
 
@@ -281,7 +283,7 @@ export class TeamArenaService {
     const allocations: Record<string, number> = {};
     for (const r of talentRows) allocations[r.talentId] = r.points;
     const talents = aggregateTalentEffects(character.class as ClassId, allocations);
-    return deriveCombatProfile({
+    const profile = deriveCombatProfile({
       name: character.name,
       level,
       klass: character.class as ClassId,
@@ -289,6 +291,11 @@ export class TeamArenaService {
       equipment,
       talents,
     });
+    const rotation = await this.rotation.rotationForCombat(
+      character.id,
+      character.class as ClassId,
+    );
+    return rotation ? { ...profile, rotation } : profile;
   }
 
   private toMatchView(match: ArenaTeamMatch, mySide: DuelSide, now: number): TeamMatchView {

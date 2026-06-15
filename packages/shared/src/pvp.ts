@@ -12,6 +12,7 @@
  */
 import { SeededRng } from './rng';
 import { applyAbsorb, computeHit, round1, type CombatActor, type CombatEvent } from './combat';
+import { shouldCastAbility } from './rotation';
 import {
   ARENA_SEASONS,
   ARENA_TIERS,
@@ -46,6 +47,7 @@ interface DuelTimer {
   side: DuelSide;
   /** Signature ability (jinak basic útok). */
   abilityName?: string;
+  abilityId?: string;
   abilityMult?: number;
 }
 
@@ -79,6 +81,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       interval: ab.cooldownSec,
       side: 'a' as DuelSide,
       abilityName: ab.name,
+      abilityId: ab.id,
       abilityMult: ab.damageMult,
     })),
     ...b.signatureAbilities.map((ab) => ({
@@ -86,6 +89,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       interval: ab.cooldownSec,
       side: 'b' as DuelSide,
       abilityName: ab.name,
+      abilityId: ab.id,
       abilityMult: ab.damageMult,
     })),
   ];
@@ -106,6 +110,17 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     const attacker = actor[attackerSide];
     const defender = actor[defenderSide];
     const enraged = clock >= PVP_RAMPAGE_SEC;
+
+    // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
+    if (
+      timer.abilityId &&
+      !shouldCastAbility(attacker.rotation, timer.abilityId, {
+        enemyHpPct: defender.maxHealth > 0 ? hp[defenderSide] / defender.maxHealth : 0,
+        selfHpPct: attacker.maxHealth > 0 ? hp[attackerSide] / attacker.maxHealth : 0,
+      })
+    ) {
+      continue;
+    }
 
     const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
     let dmg = hit.amount;
@@ -192,6 +207,7 @@ interface TeamTimer {
   /** Index člena v týmu (útočník). */
   member: number;
   abilityName?: string;
+  abilityId?: string;
   abilityMult?: number;
 }
 
@@ -246,6 +262,7 @@ export function simulateTeamFight(
           side,
           member: i,
           abilityName: ab.name,
+          abilityId: ab.id,
           abilityMult: ab.damageMult,
         });
       }
@@ -275,6 +292,17 @@ export function simulateTeamFight(
     const attacker = team[attackerSide][timer.member]!;
     const defender = team[defenderSide][targetIdx]!;
     const enraged = clock >= PVP_RAMPAGE_SEC;
+    // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
+    if (
+      timer.abilityId &&
+      !shouldCastAbility(attacker.rotation, timer.abilityId, {
+        enemyHpPct: defender.maxHealth > 0 ? hp[defenderSide][targetIdx]! / defender.maxHealth : 0,
+        selfHpPct:
+          attacker.maxHealth > 0 ? hp[attackerSide][timer.member]! / attacker.maxHealth : 0,
+      })
+    ) {
+      continue;
+    }
     const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
     let dmg = hit.amount;
     let absorbed = 0;

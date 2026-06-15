@@ -265,6 +265,42 @@ export function claimActivity(characterId: string): Promise<ClaimResult> {
   return request<ClaimResult>(`/characters/${characterId}/activity/claim`, { method: 'POST' });
 }
 
+export type RotationConditionType =
+  | 'always'
+  | 'enemy_hp_below'
+  | 'enemy_hp_above'
+  | 'self_hp_below';
+
+export interface RotationRule {
+  abilityId: string;
+  enabled: boolean;
+  conditionType: RotationConditionType;
+  threshold?: number;
+}
+
+export interface RotationAbility {
+  id: string;
+  name: string;
+  kind: string;
+  cooldownSec: number;
+}
+
+export interface RotationView {
+  abilities: RotationAbility[];
+  rules: RotationRule[];
+}
+
+export function getRotation(characterId: string): Promise<RotationView> {
+  return request<RotationView>(`/characters/${characterId}/rotation`);
+}
+
+export function setRotation(characterId: string, rules: RotationRule[]): Promise<RotationView> {
+  return request<RotationView>(`/characters/${characterId}/rotation`, {
+    method: 'PUT',
+    body: JSON.stringify({ rules }),
+  });
+}
+
 export function listDungeons(characterId: string): Promise<DungeonListItem[]> {
   return request<DungeonListItem[]>(`/characters/${characterId}/dungeons`);
 }

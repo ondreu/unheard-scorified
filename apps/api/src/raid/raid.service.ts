@@ -46,6 +46,7 @@ import type { Character, RaidRun } from '../db/schema';
 import { RaidRepository } from './raid.repository';
 import { RaidEventsRelay } from './raid.events';
 import { RAID_QUEUE, type RaidQueue, type RaidQueueEntry } from './raid.matchmaking';
+import { RotationService } from '../rotation/rotation.service';
 
 const RECENT_RUNS_LIMIT = 8;
 
@@ -139,6 +140,7 @@ export class RaidService {
     private readonly repo: RaidRepository,
     private readonly events: RaidEventsRelay,
     private readonly lockouts: LockoutRepository,
+    private readonly rotation: RotationService,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -469,7 +471,7 @@ export class RaidService {
     for (const r of talentRows) allocations[r.talentId] = r.points;
     const talents = aggregateTalentEffects(character.class as ClassId, allocations);
 
-    return deriveCombatProfile({
+    const profile = deriveCombatProfile({
       name: character.name,
       level,
       klass: character.class as ClassId,
@@ -477,6 +479,12 @@ export class RaidService {
       equipment,
       talents,
     });
+    // Deklarativní rotace (MIL): připoj uloženou rotaci do snapshotu profilu.
+    const rotation = await this.rotation.rotationForCombat(
+      character.id,
+      character.class as ClassId,
+    );
+    return rotation ? { ...profile, rotation } : profile;
   }
 
   private toRunView(

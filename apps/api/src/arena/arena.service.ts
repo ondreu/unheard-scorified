@@ -34,6 +34,7 @@ import { PushService } from '../push/push.service';
 import type { ArenaMatch, Character } from '../db/schema';
 import { ArenaRepository } from './arena.repository';
 import { ArenaEventsRelay } from './arena.events';
+import { RotationService } from '../rotation/rotation.service';
 import {
   MATCHMAKING_QUEUE,
   type MatchmakingQueue,
@@ -134,6 +135,7 @@ export class ArenaService {
     private readonly repo: ArenaRepository,
     private readonly push: PushService,
     private readonly events: ArenaEventsRelay,
+    private readonly rotation: RotationService,
     @Inject(MATCHMAKING_QUEUE) private readonly matchmaking: MatchmakingQueue,
     @Inject(ARENA_LEADERBOARD) private readonly leaderboard: ArenaLeaderboard,
   ) {}
@@ -450,7 +452,7 @@ export class ArenaService {
     for (const r of talentRows) allocations[r.talentId] = r.points;
     const talents = aggregateTalentEffects(character.class as ClassId, allocations);
 
-    return deriveCombatProfile({
+    const profile = deriveCombatProfile({
       name: character.name,
       level,
       klass: character.class as ClassId,
@@ -458,5 +460,10 @@ export class ArenaService {
       equipment,
       talents,
     });
+    const rotation = await this.rotation.rotationForCombat(
+      character.id,
+      character.class as ClassId,
+    );
+    return rotation ? { ...profile, rotation } : profile;
   }
 }

@@ -25,6 +25,7 @@ import {
   type CombatEvent,
   type SignatureAbility,
 } from './combat';
+import { shouldCastAbility } from './rotation';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -416,6 +417,17 @@ function fightBoss(
       if (hp[i]! <= 0) continue; // mrtvý člen nekouzlí
       const member = party[i]!;
       const ability = timer.ability!;
+      // Deklarativní rotace (MIL): pravidlo rozhodne, zda se ability teď sešle.
+      // Pokud ne, ability se „drží" (člen mezitím útočí basic swingem). Default
+      // (bez rotace) = always → beze změny chování.
+      if (
+        !shouldCastAbility(member.rotation, ability.id, {
+          enemyHpPct: boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0,
+          selfHpPct: member.maxHealth > 0 ? hp[i]! / member.maxHealth : 0,
+        })
+      ) {
+        continue;
+      }
       const hit = computeHit(member, boss, rng, ability.damageMult, false);
       bossHp = Math.max(0, bossHp - hit.amount);
       const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);

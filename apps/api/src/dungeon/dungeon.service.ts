@@ -45,6 +45,7 @@ import { PushService } from '../push/push.service';
 import type { Character, RaidRun } from '../db/schema';
 import { RaidRepository } from '../raid/raid.repository';
 import { RAID_QUEUE, type RaidQueue } from '../raid/raid.matchmaking';
+import { RotationService } from '../rotation/rotation.service';
 
 const RECENT_RUNS_LIMIT = 8;
 
@@ -139,6 +140,7 @@ export class DungeonService {
     private readonly push: PushService,
     private readonly repo: RaidRepository,
     private readonly lockouts: LockoutRepository,
+    private readonly rotation: RotationService,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -439,7 +441,7 @@ export class DungeonService {
     for (const r of talentRows) allocations[r.talentId] = r.points;
     const talents = aggregateTalentEffects(character.class as ClassId, allocations);
 
-    return deriveCombatProfile({
+    const profile = deriveCombatProfile({
       name: character.name,
       level,
       klass: character.class as ClassId,
@@ -447,6 +449,12 @@ export class DungeonService {
       equipment,
       talents,
     });
+    // Deklarativní rotace (MIL): připoj uloženou rotaci do snapshotu profilu.
+    const rotation = await this.rotation.rotationForCombat(
+      character.id,
+      character.class as ClassId,
+    );
+    return rotation ? { ...profile, rotation } : profile;
   }
 
   private toRunView(

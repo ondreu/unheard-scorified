@@ -719,7 +719,20 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       všech watch view (raid/dungeon/arena/team). Testy: `combat-overhaul.test.ts`
       (+8). _Follow-up: DoT tiky i v PVP (zatím jen base úder); heal/shield
       ability pro healery (zatím léčí passivně `healPower)._
-- [ ] **Deklarativní rotace / spell priority** (idle-friendly, deterministické).
+- [x] **Deklarativní rotace / spell priority** ✅ (idle-friendly, deterministické).
+      Rotace = seřazený seznam pravidel `{ ability → podmínka }` na postavě
+      (`@game/shared/rotation.ts`): podmínky nad levným deterministickým stavem
+      (HP% cíle / HP% sebe), priorita = pořadí, ability lze vypnout. Engine
+      (`fightBoss` v raid/dungeon + `simulatePvpDuel`/`simulateTeamFight`) při
+      „ready" ability vyhodnotí pravidlo (`shouldCastAbility`); **default = always
+      → chování beze změny** (zpětně kompatibilní, determinismus zachován).
+      Persistence per postava: `character_rotations` (migrace `0027`),
+      `RotationModule` (GET/PUT `/characters/:id/rotation`, sanitizace proti
+      odemčeným ability), zapojeno do snapshotu profilu ve všech 4 combat
+      službách (dungeon/raid/arena/team). Web editor `/characters/[id]/rotation`
+      (priorita, podmínky, prahy, enable/disable). Testy: shared `rotation.test.ts`
+      (+11) + API `rotation.flow.test.ts` (+5). _Follow-up: kontextové rotace pro
+      healery (heal spell priority), víc typů podmínek (ability ready/enemy count)._
   - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
     postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
     levným, deterministickým stavem actora (self HP%, target HP%, ability ready
