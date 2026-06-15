@@ -10,7 +10,7 @@
  *  - Při prodeji dostane prodejce `cena − cut` + zpět deposit; item jde kupci.
  *  - Při expiraci bez nabídky se item vrátí prodejci, deposit propadá (sink).
  */
-import { ITEMS } from './data/items';
+import { ITEMS, isSoulbound } from './data/items';
 import { MATERIALS, CONSUMABLES, type ConsumableId, type MaterialId } from './data/materials';
 
 /** Povolené délky aukce (idle hra → delší okna). */
@@ -62,13 +62,22 @@ export function itemDisplayName(itemId: string): string {
   );
 }
 
-/** Je item znám (a tedy obchodovatelný na AH)? */
+/** Je item znám (existuje v některém katalogu)? */
 export function isTradeableItem(itemId: string): boolean {
   return (
     itemId in ITEMS ||
     itemId in MATERIALS ||
     itemId in CONSUMABLES
   );
+}
+
+/**
+ * Smí se item vůbec vypsat na Auction House (M8.6)? Musí být známý a **ne
+ * soulbound** (BoP). Materiály a spotřebáky soulbound nejsou. Jediný zdroj
+ * pravdy pro AH filtr/validaci (API i web).
+ */
+export function isAuctionable(itemId: string): boolean {
+  return isTradeableItem(itemId) && !isSoulbound(itemId);
 }
 
 /** Deposit za výpis (gold sink). Závisí na vendor hodnotě, množství a délce. */

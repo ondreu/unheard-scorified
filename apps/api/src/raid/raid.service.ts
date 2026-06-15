@@ -20,11 +20,13 @@ import {
   isRaidUnlocked,
   isValidComposition,
   levelFromXp,
+  lockoutIdForContent,
   RAID_ROLES,
   RAIDS,
   scaleBoss,
   seedFromString,
   simulateRaidRun,
+  weeklyLockoutId,
   type ClassId,
   type CombatActor,
   type CombatEvent,
@@ -37,6 +39,7 @@ import {
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { PushService } from '../push/push.service';
@@ -92,6 +95,8 @@ export interface RaidRunView {
   /** Odměna postavy (perspektiva volajícího). */
   myReward: RaidRewardView | null;
   myRole: RaidRole | null;
+  /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
+  myLockedOut: boolean;
 }
 
 export interface RaidRunSummary {
@@ -122,6 +127,7 @@ export class RaidService {
     private readonly push: PushService,
     private readonly repo: RaidRepository,
     private readonly events: RaidEventsRelay,
+    private readonly lockouts: LockoutRepository,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -344,7 +350,19 @@ export class RaidService {
   ): Promise<RaidReward> {
     const raid = RAIDS[raidId]!;
     const rewardSeed = seedFromString(`${runId}:${character.id}`);
-    const reward = computeRaidReward(raid, victory, rewardSeed, wipes);
+    let reward = computeRaidReward(raid, victory, rewardSeed, wipes);
+
+    // Weekly lockout (M8.6): první vítězný run obsahu v týdnu postavu zamkne;
+    // další clear v témže UTC týdnu pak odměnu nedá (drží progresi / AH).
+    if (victory) {
+      const lockoutId = lockoutIdForContent('raid', raidId);
+      if (lockoutId) {
+        const weekId = weeklyLockoutId(Date.now());
+        const acquired = await this.lockouts.acquire(character.id, lockoutId, weekId);
+        if (!acquired) reward = { xp: 0, gold: 0, items: [] }; // už zamčeno tento týden
+      }
+    }
+
     await this.characters.addRewards(character.id, reward.xp, reward.gold);
     for (const itemId of reward.items) {
       await this.inventoryRepo.addItem(character.id, itemId);
@@ -409,6 +427,13 @@ export class RaidService {
     const result = simulateRaidRun(run.party, bosses, run.seed);
     const visible = result.events.filter((e) => e.t <= elapsedSec);
 
+    // Lockout: vítězný run lockoutovaného obsahu s nulovou odměnou = propadlo
+    // weekly lockoutem (M8.6). Odvozeno z uloženého výsledku + odměny (nezávisí
+    // na reveal čase).
+    const hasLockout = lockoutIdForContent('raid', run.raidId) !== null;
+    const myLockedOut =
+      hasLockout && run.victory === 1 && myReward !== null && myReward.xp === 0;
+
     return {
       runId: run.id,
       raidId: run.raidId,
@@ -434,6 +459,7 @@ export class RaidService {
       wipes: completed ? result.wipes : null,
       myReward: myReward ? { xp: myReward.xp, gold: myReward.gold, items: myReward.items } : null,
       myRole,
+      myLockedOut,
     };
   }
 }

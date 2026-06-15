@@ -16,6 +16,7 @@
     reward: 'Your reward',
     loot: 'Loot',
     npc: 'NPC',
+    lockout: '🔒 Weekly lockout — already cleared this week, no reward.',
   };
 
   let run = $state<RaidRunView | null>(null);
@@ -125,7 +126,11 @@
           {/if}
         </span>
       </div>
-      {#if r.myReward}
+      {#if r.myLockedOut}
+        <section class="mt-3 rounded-lg border border-amber-700/50 bg-amber-900/20 p-4">
+          <p class="font-semibold text-amber-300">{ui.lockout}</p>
+        </section>
+      {:else if r.myReward}
         <section class="mt-3 rounded-lg border border-emerald-700/50 bg-emerald-900/20 p-4">
           <p class="font-semibold text-emerald-300">
             {ui.reward}: +{r.myReward.xp} XP, +{r.myReward.gold} gold

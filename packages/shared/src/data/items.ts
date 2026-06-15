@@ -15,6 +15,15 @@ export type ItemSlotType =
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
+/**
+ * Vazba itemu (M8.6, ekonomika). `none` = volně obchodovatelný; `bop`
+ * (Bind-on-Pickup) = vázaný při sebrání (raid/dungeon personal loot) → na AH
+ * neprodejný, obchodovatelný jen v trade-window (M9); `boe` (Bind-on-Equip) =
+ * obchodovatelný dokud se neobleče (zatím se „equip bind" netrackuje — chová se
+ * jako obchodovatelný). Viz ADR 0015.
+ */
+export type BindType = 'none' | 'bop' | 'boe';
+
 /** Primární staty, které může item přidat. */
 export type ItemStatKey = PrimaryStat | 'armor' | 'attack_power' | 'spell_power' | 'crit_rating' | 'dodge_rating';
 export type ItemStats = Partial<Record<ItemStatKey, number>>;
@@ -31,6 +40,12 @@ export interface ItemDef {
   stats: ItemStats;
   /** Prodejní cena u vendora (v zlatých). */
   vendorGold: number;
+  /**
+   * Vazba itemu (M8.6). Volitelné — chybí ⇒ `none` (volně obchodovatelný).
+   * Naplňuje se z katalogových seznamů `BIND_ON_PICKUP` / `BIND_ON_EQUIP` níže
+   * (jediný zdroj pravdy), aby zůstal explicitní a na jednom místě.
+   */
+  bindType?: BindType;
 }
 
 export const ITEMS: Record<ItemId, ItemDef> = {
@@ -309,10 +324,47 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   },
 };
 
+/**
+ * Bind-on-Pickup itemy (M8.6) — raid/dungeon **personal loot** je vázané při
+ * sebrání: na AH neprodejné (viz `isAuctionable`), obchodovatelné jen v
+ * trade-window (M9). Zahrnuje boss-only dungeon drop (M5) + raid epicy/legendary
+ * (M8). Běžný gear, který padá i z otevřeného světa, vázaný NENÍ.
+ */
+const BIND_ON_PICKUP: ItemId[] = [
+  // M5 dungeon boss-only loot
+  'taragaman_hammer', 'smites_mace', 'cookies_stirring_rod', 'fang_of_the_deeps',
+  'belremil_band', 'commanders_crest', 'whitemane_chapeau', 'herod_shoulder',
+  // M8 raid loot (epic/legendary, raid-only)
+  'earthshaker', 'robe_of_volatile_power', 'aged_core_leather_gloves',
+  'sabatons_of_the_flamewalker', 'choker_of_enlightenment', 'ashkandi',
+  'netherwind_crown', 'drake_talon_pauldrons', 'ringo_drakefire',
+  'cloak_of_draconic_might',
+];
+
+/**
+ * Bind-on-Equip itemy (M8.6) — vysoko-end gear dostupný i mimo instance
+ * (crafting / world drop). Obchodovatelný (dokud se „equip bind" netrackuje;
+ * to je M9 follow-up), tj. na AH prodejný.
+ */
+const BIND_ON_EQUIP: ItemId[] = ['masterwork_blade', 'arcane_robes'];
+
+for (const id of BIND_ON_PICKUP) ITEMS[id]!.bindType = 'bop';
+for (const id of BIND_ON_EQUIP) ITEMS[id]!.bindType = 'boe';
+
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];
 
 export function isItemId(value: string): value is ItemId {
   return value in ITEMS;
+}
+
+/** Vazba itemu (M8.6); neznámý/nevyznačený item ⇒ `none`. */
+export function itemBindType(itemId: string): BindType {
+  return ITEMS[itemId]?.bindType ?? 'none';
+}
+
+/** Je item soulbound (Bind-on-Pickup) — tj. nepřevoditelný přes AH? */
+export function isSoulbound(itemId: string): boolean {
+  return itemBindType(itemId) === 'bop';
 }
 
 /** Mapování equipment slotů na item slot typ (pro validaci equipu). */

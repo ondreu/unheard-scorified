@@ -23,9 +23,11 @@ import {
   isRaidRole,
   isValidComposition,
   levelFromXp,
+  lockoutIdForContent,
   RAID_ROLES,
   seedFromString,
   simulateRaidRun,
+  weeklyLockoutId,
   type ClassId,
   type CombatActor,
   type CombatEvent,
@@ -38,6 +40,7 @@ import {
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
 import type { Character, RaidRun } from '../db/schema';
@@ -95,6 +98,8 @@ export interface DungeonRunView {
   wipes: number | null;
   myReward: DungeonRewardView | null;
   myRole: RaidRole | null;
+  /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
+  myLockedOut: boolean;
 }
 
 export interface DungeonRunSummary {
@@ -123,6 +128,7 @@ export class DungeonService {
     private readonly talents: TalentRepository,
     private readonly push: PushService,
     private readonly repo: RaidRepository,
+    private readonly lockouts: LockoutRepository,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -335,7 +341,19 @@ export class DungeonService {
     wipes: number,
   ): Promise<RaidReward> {
     const rewardSeed = seedFromString(`${runId}:${character.id}`);
-    const reward = computeGroupReward('dungeon', dungeonId, victory, rewardSeed, wipes);
+    let reward = computeGroupReward('dungeon', dungeonId, victory, rewardSeed, wipes);
+
+    // Weekly lockout (M8.6): jen vyšší dungeony (lockoutId != null). První vítězný
+    // run v týdnu zamkne; další clear v témže UTC týdnu odměnu nedá.
+    if (victory) {
+      const lockoutId = lockoutIdForContent('dungeon', dungeonId);
+      if (lockoutId) {
+        const weekId = weeklyLockoutId(Date.now());
+        const acquired = await this.lockouts.acquire(character.id, lockoutId, weekId);
+        if (!acquired) reward = { xp: 0, gold: 0, items: [] };
+      }
+    }
+
     await this.characters.addRewards(character.id, reward.xp, reward.gold);
     for (const itemId of reward.items) {
       await this.inventoryRepo.addItem(character.id, itemId);
@@ -397,6 +415,12 @@ export class DungeonService {
     const result = simulateRaidRun(run.party, encounters, run.seed);
     const visible = result.events.filter((e) => e.t <= elapsedSec);
 
+    // Weekly lockout (M8.6): vítězný run lockoutovaného dungeonu s nulovou
+    // odměnou ⇒ propadlo lockoutem (odvozeno z výsledku + odměny).
+    const hasLockout = lockoutIdForContent('dungeon', run.raidId) !== null;
+    const myLockedOut =
+      hasLockout && run.victory === 1 && myReward !== null && myReward.xp === 0;
+
     return {
       runId: run.id,
       dungeonId: run.raidId,
@@ -423,6 +447,7 @@ export class DungeonService {
       wipes: completed ? result.wipes : null,
       myReward: myReward ? { xp: myReward.xp, gold: myReward.gold, items: myReward.items } : null,
       myRole,
+      myLockedOut,
     };
   }
 }

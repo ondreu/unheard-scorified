@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
@@ -57,6 +58,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       new TalentRepository(db),
       new PushService(new PushRepository(db)),
       new RaidRepository(db),
+      new LockoutRepository(db),
       new InMemoryRaidQueue(),
     );
   });
@@ -160,6 +162,35 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     const recent = await dungeons.recentRuns(waiter.accountId, waiter.id);
     expect(recent[0]?.runId).toBe(run.runId);
     expect(recent[0]?.role).toBe('healer');
+  });
+
+  it('nižší dungeon (ragefire) NEpodléhá weekly lockoutu → farmitelný opakovaně', async () => {
+    const c = await strongCharacter('d11', 'Farmer');
+    const first = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm');
+    expect(first.myReward!.xp).toBe(RFC.baseXp);
+    expect(first.myLockedOut).toBe(false);
+    const second = await dungeons.enter(c.accountId, c.id, 'ragefire_chasm');
+    expect(second.myReward!.xp).toBe(RFC.baseXp); // pořád plná odměna
+    expect(second.myLockedOut).toBe(false);
+  });
+
+  it('vyšší dungeon (scarlet) má weekly lockout: druhý clear nedá odměnu (M8.6)', async () => {
+    // Silná postava se zbraní → solo vyčistí scarlet deterministicky.
+    const c = await newCharacter('d12', 'Inquisitor');
+    await charRepo.addRewards(c.id, 50_000_000, 0);
+    await invRepo.addItem(c.id, 'ashkandi');
+    await invRepo.equip(c.id, 'main_hand', 'ashkandi');
+
+    const first = await dungeons.enter(c.accountId, c.id, 'scarlet_monastery');
+    expect(first.myReward!.xp).toBeGreaterThan(0);
+    expect(first.myLockedOut).toBe(false);
+    const xpAfterFirst = (await charRepo.findById(c.id))!.totalXp;
+
+    const second = await dungeons.enter(c.accountId, c.id, 'scarlet_monastery');
+    expect(second.myReward!.xp).toBe(0);
+    expect(second.myReward!.items).toHaveLength(0);
+    expect(second.myLockedOut).toBe(true);
+    expect((await charRepo.findById(c.id))!.totalXp).toBe(xpAfterFirst);
   });
 
   it('cizí účet nemůže do dungeonu ani číst cizí run', async () => {

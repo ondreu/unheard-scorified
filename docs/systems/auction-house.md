@@ -13,6 +13,9 @@ Rozhodnutí a důsledky: **ADR 0012**.
 - `AUCTION_DURATIONS` — `short` 12 h / `medium` 24 h / `long` 48 h.
 - `itemVendorValue` / `itemDisplayName` / `isTradeableItem` — sjednocený lookup
   napříč `ITEMS` (gear) + `MATERIALS` + `CONSUMABLES` (M6).
+- `isAuctionable(itemId)` = `isTradeableItem && !isSoulbound` (M8.6) — **soulbound
+  (BoP) loot je neprodejný** (filtr v sell UI + validace v `createListing`,
+  „Soulbound items cannot be auctioned"). Viz `docs/systems/items.md`, ADR 0015.
 
 ## Gold tok (escrow)
 
