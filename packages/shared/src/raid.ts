@@ -204,7 +204,7 @@ interface BossAttemptResult {
 interface RaidTimer {
   next: number;
   interval: number;
-  kind: 'member' | 'boss_basic' | 'boss_ability';
+  kind: 'member' | 'member_ability' | 'boss_basic' | 'boss_ability';
   memberIdx?: number;
   ability?: SignatureAbility;
 }
@@ -258,6 +258,13 @@ function fightBoss(
   const timers: RaidTimer[] = [];
   for (let i = 0; i < party.length; i++) {
     timers.push({ next: clock + party[i]!.swingInterval, interval: party[i]!.swingInterval, kind: 'member', memberIdx: i });
+    // Útočné role (tank/dps) používají i signature abilities (M8.5: sjednocený
+    // party combat — solo dungeon dps takto neztratí abilities). Healeři léčí.
+    if (party[i]!.role !== 'healer') {
+      for (const ab of party[i]!.signatureAbilities) {
+        timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'member_ability', memberIdx: i, ability: ab });
+      }
+    }
   }
   timers.push({ next: clock + boss.swingInterval, interval: boss.swingInterval, kind: 'boss_basic' });
   for (const ab of boss.signatureAbilities) {
@@ -336,6 +343,27 @@ function fightBoss(
           message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
         });
       }
+    } else if (timer.kind === 'member_ability') {
+      const i = timer.memberIdx!;
+      if (hp[i]! <= 0) continue; // mrtvý člen nekouzlí
+      const member = party[i]!;
+      const ability = timer.ability!;
+      const hit = computeHit(member, boss, rng, ability.damageMult, false);
+      bossHp = Math.max(0, bossHp - hit.amount);
+      if (member.lifesteal > 0) {
+        hp[i] = Math.min(member.maxHealth, hp[i]! + Math.round(hit.amount * member.lifesteal));
+      }
+      events.push({
+        t: round1(clock),
+        type: 'ability',
+        source: member.name,
+        target: boss.name,
+        amount: hit.amount,
+        crit: hit.crit,
+        ability: ability.name,
+        targetHealthRemaining: bossHp,
+        message: `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+      });
     } else {
       // Boss útočí.
       const tIdx = chooseBossTarget(party, hp);
