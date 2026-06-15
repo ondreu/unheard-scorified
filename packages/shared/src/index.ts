@@ -25,7 +25,7 @@ export * from './lockout';
 export * from './auction';
 export * from './social';
 export * from './guild';
-export * from './lobby';
+export * from './party';
 export * from './trade';
 export * from './achievements';
 export * from './goals';

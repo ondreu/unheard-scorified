@@ -133,10 +133,10 @@
   <div class="mt-4 flex items-center justify-between">
     <h1 class="text-3xl font-bold text-amber-200">{ui.title}</h1>
     <a
-      href={`/characters/${characterId}/raid-lobby`}
+      href={`/characters/${characterId}/group`}
       class="rounded bg-red-800/40 px-3 py-1.5 text-sm font-medium text-red-200 hover:bg-red-700/50"
     >
-      Form a raid →
+      Form a group →
     </a>
   </div>
   <p class="mt-1 text-xs text-amber-100/40">{ui.party}</p>

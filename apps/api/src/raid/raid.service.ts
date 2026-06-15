@@ -293,10 +293,37 @@ export class RaidService {
   }
 
   /**
+   * Spustí raid s předem sestavenou **skupinou** (M9 group): leader (`members[0]`)
+   * + členové. Gatuje attunement leaderovým levelem + questline. Sdílí
+   * `finalizeRun` (stejná simulace/odměny/lockout). Vrací id runu.
+   */
+  async runForGroup(
+    leader: Character,
+    raidId: string,
+    members: { character: Character; role: RaidRole }[],
+  ): Promise<{ runId: string }> {
+    if (!isRaidId(raidId)) throw new BadRequestException('Unknown raid');
+    const level = levelFromXp(leader.totalXp);
+    const completedIds = await this.completed.completedIds(leader.id);
+    if (!isRaidUnlocked(raidId, level, completedIds)) {
+      throw new BadRequestException('Raid is not unlocked (level / attunement)');
+    }
+    const raid = RAIDS[raidId]!;
+    const party: RaidActor[] = [];
+    const real: RaidParticipantInput[] = [];
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i]!;
+      party.push(await this.buildRaidActor(m.character, levelFromXp(m.character.totalXp), m.role));
+      real.push({ character: m.character, role: m.role, initiator: i === 0 });
+    }
+    const { run } = await this.finalizeRun(raid, party, real, leader.id);
+    return { runId: run.id };
+  }
+
+  /**
    * Sdílené dokončení raid runu (M8.5-B): odsimuluje předanou party, uloží run a
-   * udělí odměny všem reálným účastníkům (NPC v `party` jsou jen pro simulaci).
-   * Vrací run + mapu odměn per postava. Volá `enter` (idle queue) i lobby (ruční
-   * formace). Iniciátor seeduje běh; nereálným… resp. neiniciátorům pošle push.
+   * udělí odměny všem reálným účastníkům. Vrací run + mapu odměn per postava.
+   * Volá `enter` (idle queue), group launch i lobby. Iniciátor seeduje běh.
    */
   async finalizeRun(
     raid: (typeof RAIDS)[keyof typeof RAIDS],

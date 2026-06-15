@@ -13,7 +13,6 @@ import {
   bracketTeamSize,
   deriveCombatProfile,
   eloDelta,
-  friendCounterpart,
   isTeamBracket,
   levelFromXp,
   ratingTier,
@@ -31,8 +30,6 @@ import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
-import { GuildRepository } from '../social/guild.repository';
-import { SocialRepository } from '../social/social.repository';
 import type { ArenaTeamMatch, Character } from '../db/schema';
 import { ArenaRepository } from './arena.repository';
 import {
@@ -96,8 +93,6 @@ export class TeamArenaService {
     private readonly inventory: InventoryService,
     private readonly talents: TalentRepository,
     private readonly arena: ArenaRepository,
-    private readonly social: SocialRepository,
-    private readonly guilds: GuildRepository,
     private readonly push: PushService,
     @Inject(TEAM_ARENA_QUEUE) private readonly queue: TeamArenaQueue,
   ) {}
@@ -137,66 +132,28 @@ export class TeamArenaService {
     return { eligible: level >= ARENA_MIN_LEVEL, minLevel: ARENA_MIN_LEVEL, seasonId, brackets };
   }
 
-  /** Je `targetId` přítel nebo spoluhráč z guildy leadera? (souhlas k týmu). */
-  private async eligibleTeammate(leaderId: string, targetId: string): Promise<boolean> {
-    const friendships = await this.social.listAccepted(leaderId);
-    if (
-      friendships.some(
-        (f) => friendCounterpart(leaderId, f.requesterCharacterId, f.addresseeCharacterId) === targetId,
-      )
-    ) {
-      return true;
-    }
-    const [lg, tg] = await Promise.all([
-      this.guilds.membershipOf(leaderId),
-      this.guilds.membershipOf(targetId),
-    ]);
-    return !!lg && !!tg && lg.guildId === tg.guildId;
-  }
-
   /**
-   * Sestaví tým z leadera + jmenovaných parťáků a zařadí ho do fronty; pokud čeká
-   * vhodný soupeř, okamžitě odbojuje a oraťuje obě strany.
+   * Spustí týmovou arénu s předem sestavenou **skupinou** (M9 group): leader +
+   * členové (eligibilita friend/guild je vyřešená už při vstupu do skupiny).
+   * Zařadí tým do fronty (snapshoty); čeká-li vhodný soupeř, hned odbojuje a
+   * oraťuje obě strany. `bracket` určuje velikost (group ji odvozuje z velikosti).
    */
-  async queueTeam(
-    accountId: string,
-    characterId: string,
-    bracket: string,
-    teammateNames: string[],
+  async launchForGroup(
+    leader: Character,
+    members: Character[],
+    bracket: TeamBracket,
   ): Promise<TeamQueueResult> {
-    const leader = await this.own(accountId, characterId);
-    if (!isTeamBracket(bracket)) throw new BadRequestException('Not a team bracket');
     const seasonId = this.season();
-    const teamSize = bracketTeamSize(bracket);
-
-    if (teammateNames.length !== teamSize - 1) {
-      throw new BadRequestException(`${bracket} needs exactly ${teamSize - 1} teammates`);
+    if (members.length !== bracketTeamSize(bracket)) {
+      throw new BadRequestException(`${bracket} needs exactly ${bracketTeamSize(bracket)} members`);
     }
-    if (levelFromXp(leader.totalXp) < ARENA_MIN_LEVEL) {
-      throw new BadRequestException(`Reach level ${ARENA_MIN_LEVEL} to enter the Arena`);
-    }
-    if (await this.queue.isMemberQueued(bracket, seasonId, characterId)) {
-      throw new BadRequestException('You are already queued in this bracket');
-    }
-
-    // Vyřeš a ověř parťáky (unikátní, friend/guild, level, ne self).
-    const members: Character[] = [leader];
-    const seen = new Set([characterId]);
-    for (const rawName of teammateNames) {
-      const mate = await this.characters.findByName(rawName.trim());
-      if (!mate) throw new NotFoundException(`No character named ${rawName}`);
-      if (seen.has(mate.id)) throw new BadRequestException('Duplicate teammate');
-      seen.add(mate.id);
-      if (!(await this.eligibleTeammate(characterId, mate.id))) {
-        throw new BadRequestException(`${mate.name} must be your friend or guild member`);
+    for (const m of members) {
+      if (levelFromXp(m.totalXp) < ARENA_MIN_LEVEL) {
+        throw new BadRequestException(`${m.name} is below level ${ARENA_MIN_LEVEL}`);
       }
-      if (levelFromXp(mate.totalXp) < ARENA_MIN_LEVEL) {
-        throw new BadRequestException(`${mate.name} is below level ${ARENA_MIN_LEVEL}`);
+      if (await this.queue.isMemberQueued(bracket, seasonId, m.id)) {
+        throw new BadRequestException(`${m.name} is already queued in this bracket`);
       }
-      if (await this.queue.isMemberQueued(bracket, seasonId, mate.id)) {
-        throw new BadRequestException(`${mate.name} is already queued`);
-      }
-      members.push(mate);
     }
 
     // Snapshoty + ratingy.
@@ -212,7 +169,7 @@ export class TeamArenaService {
       });
     }
     const myTeam: TeamQueueEntry = {
-      leaderCharacterId: characterId,
+      leaderCharacterId: leader.id,
       members: entries,
       queuedAt: Date.now(),
     };
@@ -220,7 +177,7 @@ export class TeamArenaService {
     const opponent = await this.queue.takeOpponent(
       bracket,
       seasonId,
-      characterId,
+      leader.id,
       entries.map((e) => e.characterId),
     );
     if (!opponent) {

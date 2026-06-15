@@ -1,12 +1,11 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { LeaveTeamDto, QueueTeamDto } from './dto/team-arena.dto';
+import { LeaveTeamDto } from './dto/team-arena.dto';
 import {
   TeamArenaService,
   type TeamArenaView,
   type TeamMatchView,
-  type TeamQueueResult,
 } from './team-arena.service';
 
 /**
@@ -26,17 +25,7 @@ export class TeamArenaController {
     return this.team.getTeamArena(user.accountId, characterId);
   }
 
-  /** Sestaví tým a zařadí do fronty (případně rovnou odbojuje). */
-  @Post('queue')
-  queue(
-    @CurrentUser() user: { accountId: string },
-    @Param('characterId') characterId: string,
-    @Body() dto: QueueTeamDto,
-  ): Promise<TeamQueueResult> {
-    return this.team.queueTeam(user.accountId, characterId, dto.bracket, dto.teammateNames);
-  }
-
-  /** Opustí frontu daného bracketu. */
+  /** Opustí frontu daného bracketu (skupina spustila arénu, čeká na soupeře). */
   @Post('leave')
   leave(
     @CurrentUser() user: { accountId: string },

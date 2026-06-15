@@ -151,6 +151,7 @@
     professions: 'Professions',
     arena: 'Arena (PVP)',
     raids: 'Raids (MP PVE)',
+    group: 'Group',
     auctions: 'Auction House',
     social: 'Friends',
     guild: 'Guild',
@@ -315,6 +316,12 @@
         class="rounded bg-red-800/40 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-700/50"
       >
         {uiM4.raids}
+      </a>
+      <a
+        href={`/characters/${characterId}/group`}
+        class="rounded bg-sky-800/40 px-4 py-2 text-sm font-medium text-sky-200 hover:bg-sky-700/50"
+      >
+        {uiM4.group}
       </a>
       <a
         href={`/characters/${characterId}/auctions`}

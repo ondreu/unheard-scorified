@@ -96,14 +96,14 @@ další clear téhož raidu v témže UTC týdnu pak **odměnu nedá** (XP, zlat
 scheduler). Run view vystaví `myLockedOut`. Vzorce: `@game/shared/lockout.ts`
 (`lockoutIdForContent('raid', id)`, `weeklyLockoutId`). Detail: **ADR 0015**.
 
-## Ruční formace — raid lobby (M8.5-B)
+## Ruční formace — trvalá skupina (M9)
 
-Vedle idle fronty lze raid sestavit **ručně** (`/characters/[id]/raid-lobby`):
-leader založí lobby (raid + velikost + kompozice), zve konkrétní postavy do rolí
-(odemčeno M9 social — friends/guild), spravuje sestavu a spustí. Běží s
-připojenými reálnými hráči — **žádný NPC backfill** (zbylé sloty zůstanou prázdné,
-boss se škáluje velikostí party). Spuštění recykluje `RaidService.finalizeRun`
-(stejná simulace/odměny/lockout jako idle `enter`).
+Vedle idle fronty lze raid sestavit **ručně přes trvalou skupinu**
+(`/characters/[id]/group`, viz `docs/systems/groups.md` + **ADR 0022**): leader
+sestaví party (friends/guild) a spustí raid. Běží s připojenými reálnými hráči —
+**žádný NPC backfill**; spuštění recykluje `RaidService.runForGroup` →
+`finalizeRun` (stejná simulace/odměny/lockout jako idle `enter`). _Původní raid
+lobby (M8.5-B) bylo nahrazeno skupinou._
 Tabulky `raid_lobbies` + `raid_lobby_members`; sloty počítají čisté helpery
 `@game/shared/lobby.ts`. Detail: **ADR 0018**.
 

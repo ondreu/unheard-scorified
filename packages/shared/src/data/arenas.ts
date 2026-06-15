@@ -36,6 +36,23 @@ export function bracketTeamSize(bracket: ArenaBracket): number {
   return BRACKET_TEAM_SIZE[bracket];
 }
 
+/**
+ * Bracket arény pro daný počet hráčů ve skupině (group → aréna). Jen velikosti
+ * 1/3/5 mají bracket; jiné velikosti pro arénu nelze (vrací null).
+ */
+export function arenaBracketForSize(size: number): ArenaBracket | null {
+  switch (size) {
+    case 1:
+      return '1v1';
+    case 3:
+      return '3v3';
+    case 5:
+      return '5v5';
+    default:
+      return null;
+  }
+}
+
 /** Počáteční rating každé postavy v nové sezóně. */
 export const STARTING_RATING = 1500;
 /** Elo K-faktor (jak rychle se rating hýbe). */

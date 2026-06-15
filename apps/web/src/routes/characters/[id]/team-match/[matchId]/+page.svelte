@@ -45,7 +45,7 @@
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
-  <a href={`/characters/${characterId}/team-arena`} class="text-sm text-amber-300 underline">{ui.back}</a>
+  <a href={`/characters/${characterId}/group`} class="text-sm text-amber-300 underline">{ui.back}</a>
   <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
 
   {#if error}

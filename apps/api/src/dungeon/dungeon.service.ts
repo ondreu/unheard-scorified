@@ -43,13 +43,19 @@ import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
 import type { Character, RaidRun } from '../db/schema';
 import { RaidRepository } from '../raid/raid.repository';
-import { RAID_QUEUE, type RaidQueue, type RaidQueueEntry } from '../raid/raid.matchmaking';
+import { RAID_QUEUE, type RaidQueue } from '../raid/raid.matchmaking';
 
 const RECENT_RUNS_LIMIT = 8;
 
 /** Frontový klíč dungeonu (sdílená RaidQueue, oddělený namespace od raidů). */
 function queueKey(dungeonId: string): string {
   return `dungeon:${dungeonId}`;
+}
+
+/** Člen party pro group/idle dungeon run (leader = první). */
+export interface DungeonMember {
+  character: Character;
+  role: RaidRole;
 }
 
 export interface DungeonListItem {
@@ -246,25 +252,57 @@ export class DungeonService {
 
     await this.queue.remove(queueKey(dungeonId), characterId);
 
-    const myActor = await this.buildRaidActor(character, level, myRole);
-    const party: RaidActor[] = [myActor];
-    const pulled: RaidQueueEntry[] = [];
-
-    // Party se skládá JEN z reálných hráčů ve frontě (žádný NPC backfill).
-    // Chybí-li hráči dané role, party prostě bude menší — boss/encountery se
-    // škálují skutečnou velikostí party (viz `encountersFor`).
+    // Party = iniciátor + vytažení čekající hráči z fronty (žádný NPC backfill;
+    // chybí-li hráči, party je menší a obsah se škáluje její velikostí).
+    const members: DungeonMember[] = [{ character, role: myRole }];
     const need: Record<RaidRole, number> = { tank: comp.tank, healer: comp.healer, dps: comp.dps };
     need[myRole] -= 1;
     for (const r of RAID_ROLES) {
       for (let i = 0; i < need[r]; i++) {
         const candidate = await this.queue.takeByRole(queueKey(dungeonId), r, characterId);
         if (!candidate) break; // žádný další čekající hráč této role
-        party.push(candidate.snapshot);
-        pulled.push(candidate);
+        const pc = await this.characters.findById(candidate.characterId);
+        if (pc) members.push({ character: pc, role: candidate.role });
       }
     }
 
-    const seed = seedFromString(`${dungeonId}:${characterId}:${Date.now()}`);
+    return this.finalizeDungeonRun(dungeonId, character, members);
+  }
+
+  /**
+   * Spustí dungeon s předem sestavenou skupinou (M9 group). Členové (leader =
+   * `members[0]`) jdou rovnou do runu — žádná fronta. Unlock gatuje leaderův level.
+   */
+  async runForGroup(
+    leader: Character,
+    dungeonId: string,
+    members: DungeonMember[],
+  ): Promise<DungeonRunView> {
+    if (!isDungeonId(dungeonId)) throw new BadRequestException('Unknown dungeon');
+    const dungeon = DUNGEONS[dungeonId]!;
+    if (!isDungeonUnlocked(dungeonId, levelFromXp(leader.totalXp))) {
+      throw new BadRequestException(`Dungeon requires level ${dungeon.requiredLevel}`);
+    }
+    return this.finalizeDungeonRun(dungeonId, leader, members);
+  }
+
+  /**
+   * Sdílené dokončení dungeon runu: snapshot party, deterministická simulace,
+   * uložení runu (`content_type='dungeon'`) a personal loot každému členu.
+   * Volá idle `enter` (fronta) i group `runForGroup` (ruční parta).
+   */
+  private async finalizeDungeonRun(
+    dungeonId: string,
+    leader: Character,
+    members: DungeonMember[],
+  ): Promise<DungeonRunView> {
+    const dungeon = DUNGEONS[dungeonId]!;
+    const party: RaidActor[] = [];
+    for (const m of members) {
+      party.push(await this.buildRaidActor(m.character, levelFromXp(m.character.totalXp), m.role));
+    }
+
+    const seed = seedFromString(`${dungeonId}:${leader.id}:${Date.now()}`);
     const encounters = this.encountersFor(dungeonId, party.length);
     const result = simulateRaidRun(party, encounters, seed);
 
@@ -277,19 +315,25 @@ export class DungeonService {
       durationSec: result.durationSec,
     });
 
-    const myReward = await this.grantParticipant(run.id, character, myRole, true, dungeonId, result.victory, result.wipes);
-    for (const p of pulled) {
-      const pc = await this.characters.findById(p.characterId);
-      if (!pc) continue;
-      await this.grantParticipant(run.id, pc, p.role, false, dungeonId, result.victory, result.wipes);
-      await this.push.sendToAccount(p.accountId, {
-        title: 'Dungeon Complete!',
-        body: `${pc.name} joined ${character.name}'s ${dungeon.name} and the party ${result.victory ? 'cleared it' : 'wiped'}.`,
-        characterId: p.characterId,
-      });
+    let leaderReward: RaidReward | null = null;
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i]!;
+      const initiator = i === 0;
+      const reward = await this.grantParticipant(
+        run.id, m.character, m.role, initiator, dungeonId, result.victory, result.wipes,
+      );
+      if (initiator) {
+        leaderReward = reward;
+      } else {
+        await this.push.sendToAccount(m.character.accountId, {
+          title: 'Dungeon Complete!',
+          body: `${m.character.name} joined ${leader.name}'s ${dungeon.name} and the party ${result.victory ? 'cleared it' : 'wiped'}.`,
+          characterId: m.character.id,
+        });
+      }
     }
 
-    return this.toRunView(run, characterId, Date.now(), myReward, myRole);
+    return this.toRunView(run, leader.id, Date.now(), leaderReward, members[0]!.role);
   }
 
   /** Detail/přehrání dungeon runu z perspektivy postavy (reveal dle času). */

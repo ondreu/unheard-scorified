@@ -830,9 +830,11 @@ export function setGuildRank(
   );
 }
 
-// Raid lobby (M8.5-B, manual formation)
+// Persistent group / party (M9, ADR 0022) — one formation system for dungeon/raid/arena
 
-export interface LobbyMemberView {
+export type GroupActivityType = 'dungeon' | 'raid' | 'arena';
+
+export interface GroupMemberView {
   characterId: string;
   name: string;
   level: number;
@@ -843,95 +845,101 @@ export interface LobbyMemberView {
   isLeader: boolean;
 }
 
-export interface RaidLobbyView {
+export interface GroupView {
   id: string;
-  raidId: string;
-  raidName: string;
-  size: number;
-  composition: RaidComposition;
-  status: string;
-  runId: string | null;
   leaderCharacterId: string;
   iAmLeader: boolean;
-  members: LobbyMemberView[];
-  remaining: RaidComposition;
-  full: boolean;
+  members: GroupMemberView[];
+  joinedCount: number;
 }
 
-export interface LobbyInviteView {
-  lobbyId: string;
-  raidId: string;
-  raidName: string;
+export interface GroupInviteView {
+  groupId: string;
+  leaderName: string;
   role: RaidRole;
-  size: number;
 }
 
-export interface LobbyState {
-  lobby: RaidLobbyView | null;
-  invites: LobbyInviteView[];
+export interface GroupState {
+  group: GroupView | null;
+  invites: GroupInviteView[];
 }
 
-export function getRaidLobby(characterId: string): Promise<LobbyState> {
-  return request<LobbyState>(`/characters/${characterId}/raid-lobbies`);
+export type GroupLaunchResult =
+  | { activityType: 'dungeon'; runId: string }
+  | { activityType: 'raid'; runId: string }
+  | { activityType: 'arena'; bracket: '1v1' | '3v3' | '5v5'; status: 'queued' | 'matched'; matchId?: string };
+
+export function getGroup(characterId: string): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group`);
 }
 
-export function createRaidLobby(
-  characterId: string,
-  raidId: string,
-  role: RaidRole,
-  size?: number,
-  composition?: RaidComposition,
-): Promise<LobbyState> {
-  return request<LobbyState>(`/characters/${characterId}/raid-lobbies`, {
+export function createGroup(characterId: string, role: RaidRole): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/create`, {
     method: 'POST',
-    body: JSON.stringify({ raidId, role, size, composition }),
+    body: JSON.stringify({ role }),
   });
 }
 
-export function inviteToLobby(
+export function inviteToGroup(
   characterId: string,
-  lobbyId: string,
-  name: string,
+  targetName: string,
   role: RaidRole,
-): Promise<LobbyState> {
-  return request<LobbyState>(`/characters/${characterId}/raid-lobbies/${lobbyId}/invites`, {
+): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/invite`, {
     method: 'POST',
-    body: JSON.stringify({ name, role }),
+    body: JSON.stringify({ targetName, role }),
   });
 }
 
-export function respondLobbyInvite(
+export function respondGroupInvite(
   characterId: string,
-  lobbyId: string,
+  groupId: string,
   accept: boolean,
   role?: RaidRole,
-): Promise<LobbyState> {
-  return request<LobbyState>(
-    `/characters/${characterId}/raid-lobbies/${lobbyId}/invites/respond`,
-    { method: 'POST', body: JSON.stringify({ accept, role }) },
-  );
-}
-
-export function leaveRaidLobby(characterId: string, lobbyId: string): Promise<LobbyState> {
-  return request<LobbyState>(`/characters/${characterId}/raid-lobbies/${lobbyId}/leave`, {
+): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/invite/respond`, {
     method: 'POST',
+    body: JSON.stringify({ groupId, accept, role }),
   });
 }
 
-export function kickLobbyMember(
-  characterId: string,
-  lobbyId: string,
-  targetCharacterId: string,
-): Promise<LobbyState> {
-  return request<LobbyState>(
-    `/characters/${characterId}/raid-lobbies/${lobbyId}/members/${targetCharacterId}`,
-    { method: 'DELETE' },
-  );
+export function setGroupRole(characterId: string, role: RaidRole): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/role`, {
+    method: 'POST',
+    body: JSON.stringify({ role }),
+  });
 }
 
-export function startRaidLobby(characterId: string, lobbyId: string): Promise<{ runId: string }> {
-  return request<{ runId: string }>(`/characters/${characterId}/raid-lobbies/${lobbyId}/start`, {
+export function leaveGroup(characterId: string): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/leave`, { method: 'POST' });
+}
+
+export function kickGroupMember(characterId: string, targetCharacterId: string): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/kick`, {
     method: 'POST',
+    body: JSON.stringify({ targetCharacterId }),
+  });
+}
+
+export function promoteGroupMember(characterId: string, targetCharacterId: string): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/promote`, {
+    method: 'POST',
+    body: JSON.stringify({ targetCharacterId }),
+  });
+}
+
+export function disbandGroup(characterId: string): Promise<GroupState> {
+  return request<GroupState>(`/characters/${characterId}/group/disband`, { method: 'POST' });
+}
+
+export function launchGroup(
+  characterId: string,
+  activityType: GroupActivityType,
+  contentId?: string,
+): Promise<GroupLaunchResult> {
+  return request<GroupLaunchResult>(`/characters/${characterId}/group/launch`, {
+    method: 'POST',
+    body: JSON.stringify({ activityType, contentId }),
   });
 }
 
@@ -1035,17 +1043,6 @@ export interface TeamMatchView {
 
 export function getTeamArena(characterId: string): Promise<TeamArenaView> {
   return request<TeamArenaView>(`/characters/${characterId}/team-arena`);
-}
-
-export function queueTeam(
-  characterId: string,
-  bracket: '3v3' | '5v5',
-  teammateNames: string[],
-): Promise<TeamQueueResult> {
-  return request<TeamQueueResult>(`/characters/${characterId}/team-arena/queue`, {
-    method: 'POST',
-    body: JSON.stringify({ bracket, teammateNames }),
-  });
 }
 
 export function leaveTeamQueue(

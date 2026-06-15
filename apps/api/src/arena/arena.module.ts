@@ -37,5 +37,8 @@ import { TeamArenaService } from './team-arena.service';
     { provide: ARENA_LEADERBOARD, useClass: RedisArenaLeaderboard },
     { provide: TEAM_ARENA_QUEUE, useClass: RedisTeamArenaQueue },
   ],
+  // GroupModule (ADR 0022) spouští arénu přes ArenaService (1v1) /
+  // TeamArenaService (3v3/5v5).
+  exports: [TeamArenaService, ArenaService],
 })
 export class ArenaModule {}

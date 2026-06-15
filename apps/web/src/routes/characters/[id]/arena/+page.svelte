@@ -123,10 +123,10 @@
     <div class="mt-4 flex items-center justify-between">
       <h1 class="text-3xl font-bold text-amber-200">⚔️ {ui.title}</h1>
       <a
-        href={`/characters/${characterId}/team-arena`}
+        href={`/characters/${characterId}/group`}
         class="rounded bg-red-800/40 px-3 py-1.5 text-sm font-medium text-red-200 hover:bg-red-700/50"
       >
-        Team Arena →
+        Group (3v3/5v5) →
       </a>
     </div>
     <p class="mt-1 text-sm text-amber-100/60">

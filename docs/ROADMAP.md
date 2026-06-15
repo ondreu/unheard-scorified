@@ -575,6 +575,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       odměna za období (`character_goal_claims`, migrace `0018`). Sdílené
       `@game/shared/goals.ts`. Web: sekce na `/characters/[id]/achievements`.
       Testy: shared `goals.test.ts` (+5) + API (+2). ADR 0021.
+- [x] **Trvalá skupina (party)** ✅: jeden formační systém pro **dungeon/raid/arénu**
+      (`groups` + `group_members`, migrace 0020). Leader zve friends/guild do rolí,
+      skupina přežívá mezi aktivitami; launch → `DungeonService.runForGroup` /
+      `RaidService.runForGroup` / aréna (velikost → bracket 1v1/3v3/5v5). **Nahradilo
+      raid lobby (M8.5-B) i ruční team arénu (M8.5-C)** — bez NPC backfillu, recykluje
+      run/aréna enginy. `GroupModule`, web `/characters/[id]/group`. Testy: shared
+      `party.test.ts` (+3) + API `group.flow.test.ts` (+7). **ADR 0022**,
+      `docs/systems/groups.md`.
 - [ ] PixiJS pixel scénky, nahrazení placeholderů.
 - [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
