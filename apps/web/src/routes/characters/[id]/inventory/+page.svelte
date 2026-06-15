@@ -19,6 +19,8 @@
     unequipping: 'Unequipping…',
     stats: 'Equipment Stats',
     empty: 'Empty',
+    dragHint: 'Drag an item onto a matching slot to equip — or drag equipped gear here to unequip.',
+    dropHere: 'Drop to equip',
     qty: 'x',
     vendorGold: 'Vendor:',
     gold: 'g',
@@ -40,6 +42,44 @@
     'head', 'neck', 'shoulder', 'chest', 'waist', 'legs', 'feet', 'wrist',
     'hands', 'back', 'main_hand', 'off_hand', 'finger1', 'finger2', 'trinket1', 'trinket2',
   ];
+
+  // Physical slot → item slot type (rings/trinkets share a type across two slots).
+  const SLOT_TYPE_MAP: Record<string, string> = {
+    head: 'head', neck: 'neck', shoulder: 'shoulder', chest: 'chest',
+    waist: 'waist', legs: 'legs', feet: 'feet', wrist: 'wrist',
+    hands: 'hands', back: 'back', main_hand: 'main_hand', off_hand: 'off_hand',
+    finger1: 'finger', finger2: 'finger', trinket1: 'trinket', trinket2: 'trinket',
+  };
+
+  // Drag & drop equip: drag an inventory item onto a matching slot; drag an
+  // equipped item back onto the inventory to unequip.
+  let draggedItem = $state<InventoryItem | null>(null);
+  let draggedFromSlot = $state<string | null>(null);
+  let dragOverSlot = $state<string | null>(null);
+
+  function slotAccepts(slot: string, item: ItemDef | null | undefined): boolean {
+    return !!item && SLOT_TYPE_MAP[slot] === item.slot;
+  }
+  function clearDrag(): void {
+    draggedItem = null;
+    draggedFromSlot = null;
+    dragOverSlot = null;
+  }
+  function onSlotDrop(slot: string): void {
+    const item = draggedItem;
+    if (item && slotAccepts(slot, item.item)) {
+      const id = item.itemId;
+      clearDrag();
+      void doEquip(id, slot);
+    } else {
+      clearDrag();
+    }
+  }
+  function onInventoryDrop(): void {
+    const slot = draggedFromSlot;
+    clearDrag();
+    if (slot) void doUnequip(slot);
+  }
 
   let inventory = $state<InventoryItem[]>([]);
   let equipment = $state<EquipmentSlotsView>({ equipped: [], equipmentStats: {} });
@@ -170,10 +210,31 @@
       <!-- Equipment Slots -->
       <section class="panel panel-pad">
         <h2 class="panel-title">{ui.equipment}</h2>
+        <p class="mt-1 text-xs text-[var(--text-faint)]">{ui.dragHint}</p>
         <div class="mt-3 grid gap-2 sm:grid-cols-2">
           {#each ALL_SLOTS as slot (slot)}
             {@const entry = getEquippedInSlot(slot)}
-            <div class="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+            {@const candidate = !!draggedItem && slotAccepts(slot, draggedItem.item)}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="flex items-center justify-between gap-2 rounded-lg border bg-[var(--surface-2)] px-3 py-2 transition-colors"
+              class:cursor-grab={!!entry}
+              style={`border-color:${dragOverSlot === slot && candidate ? 'var(--gold-bright)' : candidate ? 'var(--border-strong)' : 'var(--border)'}`}
+              draggable={!!entry}
+              ondragstart={() => entry && (draggedFromSlot = slot)}
+              ondragend={clearDrag}
+              ondragover={(e) => {
+                if (candidate) {
+                  e.preventDefault();
+                  dragOverSlot = slot;
+                }
+              }}
+              ondragleave={() => dragOverSlot === slot && (dragOverSlot = null)}
+              ondrop={(e) => {
+                e.preventDefault();
+                onSlotDrop(slot);
+              }}
+            >
               <div class="min-w-0">
                 <span class="text-xs text-[var(--text-faint)]">{SLOT_LABELS[slot] ?? slot}</span>
                 {#if entry}
@@ -182,7 +243,7 @@
                     <span class="ml-1 text-xs text-[var(--text-faint)]">{ui.ilvl} {entry.item.itemLevel}</span>
                   </p>
                 {:else}
-                  <p class="text-sm text-[var(--text-faint)]">{ui.empty}</p>
+                  <p class="text-sm text-[var(--text-faint)]">{candidate ? ui.dropHere : ui.empty}</p>
                 {/if}
               </div>
               {#if entry}
@@ -215,15 +276,32 @@
       </section>
 
       <!-- Inventory -->
-      <section class="panel panel-pad">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <section
+        class="panel panel-pad transition-colors"
+        style={draggedFromSlot ? 'border-color:var(--border-strong)' : ''}
+        ondragover={(e) => draggedFromSlot && e.preventDefault()}
+        ondrop={(e) => {
+          e.preventDefault();
+          onInventoryDrop();
+        }}
+      >
         <h2 class="panel-title">{ui.inventory}</h2>
+        {#if draggedFromSlot}<p class="mt-1 text-xs text-[var(--gold-bright)]">{ui.unequip} — drop here</p>{/if}
         {#if inventory.length === 0}
           <p class="mt-2 text-[var(--text-dim)]">{ui.noItems}</p>
         {:else}
           <div class="mt-3 space-y-2">
             {#each inventory as inv (inv.itemId)}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="rounded-lg border bg-[var(--surface-2)] p-3 {selectedItem?.itemId === inv.itemId ? 'border-[var(--border-strong)]' : 'border-[var(--border)]'}"
+                class="cursor-grab rounded-lg border bg-[var(--surface-2)] p-3 {selectedItem?.itemId === inv.itemId ? 'border-[var(--border-strong)]' : 'border-[var(--border)]'}"
+                draggable="true"
+                ondragstart={() => {
+                  draggedItem = inv;
+                  draggedFromSlot = null;
+                }}
+                ondragend={clearDrag}
               >
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
@@ -250,16 +328,7 @@
 
                 <!-- Slot picker when this item is selected -->
                 {#if selectedItem?.itemId === inv.itemId}
-                  {@const itemSlotType = inv.item.slot}
-                  {@const validSlots = ALL_SLOTS.filter((s) => {
-                    const mapping: Record<string, string> = {
-                      head: 'head', neck: 'neck', shoulder: 'shoulder', chest: 'chest',
-                      waist: 'waist', legs: 'legs', feet: 'feet', wrist: 'wrist',
-                      hands: 'hands', back: 'back', main_hand: 'main_hand', off_hand: 'off_hand',
-                      finger1: 'finger', finger2: 'finger', trinket1: 'trinket', trinket2: 'trinket',
-                    };
-                    return mapping[s] === itemSlotType;
-                  })}
+                  {@const validSlots = ALL_SLOTS.filter((s) => SLOT_TYPE_MAP[s] === inv.item.slot)}
                   <div class="mt-2 flex flex-wrap gap-2">
                     {#each validSlots as vslot (vslot)}
                       <button
