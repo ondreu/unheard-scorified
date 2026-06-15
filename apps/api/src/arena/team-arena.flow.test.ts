@@ -79,6 +79,17 @@ describe('M9 flow: team arena (launchForGroup)', () => {
     expect(view.brackets.find((b) => b.bracket === '3v3')?.queued).toBe(true);
   });
 
+  it('2v2 tým (skupina o 2) se spáruje', async () => {
+    const a = await teamOf('Da', 2);
+    const b = await teamOf('Db', 2);
+    await team.launchForGroup(a[0]!, a, '2v2');
+    const res = await team.launchForGroup(b[0]!, b, '2v2');
+    expect(res.status).toBe('matched');
+    const match = await team.getMatch(b[0]!.accountId, b[0]!.id, res.matchId!);
+    expect(match.myTeam).toHaveLength(2);
+    expect(match.bracket).toBe('2v2');
+  });
+
   it('druhý tým se spáruje a obě strany dostanou rating', async () => {
     const a = await teamOf('Aa', 3);
     const b = await teamOf('Bb', 3);

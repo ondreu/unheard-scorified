@@ -55,6 +55,13 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   // Social
   { id: 'friends_1', name: 'Not Alone', description: 'Make a friend.', metric: 'friends', threshold: 1, rewardGold: 25 },
   { id: 'friends_10', name: 'Socialite', description: 'Have 10 friends.', metric: 'friends', threshold: 10, rewardGold: 200 },
+  // Vyšší tiery (M9) — dlouhodobé mety, využívají existující metriky.
+  { id: 'level_45', name: 'Battle-Hardened', description: 'Reach level 45.', metric: 'level', threshold: 45, rewardGold: 500 },
+  { id: 'gold_50000', name: 'Tycoon', description: 'Hold 50,000 gold.', metric: 'gold', threshold: 50000, rewardGold: 1500 },
+  { id: 'quests_200', name: 'Champion of the People', description: 'Complete 200 quests.', metric: 'questsCompleted', threshold: 200, rewardGold: 1500 },
+  { id: 'dungeon_100', name: 'Master Delver', description: 'Clear 100 dungeons.', metric: 'dungeonClears', threshold: 100, rewardGold: 1500 },
+  { id: 'raid_50', name: 'Raid Conqueror', description: 'Clear 50 raid runs.', metric: 'raidClears', threshold: 50, rewardGold: 2500 },
+  { id: 'arena_100', name: 'Arena Master', description: 'Win 100 arena matches.', metric: 'arenaWins', threshold: 100, rewardGold: 2000 },
 ] as const;
 
 export function achievementById(id: string): AchievementDef | undefined {

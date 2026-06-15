@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
+  import { arenaBracketForSize } from '@game/shared';
   import {
     ApiError,
     createGroup,
@@ -13,6 +14,7 @@
     leaveGroup,
     listDungeons,
     listRaids,
+    getTeamArena,
     promoteGroupMember,
     respondGroupInvite,
     setGroupRole,
@@ -20,6 +22,7 @@
     type GroupState,
     type RaidListItem,
     type RaidRole,
+    type TeamArenaView,
   } from '$lib/api';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -44,7 +47,7 @@
     dungeon: 'Dungeon',
     raid: 'Raid',
     arena: 'Arena',
-    arenaHint: 'Arena bracket follows your group size (1 → 1v1, 3 → 3v3, 5 → 5v5).',
+    arenaHint: 'Arena bracket follows your group size (1 → 1v1, 2 → 2v2, 3 → 3v3, 5 → 5v5).',
   };
 
   const ROLES: RaidRole[] = ['tank', 'healer', 'dps'];
@@ -52,6 +55,7 @@
   let gs = $state<GroupState | null>(null);
   let dungeons = $state<DungeonListItem[]>([]);
   let raids = $state<RaidListItem[]>([]);
+  let teamArena = $state<TeamArenaView | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let busy = $state(false);
@@ -64,6 +68,16 @@
   let raidId = $state('');
 
   const characterId = $derived($page.params.id ?? '');
+
+  // My own joined membership → keep the "My role" select in sync with reality.
+  const myMember = $derived(gs?.group?.members.find((m) => m.characterId === characterId) ?? null);
+  let roleSel = $state<RaidRole>('dps');
+  $effect(() => {
+    if (myMember) roleSel = myMember.role;
+  });
+
+  // Aréna: bracket plyne z velikosti (1/2/3/5); jinak nelze (null → tlačítko off).
+  const arenaBracket = $derived(arenaBracketForSize(gs?.group?.joinedCount ?? 0));
   let poller: ReturnType<typeof setInterval> | undefined;
 
   onMount(async () => {
@@ -76,6 +90,7 @@
     raids = r.filter((x) => x.unlocked);
     dungeonId = dungeons[0]?.id ?? '';
     raidId = raids[0]?.id ?? '';
+    teamArena = await getTeamArena(characterId).catch(() => null);
     // Light polling for invites / members joining (no WS for groups).
     poller = setInterval(() => void load(true), 4000);
   });
@@ -215,8 +230,8 @@
           <label class="text-sm text-amber-100/70">
             {ui.myRole}
             <select
-              bind:value={createRole}
-              onchange={() => act(() => setGroupRole(characterId, createRole))}
+              bind:value={roleSel}
+              onchange={() => act(() => setGroupRole(characterId, roleSel))}
               class="mt-1 block rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
             >
               {#each ROLES as r (r)}<option value={r}>{r}</option>{/each}
@@ -264,9 +279,18 @@
               <button disabled={busy || !raidId} onclick={() => launch('raid')} class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50">{ui.raid} {ui.launch}</button>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-xs text-amber-100/40">{ui.arenaHint}</span>
-              <button disabled={busy} onclick={() => launch('arena')} class="rounded bg-purple-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-purple-600 disabled:opacity-50">{ui.arena} {ui.launch}</button>
+              <span class="text-xs text-amber-100/40">
+                {arenaBracket ? `Arena: ${arenaBracket}` : ui.arenaHint}
+              </span>
+              <button disabled={busy || !arenaBracket} onclick={() => launch('arena')} class="rounded bg-purple-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-purple-600 disabled:opacity-50">{ui.arena} {ui.launch}</button>
             </div>
+            {#if teamArena}
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-100/50">
+                {#each teamArena.brackets as br (br.bracket)}
+                  <span>{br.bracket}: <span class="text-amber-200/80">{br.rating}</span> ({br.tier}) · {br.wins}W/{br.losses}L</span>
+                {/each}
+              </div>
+            {/if}
           </div>
         </section>
       {/if}

@@ -310,6 +310,90 @@ export const QUESTS: Record<string, QuestDef> = {
     baseGold: 300,
     goldVariance: 0.2,
   },
+
+  // ── Doplňkové repeatable questy (M9): záměrně RŮZNÉ délky a odměny ──────────
+  // Délka má KLESAJÍCÍ efektivitu: nejkratší (90 s) běží na 1:1 bracketové sazbě
+  // XP/s, nejdelší (2400 s) na 0.75 (lineárně dle délky — mírný „punish" za moc
+  // dlouhý běh, ať se nevyplatí jen parkovat na nejdelším questu). Bracketové
+  // sazby ≈ existující repeatable: low 0.25, mid 0.58, high 1.83 XP/s.
+
+  // Low bracket (1–10): quick (Alliance) vs long (Horde).
+  ns_riverpaw_scouts: {
+    id: 'ns_riverpaw_scouts',
+    name: 'Riverpaw Scouts',
+    description: 'Drive off a Riverpaw gnoll scout probing the abbey approaches — quick work.',
+    zoneId: 'northshire',
+    kind: 'repeatable',
+    requiredLevel: 6,
+    durationSec: 90, // efektivita 1.00
+    baseXp: 23,
+    baseGold: 2,
+    goldVariance: 0.45,
+  },
+  dt_scorpid_venom: {
+    id: 'dt_scorpid_venom',
+    name: 'Venom for the Brew',
+    description: 'Harvest a full batch of Venomtail venom across the Valley of Trials — a long haul.',
+    zoneId: 'durotar',
+    kind: 'repeatable',
+    requiredLevel: 6,
+    durationSec: 420, // efektivita 0.96
+    baseXp: 101,
+    baseGold: 9,
+    goldVariance: 0.35,
+  },
+
+  // Mid bracket (10–25): quick (Alliance) vs long (Horde).
+  wf_harvest_golems: {
+    id: 'wf_harvest_golems',
+    name: 'Malfunctioning Golems',
+    description: 'Down a rogue harvest golem before it reaches the farmsteads — fast strike.',
+    zoneId: 'westfall',
+    kind: 'repeatable',
+    requiredLevel: 18,
+    durationSec: 300, // efektivita 0.98
+    baseXp: 171,
+    baseGold: 10,
+    goldVariance: 0.4,
+  },
+  ba_quilboar_raid: {
+    id: 'ba_quilboar_raid',
+    name: 'Bristleback Incursion',
+    description: 'Break a sustained Bristleback quilboar assault on the Crossroads caravans.',
+    zoneId: 'barrens',
+    kind: 'repeatable',
+    requiredLevel: 18,
+    durationSec: 1200, // efektivita 0.88
+    baseXp: 616,
+    baseGold: 35,
+    goldVariance: 0.3,
+  },
+
+  // High bracket (25–40): quick (Alliance) vs long (Horde).
+  dw_worgen_cull: {
+    id: 'dw_worgen_cull',
+    name: 'Night of the Worgen',
+    description: 'Cull a worgen pack on the Darkshire treeline at dusk — short but vicious.',
+    zoneId: 'duskwood',
+    kind: 'repeatable',
+    requiredLevel: 33,
+    durationSec: 600, // efektivita 0.94
+    baseXp: 1040,
+    baseGold: 43,
+    goldVariance: 0.35,
+  },
+  tn_harpy_feathers: {
+    id: 'tn_harpy_feathers',
+    name: 'Wings of the Wyvern Hunters',
+    description: 'Clear the Screeching harpy roosts above the Shimmering Flats — a marathon hunt.',
+    zoneId: 'thousand_needles',
+    kind: 'repeatable',
+    requiredLevel: 33,
+    durationSec: 2400, // efektivita 0.75 (nejdelší = punish)
+    baseXp: 3300,
+    baseGold: 135,
+    goldVariance: 0.3,
+  },
 };
 
 export const QUEST_IDS = Object.keys(QUESTS);
