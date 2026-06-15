@@ -319,11 +319,45 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Zbývá doladit:** PVP-specifický balanc vs PVE (M9); rating-window matchmaking,
   2v2/3v3 brackety, sezónní cosmetic odměny (M8/M9).
 
-### M8 — Raidy (MP PVE) & Auction House
+### M8 — Raidy (MP PVE) & Auction House — ✅ hotovo
 
-- Raidy: MP skupiny, role, idle boss fighty, attunement gating, raid loot.
-- Auction House: hráčský obchod, aukce, vendoři.
-- **Výstup:** organizovaný MP PVE content + ekonomika.
+- [x] **Raidy** (MP PVE): party 5 hráčů (rozhodnutí PM) = **1 tank / 1 healer /
+      3 dps**. Combat engine z M5 rozšířen o **party-vs-boss** simulaci
+      (`packages/shared/src/raid.ts::simulateRaidRun`, recykluje `computeHit`):
+      tank drží aggro + mitigace, healer léčí (event `heal`), dps dmg; boss enrage,
+      wipe = defeat. `deriveRaidActor` škáluje profil dle role.
+- [x] **2 raidy × 3 bossy** (rozhodnutí PM): Molten Core (~lvl 40), Blackwing Lair
+      (~lvl 55) — `data/raids.ts`. **Attunement = level + dokončený questline**
+      (rozhodnutí PM; `isRaidUnlocked` recykluje `completed_quests` z M2; pro BWL
+      přidán per-frakce attunement quest). Raid loot (`RAID_LOOT_TABLES` +
+      epic/legendary raid gear).
+- [x] **Idle-first matchmaking + NPC backfill**: `queue` (čekání v roli, Redis
+      hash snapshot) + `enter` (vytáhne čekající reálné hráče pro chybějící role,
+      zbytek doplní NPC → vyřeší se i sólo; vytažení hráči dostanou odměnu + push).
+      Fronta za `RaidQueue` (Redis + in-memory). Raidy mají vlastní tabulky
+      `raid_runs` + `raid_run_participants` (jako arena, ne `character_activities`).
+- [x] **Realtime watch** přes WS gateway + Redis pub/sub (recykluje vrstvu z M7);
+      REST autoritativní fallback. `RaidEventsRelay` rozplétá service↔gateway.
+- [x] **Auction House** (rozhodnutí PM: **buyout + bidding s depositem a expirací**):
+      `packages/shared/src/auction.ts` (deposit + 5 % cut = gold sinky, min-bid,
+      durace, sjednocený item lookup napříč ITEMS/MATERIALS/CONSUMABLES). Item
+      escrow z inventáře + gold escrow bidů; **vypořádání lazy při čtení** (zdroj
+      pravdy) + best-effort **BullMQ** expiry job (`AuctionSettler`/`Scheduler`).
+- [x] DB migrace `0006` (raid_runs + raid_run_participants) + `0007` (auctions),
+      auto-migrace při startu. `CharacterRepository.spendGold/addGold` (atomické).
+- [x] Web: `/characters/[id]/raids` + `/raid/[runId]` (watch); `/auctions`
+      (browse/mine/sell). Herní texty anglicky, oddělené od logiky.
+- [x] Testy: shared unit (`raid.test.ts` +16, `auction.test.ts` +7) + API
+      integrační flow (`raid.flow.test.ts` +7, `auction.flow.test.ts` +7 přes
+      pglite, in-memory fronta + Noop scheduler). Build/test/lint/typecheck zelené
+      (177 testů: 107 shared + 70 API). DI graf (vč. obou WS gateway + Redis
+      adaptér + BullMQ scheduler) ověřen reálným bootem.
+- Detail: `docs/systems/raids.md`, `docs/systems/auction-house.md`, ADR
+  `docs/adr/0011-raids-mp-pve.md`, `docs/adr/0012-auction-house.md`.
+- **Výstup:** zařadím party do raidu, sleduji idle boss fight, dostanu raid loot;
+  prodávám/kupuji na Auction House. ✅
+- **Zbývá doladit:** balanc (boss HP/AP, role tuning, loot, AH poplatky → M9);
+  větší party / weekly lockout; vendoři (NPC odkup); AH vyhledávání/filtry.
 
 ### M9 — Polish, balanc, pixel grafika, sociální
 
@@ -347,6 +381,9 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
 - ~~Sezónní model (reset ladderu) pro PVP. → M7~~ ✅ vyřešeno v M7: sezóny = data v shared, rating per sezóna (reset), lazy idempotentní rollover + sezónní odměny dle tieru.
 - ~~Rozsah Aren MVP (kolik bracketů, realtime watch). → M7~~ ✅ vyřešeno v M7: jen `1v1`, live watch přes WebSocket (Redis pub/sub).
+- ~~Velikost raid party a počet rolí v MVP. → M8~~ ✅ vyřešeno v M8: 5 hráčů (1 tank / 1 healer / 3 dps), idle-first matchmaking s NPC backfillem.
+- ~~Kolik raidů/bossů + attunement model. → M8~~ ✅ vyřešeno v M8: 2 raidy × 3 bossy, attunement = level + dokončený questline.
+- ~~AH model (aukce vs buyout, poplatky/expirace). → M8~~ ✅ vyřešeno v M8: buyout + bidding s depositem a 5 % cut (gold sinky) + expirace; vypořádání lazy + BullMQ.
 
 ---
 
