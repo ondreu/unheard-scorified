@@ -102,6 +102,28 @@ export function joinChat(
   };
 }
 
+/**
+ * Odešle whisper (online-only 1:1). Ack vrací, zda byl doručen (příjemce online).
+ * Při `delivered:false` UI nabídne Mail jako offline fallback.
+ */
+export function sendWhisper(
+  socket: Socket,
+  fromCharacterId: string,
+  toCharacterId: string,
+  body: string,
+): Promise<{ delivered: boolean }> {
+  return new Promise((resolve, reject) => {
+    socket.emit(
+      'whisper:send',
+      { fromCharacterId, toCharacterId, body },
+      (res: { ok: boolean; delivered?: boolean; error?: string }) => {
+        if (res?.ok) resolve({ delivered: !!res.delivered });
+        else reject(new Error(res?.error ?? 'Failed to whisper'));
+      },
+    );
+  });
+}
+
 /** Odešle chatovou zprávu po WS (ack vrací ok/chybu). */
 export function sendChat(socket: Socket, characterId: string, body: string): Promise<void> {
   return new Promise((resolve, reject) => {

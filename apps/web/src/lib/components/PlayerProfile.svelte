@@ -20,7 +20,7 @@
     raceName,
     className,
   } from '$lib/cosmetics';
-  import { inspectTarget, notifications, prefillChat } from '$lib/ui-stores';
+  import { inspectTarget, notifications, startWhisper } from '$lib/ui-stores';
   import Avatar from './Avatar.svelte';
   import Badge from './Badge.svelte';
 
@@ -98,7 +98,7 @@
 
   function whisper(): void {
     if (!data) return;
-    prefillChat(`@${data.name} `);
+    startWhisper(data.id, data.name);
     close();
   }
 

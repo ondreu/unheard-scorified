@@ -38,6 +38,7 @@
     inviteCharter: (g: string, b: string) => `${b} asked you to sign the charter of ${g}`,
     inviteCharterShort: (g: string) => `Charter signature request: ${g}`,
     inviteGroup: (n: string) => `${n} invited you to a group`,
+    whisper: (n: string, b: string) => `${n} whispers: ${b}`,
   };
 
   let character = $state<CharacterView | null>(null);
@@ -78,6 +79,7 @@
         onGuildInvite: (e) => notifications.push('social', ui.inviteGuild(e.guildName, e.byName)),
         onGuildCharterInvite: (e) =>
           notifications.push('social', ui.inviteCharter(e.guildName, e.byName)),
+        onWhisper: (e) => notifications.push('social', ui.whisper(e.fromName, e.body)),
       });
     }
   });
