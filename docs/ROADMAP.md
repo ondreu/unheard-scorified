@@ -370,6 +370,13 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 > **D-personal-loot ✅**, **D-trade (P2P) ✅** (ADR 0019), **C (týmové arény
 > 3v3/5v5) ✅** (ADR 0020). **M8.5 kompletní.** Ekonomická pravidla (původní E)
 > vyčleněna do samostatného milníku **M8.6**.
+>
+> ⚠️ **Superseded v M9 (ADR 0022):** níže popsané **NPC backfill**, **raid lobby**
+> (B-ruční-formace) a **ruční team-aréna formace** (C `queueTeam`/výběr jmény) už
+> v kódu **nejsou** — nahradila je **trvalá skupina (party)** + úplné odstranění
+> NPC backfillu. Zachoval se sdílený combat/aréna engine (`finalizeRun`,
+> `simulateTeamFight`, Elo, personal loot). Historické bullety níže nechávám jako
+> záznam; pro aktuální stav viz M9 „Trvalá skupina" + `docs/systems/groups.md`.
 
 #### A) Iterativní wipe/retry combat — ✅ hotovo
 
