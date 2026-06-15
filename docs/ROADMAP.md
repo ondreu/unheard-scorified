@@ -366,7 +366,8 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 ### M8.5 — Iterativní (wipe/retry) combat, skupinové módy & personal loot (návrh PM)
 
 > Status: **rozpracováno** — část **A (iterativní wipe/retry combat) ✅ hotovo**;
-> B/C/D/E naplánováno (viz Pořadí). Rozšiřuje model raidů, dungeonů i arén. Část
+> B/C/D naplánováno (viz Pořadí). Ekonomická pravidla (původní E) vyčleněna do
+> samostatného milníku **M8.6**. Rozšiřuje model raidů, dungeonů i arén. Část
 > (ruční formace v guildě) závisí na sociálním systému (M9) — viz Pořadí/rizika.
 
 #### A) Iterativní wipe/retry combat — ✅ hotovo
@@ -443,19 +444,16 @@ Perzistentní týmy lze přidat později bez refaktoru (bracket je datový atrib
 - **P2P trade**: hráči si mohou loot mezi sebou vyměnit (jako moderní WoW). Nový
   trade systém (oddělený od AH), provázaný s **trade-window** soulbound itemů (viz E).
 
-#### E) Ekonomická pravidla (potvrzeno PM)
+#### E) Ekonomická pravidla → **vyčleněno do samostatného milníku M8.6** (viz níže)
 
-- **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Raid/dungeon personal loot je
-  **BoP**: na AH neprodejný; obchodovatelný jen v **trade-window** (krátce po dropu,
-  jen účastníkům daného runu). Chrání ekonomiku a progrese před zaplavením AH.
-  Nový atribut itemů (dnes je vše volně obchodovatelné) → migrace + filtr v AH.
-- **Weekly lockout / raid ID.** Loot z raidu (a vyššího dungeonu) je limitován
-  týdenním lockoutem per postava → idle farmení nezaplaví AH a drží progresi.
+> Po reviewu vyčleněno: soulbound/BoP (`bindType`) + weekly lockout + trade-window
+> jsou soudržný ekonomický balíček ortogonální k bojovým/mode změnám → vlastní
+> milník **M8.6** (viz níže). Trade-window samotné závisí na P2P trade (D, M9).
 
 #### Pořadí (doporučení) & zbývající rozhodnutí
 
 Doporučené pořadí kvůli závislosti na social:
-`M8 → M8.5-A (wipe/retry) + M8.5-C-matchmaking + M8.5-D-personal-loot + M8.5-E
+`M8 → M8.5-A (wipe/retry) + M8.5-C-matchmaking + M8.5-D-personal-loot + M8.6
 → M9 (social) → M8.5-B (guild formace) + M8.5-C-ruční-týmy + M8.5-D-trade`.
 
 Vyřešeno PM: rozsah módů (SP+3/5+raid, vše iterativní), boss-easing per wipe + hard
@@ -471,9 +469,27 @@ Zbývá doladit (balanc, M9-ish, na začátek M8.5):
 
 **Posouzení (na žádost PM):** model je **soudržný a realizovatelný**, konzistentní
 s idle-first i determinismem (seed per pokus). Hlavní práce: (1) refaktor combat na
-per-boss iterace + boss-easing + reward/loot curve + hard fail, (2) sjednocení
-dungeon/raid run modelu (+ SP/3/5 módy), (3) `bindType`/soulbound + trade systém +
-weekly lockout, (4) arena 3v3/5v5. Guild-vázané části čekají na M9 social.
+per-boss iterace + boss-easing + reward/loot curve + hard fail ✅, (2) sjednocení
+dungeon/raid run modelu (+ SP/3/5 módy), (3) arena 3v3/5v5, (4) ekonomika (M8.6).
+Guild-vázané části čekají na M9 social.
+
+### M8.6 — Ekonomika: soulbound/BoP & weekly lockout
+
+> Status: **naplánováno** (vyčleněno z M8.5-E). Soudržný ekonomický balíček, který
+> chrání AH a progresi před zaplavením idle farmením. Ortogonální k bojovým módům.
+
+- **Soulbound / Bind-on-Pickup (`bindType` na itemu).** Nový atribut itemů v
+  `@game/shared` (`none` | `bop` | `boe`); dnes je vše volně obchodovatelné. Raid/
+  dungeon personal loot je **BoP**: na AH **neprodejný** (filtr v AH listingu +
+  validace), obchodovatelný jen v **trade-window** (krátce po dropu, jen účastníkům
+  daného runu — závisí na P2P trade z M8.5-D, tj. M9).
+- **Weekly lockout / raid ID.** Loot z raidu (a vyššího dungeonu) limitován
+  **týdenním lockoutem per postava** (reset deterministicky dle UTC týdne) →
+  opakované idle farmení nezaplaví AH a drží progresi. DB: lockout tabulka +
+  kontrola při claimu/grantu.
+- **Výstup:** epic/raid loot je vázaný (BoP) a omezený weekly lockoutem; AH zobrazí
+  jen obchodovatelné itemy.
+- Zbývá doladit: délka trade-window, které dungeony spadají pod lockout, BoE chování.
 
 ### M9 — Polish, balanc, pixel grafika, sociální
 
