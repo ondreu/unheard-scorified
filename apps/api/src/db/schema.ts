@@ -16,7 +16,15 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import type { ActivityParams, ActivityType, ClassId, Faction, RaceId } from '@game/shared';
+import type {
+  ActivityParams,
+  ActivityType,
+  ClassId,
+  Faction,
+  FactionId,
+  ProfessionId,
+  RaceId,
+} from '@game/shared';
 
 export const healthLog = pgTable('health_log', {
   id: serial('id').primaryKey(),
@@ -141,6 +149,38 @@ export const characterTalents = pgTable(
 );
 
 /**
+ * Profession skill per postava (M6). Jeden řádek per (postava, profese).
+ * Skill 1..MAX_PROFESSION_SKILL; default 1 (postava „umí" všechny profese od startu).
+ */
+export const characterProfessions = pgTable(
+  'character_professions',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    professionId: varchar('profession_id', { length: 32 }).$type<ProfessionId>().notNull(),
+    skill: integer('skill').notNull().default(1),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.professionId] })],
+);
+
+/**
+ * Reputace postavy s frakcí (M6). Standing 0..MAX_REPUTATION; tier se odvozuje
+ * deterministicky v `@game/shared` (reputationTier).
+ */
+export const characterReputation = pgTable(
+  'character_reputation',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    factionId: varchar('faction_id', { length: 32 }).$type<FactionId>().notNull(),
+    standing: integer('standing').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.factionId] })],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -168,6 +208,8 @@ export const charactersRelations = relations(characters, ({ one, many }) => ({
   inventory: many(characterInventory),
   equipment: many(characterEquipment),
   talents: many(characterTalents),
+  professions: many(characterProfessions),
+  reputation: many(characterReputation),
 }));
 
 export const characterActivitiesRelations = relations(characterActivities, ({ one }) => ({
@@ -219,6 +261,20 @@ export const characterSkinsRelations = relations(characterSkins, ({ one }) => ({
   }),
 }));
 
+export const characterProfessionsRelations = relations(characterProfessions, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterProfessions.characterId],
+    references: [characters.id],
+  }),
+}));
+
+export const characterReputationRelations = relations(characterReputation, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterReputation.characterId],
+    references: [characters.id],
+  }),
+}));
+
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type Character = typeof characters.$inferSelect;
@@ -237,3 +293,7 @@ export type CharacterTalent = typeof characterTalents.$inferSelect;
 export type NewCharacterTalent = typeof characterTalents.$inferInsert;
 export type CharacterSkin = typeof characterSkins.$inferSelect;
 export type NewCharacterSkin = typeof characterSkins.$inferInsert;
+export type CharacterProfession = typeof characterProfessions.$inferSelect;
+export type NewCharacterProfession = typeof characterProfessions.$inferInsert;
+export type CharacterReputation = typeof characterReputation.$inferSelect;
+export type NewCharacterReputation = typeof characterReputation.$inferInsert;

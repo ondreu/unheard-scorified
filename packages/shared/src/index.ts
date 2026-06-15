@@ -12,3 +12,7 @@ export * from './data/items';
 export * from './data/talents';
 export * from './combat';
 export * from './data/dungeons';
+export * from './data/factions';
+export * from './data/materials';
+export * from './data/professions';
+export * from './professions';

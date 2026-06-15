@@ -142,14 +142,24 @@
     { key: 'spirit', label: 'Spirit' },
   ];
 
-  // Extra UI strings for M4/M5 links
+  // Extra UI strings for M4/M5/M6 links
   const uiM4 = {
     inventory: 'Inventory & Equipment',
     talents: 'Talents',
     dungeons: 'Dungeons',
+    professions: 'Professions',
   };
 
   const isDungeon = $derived(activity?.activityType === 'dungeon');
+  const isProfession = $derived(
+    activity?.activityType === 'gather' || activity?.activityType === 'craft',
+  );
+  const activityLabel = $derived(
+    isDungeon ? '⚔️ In dungeon' : isProfession ? '🔨 Working' : ui.onQuest,
+  );
+  const completeLabel = $derived(
+    isDungeon ? 'Dungeon complete!' : isProfession ? 'Activity complete!' : ui.completed,
+  );
 </script>
 
 <main class="mx-auto max-w-lg px-6 py-12">
@@ -246,6 +256,16 @@
               .join(', ')}
           </p>
         {/if}
+        {#if r.profession && r.profession.skillAfter > r.profession.skillBefore}
+          <p class="mt-1 text-sm text-amber-200">
+            🔨 {r.profession.name} skill {r.profession.skillBefore} → {r.profession.skillAfter}
+          </p>
+        {/if}
+        {#if r.reputation && r.reputation.length > 0}
+          <p class="mt-1 text-sm text-amber-200">
+            🤝 {r.reputation.map((rep) => `+${rep.gained} ${rep.name} (${rep.tierName})`).join(', ')}
+          </p>
+        {/if}
         {#if r.leveledUp}
           <p class="mt-1 text-amber-300">
             ⭐ {ui.levelUp}
@@ -255,8 +275,8 @@
       </section>
     {/if}
 
-    <!-- M4: Inventory & Talents links -->
-    <div class="mt-4 flex gap-3">
+    <!-- M4/M5/M6: feature links -->
+    <div class="mt-4 flex flex-wrap gap-3">
       <a
         href={`/characters/${characterId}/inventory`}
         class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
@@ -275,6 +295,12 @@
       >
         {uiM4.dungeons}
       </a>
+      <a
+        href={`/characters/${characterId}/professions`}
+        class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
+      >
+        {uiM4.professions}
+      </a>
     </div>
 
     <!-- Activity panel -->
@@ -287,7 +313,7 @@
       {#if activity}
         {@const a = activity}
         <p class="mt-2 text-amber-100/80">
-          {isDungeon ? '⚔️ In dungeon' : ui.onQuest}: <strong>{a.title}</strong>
+          {activityLabel}: <strong>{a.title}</strong>
         </p>
         <div class="mt-3 h-2 w-full overflow-hidden rounded bg-black/40">
           <div
@@ -305,7 +331,7 @@
         {/if}
         {#if completed}
           <p class="mt-3 font-medium text-emerald-300">
-            {isDungeon ? 'Dungeon complete!' : ui.completed}
+            {completeLabel}
           </p>
           <button
             onclick={claim}

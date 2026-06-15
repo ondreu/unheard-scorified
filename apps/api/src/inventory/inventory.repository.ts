@@ -57,6 +57,52 @@ export class InventoryRepository {
     }
   }
 
+  /** Počet kusů daného itemu v inventáři (0 pokud žádný). */
+  async getQuantity(characterId: string, itemId: string): Promise<number> {
+    const [row] = await this.db
+      .select()
+      .from(characterInventory)
+      .where(
+        and(
+          eq(characterInventory.characterId, characterId),
+          eq(characterInventory.itemId, itemId),
+        ),
+      )
+      .limit(1);
+    return row?.quantity ?? 0;
+  }
+
+  /**
+   * Odebere `qty` kusů itemu z inventáře. Když by množství kleslo na ≤0, řádek
+   * smaže. Vrací `false`, pokud postava nemá dost kusů (žádná změna).
+   */
+  async consume(characterId: string, itemId: string, qty: number): Promise<boolean> {
+    const have = await this.getQuantity(characterId, itemId);
+    if (have < qty) return false;
+    const remaining = have - qty;
+    if (remaining <= 0) {
+      await this.db
+        .delete(characterInventory)
+        .where(
+          and(
+            eq(characterInventory.characterId, characterId),
+            eq(characterInventory.itemId, itemId),
+          ),
+        );
+    } else {
+      await this.db
+        .update(characterInventory)
+        .set({ quantity: remaining })
+        .where(
+          and(
+            eq(characterInventory.characterId, characterId),
+            eq(characterInventory.itemId, itemId),
+          ),
+        );
+    }
+    return true;
+  }
+
   /** Equipne item do slotu (upsert). */
   async equip(characterId: string, slot: string, itemId: string): Promise<CharacterEquipment> {
     const [row] = await this.db

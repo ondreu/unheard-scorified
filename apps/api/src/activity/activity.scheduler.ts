@@ -2,8 +2,12 @@ import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@ne
 import { Queue, Worker, type ConnectionOptions } from 'bullmq';
 import {
   DUNGEONS,
+  GATHERING_NODES,
   QUESTS,
+  RECIPES,
+  type CraftActivityParams,
   type DungeonActivityParams,
+  type GatherActivityParams,
   type QuestActivityParams,
 } from '@game/shared';
 import { loadConfig } from '../config/config';
@@ -72,26 +76,51 @@ export class BullMqActivityScheduler implements ActivityScheduler, OnModuleInit,
     const activity = await this.activities.findByCharacter(data.characterId);
     if (!activity) return;
 
-    const { title, body } =
-      activity.activityType === 'dungeon'
-        ? {
-            title: 'Dungeon Complete!',
-            body: `${character.name} has cleared "${
-              DUNGEONS[(activity.params as DungeonActivityParams).dungeonId]?.name ?? 'the dungeon'
-            }". Return to claim your loot.`,
-          }
-        : {
-            title: 'Quest Complete!',
-            body: `${character.name} has finished "${
-              QUESTS[(activity.params as QuestActivityParams).questId]?.name ?? 'your quest'
-            }". Return to claim your rewards.`,
-          };
+    const { title, body } = this.notificationFor(activity.activityType, activity.params, character.name);
 
     await this.push.sendToAccount(character.accountId, {
       title,
       body,
       characterId: character.id,
     });
+  }
+
+  /** Sestaví push titulek/text dle typu dokončené aktivity. */
+  private notificationFor(
+    activityType: string,
+    params: unknown,
+    characterName: string,
+  ): { title: string; body: string } {
+    switch (activityType) {
+      case 'dungeon':
+        return {
+          title: 'Dungeon Complete!',
+          body: `${characterName} has cleared "${
+            DUNGEONS[(params as DungeonActivityParams).dungeonId]?.name ?? 'the dungeon'
+          }". Return to claim your loot.`,
+        };
+      case 'gather':
+        return {
+          title: 'Gathering Complete!',
+          body: `${characterName} has finished gathering "${
+            GATHERING_NODES[(params as GatherActivityParams).nodeId]?.name ?? 'materials'
+          }". Return to collect them.`,
+        };
+      case 'craft':
+        return {
+          title: 'Crafting Complete!',
+          body: `${characterName} has finished crafting "${
+            RECIPES[(params as CraftActivityParams).recipeId]?.name ?? 'an item'
+          }". Return to claim it.`,
+        };
+      default:
+        return {
+          title: 'Quest Complete!',
+          body: `${characterName} has finished "${
+            QUESTS[(params as QuestActivityParams).questId]?.name ?? 'your quest'
+          }". Return to claim your rewards.`,
+        };
+    }
   }
 
   async schedule(activityId: string, characterId: string, delayMs: number): Promise<void> {

@@ -231,6 +231,28 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     rarity: 'epic', itemLevel: 37, vendorGold: 58,
     stats: { strength: 14, stamina: 11, attack_power: 18 },
   },
+
+  // --- Craftable gear (Blacksmithing, M6) ---
+  copper_dagger: {
+    id: 'copper_dagger', name: 'Copper Dagger', slot: 'main_hand',
+    rarity: 'common', itemLevel: 8, vendorGold: 2,
+    stats: { strength: 2, agility: 3 },
+  },
+  iron_warhammer: {
+    id: 'iron_warhammer', name: 'Iron Warhammer', slot: 'main_hand',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 6,
+    stats: { strength: 7, stamina: 4, attack_power: 8 },
+  },
+  mithril_breastplate: {
+    id: 'mithril_breastplate', name: 'Mithril Breastplate', slot: 'chest',
+    rarity: 'rare', itemLevel: 34, vendorGold: 14,
+    stats: { strength: 9, stamina: 12, armor: 20 },
+  },
+  masterwork_blade: {
+    id: 'masterwork_blade', name: 'Masterwork Blade', slot: 'main_hand',
+    rarity: 'epic', itemLevel: 40, vendorGold: 40,
+    stats: { strength: 16, agility: 6, attack_power: 22, crit_rating: 6 },
+  },
 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];

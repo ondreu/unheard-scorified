@@ -12,19 +12,32 @@ import {
   buildCharacterSheet,
   computeActivityReward,
   DUNGEONS,
+  FACTIONS,
+  GATHERING_NODES,
   isQuestAvailable,
   isQuestId,
   levelFromXp,
+  professionReputationGains,
+  professionSkillUp,
+  PROFESSIONS,
   QUESTS,
+  RECIPES,
+  reputationProgress,
   type ActivityReward,
   type ActivityState,
   type CharacterSheet,
+  type CraftActivityParams,
   type DungeonActivityParams,
+  type FactionId,
+  type GatherActivityParams,
+  type ProfessionId,
   type QuestActivityParams,
+  type RepTier,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
+import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import type { Character, CharacterActivity } from '../db/schema';
 import { ActivityRepository } from './activity.repository';
 import { ACTIVITY_SCHEDULER, type ActivityScheduler } from './activity.scheduler';
@@ -60,6 +73,24 @@ export interface CharacterStateView {
   sheet: CharacterSheet;
 }
 
+/** Profession skill-up z dokončeného gather/craft běhu (M6). */
+export interface ProfessionGainView {
+  id: ProfessionId;
+  name: string;
+  skillBefore: number;
+  skillAfter: number;
+}
+
+/** Reputační zisk z dokončeného profession běhu (M6). */
+export interface ReputationGainView {
+  factionId: FactionId;
+  name: string;
+  gained: number;
+  standing: number;
+  tier: RepTier;
+  tierName: string;
+}
+
 export interface ClaimResult {
   reward: ActivityReward;
   levelBefore: number;
@@ -71,6 +102,10 @@ export interface ClaimResult {
   offlineDurationSec: number;
   /** Itemy přidané do inventáře při claimu. */
   items: string[];
+  /** Profession skill-up (jen u gather/craft). */
+  profession?: ProfessionGainView;
+  /** Reputační zisky (jen u gather/craft). */
+  reputation?: ReputationGainView[];
 }
 
 export interface StartActivityInput {
@@ -85,6 +120,8 @@ export class ActivityService {
     private readonly activities: ActivityRepository,
     private readonly completed: CompletedQuestRepository,
     private readonly inventoryRepo: InventoryRepository,
+    private readonly professionRepo: ProfessionRepository,
+    private readonly reputationRepo: ReputationRepository,
     @Inject(ACTIVITY_SCHEDULER) private readonly scheduler: ActivityScheduler,
   ) {}
 
@@ -167,12 +204,15 @@ export class ActivityService {
       }
     }
 
-    // Přidá loot do inventáře
+    // Přidá loot/materiály/output do inventáře
     const grantedItems: string[] = [];
     for (const itemId of reward.items) {
       await this.inventoryRepo.addItem(characterId, itemId);
       grantedItems.push(itemId);
     }
+
+    // Profese (M6): skill-up + reputace u gather/craft běhů.
+    const professionRewards = await this.applyProfessionRewards(row);
 
     await this.activities.deleteById(row.id);
     await this.scheduler.cancel(row.id);
@@ -186,6 +226,70 @@ export class ActivityService {
       character: toCharacterStateView(updated),
       offlineDurationSec,
       items: grantedItems,
+      ...professionRewards,
+    };
+  }
+
+  /**
+   * Připíše profession skill-up a reputaci za dokončený gather/craft běh.
+   * Vrací prázdný objekt pro ostatní typy aktivit.
+   */
+  private async applyProfessionRewards(
+    row: CharacterActivity,
+  ): Promise<{ profession?: ProfessionGainView; reputation?: ReputationGainView[] }> {
+    let professionId: ProfessionId;
+    let skillUpTo: number;
+    let repSource: typeof GATHERING_NODES[string] | typeof RECIPES[string];
+
+    if (row.activityType === 'gather') {
+      const node = GATHERING_NODES[(row.params as GatherActivityParams).nodeId];
+      if (!node) return {};
+      professionId = node.professionId;
+      skillUpTo = node.skillUpTo;
+      repSource = node;
+    } else if (row.activityType === 'craft') {
+      const recipe = RECIPES[(row.params as CraftActivityParams).recipeId];
+      if (!recipe) return {};
+      professionId = recipe.professionId;
+      skillUpTo = recipe.skillUpTo;
+      repSource = recipe;
+    } else {
+      return {};
+    }
+
+    const skillBefore = await this.professionRepo.getSkill(row.characterId, professionId);
+    const delta = professionSkillUp(skillBefore, skillUpTo);
+    const skillAfter = skillBefore + delta;
+    if (delta > 0) {
+      await this.professionRepo.setSkill(row.characterId, professionId, skillAfter);
+    }
+
+    const reputation: ReputationGainView[] = [];
+    for (const gainEntry of professionReputationGains(repSource)) {
+      const standing = await this.reputationRepo.addStanding(
+        row.characterId,
+        gainEntry.factionId,
+        gainEntry.amount,
+      );
+      const prog = reputationProgress(standing);
+      reputation.push({
+        factionId: gainEntry.factionId,
+        name: FACTIONS[gainEntry.factionId].name,
+        gained: gainEntry.amount,
+        standing,
+        tier: prog.tier,
+        tierName: prog.tierName,
+      });
+    }
+
+    return {
+      profession: {
+        id: professionId,
+        name: PROFESSIONS[professionId].name,
+        skillBefore,
+        skillAfter,
+      },
+      reputation,
     };
   }
 
@@ -211,6 +315,16 @@ export class ActivityService {
       const params = row.params as DungeonActivityParams;
       const dungeon = DUNGEONS[params.dungeonId];
       return { ...base, title: dungeon?.name ?? params.dungeonId, dungeon: { id: params.dungeonId, name: dungeon?.name ?? params.dungeonId } };
+    }
+
+    if (row.activityType === 'gather') {
+      const node = GATHERING_NODES[(row.params as GatherActivityParams).nodeId];
+      return { ...base, title: node ? `Gathering: ${node.name}` : 'Gathering' };
+    }
+
+    if (row.activityType === 'craft') {
+      const recipe = RECIPES[(row.params as CraftActivityParams).recipeId];
+      return { ...base, title: recipe ? `Crafting: ${recipe.name}` : 'Crafting' };
     }
 
     const questId = (row.params as QuestActivityParams).questId;
