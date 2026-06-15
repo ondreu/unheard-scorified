@@ -7,13 +7,17 @@ import {
   ITEMS,
   isItemId,
   isEquipmentSlot,
+  canEquipArmor,
+  itemArmorClass,
   SLOT_TO_ITEM_SLOT,
   sumEquipmentStats,
   type ItemDef,
   type EquipmentSlot,
   type ItemStats,
+  type ClassId,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
+import { BuffRepository } from '../buff/buff.repository';
 import { InventoryRepository } from './inventory.repository';
 
 export interface InventoryItemView {
@@ -38,6 +42,7 @@ export class InventoryService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryRepository,
+    private readonly buffs: BuffRepository,
   ) {}
 
   /** Vrátí inventář postavy. */
@@ -88,6 +93,13 @@ export class InventoryService {
       throw new BadRequestException(`Item cannot go in slot "${slot}" (expected ${itemDef.slot})`);
     }
 
+    // Armor proficiency (M10): classa smí nosit jen povolené typy brnění.
+    if (!canEquipArmor(character.class as ClassId, itemId)) {
+      throw new BadRequestException(
+        `Your class cannot wear ${itemArmorClass(itemId)} armor`,
+      );
+    }
+
     // Ověř, že postava item vlastní (a má volný kus k nasazení)
     const available = await this.inventory.getQuantity(characterId, itemId);
     if (available <= 0) throw new BadRequestException('Item not in inventory');
@@ -126,13 +138,24 @@ export class InventoryService {
     return this.listEquipment(accountId, characterId);
   }
 
-  /** Sestaví CharacterSheet s equipment staty (pro activity service). */
+  /**
+   * Bojově efektivní staty postavy = equipment + aktivní consumable buffy (M10).
+   * Používá ho combat/activity profil (dungeon/raid/arena), proto buffy patří
+   * sem (a NE do equipment UI view `listEquipment`, který zůstává jen gear).
+   */
   async getEquipmentStats(characterId: string): Promise<ItemStats> {
     const rows = await this.inventory.listEquipment(characterId);
     const items = rows.flatMap((row) => {
       const item = ITEMS[row.itemId];
       return item ? [item] : [];
     });
-    return sumEquipmentStats(items);
+    const stats = sumEquipmentStats(items);
+
+    // Přimíchej dočasné buffy z použitých spotřebáků.
+    const buffStats = await this.buffs.activeStats(characterId);
+    for (const [k, v] of Object.entries(buffStats) as [keyof ItemStats, number][]) {
+      stats[k] = (stats[k] ?? 0) + v;
+    }
+    return stats;
   }
 }

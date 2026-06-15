@@ -10,6 +10,7 @@ import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { makeGrant } from '../inventory/test-grant';
 import { TradeRepository } from './trade.repository';
 import { TradeService } from './trade.service';
 
@@ -34,7 +35,7 @@ describe('M8.5-D flow: p2p trade', () => {
     charRepo = new CharacterRepository(db);
     characters = new CharacterService(charRepo);
     invRepo = new InventoryRepository(db);
-    trade = new TradeService(charRepo, invRepo, new TradeRepository(db));
+    trade = new TradeService(charRepo, invRepo, makeGrant(db, invRepo), new TradeRepository(db));
   });
 
   beforeEach(() => {

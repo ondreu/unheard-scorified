@@ -38,6 +38,7 @@ import {
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
@@ -133,6 +134,7 @@ export class DungeonService {
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryService,
     private readonly inventoryRepo: InventoryRepository,
+    private readonly grant: InventoryGrantService,
     private readonly talents: TalentRepository,
     private readonly push: PushService,
     private readonly repo: RaidRepository,
@@ -404,9 +406,10 @@ export class DungeonService {
     }
 
     await this.characters.addRewards(character.id, reward.xp, reward.gold);
-    for (const itemId of reward.items) {
-      await this.inventoryRepo.addItem(character.id, itemId);
-    }
+    await this.grant.grant(
+      character.id,
+      reward.items.map((itemId) => ({ itemId, quantity: 1 })),
+    );
     await this.repo.addParticipant({
       raidRunId: runId,
       characterId: character.id,

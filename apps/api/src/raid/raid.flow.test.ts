@@ -12,6 +12,8 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { makeGrant } from '../inventory/test-grant';
+import { BuffRepository } from '../buff/buff.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
@@ -51,11 +53,12 @@ describe('M8 flow: raids (MP PVE)', () => {
     vi.useFakeTimers();
     vi.setSystemTime(T0);
     const invRepo = new InventoryRepository(db);
-    const invService = new InventoryService(charRepo, invRepo);
+    const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
     raid = new RaidService(
       charRepo,
       invService,
       invRepo,
+      makeGrant(db, invRepo),
       new TalentRepository(db),
       completed,
       new PushService(new PushRepository(db)),

@@ -10,6 +10,7 @@ import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { makeGrant } from '../inventory/test-grant';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { AuctionRepository } from './auction.repository';
@@ -48,11 +49,13 @@ describe('M8 flow: auction house', () => {
       new AuctionRepository(db),
       charRepo,
       invRepo,
+      makeGrant(db, invRepo),
       new PushService(new PushRepository(db)),
     );
     ah = new AuctionService(
       charRepo,
       invRepo,
+      makeGrant(db, invRepo),
       new AuctionRepository(db),
       settler,
       new NoopAuctionScheduler(),

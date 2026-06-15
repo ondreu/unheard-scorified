@@ -12,6 +12,7 @@ import type { Character } from '../db/schema';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { BuffRepository } from '../buff/buff.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
@@ -47,7 +48,7 @@ describe('M9 flow: team arena (launchForGroup)', () => {
     const invRepo = new InventoryRepository(db);
     team = new TeamArenaService(
       charRepo,
-      new InventoryService(charRepo, invRepo),
+      new InventoryService(charRepo, invRepo, new BuffRepository(db)),
       new TalentRepository(db),
       new ArenaRepository(db),
       new PushService(new PushRepository(db)),

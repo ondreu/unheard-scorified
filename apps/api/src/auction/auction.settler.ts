@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { itemDisplayName, sellerProceeds } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { PushService } from '../push/push.service';
 import type { Auction } from '../db/schema';
 import { AuctionRepository } from './auction.repository';
@@ -24,6 +25,7 @@ export class AuctionSettler {
     private readonly repo: AuctionRepository,
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryRepository,
+    private readonly grant: InventoryGrantService,
     private readonly push: PushService,
   ) {}
 
@@ -53,7 +55,7 @@ export class AuctionSettler {
   ): Promise<boolean> {
     const settled = await this.repo.settle(auction.id, 'sold', buyerCharacterId, price);
     if (!settled) return false;
-    await this.inventory.addItemQty(buyerCharacterId, auction.itemId, auction.quantity);
+    await this.grant.grantOne(buyerCharacterId, auction.itemId, auction.quantity);
     await this.characters.addGold(auction.sellerCharacterId, sellerProceeds(price) + auction.deposit);
     await this.notify(
       auction.sellerAccountId,
@@ -75,7 +77,7 @@ export class AuctionSettler {
         auction.currentBid,
       );
       if (!settled) return; // už vypořádáno jinde
-      await this.inventory.addItemQty(auction.bidderCharacterId, auction.itemId, auction.quantity);
+      await this.grant.grantOne(auction.bidderCharacterId, auction.itemId, auction.quantity);
       await this.characters.addGold(
         auction.sellerCharacterId,
         sellerProceeds(auction.currentBid) + auction.deposit,
@@ -98,7 +100,7 @@ export class AuctionSettler {
       // Expirace bez nabídky: item zpět prodejci, deposit propadá (sink).
       const settled = await this.repo.settle(auction.id, 'expired', null, null);
       if (!settled) return;
-      await this.inventory.addItemQty(auction.sellerCharacterId, auction.itemId, auction.quantity);
+      await this.grant.grantOne(auction.sellerCharacterId, auction.itemId, auction.quantity);
       await this.notify(
         auction.sellerAccountId,
         auction.sellerCharacterId,

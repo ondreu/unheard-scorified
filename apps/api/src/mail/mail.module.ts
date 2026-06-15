@@ -3,13 +3,13 @@ import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { MailController } from './mail.controller';
-import { MailRepository } from './mail.repository';
+import { MailDataModule } from './mail-data.module';
 import { MailService } from './mail.service';
 
 /** Pošta (M9): offline zprávy + přílohy (itemy/zlato). Viz `MailService`. */
 @Module({
-  imports: [AuthModule, CharacterModule, InventoryModule],
+  imports: [AuthModule, CharacterModule, InventoryModule, MailDataModule],
   controllers: [MailController],
-  providers: [MailService, MailRepository],
+  providers: [MailService],
 })
 export class MailModule {}

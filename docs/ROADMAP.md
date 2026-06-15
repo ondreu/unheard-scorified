@@ -655,21 +655,32 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       API flow (+8). Detail: `docs/systems/mounts.md`, **ADR 0023**.
 - [ ] 🧑‍💼 **Admin panel**: u seznamu účtů rozkliknout jejich postavy (drill-down
       account → characters → inspect). Rozšiřuje stávající `/dev/mod`.
-- [ ] 🧑‍💼 **Více gearu + armor typy** (cloth / leather / mail / plate).
-  - **Posouzení agenta (🤖): ano, realizovatelné a NE moc složité.** Návrh: přidat
-    `ItemDef.armorClass` + mapování `class → povolené armor typy` (gate při equipu,
-    rozšiřuje stávající `SLOT_TO_ITEM_SLOT` validaci). **Itemizace** přes stat
-    afinitu (str/agi/int/stam/spirit), kterou už staty itemů mají → podtextově
-    vznikne gear pro tank/melee-dps/caster-dps/heal bez nové mechaniky. Balanc
-    zůstává v `@game/shared` (jeden zdroj). Riziko nízké: čistě data + jedna
-    equip validace; combat dopad přes existující `deriveCombatProfile`.
-- [ ] 🧑‍💼 **Omezený inventář + craftovatelné batohy** (WoW styl). Konečný počet
-      slotů v základním batohu + další **bag sloty**, do nichž se vkládají batohy
-      o N slotech. Batohy se **craftí** (tailoring/leatherworking → gating
-      profesí/levelem; vzácnější materiály = větší batoh). Itemy mají velikost
-      „1 slot" (vanilla), stackovatelné dle `maxStack`. Návaznosti: vendor odkup,
-      bank (úložiště mimo batoh), loot „bag full" stav. Vyžaduje **systém
-      profesí/craftingu** (nový podsystém — kandidát na vlastní ADR).
+- [x] 🧑‍💼 **Armor typy** (cloth / leather / mail / plate) ✅: `ItemDef.armorClass`
+      (naplněné z `ARMOR_CLASS_BY_ITEM`, jen armor sloty `ARMOR_SLOT_TYPES`) +
+      `CLASS_ARMOR_PROFICIENCY` (vanilla-style: warrior/paladin=plate↓,
+      hunter/shaman=mail↓, rogue/druid=leather↓, priest/mage/warlock=cloth).
+      Gate `canEquipArmor` vynucen v `InventoryService.equip`. Itemizace přes stat
+      afinitu (str/agi/int/stam/spirit). Doplněn základní cloth set pro cloth-only
+      classy. Testy: shared `data/armor.test.ts` (+6) + API inventory flow (+2).
+      Detail: `docs/systems/items.md`.
+  - [ ] **Více gearu** (zbývá): víc kusů napříč tiery/typy pro plnou itemizaci
+        (tank/melee-dps/caster-dps/heal). Mechanika hotová, jde o obsah/balanc.
+- [x] 🧑‍💼 **Omezený inventář + batohy** (WoW styl) ✅: konečný počet slotů
+      (`BASE_BACKPACK_SLOTS` 16) + `BAG_SLOT_COUNT` (4) bag slotů, do nichž se
+      vkládají batohy o N slotech (`bagSlots`). Stackování přes `itemMaxStack`
+      (gear/batoh 1, materiál/spotřebák `STACKABLE_MAX` 20); využité sloty se
+      dopočítávají (`usedSlots`/`planGrant`, `@game/shared/inventory.ts`). Tabulka
+      `character_bags` (migrace `0026`), `BagService`/`BagController`. **„Bag full"
+      → overflow do pošty** (rozhodnutí PM, vanilla): centrální `InventoryGrantService`
+      protáhne všechny reward/transfer cesty (quest/dungeon/raid loot, aukce,
+      trade); player-akce (vendor nákup, claim pošty) se při plném blokují.
+      `MailRepository` vyčleněn do leaf `MailDataModule` (bez DI cyklu). Web:
+      kapacita + bag sloty na `/inventory`. Testy: shared `inventory.test.ts` (+10)
+      + API `bag.flow.test.ts` (+5). Detail: `docs/systems/inventory-bags.md`.
+  - [ ] **Craftovatelné batohy** (zbývá): tailoring/leatherworking + cloth/leather
+        materiály (vzácnější = větší batoh) — vyžaduje novou profesi. Batohy zatím
+        u vendora.
+  - [ ] **Banka** (úložiště mimo batoh) — follow-up.
 - [ ] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** Aukční dům doplnit
       o NPC/bot listingy, aby působil obydleně (zvlášť při malém počtu hráčů).
       Generovat **deterministicky přes `SeededRng`** (ne `Math.random()`) — rotace
@@ -678,7 +689,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       „nakupují" jen virtuálně (nezasahují do reálných hráčských aukcí). Vyžaduje
       **aukční dům** jako systém (zatím není — kandidát na vlastní ADR; sdílí
       ekonomiku s vendory/goldem).
-- [ ] 🤖 Vendoři (NPC odkup/prodej) + „use" consumables/buffů (zbytek z M6).
+- [x] 🤖 **Vendoři (NPC odkup/prodej) + „use" consumables/buffů** ✅ (zbytek z M6):
+      `VendorModule` (pevné ceny `vendorBuyPrice`=value×5 sink / `vendorSellPrice`
+      source; sortiment `VENDOR_STOCK` se startovním gearem napříč armor typy; BoP
+      lze prodat, na AH ne) + `ConsumableModule` (use → dočasný stat buff
+      `CONSUMABLE_BUFFS`, tabulka `character_buffs` migrace `0025`, přičítá se do
+      bojového profilu přes `getEquipmentStats`). Web `/vendor` + `/consumables`.
+      Testy: shared `vendor.test.ts` (+7) + API `vendor.flow` (+5) / `consumable.flow`
+      (+4). Detail: `docs/systems/vendor-consumables.md`.
 - [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid.
 - [x] 🤖 **2v2 aréna bracket** ✅: skupina o 2 → 2v2 (`arenaBracketForSize`,
       `TEAM_BRACKETS`); engine/Elo/watch generické. Testy: shared + team-arena flow.

@@ -2,7 +2,13 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { ApiError } from '$lib/api';
+  import {
+    ApiError,
+    getBags,
+    equipBag as apiEquipBag,
+    unequipBag as apiUnequipBag,
+    type BagsView,
+  } from '$lib/api';
   import { currentTokens } from '$lib/auth';
   import { RARITY_COLOR } from '$lib/cosmetics';
   import type { ItemDef, EquipmentSlot } from '@game/shared';
@@ -83,9 +89,11 @@
 
   let inventory = $state<InventoryItem[]>([]);
   let equipment = $state<EquipmentSlotsView>({ equipped: [], equipmentStats: {} });
+  let bags = $state<BagsView | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let pendingSlot = $state<string | null>(null);
+  let pendingBag = $state<number | null>(null);
   let selectedItem = $state<InventoryItem | null>(null);
   let equipTargetSlot = $state<string | null>(null);
 
@@ -96,12 +104,14 @@
   async function load(): Promise<void> {
     loading = true;
     try {
-      const [inv, eq] = await Promise.all([
+      const [inv, eq, bg] = await Promise.all([
         fetchInventory(characterId),
         fetchEquipment(characterId),
+        getBags(characterId),
       ]);
       inventory = inv;
       equipment = eq;
+      bags = bg;
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
@@ -185,6 +195,35 @@
     return equipment.equipped.find((e) => e.slot === slot);
   }
 
+  // Bags: owned (unequipped) bags from the inventory list.
+  const ownedBags = $derived(inventory.filter((i) => i.item.slot === 'bag'));
+
+  async function insertBag(slotIndex: number, itemId: string): Promise<void> {
+    pendingBag = slotIndex;
+    error = null;
+    try {
+      bags = await apiEquipBag(characterId, slotIndex, itemId);
+      inventory = await fetchInventory(characterId);
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      pendingBag = null;
+    }
+  }
+
+  async function removeBag(slotIndex: number): Promise<void> {
+    pendingBag = slotIndex;
+    error = null;
+    try {
+      bags = await apiUnequipBag(characterId, slotIndex);
+      inventory = await fetchInventory(characterId);
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      pendingBag = null;
+    }
+  }
+
   function statLabel(key: string): string {
     const labels: Record<string, string> = {
       strength: 'Strength', agility: 'Agility', stamina: 'Stamina',
@@ -206,6 +245,53 @@
   {#if loading}
     <p class="text-[var(--text-dim)]">Loading…</p>
   {:else}
+    {#if bags}
+      <section class="panel panel-pad">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="panel-title">Bags</h2>
+          <span class="text-sm text-[var(--text-dim)]">
+            Slots: <strong class="text-[var(--gold-bright)]">{bags.usedSlots}/{bags.capacity}</strong>
+            <span class="text-[var(--text-faint)]">({bags.freeSlots} free)</span>
+          </span>
+        </div>
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+          {#each bags.bags as b (b.slotIndex)}
+            <div class="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-[var(--text-faint)]">Bag {b.slotIndex + 1}</span>
+                {#if b.bagId}
+                  <button
+                    class="btn btn-danger btn-sm"
+                    disabled={pendingBag !== null}
+                    onclick={() => removeBag(b.slotIndex)}
+                  >
+                    {pendingBag === b.slotIndex ? '…' : 'Remove'}
+                  </button>
+                {/if}
+              </div>
+              {#if b.bagId}
+                <p class="text-sm font-medium text-[var(--text)]">{b.name} <span class="text-[var(--text-faint)]">(+{b.slots})</span></p>
+              {:else if ownedBags.length > 0}
+                <div class="mt-1 flex flex-wrap gap-1">
+                  {#each ownedBags as ob (ob.itemId)}
+                    <button
+                      class="btn btn-sm"
+                      disabled={pendingBag !== null}
+                      onclick={() => insertBag(b.slotIndex, ob.itemId)}
+                    >
+                      + {ob.item.name} ({ob.item.bagSlots})
+                    </button>
+                  {/each}
+                </div>
+              {:else}
+                <p class="text-sm text-[var(--text-faint)]">Empty</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/if}
+
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Equipment Slots -->
       <section class="panel panel-pad">
@@ -312,7 +398,7 @@
                       {/if}
                     </p>
                     <p class="text-xs text-[var(--text-faint)]">
-                      {inv.item.slot} · {ui.ilvl} {inv.item.itemLevel} · {ui.vendorGold} {inv.item.vendorGold}{ui.gold}
+                      {inv.item.slot}{inv.item.armorClass ? ` · ${inv.item.armorClass}` : ''} · {ui.ilvl} {inv.item.itemLevel} · {ui.vendorGold} {inv.item.vendorGold}{ui.gold}
                     </p>
                     <p class="mt-1 text-xs text-[var(--text-dim)]">
                       {Object.entries(inv.item.stats).map(([k, v]) => `+${v} ${statLabel(k)}`).join(', ')}

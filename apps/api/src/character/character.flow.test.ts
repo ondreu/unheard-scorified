@@ -11,6 +11,7 @@ import { CharacterRepository } from './character.repository';
 import { CharacterService } from './character.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { BuffRepository } from '../buff/buff.repository';
 
 /**
  * Integrační test nad in-memory Postgresem (pglite) — ověřuje celý M1 flow
@@ -32,7 +33,7 @@ describe('M1 flow: účet + postava', () => {
     charRepo = new CharacterRepository(db);
     invRepo = new InventoryRepository(db);
     characters = new CharacterService(charRepo, invRepo);
-    inventory = new InventoryService(charRepo, invRepo);
+    inventory = new InventoryService(charRepo, invRepo, new BuffRepository(db));
   });
 
   async function registerAndGetId(username: string): Promise<string> {

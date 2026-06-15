@@ -13,6 +13,7 @@ import * as schema from '../db/schema';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { QuestService } from '../quest/quest.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { makeGrant } from '../inventory/test-grant';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import { MountRepository } from '../mount/mount.repository';
 import { ActivityRepository } from './activity.repository';
@@ -50,6 +51,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
       new ActivityRepository(db),
       completed,
       new InventoryRepository(db),
+      makeGrant(db),
       new ProfessionRepository(db),
       new ReputationRepository(db),
       new MountRepository(db),

@@ -4,6 +4,7 @@ import { ArenaModule } from './arena/arena.module';
 import { AuctionModule } from './auction/auction.module';
 import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
+import { ConsumableModule } from './consumable/consumable.module';
 import { DbModule } from './db/db.module';
 import { DevModule } from './dev/dev.module';
 import { DungeonModule } from './dungeon/dungeon.module';
@@ -21,6 +22,7 @@ import { RedisModule } from './redis/redis.module';
 import { SocialModule } from './social/social.module';
 import { TalentModule } from './talent/talent.module';
 import { TradeModule } from './trade/trade.module';
+import { VendorModule } from './vendor/vendor.module';
 
 const devModules =
   process.env['NODE_ENV'] === 'development' || !!process.env['DEV_SECRET'] ? [DevModule] : [];
@@ -52,6 +54,8 @@ const devModules =
     GroupModule,
     MailModule,
     MountModule,
+    VendorModule,
+    ConsumableModule,
     ...devModules,
   ],
 })
