@@ -495,6 +495,84 @@ export function leaveRaidQueue(
   });
 }
 
+// ── Auction House (M8, economy) ──────────────────────────────────────────────
+
+export interface AuctionView {
+  id: string;
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  sellerName: string;
+  startBid: number;
+  buyout: number | null;
+  currentBid: number | null;
+  minBid: number;
+  deposit: number;
+  status: 'active' | 'sold' | 'expired' | 'cancelled';
+  endsAt: string;
+  timeLeftSec: number;
+  isMine: boolean;
+  isMyBid: boolean;
+}
+
+export interface InventoryItemView {
+  itemId: string;
+  quantity: number;
+  item?: { name?: string };
+}
+
+export function listInventory(characterId: string): Promise<InventoryItemView[]> {
+  return request<InventoryItemView[]>(`/characters/${characterId}/inventory`);
+}
+
+export function browseAuctions(characterId: string, itemId?: string): Promise<AuctionView[]> {
+  const q = itemId ? `?itemId=${encodeURIComponent(itemId)}` : '';
+  return request<AuctionView[]>(`/characters/${characterId}/auctions${q}`);
+}
+
+export function myAuctions(characterId: string): Promise<AuctionView[]> {
+  return request<AuctionView[]>(`/characters/${characterId}/auctions/mine`);
+}
+
+export function createAuction(
+  characterId: string,
+  input: {
+    itemId: string;
+    quantity: number;
+    startBid: number;
+    buyout?: number | null;
+    duration: 'short' | 'medium' | 'long';
+  },
+): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function bidAuction(
+  characterId: string,
+  auctionId: string,
+  amount: number,
+): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions/${auctionId}/bid`, {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export function buyoutAuction(characterId: string, auctionId: string): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions/${auctionId}/buyout`, {
+    method: 'POST',
+  });
+}
+
+export function cancelAuction(characterId: string, auctionId: string): Promise<AuctionView> {
+  return request<AuctionView>(`/characters/${characterId}/auctions/${auctionId}/cancel`, {
+    method: 'POST',
+  });
+}
+
 export function getVapidPublicKey(): Promise<{ key: string }> {
   return request<{ key: string }>('/push/vapid-public-key', {}, false);
 }

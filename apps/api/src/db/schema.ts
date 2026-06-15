@@ -19,6 +19,8 @@ import {
 import type {
   ActivityParams,
   ArenaBracket,
+  AuctionDurationId,
+  AuctionStatus,
   ClassId,
   CombatActor,
   ActivityType,
@@ -299,6 +301,42 @@ export const raidRunParticipants = pgTable(
 );
 
 /**
+ * Auction House listing (M8, ekonomika). Hráčský obchod: buyout + bidding
+ * s depositem (gold sink) a AH cut. Item se při výpisu „escrowuje" (odebere
+ * z inventáře prodejce); aktuální bid escrowuje zlato kupce. Vypořádání je
+ * LAZY (zdroj pravdy) + best-effort BullMQ job na expiraci. Viz ADR 0012.
+ */
+export const auctions = pgTable('auctions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sellerCharacterId: uuid('seller_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  sellerAccountId: uuid('seller_account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  itemId: varchar('item_id', { length: 64 }).notNull(),
+  quantity: integer('quantity').notNull(),
+  startBid: integer('start_bid').notNull(),
+  buyout: integer('buyout'),
+  currentBid: integer('current_bid'),
+  bidderCharacterId: uuid('bidder_character_id').references(() => characters.id, {
+    onDelete: 'set null',
+  }),
+  bidderAccountId: uuid('bidder_account_id').references(() => accounts.id, { onDelete: 'set null' }),
+  deposit: integer('deposit').notNull(),
+  duration: varchar('duration', { length: 8 }).$type<AuctionDurationId>().notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  status: varchar('status', { length: 12 }).$type<AuctionStatus>().notNull().default('active'),
+  /** Vítěz (kupec) a finální cena po vypořádání. */
+  winnerCharacterId: uuid('winner_character_id').references(() => characters.id, {
+    onDelete: 'set null',
+  }),
+  finalPrice: integer('final_price'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+});
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -445,3 +483,5 @@ export type RaidRun = typeof raidRuns.$inferSelect;
 export type NewRaidRun = typeof raidRuns.$inferInsert;
 export type RaidRunParticipant = typeof raidRunParticipants.$inferSelect;
 export type NewRaidRunParticipant = typeof raidRunParticipants.$inferInsert;
+export type Auction = typeof auctions.$inferSelect;
+export type NewAuction = typeof auctions.$inferInsert;

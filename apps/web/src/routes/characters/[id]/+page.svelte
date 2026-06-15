@@ -150,6 +150,7 @@
     professions: 'Professions',
     arena: 'Arena (PVP)',
     raids: 'Raids (MP PVE)',
+    auctions: 'Auction House',
   };
 
   const isDungeon = $derived(activity?.activityType === 'dungeon');
@@ -314,6 +315,12 @@
         class="rounded bg-red-800/40 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-700/50"
       >
         {uiM4.raids}
+      </a>
+      <a
+        href={`/characters/${characterId}/auctions`}
+        class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
+      >
+        {uiM4.auctions}
       </a>
     </div>
 
