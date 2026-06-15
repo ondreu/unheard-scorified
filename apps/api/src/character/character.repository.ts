@@ -30,6 +30,16 @@ export class CharacterRepository {
     return row;
   }
 
+  /** Najde postavu podle (globálně unikátního) jména. Pro friends (M9 social). */
+  async findByName(name: string): Promise<Character | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(characters)
+      .where(eq(characters.name, name))
+      .limit(1);
+    return row;
+  }
+
   /** Načte více postav podle id najednou (např. pro žebříček arény). */
   findByIds(ids: string[]): Promise<Character[]> {
     if (ids.length === 0) return Promise.resolve([]);

@@ -14,6 +14,7 @@ import { PushModule } from './push/push.module';
 import { QuestModule } from './quest/quest.module';
 import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
+import { SocialModule } from './social/social.module';
 import { TalentModule } from './talent/talent.module';
 
 const devModules =
@@ -40,6 +41,7 @@ const devModules =
     ArenaModule,
     RaidModule,
     AuctionModule,
+    SocialModule,
     ...devModules,
   ],
 })

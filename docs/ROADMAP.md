@@ -521,8 +521,19 @@ Guild-vázané části čekají na M9 social.
 
 ### M9 — Polish, balanc, pixel grafika, sociální 🚧
 
-- PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
-- Friends, chat/guild základ; achievementy, denní/týdenní cíle.
+Sociální základ je gatekeeper pro odložené M8.5-C (týmové arény), M8.5-B (raid
+lobby) a M8.5-D (P2P trade) — staví se první.
+
+- [x] **Friends** (per-postava, vanilla-WoW styl): žádost dle jména, accept/
+      decline, mutual auto-accept, removeFriend; tabulka `friendships` (migrace
+      `0011`), `SocialModule` (controller/service/repository), sdílené helpery +
+      realtime relay (recykluje WS vrstvu z M7). Web `/characters/[id]/social`.
+      Testy: shared `social.test.ts` (+7) + API `social.flow.test.ts` (+9).
+      Detail: **ADR 0016**, `docs/systems/social.md`.
+- [ ] **Chat**: jednoduchý globální kanál (persistence + realtime přes Redis
+      pub/sub adaptér z M7). Sdílené normalizační helpery už hotové.
+- [ ] Guild základ; achievementy, denní/týdenní cíle.
+- [ ] PixiJS pixel scénky, nahrazení placeholderů; balanc pass; tutoriál/onboarding.
 - **Výstup:** vyladěná, vizuálně oživená hra.
 
 ---

@@ -13,6 +13,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -27,6 +28,7 @@ import type {
   DuelSide,
   Faction,
   FactionId,
+  FriendRequestStatus,
   ProfessionId,
   RaceId,
   RaidActor,
@@ -364,6 +366,33 @@ export const characterLockouts = pgTable(
 );
 
 /**
+ * Přátelství mezi postavami (M9 social). Jeden řádek = vztah (requester ↔
+ * addressee), ne dva směrové. `status`:
+ *  - `pending` — `requester` poslal žádost, `addressee` ji ještě nepotvrdil.
+ *  - `accepted` — vzájemné přátelství.
+ * Odmítnutí žádosti = smazání řádku (žádný `declined` stav). Unikátní pár
+ * (requester, addressee) brání duplicitním žádostem stejným směrem; opačný směr
+ * řeší service (auto-accept při vzájemné žádosti). Friends jsou per-postava
+ * (vanilla-WoW styl) — připraveno na pozdější pozvánky do týmových arén/raidů.
+ */
+export const friendships = pgTable(
+  'friendships',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    requesterCharacterId: uuid('requester_character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    addresseeCharacterId: uuid('addressee_character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    status: varchar('status', { length: 12 }).$type<FriendRequestStatus>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
+  },
+  (t) => [unique().on(t.requesterCharacterId, t.addresseeCharacterId)],
+);
+
+/**
  * Kosmetická vlastnictví skinů per účet (M4). Základ pro transmog systém.
  */
 export const characterSkins = pgTable(
@@ -514,3 +543,5 @@ export type Auction = typeof auctions.$inferSelect;
 export type NewAuction = typeof auctions.$inferInsert;
 export type CharacterLockout = typeof characterLockouts.$inferSelect;
 export type NewCharacterLockout = typeof characterLockouts.$inferInsert;
+export type Friendship = typeof friendships.$inferSelect;
+export type NewFriendship = typeof friendships.$inferInsert;

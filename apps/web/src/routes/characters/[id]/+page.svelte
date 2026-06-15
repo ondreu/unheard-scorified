@@ -152,6 +152,7 @@
     arena: 'Arena (PVP)',
     raids: 'Raids (MP PVE)',
     auctions: 'Auction House',
+    social: 'Friends',
   };
 
   const isDungeon = $derived(activity?.activityType === 'dungeon');
@@ -322,6 +323,12 @@
         class="rounded bg-amber-800/40 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-700/50"
       >
         {uiM4.auctions}
+      </a>
+      <a
+        href={`/characters/${characterId}/social`}
+        class="rounded bg-sky-800/40 px-4 py-2 text-sm font-medium text-sky-200 hover:bg-sky-700/50"
+      >
+        {uiM4.social}
       </a>
     </div>
 
