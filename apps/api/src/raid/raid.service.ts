@@ -99,6 +99,13 @@ export interface RaidRunView {
   myLockedOut: boolean;
 }
 
+/** Reálný účastník runu (pro udělení odměn). */
+export interface RaidParticipantInput {
+  character: Character;
+  role: RaidRole;
+  initiator: boolean;
+}
+
 export interface RaidRunSummary {
   runId: string;
   raidId: string;
@@ -270,34 +277,66 @@ export class RaidService {
       }
     }
 
-    const seed = seedFromString(`${raidId}:${characterId}:${Date.now()}`);
+    // Reální účastníci: já (iniciátor) + vytažení z fronty. NPC backfill je jen
+    // v `party` (pro simulaci), odměny dostávají jen reální hráči.
+    const real: RaidParticipantInput[] = [{ character, role, initiator: true }];
+    for (const p of pulled) {
+      const pc = await this.characters.findById(p.characterId);
+      if (pc) real.push({ character: pc, role: p.role, initiator: false });
+    }
+
+    const { run, rewards } = await this.finalizeRun(raid, party, real, characterId);
+    return this.toRunView(run, characterId, Date.now(), rewards.get(characterId) ?? null, role);
+  }
+
+  /**
+   * Sdílené dokončení raid runu (M8.5-B): odsimuluje předanou party, uloží run a
+   * udělí odměny všem reálným účastníkům (NPC v `party` jsou jen pro simulaci).
+   * Vrací run + mapu odměn per postava. Volá `enter` (idle queue) i lobby (ruční
+   * formace). Iniciátor seeduje běh; nereálným… resp. neiniciátorům pošle push.
+   */
+  async finalizeRun(
+    raid: (typeof RAIDS)[keyof typeof RAIDS],
+    party: RaidActor[],
+    real: RaidParticipantInput[],
+    initiatorCharacterId: string,
+  ): Promise<{ run: RaidRun; rewards: Map<string, RaidReward> }> {
+    const seed = seedFromString(`${raid.id}:${initiatorCharacterId}:${Date.now()}`);
     const bosses = raid.bosses.map((b) => scaleBoss(buildRaidBoss(b), party.length));
     const result = simulateRaidRun(party, bosses, seed);
 
     const run = await this.repo.createRun({
       contentType: 'raid',
-      raidId,
+      raidId: raid.id,
       party,
       seed,
       victory: result.victory ? 1 : 0,
       durationSec: result.durationSec,
     });
 
-    // Odměny všem reálným účastníkům (deterministicky per postava).
-    const myReward = await this.grantParticipant(run.id, character, role, true, raidId, result.victory, result.wipes);
-    for (const p of pulled) {
-      const pc = await this.characters.findById(p.characterId);
-      if (!pc) continue;
-      await this.grantParticipant(run.id, pc, p.role, false, raidId, result.victory, result.wipes);
-      this.events.raidResolved(run.id, raidId, p.characterId);
-      await this.push.sendToAccount(p.accountId, {
-        title: 'Raid Complete!',
-        body: `${pc.name} joined ${character.name}'s ${raid.name} and the raid ${result.victory ? 'was victorious' : 'wiped'}.`,
-        characterId: p.characterId,
-      });
+    const rewards = new Map<string, RaidReward>();
+    for (const rp of real) {
+      const reward = await this.grantParticipant(
+        run.id,
+        rp.character,
+        rp.role,
+        rp.initiator,
+        raid.id,
+        result.victory,
+        result.wipes,
+      );
+      rewards.set(rp.character.id, reward);
+      if (!rp.initiator) {
+        this.events.raidResolved(run.id, raid.id, rp.character.id);
+        await this.push.sendToAccount(rp.character.accountId, {
+          title: 'Raid Complete!',
+          body: `${rp.character.name}'s ${raid.name} ${result.victory ? 'was victorious' : 'wiped'}.`,
+          characterId: rp.character.id,
+        });
+      }
     }
 
-    return this.toRunView(run, characterId, Date.now(), myReward, role);
+    return { run, rewards };
   }
 
   /** Detail/přehrání raid runu z perspektivy postavy (reveal dle času). */
@@ -380,7 +419,7 @@ export class RaidService {
   }
 
   /** Bojový profil postavy (jako dungeon/arena) převedený na RaidActor dle role. */
-  private async buildRaidActor(
+  async buildRaidActor(
     character: Character,
     level: number,
     role: RaidRole,

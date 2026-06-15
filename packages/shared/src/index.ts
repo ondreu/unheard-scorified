@@ -25,3 +25,4 @@ export * from './lockout';
 export * from './auction';
 export * from './social';
 export * from './guild';
+export * from './lobby';

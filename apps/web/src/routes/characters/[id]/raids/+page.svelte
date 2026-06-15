@@ -128,7 +128,15 @@
 
 <main class="mx-auto max-w-lg px-6 py-12">
   <a href={`/characters/${characterId}`} class="text-sm text-amber-300 underline">{ui.back}</a>
-  <h1 class="mt-4 text-3xl font-bold text-amber-200">{ui.title}</h1>
+  <div class="mt-4 flex items-center justify-between">
+    <h1 class="text-3xl font-bold text-amber-200">{ui.title}</h1>
+    <a
+      href={`/characters/${characterId}/raid-lobby`}
+      class="rounded bg-red-800/40 px-3 py-1.5 text-sm font-medium text-red-200 hover:bg-red-700/50"
+    >
+      Form a raid →
+    </a>
+  </div>
   <p class="mt-1 text-xs text-amber-100/40">{ui.party}</p>
 
   {#if error}

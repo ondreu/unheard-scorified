@@ -827,6 +827,111 @@ export function setGuildRank(
   );
 }
 
+// Raid lobby (M8.5-B, manual formation)
+
+export interface LobbyMemberView {
+  characterId: string;
+  name: string;
+  level: number;
+  race: string;
+  class: string;
+  role: RaidRole;
+  status: 'invited' | 'joined';
+  isLeader: boolean;
+}
+
+export interface RaidLobbyView {
+  id: string;
+  raidId: string;
+  raidName: string;
+  size: number;
+  composition: RaidComposition;
+  status: string;
+  runId: string | null;
+  leaderCharacterId: string;
+  iAmLeader: boolean;
+  members: LobbyMemberView[];
+  remaining: RaidComposition;
+  full: boolean;
+}
+
+export interface LobbyInviteView {
+  lobbyId: string;
+  raidId: string;
+  raidName: string;
+  role: RaidRole;
+  size: number;
+}
+
+export interface LobbyState {
+  lobby: RaidLobbyView | null;
+  invites: LobbyInviteView[];
+}
+
+export function getRaidLobby(characterId: string): Promise<LobbyState> {
+  return request<LobbyState>(`/characters/${characterId}/raid-lobbies`);
+}
+
+export function createRaidLobby(
+  characterId: string,
+  raidId: string,
+  role: RaidRole,
+  size?: number,
+  composition?: RaidComposition,
+): Promise<LobbyState> {
+  return request<LobbyState>(`/characters/${characterId}/raid-lobbies`, {
+    method: 'POST',
+    body: JSON.stringify({ raidId, role, size, composition }),
+  });
+}
+
+export function inviteToLobby(
+  characterId: string,
+  lobbyId: string,
+  name: string,
+  role: RaidRole,
+): Promise<LobbyState> {
+  return request<LobbyState>(`/characters/${characterId}/raid-lobbies/${lobbyId}/invites`, {
+    method: 'POST',
+    body: JSON.stringify({ name, role }),
+  });
+}
+
+export function respondLobbyInvite(
+  characterId: string,
+  lobbyId: string,
+  accept: boolean,
+  role?: RaidRole,
+): Promise<LobbyState> {
+  return request<LobbyState>(
+    `/characters/${characterId}/raid-lobbies/${lobbyId}/invites/respond`,
+    { method: 'POST', body: JSON.stringify({ accept, role }) },
+  );
+}
+
+export function leaveRaidLobby(characterId: string, lobbyId: string): Promise<LobbyState> {
+  return request<LobbyState>(`/characters/${characterId}/raid-lobbies/${lobbyId}/leave`, {
+    method: 'POST',
+  });
+}
+
+export function kickLobbyMember(
+  characterId: string,
+  lobbyId: string,
+  targetCharacterId: string,
+): Promise<LobbyState> {
+  return request<LobbyState>(
+    `/characters/${characterId}/raid-lobbies/${lobbyId}/members/${targetCharacterId}`,
+    { method: 'DELETE' },
+  );
+}
+
+export function startRaidLobby(characterId: string, lobbyId: string): Promise<{ runId: string }> {
+  return request<{ runId: string }>(`/characters/${characterId}/raid-lobbies/${lobbyId}/start`, {
+    method: 'POST',
+  });
+}
+
 // Dev tools — only available when NODE_ENV=development (backed by DevGuard on server).
 
 export interface DevCharacterState {

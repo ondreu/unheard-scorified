@@ -366,9 +366,9 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 ### M8.5 — Iterativní (wipe/retry) combat, skupinové módy & personal loot (návrh PM)
 
 > Status: **rozpracováno** — **A (wipe/retry) ✅**, **B-idle (group PVE run +
-> group dungeony) ✅**, **D-personal-loot ✅**. Zbývá: C (týmové arény, ruční →
-> M9), B-ruční-formace (→ M9), D-trade (→ M9). Ekonomická pravidla (původní E)
-> vyčleněna do samostatného milníku **M8.6**.
+> group dungeony) ✅**, **B-ruční-formace (raid lobby) ✅** (ADR 0018),
+> **D-personal-loot ✅**. Zbývá: C (týmové arény, ruční), D-trade. Ekonomická
+> pravidla (původní E) vyčleněna do samostatného milníku **M8.6**.
 
 #### A) Iterativní wipe/retry combat — ✅ hotovo
 
@@ -426,8 +426,14 @@ Combat přejde z „jedna simulace, run uspěje/selže" na **per-boss pully**:
       škálované velikostí party. Web: výběr velikosti + run watch `dungeon/[runId]`.
 - [x] Testy: shared `group.test.ts` + přepsaný `dungeon.flow.test.ts` (SP + group +
       fronta). Build/test/lint/typecheck zelené. Detail: ADR 0014.
-- [ ] **Raid leader + lobby (ruční formace)**: leader sestaví/zve/spustí → **po M9
-      social** (pozvánky vyžadují friends/guild).
+- [x] **Raid leader + lobby (ruční formace)** ✅ (M8.5-B): leader založí lobby
+      (raid + velikost + kompozice), zve konkrétní postavy do rolí (friends/guild),
+      vyhazuje, a spustí — zbylé sloty doplní NPC backfill (idle-first zachován).
+      Sdílí `RaidService.finalizeRun` (žádná duplikace simulace/odměn). Tabulky
+      `raid_lobbies` + `raid_lobby_members` (migrace `0014`), `RaidLobbyService`/
+      controller v `RaidModule`. Web `/characters/[id]/raid-lobby`. Sdílené slot
+      helpery `@game/shared/lobby.ts`. Testy: shared `lobby.test.ts` (+4) + API
+      `raid-lobby.flow.test.ts` (+8). Detail: **ADR 0018**.
 - ℹ️ Konvergence `RaidService` na společný `GroupRunService` je nepovinný úklid
   (data/sim/helpery už sdílené); legacy single-actor `simulateDungeonRun` → úklid M9.
 

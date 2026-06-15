@@ -28,6 +28,11 @@ export class RaidEventsRelay {
     this.emit(characterId, 'raid:resolved', { runId, raidId, characterId });
   }
 
+  /** Oznámí postavě pozvánku do raid lobby (M8.5-B). */
+  lobbyInvite(characterId: string, lobbyId: string, raidName: string, leaderName: string): void {
+    this.emit(characterId, 'raid:lobby_invite', { lobbyId, raidName, leaderName });
+  }
+
   private emit(characterId: string, event: string, payload: unknown): void {
     if (!this.server) return;
     try {

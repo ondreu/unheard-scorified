@@ -94,6 +94,16 @@ další clear téhož raidu v témže UTC týdnu pak **odměnu nedá** (XP, zlat
 scheduler). Run view vystaví `myLockedOut`. Vzorce: `@game/shared/lockout.ts`
 (`lockoutIdForContent('raid', id)`, `weeklyLockoutId`). Detail: **ADR 0015**.
 
+## Ruční formace — raid lobby (M8.5-B)
+
+Vedle idle fronty lze raid sestavit **ručně** (`/characters/[id]/raid-lobby`):
+leader založí lobby (raid + velikost + kompozice), zve konkrétní postavy do rolí
+(odemčeno M9 social — friends/guild), spravuje sestavu a spustí. Zbylé sloty
+doplní **NPC backfill** (idle-first zachován). Spuštění recykluje
+`RaidService.finalizeRun` (stejná simulace/odměny/lockout jako idle `enter`).
+Tabulky `raid_lobbies` + `raid_lobby_members`; sloty počítají čisté helpery
+`@game/shared/lobby.ts`. Detail: **ADR 0018**.
+
 ## Zbývá doladit (M9)
 
 Balanc (boss HP/AP, role tuning, loot, size scaling faktor, determination
