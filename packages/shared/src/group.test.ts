@@ -94,14 +94,21 @@ describe('isGroupContentUnlocked', () => {
     expect(isGroupContentUnlocked('raid', 'molten_core', 40, ['tn_galak_ogres'])).toBe(true);
   });
 
-  it('M12 40–60 dungeons: level-gated, Stratholme needs an attunement', () => {
-    // Zul'Farrak / Maraudon / Blackrock Depths jen level
-    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 41, [])).toBe(false);
-    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, [])).toBe(true);
-    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, [])).toBe(true);
+  it('M12 40–60 dungeons gate on level + attunement questline', () => {
+    // Pod úrovní → zamčeno i s attunementem
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 41, ['al_zf_attunement'])).toBe(false);
+    // Level bez attunementu nestačí
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, ['ho_zf_attunement'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'maraudon', 46, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'maraudon', 46, ['al_mar_attunement'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, ['ho_brd_attunement'])).toBe(true);
     // Stratholme: level + attunement questline
     expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, [])).toBe(false);
     expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, ['al_culling_stratholme'])).toBe(true);
+    // Klasické nízké dungeony zůstávají level-gated (early-game flow)
+    expect(isGroupContentUnlocked('dungeon', 'deadmines', 15, [])).toBe(true);
   });
 });
 

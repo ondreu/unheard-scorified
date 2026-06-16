@@ -84,16 +84,19 @@ boss loot tabulku.
 | The Deadmines      | 15      | Edwin VanCleef                |                                |
 | Shadowfang Keep    | 20      | Archmage Arugal               |                                |
 | Scarlet Monastery  | 30      | High Inquisitor Whitemane     | weekly lockout                 |
-| Zul'Farrak         | 42      | Chief Ukorz Sandscalp         | M12                            |
-| Maraudon           | 46      | Princess Theradras            | M12                            |
-| Blackrock Depths   | 52      | Emperor Dagran Thaurissan     | M12, weekly lockout            |
+| Zul'Farrak         | 42      | Chief Ukorz Sandscalp         | M12, attunement                |
+| Maraudon           | 46      | Princess Theradras            | M12, attunement                |
+| Blackrock Depths   | 52      | Emperor Dagran Thaurissan     | M12, attunement + weekly lockout |
 | Stratholme         | 58      | Baron Rivendare               | M12, attunement + weekly lockout |
 
 Dungeony 42–58 (Zul'Farrak / Maraudon / Blackrock Depths / Stratholme) přibyly v
 **M12** a vyplňují dříve prázdné pásmo 40–60 (předtím obsah končil na Scarlet
-Monastery, lvl 30). Capstone **Stratholme** je gated vlastní attunement questline
-(`al_/ho_culling_stratholme`, navazuje na frontier zóny EPL/Felwood). Jen data —
-group-run model, combat engine i web/API se nemění (vše iteruje přes `DUNGEONS`).
+Monastery, lvl 30). **Všechny čtyři 40–60 dungeony jsou gated vlastní attunement
+questline** (per-frakce, plně narativní; `al_/ho_{zf,mar,brd,culling_stratholme}`).
+Klasické nízké dungeony (Deadmines 15 / Shadowfang Keep 20 / Scarlet Monastery 30)
+zůstávají level-gated kvůli plynulosti early-game (rozhodnutí: attunement gate jen
+tam, kde dává smysl). Jen data — group-run model, combat engine i web/API se
+nemění (vše iteruje přes `DUNGEONS`).
 
 ### Boss loot (`DUNGEON_LOOT_TABLES` v `loot.ts`)
 

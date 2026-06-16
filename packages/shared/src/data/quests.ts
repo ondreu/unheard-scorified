@@ -239,6 +239,14 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 12728,
     baseGold: 849,
     goldVariance: 0.2,
+    steps: [
+      n('Atop Blackrock Spire, Nefarian — son of Deathwing — works his chromatic horrors behind wards no mortal can simply walk through. A red dragonflight agent in human guise finds you: "The black brood seal their lair against all but their own kin-fire. We can forge you a Drakefire Amulet to fool the wards — but its heart must be a true drake\'s blood, and that you must take yourself."'),
+      n('You climb the smoking spire to where the Spire\'s warlord keeps his draconic guard. The heat of the upper rookery is like standing in a forge.'),
+      c('A whelp-tender of the black flight rounds on you, scales glowing with inner fire. "Thief! The master will wear your bones!"', 'Blackhand Dragon-Keeper', 'elite'),
+      n('You take the vial of drake\'s blood still warm from the kill. But the rookery\'s alarm has roused its guardian — a true drake uncoils from the ash, wings cracking like banners.'),
+      c('A black drake drops from its perch, jaws wreathed in shadow-flame.', 'Foreststrider Drake', 'boss'),
+      n('The drake crashes lifeless among the cinders. The red agent takes the heart-blood and, in a rite of fire, forges the amulet — a sullen ember on a chain. "Wear it, and Blackwing Lair will open to you as though you were one of Nefarian\'s own. Gather your strongest. The Black Prince must fall."'),
+    ],
   },
 
   // ── Eastern Plaguelands (40–60) — M12 frontier ──────────────────────────
@@ -368,6 +376,71 @@ export const QUESTS: Record<string, QuestDef> = {
       n('You hack the abomination apart and burn the pieces. At the gatehouse a Scarlet sentry challenges you — the Crusade trusts no one, least of all an outsider walking freely among the dead.'),
       c('A Scarlet gate-captain bars the way, blade drawn. "No one enters the city. The Light has abandoned this place — leave, before it abandons you too."', 'Scarlet Gate-Captain', 'elite'),
       n('The captain falls, and the Argent Dawn slips agents through the breach behind you. They mark a sigil of safe passage upon your tabard. "The inner city is the Baron\'s now," they warn. "Dreadlord-served, ringed in plague. Bring your strongest — Stratholme will not fall to one blade." The way is open.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Alliance, M12) — gate to Zul'Farrak ──────────────
+  al_zf_attunement: {
+    id: 'al_zf_attunement',
+    name: 'The Mallet of Zul\'Farrak',
+    description: 'Recover the sacred mallet that rings the gong of Zul\'Farrak and earns the Sandfury\'s reckoning.',
+    zoneId: 'eastern_plaguelands',
+    kind: 'story',
+    requiredLevel: 42,
+    durationSec: 7200,
+    baseXp: 7777,
+    baseGold: 518,
+    goldVariance: 0.2,
+    steps: [
+      n('A wandering troll hermit, exiled from his tribe, tells you of Zul\'Farrak — a Sandfury city baking in the Tanaris dunes, where priests bleed captives to call a serpent god from the sacred pool. "You cannot simply walk in," he rasps. "The gong at the pyramid steps must be struck with the Mallet of Zul\'Farrak — and the mallet lies broken, its head guarded by the dune stalkers, its haft hoarded by the Sandfury themselves."'),
+      c('A great sand-scarab bursts from the dune, mandibles wide, the mallet-head glinting in its gullet.', 'Dune Stalker', 'standard'),
+      n('You cut the rusted mallet-head free of the scarab\'s belly. The haft, the hermit says, was taken by a Sandfury raiding party camped at the city\'s edge.'),
+      c('A Sandfury axe-thrower guards the camp, the carved haft thrust through his belt. "Outlander! The pool will drink your blood!"', 'Sandfury Reaver', 'elite'),
+      n('You bind head to haft and heft the reforged mallet — it hums with old troll magic. Strike the gong at the pyramid steps, the hermit says, and Zul\'Farrak will answer. The city is open to you.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Alliance, M12) — gate to Maraudon ────────────────
+  al_mar_attunement: {
+    id: 'al_mar_attunement',
+    name: 'The Scepter of Celebras',
+    description: 'Aid the redeemed keeper Celebras and forge the scepter that opens the inner grove of Maraudon.',
+    zoneId: 'eastern_plaguelands',
+    kind: 'story',
+    requiredLevel: 46,
+    durationSec: 7200,
+    baseXp: 8139,
+    baseGold: 543,
+    goldVariance: 0.2,
+    steps: [
+      n('The Cenarion Circle speaks of Maraudon — a crystalline cavern where the demigod Zaetar lay with an earth elemental, and from that union came Princess Theradras, who now poisons the deeps. One of Zaetar\'s sons, Celebras, was corrupted there and has since clawed his way back to sanity. He begs your aid: only the Scepter of Celebras can open the warded passage to the inner grove where Theradras festers.'),
+      n('Celebras directs you to the cavern\'s threshold, where corrupted nature runs riot and the very stone seethes with elemental hate.'),
+      c('A hulking earth-spawn heaves itself from the cavern wall, crystals jutting from its fists.', 'Maraudine Earthbinder', 'elite'),
+      n('You shatter the earth-spawn and gather the living crystal Celebras needs. He sings over it the old keeper-songs, and the shards fuse into a scepter of pale green light.'),
+      c('A corrupted treant lurches to bar the inner passage, branches lashing like whips.', 'Grovewarden Gnarl', 'elite'),
+      n('The treant falls and the warded passage shimmers open at the scepter\'s touch. "The way to my mother\'s daughter is clear," Celebras says, grieving. "End her torment — and mine." Maraudon is open to you.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Alliance, M12) — gate to Blackrock Depths ────────
+  al_brd_attunement: {
+    id: 'al_brd_attunement',
+    name: 'The Shadowforge Key',
+    description: 'Forge the Shadowforge Key and descend into the Dark Iron city of Blackrock Depths.',
+    zoneId: 'eastern_plaguelands',
+    kind: 'story',
+    requiredLevel: 52,
+    durationSec: 9000,
+    baseXp: 10817,
+    baseGold: 721,
+    goldVariance: 0.2,
+    steps: [
+      n('Deep beneath Blackrock Mountain sprawls the greatest city of the Dark Iron dwarves — forge, arena, prison, and the throne of Emperor Dagran Thaurissan, who has bound a fire elemental lord to his will. The gates of the Depths are sealed with Shadowforge locks that answer only to one key. A dwarven exile of the Thorium Brotherhood offers to forge you one — if you bring the Dark Iron ore and a guardian\'s seal to temper it.'),
+      n('You descend the mountain\'s outer tunnels to the molten quarries where the Dark Iron work their ore under lash and flame.'),
+      c('A Dark Iron taskmaster turns from the forge-line, hammer glowing white. "Surface-scum! The Emperor will have your hide for a bellows!"', 'Dark Iron Taskmaster', 'elite'),
+      n('You wrench the guardian\'s seal from the taskmaster\'s belt and gather raw Dark Iron from the quarry. The exile labours over his anvil, quenching the key in elemental fire.'),
+      c('A bound flamewaker erupts from the quench-trough, furious at the theft of its forge-fire.', 'Quenchling Flamewaker', 'elite'),
+      n('The flamewaker gutters out in a hiss of steam, and the exile lifts the finished Shadowforge Key, still smoking. "The Depths will open to ye now, friend — but the Emperor does not suffer trespass. Take a warband, or take a grave." Blackrock Depths is open to you.'),
     ],
   },
 
@@ -501,6 +574,14 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 12728,
     baseGold: 849,
     goldVariance: 0.2,
+    steps: [
+      n('Atop Blackrock Spire, Nefarian — son of Deathwing — works his chromatic horrors behind wards no mortal can simply walk through. A red dragonflight agent in mortal guise seeks the Horde\'s aid: "The black brood seal their lair against all but their own kin-fire. We can forge you a Drakefire Amulet to fool the wards — but its heart must be a true drake\'s blood, and that you must take yourself."'),
+      n('You climb the smoking spire to where the warlord keeps his draconic guard. The heat of the upper rookery is like standing in a forge.'),
+      c('A whelp-tender of the black flight rounds on you, scales glowing with inner fire. "Thief! The master will wear your bones!"', 'Blackhand Dragon-Keeper', 'elite'),
+      n('You take the vial of drake\'s blood still warm from the kill. But the rookery\'s alarm has roused its guardian — a true drake uncoils from the ash, wings cracking like banners.'),
+      c('A black drake drops from its perch, jaws wreathed in shadow-flame.', 'Foreststrider Drake', 'boss'),
+      n('The drake crashes lifeless among the cinders. The red agent takes the heart-blood and, in a rite of fire, forges the amulet — a sullen ember on a chain. "Wear it, and Blackwing Lair will open to you as though you were one of Nefarian\'s own. Gather your strongest. The Black Prince must fall."'),
+    ],
   },
 
   // ── Felwood (40–60) — M12 frontier ──────────────────────────────────────
@@ -631,6 +712,71 @@ export const QUESTS: Record<string, QuestDef> = {
       n('You hack the abomination apart and burn the pieces. At the gatehouse a Scarlet sentry challenges you — the Crusade trusts no living thing, and trusts the Horde least of all.'),
       c('A Scarlet gate-captain bars the way, blade drawn. "Foul creature of the Horde! The Light will scour you from these walls!"', 'Scarlet Gate-Captain', 'elite'),
       n('The captain falls, and Forsaken agents slip through the breach behind you. They press a phial of blight into your hand as a mark of passage. "The inner city is the Baron\'s now," they rasp. "Dreadlord-served, ringed in plague. Bring your strongest — Stratholme will not fall to one blade." The way is open.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Horde, M12) — gate to Zul'Farrak ─────────────────
+  ho_zf_attunement: {
+    id: 'ho_zf_attunement',
+    name: 'The Mallet of Zul\'Farrak',
+    description: 'Recover the sacred mallet that rings the gong of Zul\'Farrak and earns the Sandfury\'s reckoning.',
+    zoneId: 'felwood',
+    kind: 'story',
+    requiredLevel: 42,
+    durationSec: 7200,
+    baseXp: 7777,
+    baseGold: 518,
+    goldVariance: 0.2,
+    steps: [
+      n('A wandering troll hermit, exiled from his tribe, tells you of Zul\'Farrak — a Sandfury city baking in the Tanaris dunes, where priests bleed captives to call a serpent god from the sacred pool. "You cannot simply walk in," he rasps. "The gong at the pyramid steps must be struck with the Mallet of Zul\'Farrak — and the mallet lies broken, its head guarded by the dune stalkers, its haft hoarded by the Sandfury themselves."'),
+      c('A great sand-scarab bursts from the dune, mandibles wide, the mallet-head glinting in its gullet.', 'Dune Stalker', 'standard'),
+      n('You cut the rusted mallet-head free of the scarab\'s belly. The haft, the hermit says, was taken by a Sandfury raiding party camped at the city\'s edge.'),
+      c('A Sandfury axe-thrower guards the camp, the carved haft thrust through his belt. "Outlander! The pool will drink your blood!"', 'Sandfury Reaver', 'elite'),
+      n('You bind head to haft and heft the reforged mallet — it hums with old troll magic. Strike the gong at the pyramid steps, the hermit says, and Zul\'Farrak will answer. The city is open to you.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Horde, M12) — gate to Maraudon ───────────────────
+  ho_mar_attunement: {
+    id: 'ho_mar_attunement',
+    name: 'The Scepter of Celebras',
+    description: 'Aid the redeemed keeper Celebras and forge the scepter that opens the inner grove of Maraudon.',
+    zoneId: 'felwood',
+    kind: 'story',
+    requiredLevel: 46,
+    durationSec: 7200,
+    baseXp: 8139,
+    baseGold: 543,
+    goldVariance: 0.2,
+    steps: [
+      n('The Cenarion Circle speaks of Maraudon — a crystalline cavern where the demigod Zaetar lay with an earth elemental, and from that union came Princess Theradras, who now poisons the deeps. One of Zaetar\'s sons, Celebras, was corrupted there and has since clawed his way back to sanity. He begs your aid: only the Scepter of Celebras can open the warded passage to the inner grove where Theradras festers.'),
+      n('Celebras directs you to the cavern\'s threshold, where corrupted nature runs riot and the very stone seethes with elemental hate.'),
+      c('A hulking earth-spawn heaves itself from the cavern wall, crystals jutting from its fists.', 'Maraudine Earthbinder', 'elite'),
+      n('You shatter the earth-spawn and gather the living crystal Celebras needs. He sings over it the old keeper-songs, and the shards fuse into a scepter of pale green light.'),
+      c('A corrupted treant lurches to bar the inner passage, branches lashing like whips.', 'Grovewarden Gnarl', 'elite'),
+      n('The treant falls and the warded passage shimmers open at the scepter\'s touch. "The way to my mother\'s daughter is clear," Celebras says, grieving. "End her torment — and mine." Maraudon is open to you.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Horde, M12) — gate to Blackrock Depths ───────────
+  ho_brd_attunement: {
+    id: 'ho_brd_attunement',
+    name: 'The Shadowforge Key',
+    description: 'Forge the Shadowforge Key and descend into the Dark Iron city of Blackrock Depths.',
+    zoneId: 'felwood',
+    kind: 'story',
+    requiredLevel: 52,
+    durationSec: 9000,
+    baseXp: 10817,
+    baseGold: 721,
+    goldVariance: 0.2,
+    steps: [
+      n('Deep beneath Blackrock Mountain sprawls the greatest city of the Dark Iron dwarves — forge, arena, prison, and the throne of Emperor Dagran Thaurissan, who has bound a fire elemental lord to his will. The gates of the Depths are sealed with Shadowforge locks that answer only to one key. A dwarven exile of the Thorium Brotherhood offers to forge you one — if you bring the Dark Iron ore and a guardian\'s seal to temper it.'),
+      n('You descend the mountain\'s outer tunnels to the molten quarries where the Dark Iron work their ore under lash and flame.'),
+      c('A Dark Iron taskmaster turns from the forge-line, hammer glowing white. "Surface-scum! The Emperor will have your hide for a bellows!"', 'Dark Iron Taskmaster', 'elite'),
+      n('You wrench the guardian\'s seal from the taskmaster\'s belt and gather raw Dark Iron from the quarry. The exile labours over his anvil, quenching the key in elemental fire.'),
+      c('A bound flamewaker erupts from the quench-trough, furious at the theft of its forge-fire.', 'Quenchling Flamewaker', 'elite'),
+      n('The flamewaker gutters out in a hiss of steam, and the exile lifts the finished Shadowforge Key, still smoking. "The Depths will open to ye now, friend — but the Emperor does not suffer trespass. Take a warband, or take a grave." Blackrock Depths is open to you.'),
     ],
   },
 };
