@@ -8,6 +8,9 @@ import {
   DUNGEONS,
   RAIDS,
 } from './index';
+import { DUNGEON_LOOT_TABLES } from './loot';
+import { ITEMS } from './data/items';
+import { QUESTS } from './data/quests';
 
 describe('group content sizes & composition', () => {
   it('dungeon supports 1/3/5; raid mirrors raid sizes', () => {
@@ -89,5 +92,37 @@ describe('isGroupContentUnlocked', () => {
   it('raid gates on level + attunement', () => {
     expect(isGroupContentUnlocked('raid', 'molten_core', 40, [])).toBe(false);
     expect(isGroupContentUnlocked('raid', 'molten_core', 40, ['tn_galak_ogres'])).toBe(true);
+  });
+
+  it('M12 40–60 dungeons: level-gated, Stratholme needs an attunement', () => {
+    // Zul'Farrak / Maraudon / Blackrock Depths jen level
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 41, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, [])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, [])).toBe(true);
+    // Stratholme: level + attunement questline
+    expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, ['al_culling_stratholme'])).toBe(true);
+  });
+});
+
+describe('dungeon data integrity (M12)', () => {
+  it('every dungeon with a loot table references real items, and 40–60 dungeons have one', () => {
+    for (const [id, table] of Object.entries(DUNGEON_LOOT_TABLES)) {
+      expect(DUNGEONS[id], `loot table for unknown dungeon ${id}`).toBeDefined();
+      for (const entry of table.entries) {
+        expect(ITEMS[entry.itemId], `unknown item ${entry.itemId} in ${id}`).toBeDefined();
+      }
+    }
+    for (const id of ['zulfarrak', 'maraudon', 'blackrock_depths', 'stratholme']) {
+      expect(DUNGEON_LOOT_TABLES[id], `missing loot table for ${id}`).toBeDefined();
+    }
+  });
+
+  it('dungeon attunement quests exist', () => {
+    for (const d of Object.values(DUNGEONS)) {
+      for (const q of d.attunement?.questAnyOf ?? []) {
+        expect(QUESTS[q], `unknown attunement quest ${q}`).toBeDefined();
+      }
+    }
   });
 });

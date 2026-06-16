@@ -137,6 +137,83 @@ export const DUNGEONS: Record<string, DungeonDef> = {
       enemy('sm_whitemane', 'High Inquisitor Whitemane', 1050, 42, 2.4, { armor: 70, isBoss: true }),
     ],
   },
+
+  // ── Zul'Farrak (42–47, M12) ─────────────────────────────────────────────────
+  zulfarrak: {
+    id: 'zulfarrak',
+    name: "Zul'Farrak",
+    description: 'A Sandfury troll city baking in the Tanaris desert, where blood rituals call a serpent god from the sacred pool.',
+    requiredLevel: 42,
+    recommendedLevel: 47,
+    baseXp: 6500,
+    baseGold: 200,
+    goldVariance: 0.2,
+    encounters: [
+      enemy('zf_axethrower', 'Sandfury Axe Thrower', 560, 44, 2.5),
+      enemy('zf_hoodoo', 'Sandfury Hoodoo Priest', 600, 47, 2.6),
+      enemy('zf_gahzrilla', "Gahz'rilla", 980, 52, 2.3, { armor: 80 }),
+      enemy('zf_ukorz', 'Chief Ukorz Sandscalp', 1300, 56, 2.4, { armor: 90, isBoss: true }),
+    ],
+  },
+
+  // ── Maraudon (46–52, M12) ───────────────────────────────────────────────────
+  maraudon: {
+    id: 'maraudon',
+    name: 'Maraudon',
+    description: 'A crystalline cavern poisoned by the union of an earth elemental and the demigod Zaetar, ruled now by their daughter Princess Theradras.',
+    requiredLevel: 46,
+    recommendedLevel: 52,
+    baseXp: 8200,
+    baseGold: 250,
+    goldVariance: 0.2,
+    encounters: [
+      enemy('mar_noxxion', 'Noxxion Spawn', 700, 50, 2.5),
+      enemy('mar_treant', 'Corrupted Treant', 760, 54, 2.6),
+      enemy('mar_landslide', 'Landslide', 1150, 58, 2.3, { armor: 100 }),
+      enemy('mar_theradras', 'Princess Theradras', 1600, 62, 2.4, { armor: 90, isBoss: true }),
+    ],
+  },
+
+  // ── Blackrock Depths (52–58, M12) ───────────────────────────────────────────
+  blackrock_depths: {
+    id: 'blackrock_depths',
+    name: 'Blackrock Depths',
+    description: 'The vast Dark Iron dwarf city deep in the mountain, where Emperor Dagran Thaurissan rules over forge, arena, and prison.',
+    requiredLevel: 52,
+    recommendedLevel: 58,
+    baseXp: 11000,
+    baseGold: 320,
+    goldVariance: 0.2,
+    weeklyLockout: true,
+    encounters: [
+      enemy('brd_guard', 'Anvilrage Guardsman', 900, 60, 2.5, { armor: 80 }),
+      enemy('brd_geologist', 'Dark Iron Geologist', 950, 64, 2.6),
+      enemy('brd_angerforge', 'General Angerforge', 1500, 70, 2.3, { armor: 110 }),
+      enemy('brd_thaurissan', 'Emperor Dagran Thaurissan', 2100, 74, 2.4, { armor: 120, isBoss: true }),
+    ],
+  },
+
+  // ── Stratholme (58–60, M12) ─────────────────────────────────────────────────
+  stratholme: {
+    id: 'stratholme',
+    name: 'Stratholme',
+    description: 'The plagued city of Lordaeron, half claimed by the Scarlet Crusade and half by the Scourge under the dreadlord-served Baron Rivendare.',
+    requiredLevel: 58,
+    // Attunement (M12): capstone dungeon gated vlastní questline navazující na
+    // frontier zóny (Eastern Plaguelands / Felwood).
+    attunement: { questAnyOf: ['al_culling_stratholme', 'ho_culling_stratholme'] },
+    recommendedLevel: 60,
+    baseXp: 14500,
+    baseGold: 400,
+    goldVariance: 0.2,
+    weeklyLockout: true,
+    encounters: [
+      enemy('strat_zombie', 'Plagued Zombie', 1100, 72, 2.5),
+      enemy('strat_cryptfiend', 'Crypt Fiend', 1180, 76, 2.6, { armor: 70 }),
+      enemy('strat_ramstein', 'Ramstein the Gorger', 1900, 82, 2.3, { armor: 120 }),
+      enemy('strat_baron', 'Baron Rivendare', 2600, 88, 2.4, { armor: 130, isBoss: true }),
+    ],
+  },
 };
 
 export const DUNGEON_IDS = Object.keys(DUNGEONS);

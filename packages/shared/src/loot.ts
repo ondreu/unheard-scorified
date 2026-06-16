@@ -164,6 +164,49 @@ export const DUNGEON_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'arcane_robes', dropChance: 0.06 },
     ],
   },
+  // ── M12: 40–60 dungeony ─────────────────────────────────────────────────────
+  zulfarrak: {
+    anyDropChance: 0.88,
+    entries: [
+      { itemId: 'zf_sandstalker_ankleguards', dropChance: 0.18 },
+      { itemId: 'zf_jinxed_hoodoo_staff', dropChance: 0.18 },
+      { itemId: 'zf_bloodmail_gauntlets', dropChance: 0.18 },
+      // bracket_4 frontier gear jako doplněk
+      { itemId: 'feltracker_boots', dropChance: 0.12 },
+      { itemId: 'bracers_of_undeath', dropChance: 0.12 },
+    ],
+  },
+  maraudon: {
+    anyDropChance: 0.9,
+    entries: [
+      { itemId: 'mar_theradras_scepter', dropChance: 0.18 },
+      { itemId: 'mar_elemental_girdle', dropChance: 0.18 },
+      { itemId: 'mar_lifegiving_gem', dropChance: 0.18 },
+      { itemId: 'plaguehound_leggings', dropChance: 0.12 },
+      { itemId: 'cenarion_signet', dropChance: 0.12 },
+    ],
+  },
+  blackrock_depths: {
+    anyDropChance: 0.92,
+    entries: [
+      { itemId: 'brd_ironfoe', dropChance: 0.15 },
+      { itemId: 'brd_emperors_seal', dropChance: 0.18 },
+      { itemId: 'brd_flameweave_cuffs', dropChance: 0.18 },
+      { itemId: 'chromatic_chainmail', dropChance: 0.12 },
+      { itemId: 'gauntlets_of_the_fallen', dropChance: 0.12 },
+    ],
+  },
+  stratholme: {
+    anyDropChance: 0.95,
+    entries: [
+      { itemId: 'strat_runeblade_rivendare', dropChance: 0.14 },
+      { itemId: 'strat_deathbone_legguards', dropChance: 0.16 },
+      { itemId: 'strat_skul_cap', dropChance: 0.18 },
+      { itemId: 'corruptors_cloak', dropChance: 0.12 },
+      // Epic (vzácný)
+      { itemId: 'nightmare_band', dropChance: 0.05 },
+    ],
+  },
 };
 
 /**

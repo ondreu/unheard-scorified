@@ -653,8 +653,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > **Status: rozpracováno** — 1. inkrement: **nové zóny 40–60 ✅** (Eastern
 > Plaguelands / Felwood, plný narativní questline + frontier loot bracket);
 > 2. inkrement: **+2 raidy + attunement ✅** (Zul'Gurub lvl 50 + Temple of
-> Ahn'Qiraj lvl 58, plně narativní attunement questlines). Zbývá: +4 dungeony,
-> dopsat fallback zóny, dungeon attunementy.
+> Ahn'Qiraj lvl 58); 3. inkrement: **+4 dungeony 40–60 ✅** (Zul'Farrak / Maraudon /
+> Blackrock Depths / Stratholme, Stratholme s vlastní attunement questline). Zbývá:
+> dopsat fallback zóny (Westfall/Duskwood/Barrens/Thousand Needles), attunementy
+> zbylých dungeonů/raidů.
 
 - [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
       beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
@@ -674,9 +676,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - [ ] **Attunement questlinky** — pro dungeony i raidy (rozšíření `DungeonDef.
       attunement` / `RaidAttunement`). Každá instance má vlastní lore questline,
       který ji odemyká (ne jen level gate).
-- [ ] **+4 dungeony** (minimálně) — nové SP/group PVE instance, content gating
-      napříč úrovněmi (zvlášť do dnes tenkého pásma 40–60). Trash + boss encountery,
-      boss loot tabulky, attunement questline. Recyklují group-run model + combat engine.
+- [x] **+4 dungeony** ✅ (M12.3): **Zul'Farrak** (42), **Maraudon** (46), **Blackrock
+      Depths** (52), **Stratholme** (58) — vyplňují dříve prázdné pásmo 40–60 (obsah
+      předtím končil na Scarlet Monastery lvl 30). Trash + boss encountery škálované
+      velikostí party (recyklují group-run model + combat engine), boss loot tabulky
+      (`DUNGEON_LOOT_TABLES`) + 12 nových BoP dungeon itemů (`items.ts`). BRD i Stratholme
+      pod weekly lockout. **Stratholme** gated vlastní attunement questline
+      (`al_/ho_culling_stratholme`, plně narativní, navazuje na frontier EPL/Felwood);
+      ostatní level-gated. Čistě data (web/API iterují přes `DUNGEONS`). Testy: shared
+      `group.test.ts` (+3). Detail: `docs/systems/combat-dungeons.md`.
 - [x] **+2 raidy + attunement** ✅ (M12.2): **Zul'Gurub** (lvl 50, 10/20, Venoxis /
       Mandokir / Hakkar) + **Temple of Ahn'Qiraj** (lvl 58, 10/20, Skeram / Sartura /
       C'Thun) — vyplňují progresní pásmo MC (40) → ZG (50) → BWL (55) → AQ (58).
@@ -736,7 +744,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
   - [x] **Zóny + questy 40–60** (M12.1): Eastern Plaguelands / Felwood (story
         questline 40/48/55 + `bracket_4` loot). Idle filler napříč levely teď nese
-        „Gone Questing" (ADR 0025). Zbývají **dungeony a raidy pro 40–60** (M12).
+        „Gone Questing" (ADR 0025).
+  - [x] **Dungeony a raidy 40–60** (M12.2/M12.3): +2 raidy (Zul'Gurub 50, Temple
+        of Ahn'Qiraj 58) + 4 dungeony (Zul'Farrak 42 / Maraudon 46 / Blackrock
+        Depths 52 / Stratholme 58). Content gap 40–60 zaplněn.
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
   - [x] **Repeatable questy nahrazeny „Gone Questing"** (ADR 0025): generická idle
         aktivita s hráčem volenou délkou (5 min–12 h), level flexuje s hráčem,

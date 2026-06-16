@@ -349,6 +349,28 @@ export const QUESTS: Record<string, QuestDef> = {
     ],
   },
 
+  // ── Dungeon attunement (Alliance, M12) — gate to Stratholme ──────────────
+  al_culling_stratholme: {
+    id: 'al_culling_stratholme',
+    name: 'The Gates of Stratholme',
+    description: 'Win passage into the plagued city of Stratholme and stand against Baron Rivendare\'s undead host.',
+    zoneId: 'eastern_plaguelands',
+    kind: 'story',
+    requiredLevel: 58,
+    requiresQuest: 'epl_scourge_necropolis',
+    durationSec: 10800,
+    baseXp: 13708,
+    baseGold: 914,
+    goldVariance: 0.2,
+    steps: [
+      n('Stratholme was once the jewel of Lordaeron. Now its gates are walled with bone, half the city held by the fanatic Scarlet Crusade, the other half a charnel-house ruled by the Scourge. The Argent Dawn cannot breach it alone. "If you would enter," the quartermaster tells you, "you must first clear the approach — the Scourge throw their dead at the walls in waves."'),
+      c('A reanimated mass of corpses lurches up the causeway, stitched limbs flailing.', 'Patchwork Abomination', 'elite'),
+      n('You hack the abomination apart and burn the pieces. At the gatehouse a Scarlet sentry challenges you — the Crusade trusts no one, least of all an outsider walking freely among the dead.'),
+      c('A Scarlet gate-captain bars the way, blade drawn. "No one enters the city. The Light has abandoned this place — leave, before it abandons you too."', 'Scarlet Gate-Captain', 'elite'),
+      n('The captain falls, and the Argent Dawn slips agents through the breach behind you. They mark a sigil of safe passage upon your tabard. "The inner city is the Baron\'s now," they warn. "Dreadlord-served, ringed in plague. Bring your strongest — Stratholme will not fall to one blade." The way is open.'),
+    ],
+  },
+
   // ╔══ HORDE ═══════════════════════════════════════════════════════════════╗
   // ── Durotar (1–10) ───────────────────────────────────────────────────────
   dt_scorpid_sting: {
@@ -587,6 +609,28 @@ export const QUESTS: Record<string, QuestDef> = {
       n('You wrench the shard of bronze from the dead creature\'s grip. The dragon hums with relief, but the final fragment lies deepest — in the keeping of an emissary of C\'Thun itself, a thing of eyes and madness sent to stop you.'),
       c('A floating horror of clustered eyes and tentacles drifts up from a fissure, whispering in a tongue that withers the grass. "You are already inside the dream, little thing."', 'Emissary of the Old God', 'boss'),
       n('The emissary collapses into writhing ichor and is still. The dragon takes the fragments, and in a forge older than the sun she reforges the Scepter — and lays it in your hands. "Strike the gong at Ahn\'Qiraj, champion. The war begins with you." The Temple of Ahn\'Qiraj is open.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Horde, M12) — gate to Stratholme ─────────────────
+  ho_culling_stratholme: {
+    id: 'ho_culling_stratholme',
+    name: 'The Gates of Stratholme',
+    description: 'Win passage into the plagued city of Stratholme and stand against Baron Rivendare\'s undead host.',
+    zoneId: 'felwood',
+    kind: 'story',
+    requiredLevel: 58,
+    requiresQuest: 'fw_deadwind_ritual',
+    durationSec: 10800,
+    baseXp: 13708,
+    baseGold: 914,
+    goldVariance: 0.2,
+    steps: [
+      n('Word reaches the Horde of Stratholme — once a human city, now a wound in the world. Half is held by the fanatic Scarlet Crusade, who would burn you on sight; the other half is a charnel-house of the Scourge. The Forsaken, who know undeath better than any, ask your aid: "The Scourge there serve a dreadlord. We would see it ended. But none walk into Stratholme uninvited — clear the approach first, and the gate will open."'),
+      c('A reanimated mass of corpses lurches up the causeway, stitched limbs flailing.', 'Patchwork Abomination', 'elite'),
+      n('You hack the abomination apart and burn the pieces. At the gatehouse a Scarlet sentry challenges you — the Crusade trusts no living thing, and trusts the Horde least of all.'),
+      c('A Scarlet gate-captain bars the way, blade drawn. "Foul creature of the Horde! The Light will scour you from these walls!"', 'Scarlet Gate-Captain', 'elite'),
+      n('The captain falls, and Forsaken agents slip through the breach behind you. They press a phial of blight into your hand as a mark of passage. "The inner city is the Baron\'s now," they rasp. "Dreadlord-served, ringed in plague. Bring your strongest — Stratholme will not fall to one blade." The way is open.'),
     ],
   },
 };

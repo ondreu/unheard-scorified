@@ -78,12 +78,22 @@ PVE neutrální (obě frakce), gated `requiredLevel` (content gating). Každý
 dungeon = sekvence `EnemyDef` (trash → boss) + `baseXp`/`baseGold` + odkaz na
 boss loot tabulku.
 
-| Dungeon            | Req lvl | Boss                          |
-| ------------------ | ------- | ----------------------------- |
-| Ragefire Chasm     | 8       | Taragaman the Hungerer        |
-| The Deadmines      | 15      | Edwin VanCleef                |
-| Shadowfang Keep    | 20      | Archmage Arugal               |
-| Scarlet Monastery  | 30      | High Inquisitor Whitemane     |
+| Dungeon            | Req lvl | Boss                          | Pozn.                          |
+| ------------------ | ------- | ----------------------------- | ------------------------------ |
+| Ragefire Chasm     | 8       | Taragaman the Hungerer        | attunement (startovní questline) |
+| The Deadmines      | 15      | Edwin VanCleef                |                                |
+| Shadowfang Keep    | 20      | Archmage Arugal               |                                |
+| Scarlet Monastery  | 30      | High Inquisitor Whitemane     | weekly lockout                 |
+| Zul'Farrak         | 42      | Chief Ukorz Sandscalp         | M12                            |
+| Maraudon           | 46      | Princess Theradras            | M12                            |
+| Blackrock Depths   | 52      | Emperor Dagran Thaurissan     | M12, weekly lockout            |
+| Stratholme         | 58      | Baron Rivendare               | M12, attunement + weekly lockout |
+
+Dungeony 42–58 (Zul'Farrak / Maraudon / Blackrock Depths / Stratholme) přibyly v
+**M12** a vyplňují dříve prázdné pásmo 40–60 (předtím obsah končil na Scarlet
+Monastery, lvl 30). Capstone **Stratholme** je gated vlastní attunement questline
+(`al_/ho_culling_stratholme`, navazuje na frontier zóny EPL/Felwood). Jen data —
+group-run model, combat engine i web/API se nemění (vše iteruje přes `DUNGEONS`).
 
 ### Boss loot (`DUNGEON_LOOT_TABLES` v `loot.ts`)
 
@@ -148,8 +158,8 @@ view vystaví `wipes` po dokončení. Detail: ADR 0013.
 
 ## Weekly lockout (M8.6)
 
-Vyšší dungeony (`DungeonDef.weeklyLockout`, zatím jen **Scarlet Monastery**)
-podléhají **týdennímu lockoutu per postava** — stejná mechanika jako raidy (první
+Vyšší dungeony (`DungeonDef.weeklyLockout`: **Scarlet Monastery, Blackrock
+Depths, Stratholme**) podléhají **týdennímu lockoutu per postava** — stejná mechanika jako raidy (první
 vítězný run v UTC týdnu zamkne, další clear týž týden nedá odměnu). Nižší dungeony
 zůstávají volně farmitelné (idle-friendly). Vzorce `@game/shared/lockout.ts`
 (`lockoutIdForContent('dungeon', id)`); run view vystaví `myLockedOut`. Detail:
