@@ -899,6 +899,21 @@ export function sendChatMessage(characterId: string, body: string): Promise<Chat
   });
 }
 
+// Activity history — výsledky dokončených aktivit (quest/dungeon/raid/arena).
+
+export interface HistoryEntry {
+  id: string;
+  kind: string;
+  title: string;
+  detail: string;
+  outcome: string | null;
+  createdAt: string;
+}
+
+export function getHistory(characterId: string): Promise<HistoryEntry[]> {
+  return request<HistoryEntry[]>(`/characters/${characterId}/history`);
+}
+
 // Guild (M9)
 
 export type GuildRankName = 'member' | 'officer' | 'leader';

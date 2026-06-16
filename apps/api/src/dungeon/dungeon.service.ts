@@ -48,6 +48,7 @@ import type { Character, RaidRun } from '../db/schema';
 import { RaidRepository } from '../raid/raid.repository';
 import { RAID_QUEUE, type RaidQueue } from '../raid/raid.matchmaking';
 import { RotationService } from '../rotation/rotation.service';
+import { HistoryRepository } from '../history/history.repository';
 
 const RECENT_RUNS_LIMIT = 8;
 
@@ -148,6 +149,7 @@ export class DungeonService {
     private readonly lockouts: LockoutRepository,
     private readonly rotation: RotationService,
     private readonly completed: CompletedQuestRepository,
+    private readonly history: HistoryRepository,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -444,6 +446,23 @@ export class DungeonService {
       rewardGold: reward.gold,
       rewardItems: reward.items,
     });
+
+    // Persistentní historie (best-effort).
+    const itemNote =
+      reward.items.length > 0
+        ? `, ${reward.items.length} item${reward.items.length === 1 ? '' : 's'}`
+        : '';
+    try {
+      await this.history.record({
+        characterId: character.id,
+        kind: 'dungeon',
+        title: `${DUNGEONS[dungeonId]?.name ?? dungeonId} ${victory ? 'cleared' : 'failed'}`,
+        detail: victory ? `+${reward.xp} XP, +${reward.gold}g${itemNote}` : 'The party wiped.',
+        outcome: victory ? 'victory' : 'defeat',
+      });
+    } catch {
+      /* best-effort */
+    }
     return reward;
   }
 

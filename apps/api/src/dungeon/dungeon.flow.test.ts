@@ -19,6 +19,7 @@ import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
+import { HistoryRepository } from '../history/history.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { RaidRepository } from '../raid/raid.repository';
@@ -69,6 +70,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       new LockoutRepository(db),
       new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
       completedRepo,
+      new HistoryRepository(db),
       new InMemoryRaidQueue(),
     );
   });

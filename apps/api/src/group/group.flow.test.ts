@@ -16,6 +16,7 @@ import { BuffRepository } from '../buff/buff.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
+import { HistoryRepository } from '../history/history.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { CompletedQuestRepository } from '../quest/quest.repository';
@@ -72,16 +73,17 @@ describe('M9 flow: groups (party)', () => {
     const arenaRepo = new ArenaRepository(db);
     const rotation = new RotationService(charRepo, talents, new RotationRepository(db), invService);
 
+    const history = new HistoryRepository(db);
     const raids = new RaidService(
       charRepo, invService, invRepo, makeGrant(db, invRepo), talents, completed, push, raidRepo,
-      new RaidEventsRelay(), lockouts, rotation, queue,
+      new RaidEventsRelay(), lockouts, rotation, history, queue,
     );
     const dungeons = new DungeonService(
-      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, rotation, completed, queue,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, rotation, completed, history, queue,
     );
     const arena = new ArenaService(
       charRepo, invService, talents, arenaRepo, push,
-      new ArenaEventsRelay(), rotation, new InMemoryMatchmakingQueue(), new InMemoryArenaLeaderboard(),
+      new ArenaEventsRelay(), rotation, history, new InMemoryMatchmakingQueue(), new InMemoryArenaLeaderboard(),
     );
     const teamArena = new TeamArenaService(
       charRepo, invService, talents, arenaRepo, push, rotation, new InMemoryTeamArenaQueue(),

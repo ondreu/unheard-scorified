@@ -32,6 +32,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
 import type { ArenaMatch, Character } from '../db/schema';
+import { HistoryRepository } from '../history/history.repository';
 import { ArenaRepository } from './arena.repository';
 import { ArenaEventsRelay } from './arena.events';
 import { RotationService } from '../rotation/rotation.service';
@@ -136,6 +137,7 @@ export class ArenaService {
     private readonly push: PushService,
     private readonly events: ArenaEventsRelay,
     private readonly rotation: RotationService,
+    private readonly history: HistoryRepository,
     @Inject(MATCHMAKING_QUEUE) private readonly matchmaking: MatchmakingQueue,
     @Inject(ARENA_LEADERBOARD) private readonly leaderboard: ArenaLeaderboard,
   ) {}
@@ -261,6 +263,26 @@ export class ArenaService {
 
     await this.leaderboard.setRating(seasonId, bracket, a.characterId, aAfter);
     await this.leaderboard.setRating(seasonId, bracket, b.characterId, bAfter);
+
+    // Persistentní historie pro oba hráče (best-effort).
+    try {
+      await this.history.record({
+        characterId: a.characterId,
+        kind: 'arena',
+        title: `Arena ${bracket} ${aWon ? 'win' : 'loss'} vs ${b.name}`,
+        detail: `Rating ${aAfter - aBefore >= 0 ? '+' : ''}${aAfter - aBefore} → ${aAfter}`,
+        outcome: aWon ? 'win' : 'loss',
+      });
+      await this.history.record({
+        characterId: b.characterId,
+        kind: 'arena',
+        title: `Arena ${bracket} ${aWon ? 'loss' : 'win'} vs ${a.name}`,
+        detail: `Rating ${bAfter - bBefore >= 0 ? '+' : ''}${bAfter - bBefore} → ${bAfter}`,
+        outcome: aWon ? 'loss' : 'win',
+      });
+    } catch {
+      /* best-effort */
+    }
 
     // Realtime „match found" oběma stranám (cross-instance přes Redis adaptér).
     this.events.matchFound(match.id, a.characterId, b.characterId);

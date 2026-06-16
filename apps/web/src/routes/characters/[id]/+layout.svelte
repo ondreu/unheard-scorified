@@ -8,6 +8,7 @@
     getCharacter,
     getGroup,
     getGuild,
+    getHistory,
     getMailbox,
     getSocial,
     type CharacterView,
@@ -137,6 +138,15 @@
     try {
       const box = await getMailbox(id);
       if (box.unread > 0) notifications.push('info', ui.mailUnread(box.unread));
+    } catch {
+      // best-effort
+    }
+    // Surface the latest completed-activity results (quest/dungeon/raid/arena)
+    // in the bell — full log lives on the History page.
+    try {
+      const history = await getHistory(id);
+      for (const h of history.slice(0, 3).reverse())
+        notifications.push('reward', h.title, h.detail || undefined);
     } catch {
       // best-effort
     }

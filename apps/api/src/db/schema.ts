@@ -960,3 +960,26 @@ export type Mail = typeof mail.$inferSelect;
 export type NewMail = typeof mail.$inferInsert;
 export type MailItem = typeof mailItems.$inferSelect;
 export type NewMailItem = typeof mailItems.$inferInsert;
+
+/**
+ * Persistentní historie dokončených aktivit: výsledky questů, profesí, dungeonů,
+ * raidů a arén v jednom chronologickém feedu (jeden záznam = jedna dokončená
+ * aktivita). Zapisuje se při claimu/grantu odměn; čte se na History stránce a
+ * nahrává do notifikací. Append-only (žádné mazání kromě kaskády při smazání
+ * postavy). `kind` = quest|gather|craft|dungeon|raid|arena; `outcome` =
+ * win|loss|victory|defeat|null.
+ */
+export const characterEventLog = pgTable('character_event_log', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  kind: varchar('kind', { length: 16 }).notNull(),
+  title: varchar('title', { length: 160 }).notNull(),
+  detail: varchar('detail', { length: 240 }).notNull().default(''),
+  outcome: varchar('outcome', { length: 16 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type CharacterEventLog = typeof characterEventLog.$inferSelect;
+export type NewCharacterEventLog = typeof characterEventLog.$inferInsert;

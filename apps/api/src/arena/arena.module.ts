@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
+import { HistoryModule } from '../history/history.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { PushModule } from '../push/push.module';
 import { SocialModule } from '../social/social.module';
@@ -29,6 +30,7 @@ import { TeamArenaService } from './team-arena.service';
   imports: [
     AuthModule,
     CharacterModule,
+    HistoryModule,
     InventoryModule,
     TalentModule,
     PushModule,

@@ -10,6 +10,7 @@ import { DevModule } from './dev/dev.module';
 import { DungeonModule } from './dungeon/dungeon.module';
 import { GroupModule } from './group/group.module';
 import { HealthModule } from './health/health.module';
+import { HistoryModule } from './history/history.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { MailModule } from './mail/mail.module';
 import { MountModule } from './mount/mount.module';
@@ -37,6 +38,7 @@ const devModules =
     DbModule,
     RedisModule,
     HealthModule,
+    HistoryModule,
     AuthModule,
     CharacterModule,
     QuestModule,

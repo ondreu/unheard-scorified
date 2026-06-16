@@ -15,6 +15,7 @@ import { BuffRepository } from '../buff/buff.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
+import { HistoryRepository } from '../history/history.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { ArenaRepository } from './arena.repository';
@@ -64,6 +65,7 @@ describe('M7 flow: arena PVP', () => {
       push,
       new ArenaEventsRelay(),
       new RotationService(charRepo, talentRepo, new RotationRepository(db), invService),
+      new HistoryRepository(db),
       new InMemoryMatchmakingQueue(),
       new InMemoryArenaLeaderboard(),
     );

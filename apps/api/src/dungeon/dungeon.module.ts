@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
+import { HistoryModule } from '../history/history.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { LockoutModule } from '../lockout/lockout.module';
 import { TalentModule } from '../talent/talent.module';
@@ -21,6 +22,7 @@ import { DungeonService } from './dungeon.service';
   imports: [
     AuthModule,
     CharacterModule,
+    HistoryModule,
     InventoryModule,
     TalentModule,
     PushModule,
