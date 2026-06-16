@@ -17,6 +17,9 @@
     intro:
       'Set the priority and conditions for your unlocked abilities. Higher rules fire first; ' +
       'when a rule is held back, you fall back to auto-attacks. Applies to dungeons, raids and arenas.',
+    healerNote:
+      'Healers: disable your damage spells to focus purely on healing (HPS), keep both for a ' +
+      'hybrid that also helps with damage, or disable your heals for a niche damage rotation.',
     empty: 'No active abilities yet — unlock a capstone talent to add abilities to your rotation.',
     save: 'Save Rotation',
     saving: 'Saving…',
@@ -109,6 +112,9 @@
   <div>
     <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
     <p class="mt-1 max-w-2xl text-sm text-[var(--text-dim)]">{ui.intro}</p>
+    {#if abilities.some((a) => a.kind === 'heal')}
+      <p class="mt-1 max-w-2xl text-sm text-[var(--info)]">{ui.healerNote}</p>
+    {/if}
   </div>
 
   {#if error}

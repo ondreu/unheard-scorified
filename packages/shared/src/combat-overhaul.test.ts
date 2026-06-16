@@ -227,6 +227,75 @@ describe('tank mitigation', () => {
   });
 });
 
+describe('healer offensive vs defensive rotation modes', () => {
+  function priestHealer(rotation?: import('./index').CharacterRotation): RaidActor {
+    const base = deriveCombatProfile({
+      name: 'Priest',
+      level: 60,
+      klass: 'priest',
+      primary: baseStatsFor('human', 'priest', 60),
+      equipment: { spell_power: 150, intellect: 150, stamina: 150 },
+      talents: aggregateTalentEffects('priest', {}),
+    });
+    return deriveRaidActor({ ...base, rotation }, 'healer');
+  }
+  function warriorTank(): RaidActor {
+    const base = deriveCombatProfile({
+      name: 'Tank', level: 60, klass: 'warrior',
+      primary: baseStatsFor('human', 'warrior', 60),
+      equipment: { attack_power: 100, stamina: 300, armor: 200 },
+      talents: aggregateTalentEffects('warrior', {}),
+    });
+    return deriveRaidActor(base, 'tank');
+  }
+  const boss: CombatActor = {
+    name: 'Boss', maxHealth: 400000, attackPower: 260, swingInterval: 1.4,
+    critChance: 0.1, critMultiplier: 2, armor: 0, lifesteal: 0, shield: 0,
+    signatureAbilities: [], isBoss: true,
+  };
+
+  function tally(rotation?: import('./index').CharacterRotation): { heal: number; dmg: number } {
+    const r = simulateRaidRun([warriorTank(), priestHealer(rotation)], [boss], 321);
+    let heal = 0, dmg = 0;
+    for (const e of r.events) {
+      if (e.source !== 'Priest' || typeof e.amount !== 'number') continue;
+      if (e.type === 'heal') heal += e.amount;
+      else if (e.target === 'Boss') dmg += e.amount;
+    }
+    return { heal, dmg };
+  }
+
+  it('default (hybrid): healer both heals and deals some damage', () => {
+    const t = tally();
+    expect(t.heal).toBeGreaterThan(0);
+    expect(t.dmg).toBeGreaterThan(0);
+  });
+
+  it('pure HPS: disabling damage spells → heals only, no damage', () => {
+    const pureHps: import('./index').CharacterRotation = {
+      rules: [
+        { abilityId: 'priest_smite', enabled: false, conditionType: 'always' },
+        { abilityId: 'priest_shadow_word_pain', enabled: false, conditionType: 'always' },
+      ],
+    };
+    const t = tally(pureHps);
+    expect(t.heal).toBeGreaterThan(0);
+    expect(t.dmg).toBe(0);
+  });
+
+  it('pure DPS (niche): disabling heal spells → damage only, no healing', () => {
+    const pureDps: import('./index').CharacterRotation = {
+      rules: [
+        { abilityId: 'priest_greater_heal', enabled: false, conditionType: 'always' },
+        { abilityId: 'priest_renew', enabled: false, conditionType: 'always' },
+      ],
+    };
+    const t = tally(pureDps);
+    expect(t.dmg).toBeGreaterThan(0);
+    expect(t.heal).toBe(0);
+  });
+});
+
 describe('rich combat log (pvp)', () => {
   it('lifesteal duelist produces drain events', () => {
     const drainer = profile('warrior', { 'warrior.fury.bloodthirst': 1 }, 50);

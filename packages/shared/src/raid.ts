@@ -26,7 +26,7 @@ import {
   type CombatEvent,
   type SignatureAbility,
 } from './combat';
-import { shouldCastAbility } from './rotation';
+import { isAbilityEnabled, shouldCastAbility } from './rotation';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -340,7 +340,20 @@ function fightBoss(
             tIdx = k;
           }
         }
-        if (tIdx >= 0 && worstMissing > 0) {
+        // Režim healera dle rotace (offensive vs defensive): pokud má vypnuté
+        // VŠECHNY heal-spelly → neléčí (pure DPS); pokud vypnuté všechny útočné
+        // → neútočí (pure HPS). Default (vše zapnuto) = hybrid. Heal-spelly i
+        // útočné spelly samotné jedou přes vlastní timery (member_ability).
+        const healAbilities = member.signatureAbilities.filter((a) => a.kind === 'heal');
+        const offAbilities = member.signatureAbilities.filter(
+          (a) => a.kind === 'strike' || a.kind === 'drain' || a.kind === 'dot',
+        );
+        const canHeal =
+          healAbilities.length === 0 ||
+          healAbilities.some((a) => isAbilityEnabled(member.rotation, a.id));
+        const canDps = offAbilities.some((a) => isAbilityEnabled(member.rotation, a.id));
+
+        if (canHeal && tIdx >= 0 && worstMissing > 0) {
           const amount = Math.max(1, Math.round(member.healPower * (0.9 + rng.next() * 0.2)));
           hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
           events.push({
@@ -352,8 +365,8 @@ function fightBoss(
             targetHealthRemaining: hp[tIdx],
             message: `💚 ${member.name} heals ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
           });
-        } else {
-          // Nikdo zraněný → symbolický úder bossovi.
+        } else if (canDps) {
+          // Nikdo zraněný (nebo pure-DPS healer) → úder bossovi (slabý — healer).
           const hit = computeHit(member, boss, rng, 1, false);
           bossHp = Math.max(0, bossHp - hit.amount);
           events.push({
@@ -367,6 +380,7 @@ function fightBoss(
             message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
           });
         }
+        // jinak (pure HPS a nikdo zraněný) → healer tento swing nic nedělá
       } else {
         const hit = computeHit(member, boss, rng, 1, false);
         bossHp = Math.max(0, bossHp - hit.amount);

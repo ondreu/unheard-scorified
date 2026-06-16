@@ -101,6 +101,22 @@ export function shouldCastAbility(
 }
 
 /**
+ * Je daná ability v rotaci povolená? (Bez vyhodnocení podmínky — jen
+ * enable/disable.) Bez rotace nebo bez pravidla = `true` (default zapnuto).
+ * Engine to používá k volbě režimu healera (offensive vs defensive): healer,
+ * který má vypnuté všechny heal-spelly, neléčí ani basic swingem; healer s
+ * vypnutými útočnými spelly jen léčí.
+ */
+export function isAbilityEnabled(
+  rotation: CharacterRotation | undefined,
+  abilityId: string,
+): boolean {
+  if (!rotation) return true;
+  const rule = rotation.rules.find((r) => r.abilityId === abilityId);
+  return rule ? rule.enabled : true;
+}
+
+/**
  * Očistí (z nedůvěryhodného vstupu, např. API) rotaci: ponechá jen pravidla pro
  * známé ability, validní typy podmínek a prahy v 0..1. Pořadí zachová a doplní
  * chybějící ability na konec jako default. Jediný zdroj pravdy pro validaci.
