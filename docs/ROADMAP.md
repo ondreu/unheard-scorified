@@ -780,6 +780,13 @@ lobby) a M8.5-D (P2P trade) — staví se první.
         příchozího poškození na tanka. Testy: `combat-overhaul.test.ts` (+2:
         mitigation snižuje utržené poškození). _Pozn.: spec≠role — prot talenty
         dělají málo DMG i kdyby šly do dps role (posiluje identitu)._
+  - [x] **Balanc pass 2 — DPS rozptyl ~1,3×** ✅ (žádost PM): změřeno přes engine,
+        DPS specy staženy na **1,30×** (1020–1328, band 88–115 % průměru). Lift
+        hybridů přes offensive baseline (Lightning Bolt, Wrath, Smite, Crusader
+        Strike, Arcane Shot), trim špičky (Pyroblast/Frostfire/Mortal Strike/
+        Unstable Affliction). **Tanky v tank roli ~0,34–0,44×** DPS průměru,
+        **healeři při DPS rotaci ~0,5–0,65×** (heal-heavy kit přirozeně půlí
+        ofenzivu). Rozmanitost zachována (mage/warrior nahoře, hybridi níž).
   - [ ] **Drobná náhoda** do combatu (už máme `SeededRng` — rozšířit varianci
         hitů/proc šancí, stále reprodukovatelně).
   - [ ] **Testovací target / healing dummy** (sandbox sim pro ladění rotací bez

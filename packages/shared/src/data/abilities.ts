@@ -66,10 +66,10 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   // Warrior
   mortal_strike: {
     name: 'Mortal Strike',
-    description: 'A brutal strike for 160% weapon damage.',
+    description: 'A brutal strike for 145% weapon damage.',
     kind: 'strike',
     cooldownSec: 6,
-    damageMult: 1.6,
+    damageMult: 1.45,
   },
   bloodthirst: {
     name: 'Bloodthirst',
@@ -119,18 +119,18 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   },
   thunderstorm: {
     name: 'Thunderstorm',
-    description: 'Calls down lightning for 270% spell damage.',
+    description: 'Calls down lightning for 300% spell damage.',
     kind: 'strike',
     cooldownSec: 12,
-    damageMult: 2.7,
+    damageMult: 3.0,
   },
   // Mage — Pyroblast zapálí cíl (úder + hoření).
   pyroblast_mastery: {
     name: 'Pyroblast',
-    description: 'A massive fireball for 210% damage that burns for a further 60% over 6s.',
+    description: 'A massive fireball for 185% damage that burns for a further 60% over 6s.',
     kind: 'dot',
     cooldownSec: 10,
-    damageMult: 2.1,
+    damageMult: 1.85,
     dotDurationSec: 6,
     dotTicks: 3,
     dotTickMult: 0.2,
@@ -145,10 +145,10 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   },
   unstable_affliction: {
     name: 'Unstable Affliction',
-    description: 'Afflicts the target for 170% damage plus 120% over 8s.',
+    description: 'Afflicts the target for 155% damage plus 120% over 8s.',
     kind: 'dot',
     cooldownSec: 9,
-    damageMult: 1.7,
+    damageMult: 1.55,
     dotDurationSec: 8,
     dotTicks: 4,
     dotTickMult: 0.3,
@@ -156,25 +156,25 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   // Druid
   starfall: {
     name: 'Starfall',
-    description: 'Calls down starlight for 260% spell damage.',
+    description: 'Calls down starlight for 290% spell damage.',
     kind: 'strike',
     cooldownSec: 12,
-    damageMult: 2.6,
+    damageMult: 2.9,
   },
   berserk: {
     name: 'Berserk',
-    description: 'Enters a frenzy, striking for 250% damage.',
+    description: 'Enters a frenzy, striking for 330% damage.',
     kind: 'strike',
     cooldownSec: 10,
-    damageMult: 2.5,
+    damageMult: 3.3,
   },
   // Paladin
   repentance: {
     name: 'Repentance',
-    description: 'Smites the target for 210% weapon damage.',
+    description: 'Smites the target for 240% weapon damage.',
     kind: 'strike',
     cooldownSec: 9,
-    damageMult: 2.1,
+    damageMult: 2.4,
   },
 
   // ── Talent overhaul capstones (nové spelly per strom) ─────────────────────
@@ -234,10 +234,10 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   },
   mind_blast: {
     name: 'Mind Blast',
-    description: "Blasts the target's mind for 220% spell damage.",
+    description: "Blasts the target's mind for 250% spell damage.",
     kind: 'strike',
     cooldownSec: 7,
-    damageMult: 2.2,
+    damageMult: 2.5,
   },
   riptide: {
     name: 'Riptide',
@@ -255,10 +255,10 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   },
   frostfire_bolt: {
     name: 'Frostfire Bolt',
-    description: 'A bolt of frost and fire for 200% spell damage.',
+    description: 'A bolt of frost and fire for 180% spell damage.',
     kind: 'strike',
     cooldownSec: 9,
-    damageMult: 2.0,
+    damageMult: 1.8,
   },
   demonbolt: {
     name: 'Demonbolt',
@@ -336,19 +336,19 @@ function ba(
 
 export const CLASS_BASELINE_ABILITIES: Record<string, BaselineAbility[]> = {
   warrior: [
-    ba('warrior_heroic_strike', 'Heroic Strike', 'A forceful blow for 115% weapon damage.', 'strike', 4, 1.15, 1),
+    ba('warrior_heroic_strike', 'Heroic Strike', 'A forceful blow for 105% weapon damage.', 'strike', 4, 1.05, 1),
     ba('warrior_rend', 'Rend', 'Wounds the target for 50% weapon damage and bleeds for 90% over 9s.', 'dot', 8, 0.5, 6, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.3 } }),
-    ba('warrior_overpower', 'Overpower', 'Seizes an opening to strike for 130% weapon damage.', 'strike', 6, 1.3, 14),
-    ba('warrior_execute', 'Execute', 'A finishing blow for 190% weapon damage, increased to 280% against targets below 30% health.', 'strike', 8, 1.9, 30, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.8 } }),
+    ba('warrior_overpower', 'Overpower', 'Seizes an opening to strike for 120% weapon damage.', 'strike', 6, 1.2, 14),
+    ba('warrior_execute', 'Execute', 'A finishing blow for 175% weapon damage, increased to 260% against targets below 30% health.', 'strike', 8, 1.75, 30, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.6 } }),
   ],
   paladin: [
-    ba('paladin_crusader_strike', 'Crusader Strike', 'A righteous strike for 160% weapon damage.', 'strike', 5, 1.6, 1),
+    ba('paladin_crusader_strike', 'Crusader Strike', 'A righteous strike for 180% weapon damage.', 'strike', 5, 1.8, 1),
     ba('paladin_consecration', 'Consecration', 'Sanctifies the ground, burning the enemy for 140% damage over 8s.', 'dot', 8, 0.4, 12, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.35 } }),
     ba('paladin_holy_light', 'Holy Light', 'A potent heal restoring 220% of your healing power to a wounded ally.', 'heal', 6, 2.2, 1),
     ba('paladin_flash_of_light', 'Flash of Light', 'A fast heal restoring 130% of your healing power to a wounded ally.', 'heal', 4, 1.3, 20),
   ],
   hunter: [
-    ba('hunter_arcane_shot', 'Arcane Shot', 'An instant shot dealing 140% weapon damage.', 'strike', 5, 1.4, 1),
+    ba('hunter_arcane_shot', 'Arcane Shot', 'An instant shot dealing 155% weapon damage.', 'strike', 5, 1.55, 1),
     ba('hunter_serpent_sting', 'Serpent Sting', 'Poisons the target for 40% on impact and 125% over 10s.', 'dot', 9, 0.4, 10, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0.25 } }),
     ba('hunter_aimed_shot', 'Aimed Shot', 'A carefully aimed shot dealing 190% weapon damage.', 'strike', 8, 1.9, 30),
   ],
@@ -358,20 +358,20 @@ export const CLASS_BASELINE_ABILITIES: Record<string, BaselineAbility[]> = {
     ba('rogue_eviscerate', 'Eviscerate', 'A finishing move dealing 190% weapon damage, increased to 280% against targets below 30% health.', 'strike', 7, 1.9, 20, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.8 } }),
   ],
   priest: [
-    ba('priest_smite', 'Smite', 'Holy energy dealing 130% spell damage.', 'strike', 5, 1.3, 1),
+    ba('priest_smite', 'Smite', 'Holy energy dealing 155% spell damage.', 'strike', 5, 1.55, 1),
     ba('priest_shadow_word_pain', 'Shadow Word: Pain', 'A creeping agony dealing 120% damage over 12s.', 'dot', 9, 0.4, 8, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.2 } }),
     ba('priest_greater_heal', 'Greater Heal', 'A powerful heal restoring 240% of your healing power to a wounded ally.', 'heal', 6, 2.4, 1),
     ba('priest_renew', 'Renew', 'Heals a wounded ally for 140% of your healing power.', 'heal', 5, 1.4, 14),
   ],
   shaman: [
-    ba('shaman_lightning_bolt', 'Lightning Bolt', 'A bolt of lightning for 140% spell damage.', 'strike', 5, 1.4, 1),
+    ba('shaman_lightning_bolt', 'Lightning Bolt', 'A bolt of lightning for 160% spell damage.', 'strike', 5, 1.6, 1),
     ba('shaman_flame_shock', 'Flame Shock', 'Sears the target for 40% on impact and 90% over 9s.', 'dot', 8, 0.4, 10, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.3 } }),
     ba('shaman_healing_wave', 'Healing Wave', 'A strong heal restoring 230% of your healing power to a wounded ally.', 'heal', 6, 2.3, 1),
     ba('shaman_chain_heal', 'Chain Heal', 'Restores 180% of your healing power to a wounded ally.', 'heal', 8, 1.8, 30),
   ],
   mage: [
-    ba('mage_fireball', 'Fireball', 'Hurls a fiery ball for 120% spell damage.', 'strike', 4, 1.2, 1),
-    ba('mage_frostbolt', 'Frostbolt', 'A frozen bolt for 110% spell damage that chills the target.', 'strike', 4, 1.1, 1),
+    ba('mage_fireball', 'Fireball', 'Hurls a fiery ball for 105% spell damage.', 'strike', 4, 1.05, 1),
+    ba('mage_frostbolt', 'Frostbolt', 'A frozen bolt for 100% spell damage that chills the target.', 'strike', 4, 1.0, 1),
     ba('mage_scorch', 'Scorch', 'Burns the target for 40% on impact and 75% over 6s.', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.25 } }),
     ba('mage_arcane_blast', 'Arcane Blast', 'A surge of arcane power for 160% spell damage.', 'strike', 7, 1.6, 30),
   ],
@@ -382,7 +382,7 @@ export const CLASS_BASELINE_ABILITIES: Record<string, BaselineAbility[]> = {
     ba('warlock_immolate', 'Immolate', 'Engulfs the target for 40% on impact and 100% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.25 } }),
   ],
   druid: [
-    ba('druid_wrath', 'Wrath', "Nature's wrath for 160% spell damage.", 'strike', 5, 1.6, 1),
+    ba('druid_wrath', 'Wrath', "Nature's wrath for 180% spell damage.", 'strike', 5, 1.8, 1),
     ba('druid_moonfire', 'Moonfire', 'Arcane fire dealing 50% on impact and 120% over 9s.', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 } }),
     ba('druid_healing_touch', 'Healing Touch', 'A potent heal restoring 240% of your healing power to a wounded ally.', 'heal', 6, 2.4, 1),
     ba('druid_rejuvenation', 'Rejuvenation', 'Heals a wounded ally for 140% of your healing power.', 'heal', 5, 1.4, 14),

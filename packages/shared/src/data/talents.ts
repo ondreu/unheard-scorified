@@ -71,7 +71,7 @@ const WARRIOR_TALENTS: ClassTalents = [
       n('warrior.arms.deep_wounds', 'Deep Wounds', 'Your critical strikes cause extra bleed damage (1% per rank).', 15, 3, TAG('deep_wounds')),
       n('warrior.arms.two_handed_specialization', 'Two-Handed Specialization', D.dmg1, 20, 4, TAG('dmg_minor')),
       n('warrior.arms.sudden_death', 'Sudden Death', D.lifesteal, 25, 3, TAG('lifesteal_minor')),
-      n('warrior.arms.mortal_strike', 'Mortal Strike', 'A brutal strike for 160% weapon damage.', 28, 1, TAG('mortal_strike')),
+      n('warrior.arms.mortal_strike', 'Mortal Strike', 'A brutal strike for 145% weapon damage.', 28, 1, TAG('mortal_strike')),
     ],
   },
   {
@@ -146,7 +146,7 @@ const PALADIN_TALENTS: ClassTalents = [
       n('paladin.ret.conviction', 'Conviction', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('paladin.ret.sanctity_aura', 'Sanctity Aura', D.haste, 25, 3, TAG('haste_minor')),
       n('paladin.ret.eye_for_an_eye', 'Eye for an Eye', D.lifesteal, 25, 2, TAG('lifesteal_minor')),
-      n('paladin.ret.repentance', 'Repentance', 'Smites the target for 210% weapon damage.', 28, 1, TAG('repentance')),
+      n('paladin.ret.repentance', 'Repentance', 'Smites the target for 240% weapon damage.', 28, 1, TAG('repentance')),
     ],
   },
 ];
@@ -281,7 +281,7 @@ const PRIEST_TALENTS: ClassTalents = [
       n('priest.shadow.shadow_power', 'Shadow Power', D.dmg2, 20, 5, TAG('dmg_major')),
       n('priest.shadow.focused_mind', 'Focused Mind', D.crit, 25, 3, TAG('crit_minor')),
       n('priest.shadow.shadow_affinity', 'Shadow Affinity', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
-      n('priest.shadow.mind_blast', 'Mind Blast', "Blasts the target's mind for 220% spell damage.", 28, 1, TAG('mind_blast')),
+      n('priest.shadow.mind_blast', 'Mind Blast', "Blasts the target's mind for 250% spell damage.", 28, 1, TAG('mind_blast')),
     ],
   },
 ];
@@ -298,7 +298,7 @@ const SHAMAN_TALENTS: ClassTalents = [
       n('shaman.ele.lightning_mastery', 'Lightning Mastery', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('shaman.ele.elemental_precision', 'Elemental Precision', D.crit, 25, 3, TAG('crit_minor')),
       n('shaman.ele.unrelenting_storm', 'Unrelenting Storm', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
-      n('shaman.ele.thunderstorm', 'Thunderstorm', 'Calls down lightning for 270% spell damage.', 28, 1, TAG('thunderstorm')),
+      n('shaman.ele.thunderstorm', 'Thunderstorm', 'Calls down lightning for 300% spell damage.', 28, 1, TAG('thunderstorm')),
     ],
   },
   {
@@ -357,7 +357,7 @@ const MAGE_TALENTS: ClassTalents = [
       n('mage.fire.master_of_elements', 'Master of Elements', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('mage.fire.burning_soul', 'Burning Soul', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intellect')),
       n('mage.fire.pyromaniac', 'Pyromaniac', D.crit, 25, 2, TAG('crit_minor')),
-      n('mage.fire.pyroblast', 'Pyroblast', 'A massive fireball for 210% damage that burns for a further 60% over 6s.', 28, 1, TAG('pyroblast_mastery')),
+      n('mage.fire.pyroblast', 'Pyroblast', 'A massive fireball for 185% damage that burns for a further 60% over 6s.', 28, 1, TAG('pyroblast_mastery')),
     ],
   },
   {
@@ -371,7 +371,7 @@ const MAGE_TALENTS: ClassTalents = [
       n('mage.frost.arctic_winds', 'Arctic Winds', D.dmg2, 20, 5, TAG('dmg_major')),
       n('mage.frost.shatter', 'Shatter', D.crit, 25, 3, TAG('crit_minor')),
       n('mage.frost.frost_channeling', 'Frost Channeling', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
-      n('mage.frost.frostfire_bolt', 'Frostfire Bolt', 'A bolt of frost and fire for 200% spell damage.', 28, 1, TAG('frostfire_bolt')),
+      n('mage.frost.frostfire_bolt', 'Frostfire Bolt', 'A bolt of frost and fire for 180% spell damage.', 28, 1, TAG('frostfire_bolt')),
     ],
   },
 ];
@@ -388,7 +388,7 @@ const WARLOCK_TALENTS: ClassTalents = [
       n('warlock.aff.shadow_embrace', 'Shadow Embrace', D.dmg2, 20, 5, TAG('dmg_major')),
       n('warlock.aff.malediction', 'Malediction', D.crit, 25, 3, TAG('crit_minor')),
       n('warlock.aff.contagion', 'Contagion', D.dmg1, 25, 2, TAG('dmg_minor')),
-      n('warlock.aff.unstable_affliction', 'Unstable Affliction', 'Afflicts the target for 170% damage plus 120% over 8s.', 28, 1, TAG('unstable_affliction')),
+      n('warlock.aff.unstable_affliction', 'Unstable Affliction', 'Afflicts the target for 155% damage plus 120% over 8s.', 28, 1, TAG('unstable_affliction')),
     ],
   },
   {
@@ -433,7 +433,7 @@ const DRUID_TALENTS: ClassTalents = [
       n('druid.bal.moonfury', 'Moonfury', D.dmg2, 20, 5, TAG('dmg_major')),
       n('druid.bal.wrath_of_cenarius', 'Wrath of Cenarius', D.dmg1, 25, 3, TAG('dmg_minor')),
       n('druid.bal.dreamstate', 'Dreamstate', 'Increases Spirit by 1 per rank.', 25, 2, STAT('spirit')),
-      n('druid.bal.starfall', 'Starfall', 'Calls down starlight for 260% spell damage.', 28, 1, TAG('starfall')),
+      n('druid.bal.starfall', 'Starfall', 'Calls down starlight for 290% spell damage.', 28, 1, TAG('starfall')),
     ],
   },
   {
@@ -447,7 +447,7 @@ const DRUID_TALENTS: ClassTalents = [
       n('druid.feral.heart_of_the_wild', 'Heart of the Wild', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('druid.feral.predatory_instincts', 'Predatory Instincts', D.crit, 25, 3, TAG('crit_minor')),
       n('druid.feral.primal_fury', 'Primal Fury', D.haste, 25, 2, TAG('haste_minor')),
-      n('druid.feral.berserk', 'Berserk', 'Enters a frenzy, striking for 250% damage.', 28, 1, TAG('berserk')),
+      n('druid.feral.berserk', 'Berserk', 'Enters a frenzy, striking for 330% damage.', 28, 1, TAG('berserk')),
     ],
   },
   {
