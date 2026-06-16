@@ -660,9 +660,17 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > má teď vlastní questline); 6. inkrement: **fallback zóny dopsány ✅** (Westfall/
 > Duskwood/Barrens/Thousand Needles — viz níže).
 
-- [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
-      beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
-      grind 1–60 nebyl pár questů dokola, ať je vždy „co dělat dál".
+- [x] **Velké množství story questů napříč úrovněmi** ✅ (M12.7): vícekrokové
+      (narativní beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9.
+      Cíl: aby grind 1–60 nebyl pár questů dokola, ať je vždy „co dělat dál".
+      **72 → 108 story questů** (+36, paralelně Alliance/Horde): Northshire/Durotar
+      +4 (vsunuto mezi `_brotherhood_intel`/`_burning_blade` a raid-attunement
+      gate), Westfall/Barrens +4 (vsunuto do existujícího 7-dílného řetězce),
+      Duskwood/Thousand Needles +4 (vsunuto do 6-dílného řetězce), Eastern
+      Plaguelands/Felwood +6 (rozšíření 3-dílné frontier story na 9 dílů, capstone
+      na lvl 60). Odměny dál kalibrované (`600·√L·h` XP / `40·√L·h` gold), žádná
+      kotevní quest ID (referencovaná z attunementů/testů) nezměněna — nové questy
+      vsunuty jako mezičlánky přes `requiresQuest` redirect.
   - [x] **Nové 40–60 zóny** (M12.1): Eastern Plaguelands (Alliance) + Felwood
         (Horde), paralelní 3-dílná story questline (lvl 40/48/55, plné narativní
         `steps` + combat). Odměny kalibrované (`600·√L·h` XP / `40·√L·h` gold).
