@@ -10,8 +10,12 @@
  * duplicita. Aliance a horda mají paralelní questline se stejnými level reqy,
  * dobami i odměnami (frakce kosmetická, viz ADR 0003).
  *
- * Odměny: XP je fixní (předvídatelný leveling), zlato má deterministickou
- * varianci přes SeededRng (viz `activity.ts` → `computeQuestReward`).
+ * Balanc (M9 pass): `durationSec` ∈ [5 min, 3 h] (idle cadence) a `baseXp`/
+ * `baseGold` jsou kalibrované jako odměna při efektivitě 1.0 =
+ * `referenceXpPerHour(requiredLevel) × durationHours` (resp. gold rate). Skutečná
+ * odměna se násobí `activityEfficiency(durationSec)` (mírný punish za dlouhý běh)
+ * a zlato navíc variancí přes SeededRng. Viz `activity.ts → computeQuestReward`
+ * a `docs/systems/progression.md`.
  */
 import type { Faction } from './races';
 import { ZONES, type ZoneId } from './zones';
@@ -26,15 +30,15 @@ export interface QuestDef {
   description: string;
   zoneId: ZoneId;
   kind: QuestKind;
-  /** Minimální level postavy pro přijetí questu. */
+  /** Minimální level postavy pro přijetí questu (= referenční level pro odměnu). */
   requiredLevel: number;
   /** Story chain: id questu, který musí být dokončen jako první. */
   requiresQuest?: string;
-  /** Doba trvání idle běhu v sekundách (laditelný balanc parametr). */
+  /** Doba trvání idle běhu v sekundách (laditelný balanc parametr, 5 min–3 h). */
   durationSec: number;
-  /** Základní XP odměna (fixní). */
+  /** Základní XP odměna při efektivitě 1.0 (násobí se `activityEfficiency`). */
   baseXp: number;
-  /** Základní zlato (medění/„copper" jednotky); rolluje se s variancí. */
+  /** Základní zlato při efektivitě 1.0; rolluje se s variancí a efektivitou. */
   baseGold: number;
   /** Frakce variance zlata (0..1), aplikovaná přes SeededRng. */
   goldVariance: number;
@@ -50,9 +54,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'northshire',
     kind: 'story',
     requiredLevel: 1,
-    durationSec: 60,
-    baseXp: 60,
-    baseGold: 5,
+    durationSec: 600,
+    baseXp: 100,
+    baseGold: 7,
     goldVariance: 0.3,
   },
   ns_brotherhood_intel: {
@@ -63,9 +67,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 4,
     requiresQuest: 'ns_kobold_culling',
-    durationSec: 300,
-    baseXp: 180,
-    baseGold: 12,
+    durationSec: 1200,
+    baseXp: 400,
+    baseGold: 27,
     goldVariance: 0.3,
   },
   ns_wolf_pelts: {
@@ -75,9 +79,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'northshire',
     kind: 'repeatable',
     requiredLevel: 1,
-    durationSec: 180,
-    baseXp: 45,
-    baseGold: 4,
+    durationSec: 300,
+    baseXp: 50,
+    baseGold: 3,
     goldVariance: 0.4,
   },
 
@@ -90,9 +94,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 10,
     requiresQuest: 'ns_brotherhood_intel',
-    durationSec: 900,
-    baseXp: 600,
-    baseGold: 30,
+    durationSec: 1800,
+    baseXp: 949,
+    baseGold: 63,
     goldVariance: 0.25,
   },
   wf_harvest_watchers: {
@@ -103,9 +107,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 16,
     requiresQuest: 'wf_defias_raid',
-    durationSec: 1800,
-    baseXp: 1100,
-    baseGold: 55,
+    durationSec: 3600,
+    baseXp: 2400,
+    baseGold: 160,
     goldVariance: 0.25,
   },
   wf_murloc_scales: {
@@ -115,9 +119,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'westfall',
     kind: 'repeatable',
     requiredLevel: 12,
-    durationSec: 600,
-    baseXp: 350,
-    baseGold: 20,
+    durationSec: 900,
+    baseXp: 520,
+    baseGold: 35,
     goldVariance: 0.35,
   },
 
@@ -130,9 +134,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 25,
     requiresQuest: 'wf_harvest_watchers',
-    durationSec: 2700,
-    baseXp: 3000,
-    baseGold: 120,
+    durationSec: 5400,
+    baseXp: 4500,
+    baseGold: 300,
     goldVariance: 0.2,
   },
   dw_morbent_fel: {
@@ -143,9 +147,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 32,
     requiresQuest: 'dw_nightbane',
-    durationSec: 3600,
-    baseXp: 5200,
-    baseGold: 200,
+    durationSec: 7200,
+    baseXp: 6788,
+    baseGold: 453,
     goldVariance: 0.2,
   },
   dw_grave_moss: {
@@ -156,8 +160,8 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'repeatable',
     requiredLevel: 27,
     durationSec: 1200,
-    baseXp: 2200,
-    baseGold: 90,
+    baseXp: 1039,
+    baseGold: 69,
     goldVariance: 0.3,
   },
 
@@ -170,9 +174,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 50,
     requiresQuest: 'dw_morbent_fel',
-    durationSec: 5400,
-    baseXp: 8000,
-    baseGold: 300,
+    durationSec: 10800,
+    baseXp: 12728,
+    baseGold: 849,
     goldVariance: 0.2,
   },
 
@@ -185,9 +189,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'durotar',
     kind: 'story',
     requiredLevel: 1,
-    durationSec: 60,
-    baseXp: 60,
-    baseGold: 5,
+    durationSec: 600,
+    baseXp: 100,
+    baseGold: 7,
     goldVariance: 0.3,
   },
   dt_burning_blade: {
@@ -198,9 +202,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 4,
     requiresQuest: 'dt_scorpid_sting',
-    durationSec: 300,
-    baseXp: 180,
-    baseGold: 12,
+    durationSec: 1200,
+    baseXp: 400,
+    baseGold: 27,
     goldVariance: 0.3,
   },
   dt_boar_hides: {
@@ -210,9 +214,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'durotar',
     kind: 'repeatable',
     requiredLevel: 1,
-    durationSec: 180,
-    baseXp: 45,
-    baseGold: 4,
+    durationSec: 300,
+    baseXp: 50,
+    baseGold: 3,
     goldVariance: 0.4,
   },
 
@@ -225,9 +229,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 10,
     requiresQuest: 'dt_burning_blade',
-    durationSec: 900,
-    baseXp: 600,
-    baseGold: 30,
+    durationSec: 1800,
+    baseXp: 949,
+    baseGold: 63,
     goldVariance: 0.25,
   },
   ba_centaur_menace: {
@@ -238,9 +242,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 16,
     requiresQuest: 'ba_quilboar_war',
-    durationSec: 1800,
-    baseXp: 1100,
-    baseGold: 55,
+    durationSec: 3600,
+    baseXp: 2400,
+    baseGold: 160,
     goldVariance: 0.25,
   },
   ba_plainstrider_meat: {
@@ -250,9 +254,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'barrens',
     kind: 'repeatable',
     requiredLevel: 12,
-    durationSec: 600,
-    baseXp: 350,
-    baseGold: 20,
+    durationSec: 900,
+    baseXp: 520,
+    baseGold: 35,
     goldVariance: 0.35,
   },
 
@@ -265,9 +269,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 25,
     requiresQuest: 'ba_centaur_menace',
-    durationSec: 2700,
-    baseXp: 3000,
-    baseGold: 120,
+    durationSec: 5400,
+    baseXp: 4500,
+    baseGold: 300,
     goldVariance: 0.2,
   },
   tn_galak_ogres: {
@@ -278,9 +282,9 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 32,
     requiresQuest: 'tn_grimtotem',
-    durationSec: 3600,
-    baseXp: 5200,
-    baseGold: 200,
+    durationSec: 7200,
+    baseXp: 6788,
+    baseGold: 453,
     goldVariance: 0.2,
   },
   tn_salt_flats: {
@@ -291,8 +295,8 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'repeatable',
     requiredLevel: 27,
     durationSec: 1200,
-    baseXp: 2200,
-    baseGold: 90,
+    baseXp: 1039,
+    baseGold: 69,
     goldVariance: 0.3,
   },
 
@@ -305,17 +309,16 @@ export const QUESTS: Record<string, QuestDef> = {
     kind: 'story',
     requiredLevel: 50,
     requiresQuest: 'tn_galak_ogres',
-    durationSec: 5400,
-    baseXp: 8000,
-    baseGold: 300,
+    durationSec: 10800,
+    baseXp: 12728,
+    baseGold: 849,
     goldVariance: 0.2,
   },
 
-  // ── Doplňkové repeatable questy (M9): záměrně RŮZNÉ délky a odměny ──────────
-  // Délka má KLESAJÍCÍ efektivitu: nejkratší (90 s) běží na 1:1 bracketové sazbě
-  // XP/s, nejdelší (2400 s) na 0.75 (lineárně dle délky — mírný „punish" za moc
-  // dlouhý běh, ať se nevyplatí jen parkovat na nejdelším questu). Bracketové
-  // sazby ≈ existující repeatable: low 0.25, mid 0.58, high 1.83 XP/s.
+  // ── Doplňkové repeatable questy (M9): RŮZNÉ délky napříč brackety ───────────
+  // Délka jen mění objem odměny (≈ délka × referenční rychlost); XP/h drží
+  // konstantní per bracket. Mírný „punish" za dlouhý běh řeší `activityEfficiency`
+  // (ne per-quest), takže nejdelší repeatable je o ~10–20 % méně efektivní.
 
   // Low bracket (1–10): quick (Alliance) vs long (Horde).
   ns_riverpaw_scouts: {
@@ -325,9 +328,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'northshire',
     kind: 'repeatable',
     requiredLevel: 6,
-    durationSec: 90, // efektivita 1.00
-    baseXp: 23,
-    baseGold: 2,
+    durationSec: 600,
+    baseXp: 245,
+    baseGold: 16,
     goldVariance: 0.45,
   },
   dt_scorpid_venom: {
@@ -337,9 +340,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'durotar',
     kind: 'repeatable',
     requiredLevel: 6,
-    durationSec: 420, // efektivita 0.96
-    baseXp: 101,
-    baseGold: 9,
+    durationSec: 1800,
+    baseXp: 735,
+    baseGold: 49,
     goldVariance: 0.35,
   },
 
@@ -351,9 +354,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'westfall',
     kind: 'repeatable',
     requiredLevel: 18,
-    durationSec: 300, // efektivita 0.98
-    baseXp: 171,
-    baseGold: 10,
+    durationSec: 600,
+    baseXp: 424,
+    baseGold: 28,
     goldVariance: 0.4,
   },
   ba_quilboar_raid: {
@@ -363,9 +366,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'barrens',
     kind: 'repeatable',
     requiredLevel: 18,
-    durationSec: 1200, // efektivita 0.88
-    baseXp: 616,
-    baseGold: 35,
+    durationSec: 3600,
+    baseXp: 2546,
+    baseGold: 170,
     goldVariance: 0.3,
   },
 
@@ -377,9 +380,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'duskwood',
     kind: 'repeatable',
     requiredLevel: 33,
-    durationSec: 600, // efektivita 0.94
-    baseXp: 1040,
-    baseGold: 43,
+    durationSec: 900,
+    baseXp: 862,
+    baseGold: 57,
     goldVariance: 0.35,
   },
   tn_harpy_feathers: {
@@ -389,9 +392,9 @@ export const QUESTS: Record<string, QuestDef> = {
     zoneId: 'thousand_needles',
     kind: 'repeatable',
     requiredLevel: 33,
-    durationSec: 2400, // efektivita 0.75 (nejdelší = punish)
-    baseXp: 3300,
-    baseGold: 135,
+    durationSec: 7200,
+    baseXp: 6893,
+    baseGold: 460,
     goldVariance: 0.3,
   },
 };

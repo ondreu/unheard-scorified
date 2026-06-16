@@ -1,4 +1,23 @@
-import { MAX_LEVEL, XP_CURVE } from './constants';
+import { MAX_LEVEL, XP_CURVE, XP_REWARD_RATE } from './constants';
+
+/**
+ * Referenční XP/h "nejlepší dostupné" idle aktivity na daném levelu (efektivita
+ * 1.0). Spolu s XP křivkou definuje tempo progrese: čas-na-level(L) =
+ * xpForNextLevel(L) / referenceXpPerHour(L). Viz `docs/systems/progression.md`.
+ */
+export function referenceXpPerHour(level: number): number {
+  if (level < 1) throw new RangeError(`level must be >= 1, got ${level}`);
+  return XP_REWARD_RATE.base * Math.pow(level, XP_REWARD_RATE.levelExponent);
+}
+
+/**
+ * "Perfect-chain" herní čas (h) potřebný k postupu z `level` na `level + 1`
+ * (aktivní idle hráč na referenční rychlosti). 0 na capu. Pro testy/dokumentaci.
+ */
+export function hoursToNextLevel(level: number): number {
+  if (level >= MAX_LEVEL) return 0;
+  return xpForNextLevel(level) / referenceXpPerHour(level);
+}
 
 /**
  * XP potřebné pro postup z `level` na `level + 1`.
