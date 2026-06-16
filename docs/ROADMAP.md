@@ -639,6 +639,11 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ### FEAT — obsah & systémy
 
+- [ ] 🧑‍💼 **Late-game obsah 40–60 (priorita po M9 balanc passu).** Progresní
+      křivka klade **64 % cesty** do pásma 40–60 (viz `docs/systems/progression.md`),
+      kde je dnes tenký obsah (dungeony končí Scarlet Monastery lvl 30–38, pak jen
+      repeatable questy + 2 raidy). Doplnit zóny/questlinky a **dungeony pro 40–60**,
+      ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
   - [x] +6 repeatable filler questů (1 na zónu, M9) — víc idle obsahu napříč brackety.
   - [ ] Příběhové (story) questlinky.
