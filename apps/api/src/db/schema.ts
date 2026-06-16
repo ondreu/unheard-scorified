@@ -37,6 +37,7 @@ import type {
   RaceId,
   RaidActor,
   RaidRole,
+  RotationRule,
   TradeSide,
   TradeStatus,
 } from '@game/shared';
@@ -847,6 +848,26 @@ export const characterBags = pgTable(
 export const characterBagsRelations = relations(characterBags, ({ one }) => ({
   character: one(characters, {
     fields: [characterBags.characterId],
+    references: [characters.id],
+  }),
+}));
+
+/**
+ * Deklarativní rotace postavy (MIL — combat overhaul). Jeden řádek na postavu;
+ * `rules` = seřazená pravidla (priorita) `{ abilityId, enabled, conditionType,
+ * threshold }`. Chybí-li řádek, engine použije default („always" pro všechny
+ * ability) — beze změny chování.
+ */
+export const characterRotations = pgTable('character_rotations', {
+  characterId: uuid('character_id')
+    .primaryKey()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  rules: jsonb('rules').$type<RotationRule[]>().notNull(),
+});
+
+export const characterRotationsRelations = relations(characterRotations, ({ one }) => ({
+  character: one(characters, {
+    fields: [characterRotations.characterId],
     references: [characters.id],
   }),
 }));

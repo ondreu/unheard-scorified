@@ -18,6 +18,11 @@ import type { PrimaryStat, PrimaryStats } from './character';
 import { CLASSES, type ClassId } from './data/classes';
 import type { ItemStats } from './data/items';
 import type { AggregatedTalentEffects } from './data/talents';
+import { SHIELD_TAGS, SIGNATURE_ABILITIES, type SignatureAbility } from './data/abilities';
+import type { CharacterRotation } from './rotation';
+
+export type { AbilityKind, SignatureAbility } from './data/abilities';
+export { SIGNATURE_ABILITIES, SHIELD_TAGS } from './data/abilities';
 
 // ── Bojové konstanty (laditelný balanc, vyladí se v M9) ─────────────────────
 
@@ -76,32 +81,6 @@ export const COMBAT_TAG_EFFECTS: Record<string, TagEffect> = {
   vampiric_embrace: { lifesteal: 0.08 },
 };
 
-/** Signature ability odemčená capstone talentem (periodický silný úder). */
-export interface SignatureAbility {
-  id: string;
-  name: string;
-  cooldownSec: number;
-  damageMult: number;
-}
-
-/** Mapování capstone combat tagů na signature ability (kurátorováno). */
-export const SIGNATURE_ABILITIES: Record<string, Omit<SignatureAbility, 'id'>> = {
-  mortal_strike: { name: 'Mortal Strike', cooldownSec: 6, damageMult: 1.8 },
-  bloodthirst: { name: 'Bloodthirst', cooldownSec: 6, damageMult: 1.6 },
-  bestial_wrath: { name: 'Bestial Wrath', cooldownSec: 10, damageMult: 2.0 },
-  silencing_shot: { name: 'Silencing Shot', cooldownSec: 8, damageMult: 1.7 },
-  mutilate: { name: 'Mutilate', cooldownSec: 8, damageMult: 2.2 },
-  blade_flurry: { name: 'Blade Flurry', cooldownSec: 10, damageMult: 1.5 },
-  stormstrike: { name: 'Stormstrike', cooldownSec: 8, damageMult: 2.0 },
-  thunderstorm: { name: 'Thunderstorm', cooldownSec: 12, damageMult: 2.4 },
-  pyroblast_mastery: { name: 'Pyroblast', cooldownSec: 10, damageMult: 2.5 },
-  chaos_bolt: { name: 'Chaos Bolt', cooldownSec: 10, damageMult: 2.5 },
-  unstable_affliction: { name: 'Unstable Affliction', cooldownSec: 9, damageMult: 1.9 },
-  starfall: { name: 'Starfall', cooldownSec: 12, damageMult: 2.3 },
-  berserk: { name: 'Berserk', cooldownSec: 10, damageMult: 1.8 },
-  repentance: { name: 'Repentance', cooldownSec: 9, damageMult: 1.6 },
-};
-
 // ── Typy aktérů a událostí ──────────────────────────────────────────────────
 
 /** Bojový aktér (postava nebo nepřítel). Plně serializovatelný (snapshot). */
@@ -120,7 +99,14 @@ export interface CombatActor {
   armor: number;
   /** Lifesteal — podíl uděleného poškození, který aktéra vyléčí. */
   lifesteal: number;
+  /** Absorpční štít (pohlcuje příchozí poškození, než se vyčerpá). 0 = bez štítu. */
+  shield: number;
   signatureAbilities: SignatureAbility[];
+  /**
+   * Deklarativní rotace (MIL) — řídí, zda/kdy se signature ability sešle.
+   * `undefined` = default „always" (zpětně kompatibilní). Součást snapshotu.
+   */
+  rotation?: CharacterRotation;
   /** Boss flag (jen pro log label u nepřátel). */
   isBoss?: boolean;
 }
@@ -130,6 +116,9 @@ export type CombatEventType =
   | 'attack'
   | 'ability'
   | 'heal'
+  | 'drain'
+  | 'dot'
+  | 'absorb'
   | 'enemy_defeated'
   | 'player_defeated'
   | 'victory'
@@ -211,6 +200,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
   let attackSpeed = 0;
   let healthFlat = 0;
   let lifesteal = 0;
+  let shieldMult = 0;
   const abilities: SignatureAbility[] = [];
 
   for (const { tag, ranks } of talents.tags) {
@@ -222,6 +212,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
       healthFlat += (eff.healthFlat ?? 0) * ranks;
       lifesteal += (eff.lifesteal ?? 0) * ranks;
     }
+    shieldMult += (SHIELD_TAGS[tag] ?? 0) * ranks;
     const sig = SIGNATURE_ABILITIES[tag];
     if (sig) abilities.push({ id: tag, ...sig });
   }
@@ -240,6 +231,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     critMultiplier: CRIT_MULTIPLIER,
     armor: equipment.armor ?? 0,
     lifesteal,
+    shield: Math.round(shieldMult * (level * 6 + effStamina * 2)),
     signatureAbilities: abilities,
   };
 }
@@ -265,6 +257,7 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     critMultiplier: CRIT_MULTIPLIER,
     armor: def.armor ?? 0,
     lifesteal: 0,
+    shield: 0,
     signatureAbilities: [],
     isBoss: def.isBoss ?? false,
   };
@@ -300,4 +293,23 @@ export function computeHit(
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/** Výsledek pohlcení poškození absorpčním štítem. */
+export interface AbsorbResult {
+  /** Poškození, které projde do HP po odečtení štítu. */
+  netDamage: number;
+  /** Kolik štít pohltil. */
+  absorbed: number;
+  /** Zbývající štít. */
+  shieldRemaining: number;
+}
+
+/**
+ * Aplikuje absorpční štít na příchozí poškození (sdílené napříč PVE i PVP, aby
+ * se mechanika nepočítala dvakrát). Štít se nedoplňuje — jen ubývá.
+ */
+export function applyAbsorb(rawDamage: number, shieldRemaining: number): AbsorbResult {
+  const absorbed = Math.max(0, Math.min(shieldRemaining, rawDamage));
+  return { netDamage: rawDamage - absorbed, absorbed, shieldRemaining: shieldRemaining - absorbed };
 }

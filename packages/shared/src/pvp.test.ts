@@ -27,6 +27,7 @@ function actor(name: string, overrides: Partial<CombatActor> = {}): CombatActor 
     critMultiplier: 2,
     armor: 0,
     lifesteal: 0,
+    shield: 0,
     signatureAbilities: [],
     ...overrides,
   };
@@ -70,7 +71,7 @@ describe('simulatePvpDuel', () => {
   it('používá signature abilities, pokud je aktér má', () => {
     const caster = actor('Caster', {
       attackPower: 60,
-      signatureAbilities: [{ id: 'pyroblast_mastery', name: 'Pyroblast', cooldownSec: 5, damageMult: 2.5 }],
+      signatureAbilities: [{ id: 'pyroblast_mastery', name: 'Pyroblast', kind: 'strike', cooldownSec: 5, damageMult: 2.5 }],
     });
     const result = simulatePvpDuel(caster, actor('Dummy', { maxHealth: 1500 }), 3);
     expect(result.events.some((e) => e.ability === 'Pyroblast')).toBe(true);

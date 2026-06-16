@@ -72,6 +72,9 @@
     if (e.type === 'encounter_start') return 'color:var(--gold-bright);font-weight:600';
     if (e.type === 'enemy_defeated') return 'color:var(--success)';
     if (e.type === 'heal') return 'color:var(--success)';
+    if (e.type === 'drain') return 'color:var(--success);opacity:0.9';
+    if (e.type === 'dot') return 'color:var(--gold-bright)';
+    if (e.type === 'absorb') return 'color:var(--info);opacity:0.8';
     if (e.type === 'ability') return 'color:var(--info)';
     return 'color:var(--text-dim)';
   }

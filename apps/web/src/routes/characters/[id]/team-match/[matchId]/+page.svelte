@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
-  import { ApiError, getTeamMatch, type TeamMatchView } from '$lib/api';
+  import { ApiError, getTeamMatch, type CombatEvent, type TeamMatchView } from '$lib/api';
 
   const ui = {
     title: 'Arena Match',
@@ -29,6 +29,16 @@
   });
 
   onDestroy(() => clearInterval(poll));
+
+  function eventClass(e: CombatEvent): string {
+    if (e.type === 'victory') return 'text-[var(--success)] font-semibold';
+    if (e.type === 'player_defeated') return 'text-[var(--danger)] font-semibold';
+    if (e.type === 'encounter_start') return 'text-[var(--gold-bright)] font-semibold';
+    if (e.type === 'heal' || e.type === 'drain') return 'text-[var(--success)]';
+    if (e.type === 'dot') return 'text-[var(--gold-bright)]';
+    if (e.type === 'absorb' || e.type === 'ability') return 'text-[var(--info)]';
+    return 'text-[var(--text-dim)]';
+  }
 
   async function load(): Promise<void> {
     try {
@@ -75,7 +85,7 @@
 
     <section class="panel panel-pad max-h-96 overflow-y-auto text-xs">
       {#each [...m.events].reverse() as e, i (m.events.length - 1 - i)}
-        <p class="text-[var(--text-dim)]">
+        <p class={eventClass(e)}>
           <span class="text-[var(--text-faint)]">[{e.t.toFixed(1)}s]</span>
           {e.message}
         </p>

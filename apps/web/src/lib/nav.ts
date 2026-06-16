@@ -22,6 +22,7 @@ export const NAV_SECTIONS: NavSection[] = [
 
   { path: 'inventory', icon: '🎒', title: 'Inventory', sub: 'Gear & equipment', accent: 'var(--gold)', group: 'progress' },
   { path: 'talents', icon: '🌳', title: 'Talents', sub: 'Spend talent points', accent: 'var(--r-uncommon)', group: 'progress' },
+  { path: 'rotation', icon: '🎯', title: 'Rotation', sub: 'Combat spell priority', accent: 'var(--info)', group: 'progress' },
   { path: 'professions', icon: '⚒️', title: 'Professions', sub: 'Gather & craft', accent: '#c79c6e', group: 'progress' },
   { path: 'achievements', icon: '🏆', title: 'Achievements', sub: 'Goals & rewards', accent: 'var(--gold-bright)', group: 'progress' },
   { path: 'mounts', icon: '🐎', title: 'Mounts', sub: 'Travel speed', accent: 'var(--r-uncommon)', group: 'progress' },

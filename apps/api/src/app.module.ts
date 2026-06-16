@@ -19,6 +19,7 @@ import { PushModule } from './push/push.module';
 import { QuestModule } from './quest/quest.module';
 import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
+import { RotationModule } from './rotation/rotation.module';
 import { SocialModule } from './social/social.module';
 import { TalentModule } from './talent/talent.module';
 import { TradeModule } from './trade/trade.module';
@@ -56,6 +57,7 @@ const devModules =
     MountModule,
     VendorModule,
     ConsumableModule,
+    RotationModule,
     ...devModules,
   ],
 })

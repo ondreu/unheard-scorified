@@ -706,10 +706,33 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > 🧑‍💼 Gigantický zásah do všech faktorů hry. Cíl: divácky zajímavý combat
 > (arény/dungeony/raidy) + hloubka pro min-max. **Mana zatím ne — jen cooldowny.**
 
-- [ ] **WoW-like combat log** — bohaté události („*X* cast Healing Touch, healed
-      *self* for N" / „*X* cast Drain Life on *Y* for N, healed for N"). Stávající
-      `CombatEvent[]` se rozšíří o `heal`/`drain`/`absorb` typy a strukturovaný text.
-- [ ] **Deklarativní rotace / spell priority** (idle-friendly, deterministické).
+- [x] **WoW-like combat log** ✅ — `CombatEvent` rozšířen o typy `drain`/`dot`/
+      `absorb` + strukturovaný anglický text. Nové mechaniky v enginu: lifesteal
+      úder = `drain` („🩸 *X* drains *Y* for N, healed for M"), capstone DoT
+      ability (Pyroblast, Unstable Affliction) = úder + krvácení/hoření tiky
+      (`dot`, fixní → bez RNG perturbace = determinismus zachován), absorpční štít
+      (Ice Barrier, Holy Shield přes `SHIELD_TAGS`) pohlcuje příchozí poškození
+      (`absorb`). Kurátorovaný **ability katalog** s druhy (`data/abilities.ts`:
+      `AbilityKind` strike/drain/dot/heal/shield). Sdílené napříč raid/dungeon
+      (`fightBoss`) i PVP (`simulatePvpDuel`/`simulateTeamFight`) přes
+      `applyAbsorb` — žádná duplikace. Web log barevně rozlišuje nové typy ve
+      všech watch view (raid/dungeon/arena/team). Testy: `combat-overhaul.test.ts`
+      (+8). _Follow-up: DoT tiky i v PVP (zatím jen base úder); heal/shield
+      ability pro healery (zatím léčí passivně `healPower)._
+- [x] **Deklarativní rotace / spell priority** ✅ (idle-friendly, deterministické).
+      Rotace = seřazený seznam pravidel `{ ability → podmínka }` na postavě
+      (`@game/shared/rotation.ts`): podmínky nad levným deterministickým stavem
+      (HP% cíle / HP% sebe), priorita = pořadí, ability lze vypnout. Engine
+      (`fightBoss` v raid/dungeon + `simulatePvpDuel`/`simulateTeamFight`) při
+      „ready" ability vyhodnotí pravidlo (`shouldCastAbility`); **default = always
+      → chování beze změny** (zpětně kompatibilní, determinismus zachován).
+      Persistence per postava: `character_rotations` (migrace `0027`),
+      `RotationModule` (GET/PUT `/characters/:id/rotation`, sanitizace proti
+      odemčeným ability), zapojeno do snapshotu profilu ve všech 4 combat
+      službách (dungeon/raid/arena/team). Web editor `/characters/[id]/rotation`
+      (priorita, podmínky, prahy, enable/disable). Testy: shared `rotation.test.ts`
+      (+11) + API `rotation.flow.test.ts` (+5). _Follow-up: kontextové rotace pro
+      healery (heal spell priority), víc typů podmínek (ability ready/enemy count)._
   - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
     postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
     levným, deterministickým stavem actora (self HP%, target HP%, ability ready

@@ -11,7 +11,8 @@
  * Viz ADR 0010 (arena & PVP), docs/systems/arenas-pvp.md.
  */
 import { SeededRng } from './rng';
-import { computeHit, round1, type CombatActor, type CombatEvent } from './combat';
+import { applyAbsorb, computeHit, round1, type CombatActor, type CombatEvent } from './combat';
+import { shouldCastAbility } from './rotation';
 import {
   ARENA_SEASONS,
   ARENA_TIERS,
@@ -46,6 +47,7 @@ interface DuelTimer {
   side: DuelSide;
   /** Signature ability (jinak basic útok). */
   abilityName?: string;
+  abilityId?: string;
   abilityMult?: number;
 }
 
@@ -58,6 +60,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
   const rng = new SeededRng(seed);
   const events: CombatEvent[] = [];
   const hp: Record<DuelSide, number> = { a: a.maxHealth, b: b.maxHealth };
+  const shield: Record<DuelSide, number> = { a: a.shield ?? 0, b: b.shield ?? 0 };
   const actor: Record<DuelSide, CombatActor> = { a, b };
   let clock = 0;
 
@@ -78,6 +81,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       interval: ab.cooldownSec,
       side: 'a' as DuelSide,
       abilityName: ab.name,
+      abilityId: ab.id,
       abilityMult: ab.damageMult,
     })),
     ...b.signatureAbilities.map((ab) => ({
@@ -85,6 +89,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       interval: ab.cooldownSec,
       side: 'b' as DuelSide,
       abilityName: ab.name,
+      abilityId: ab.id,
       abilityMult: ab.damageMult,
     })),
   ];
@@ -106,27 +111,51 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     const defender = actor[defenderSide];
     const enraged = clock >= PVP_RAMPAGE_SEC;
 
-    const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
-    hp[defenderSide] = Math.max(0, hp[defenderSide] - hit.amount);
-    if (attacker.lifesteal > 0) {
-      hp[attackerSide] = Math.min(
-        attacker.maxHealth,
-        hp[attackerSide] + Math.round(hit.amount * attacker.lifesteal),
-      );
+    // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
+    if (
+      timer.abilityId &&
+      !shouldCastAbility(attacker.rotation, timer.abilityId, {
+        enemyHpPct: defender.maxHealth > 0 ? hp[defenderSide] / defender.maxHealth : 0,
+        selfHpPct: attacker.maxHealth > 0 ? hp[attackerSide] / attacker.maxHealth : 0,
+      })
+    ) {
+      continue;
     }
 
+    const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
+    let dmg = hit.amount;
+    let absorbed = 0;
+    if (shield[defenderSide] > 0) {
+      const abs = applyAbsorb(dmg, shield[defenderSide]);
+      absorbed = abs.absorbed;
+      shield[defenderSide] = abs.shieldRemaining;
+      dmg = abs.netDamage;
+    }
+    hp[defenderSide] = Math.max(0, hp[defenderSide] - dmg);
+    const healed = attacker.lifesteal > 0 ? Math.round(hit.amount * attacker.lifesteal) : 0;
+    if (healed > 0) hp[attackerSide] = Math.min(attacker.maxHealth, hp[attackerSide] + healed);
+
+    if (absorbed > 0) {
+      events.push({
+        t: round1(clock),
+        type: 'absorb',
+        source: attacker.name,
+        target: defender.name,
+        amount: absorbed,
+        message: `🛡️ ${defender.name}'s shield absorbs ${absorbed}${shield[defenderSide] > 0 ? ` (${shield[defenderSide]} left)` : ' (shield breaks)'}.`,
+      });
+    }
+    const verb = timer.abilityName ? `casts ${timer.abilityName} on` : healed > 0 ? 'drains' : 'hits';
     events.push({
       t: round1(clock),
-      type: timer.abilityName ? 'ability' : 'attack',
+      type: healed > 0 ? 'drain' : timer.abilityName ? 'ability' : 'attack',
       source: attacker.name,
       target: defender.name,
       amount: hit.amount,
       crit: hit.crit,
       ability: timer.abilityName,
       targetHealthRemaining: hp[defenderSide],
-      message: timer.abilityName
-        ? `${attacker.name} casts ${timer.abilityName} on ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`
-        : `${attacker.name} hits ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`,
+      message: `${healed > 0 ? '🩸 ' : ''}${attacker.name} ${verb} ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${healed > 0 ? `, healed for ${healed}` : ''}${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`,
     });
   }
 
@@ -178,6 +207,7 @@ interface TeamTimer {
   /** Index člena v týmu (útočník). */
   member: number;
   abilityName?: string;
+  abilityId?: string;
   abilityMult?: number;
 }
 
@@ -209,6 +239,10 @@ export function simulateTeamFight(
     a: teamA.map((m) => m.maxHealth),
     b: teamB.map((m) => m.maxHealth),
   };
+  const shield: Record<DuelSide, number[]> = {
+    a: teamA.map((m) => m.shield ?? 0),
+    b: teamB.map((m) => m.shield ?? 0),
+  };
   let clock = 0;
 
   events.push({
@@ -228,6 +262,7 @@ export function simulateTeamFight(
           side,
           member: i,
           abilityName: ab.name,
+          abilityId: ab.id,
           abilityMult: ab.damageMult,
         });
       }
@@ -257,26 +292,56 @@ export function simulateTeamFight(
     const attacker = team[attackerSide][timer.member]!;
     const defender = team[defenderSide][targetIdx]!;
     const enraged = clock >= PVP_RAMPAGE_SEC;
+    // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
+    if (
+      timer.abilityId &&
+      !shouldCastAbility(attacker.rotation, timer.abilityId, {
+        enemyHpPct: defender.maxHealth > 0 ? hp[defenderSide][targetIdx]! / defender.maxHealth : 0,
+        selfHpPct:
+          attacker.maxHealth > 0 ? hp[attackerSide][timer.member]! / attacker.maxHealth : 0,
+      })
+    ) {
+      continue;
+    }
     const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
-    hp[defenderSide][targetIdx] = Math.max(0, hp[defenderSide][targetIdx]! - hit.amount);
-    if (attacker.lifesteal > 0) {
+    let dmg = hit.amount;
+    let absorbed = 0;
+    if (shield[defenderSide][targetIdx]! > 0) {
+      const abs = applyAbsorb(dmg, shield[defenderSide][targetIdx]!);
+      absorbed = abs.absorbed;
+      shield[defenderSide][targetIdx] = abs.shieldRemaining;
+      dmg = abs.netDamage;
+    }
+    hp[defenderSide][targetIdx] = Math.max(0, hp[defenderSide][targetIdx]! - dmg);
+    const healed = attacker.lifesteal > 0 ? Math.round(hit.amount * attacker.lifesteal) : 0;
+    if (healed > 0)
       hp[attackerSide][timer.member] = Math.min(
         attacker.maxHealth,
-        hp[attackerSide][timer.member]! + Math.round(hit.amount * attacker.lifesteal),
+        hp[attackerSide][timer.member]! + healed,
       );
-    }
 
+    if (absorbed > 0) {
+      events.push({
+        t: round1(clock),
+        type: 'absorb',
+        source: attacker.name,
+        target: defender.name,
+        amount: absorbed,
+        message: `🛡️ ${defender.name}'s shield absorbs ${absorbed}.`,
+      });
+    }
     const fell = hp[defenderSide][targetIdx] === 0;
+    const verb = timer.abilityName ? `casts ${timer.abilityName} on` : healed > 0 ? 'drains' : 'hits';
     events.push({
       t: round1(clock),
-      type: timer.abilityName ? 'ability' : 'attack',
+      type: healed > 0 ? 'drain' : timer.abilityName ? 'ability' : 'attack',
       source: attacker.name,
       target: defender.name,
       amount: hit.amount,
       crit: hit.crit,
       ability: timer.abilityName,
       targetHealthRemaining: hp[defenderSide][targetIdx]!,
-      message: `${attacker.name} ${timer.abilityName ? `casts ${timer.abilityName} on` : 'hits'} ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [rampage]' : ''}.${fell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
+      message: `${healed > 0 ? '🩸 ' : ''}${attacker.name} ${verb} ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${healed > 0 ? `, healed for ${healed}` : ''}${enraged ? ' [rampage]' : ''}.${fell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
     });
   }
 

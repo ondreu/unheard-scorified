@@ -16,6 +16,8 @@ import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
+import { RotationService } from '../rotation/rotation.service';
+import { RotationRepository } from '../rotation/rotation.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
@@ -65,6 +67,7 @@ describe('M8 flow: raids (MP PVE)', () => {
       new RaidRepository(db),
       new RaidEventsRelay(),
       new LockoutRepository(db),
+      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db)),
       new InMemoryRaidQueue(),
     );
   });
