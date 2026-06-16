@@ -281,6 +281,7 @@ export interface RotationRule {
 export interface RotationAbility {
   id: string;
   name: string;
+  description: string;
   kind: string;
   cooldownSec: number;
 }

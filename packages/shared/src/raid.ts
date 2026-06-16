@@ -17,6 +17,7 @@
  */
 import { SeededRng } from './rng';
 import {
+  abilityDamageMult,
   applyAbsorb,
   computeHit,
   determinationFactor,
@@ -25,7 +26,7 @@ import {
   type CombatEvent,
   type SignatureAbility,
 } from './combat';
-import { shouldCastAbility } from './rotation';
+import { isAbilityEnabled, shouldCastAbility } from './rotation';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -97,8 +98,8 @@ export const RAID_PARTY_SIZE = compositionSize(RAID_COMPOSITION);
 
 // ── Role tuning (laditelný balanc, vyladí se v M9) ──────────────────────────
 /** Tank: víc HP, míň dmg, zmírněné příchozí poškození. */
-const TANK_HP_MULT = 1.5;
-const TANK_DAMAGE_MULT = 0.6;
+const TANK_HP_MULT = 1.6;
+const TANK_DAMAGE_MULT = 0.5;
 const TANK_MITIGATION = 0.65;
 /** Healer: léčí (násobek attack power), jen symbolický dmg. */
 const HEALER_HEAL_MULT = 1.6;
@@ -278,6 +279,9 @@ function fightBoss(
   const hp = [...startHp];
   // Absorpční štíty členů (per pull). Nedoplňují se; pohlcují příchozí poškození.
   const shield = party.map((p) => p.shield ?? 0);
+  // Aktivní mitigation okno (tank cooldowny): do kdy platí + jaké % redukce.
+  const mitigationUntil = party.map(() => -1);
+  const mitigationPct = party.map(() => 0);
   let clock = startClock;
   let bossHp = boss.maxHealth;
   const encStart = clock;
@@ -296,12 +300,11 @@ function fightBoss(
   const timers: RaidTimer[] = [];
   for (let i = 0; i < party.length; i++) {
     timers.push({ next: clock + party[i]!.swingInterval, interval: party[i]!.swingInterval, kind: 'member', memberIdx: i });
-    // Útočné role (tank/dps) používají i signature abilities (M8.5: sjednocený
-    // party combat — solo dungeon dps takto neztratí abilities). Healeři léčí.
-    if (party[i]!.role !== 'healer') {
-      for (const ab of party[i]!.signatureAbilities) {
-        timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'member_ability', memberIdx: i, ability: ab });
-      }
+    // Všechny role mají timery svých abilit (MIL). Branch `member_ability` routuje
+    // dle druhu: heal-kind jen pro healery (léčí spojence), offensive na bosse
+    // (i healer může DPSit jako filler). Healer navíc auto-léčí basic swingem.
+    for (const ab of party[i]!.signatureAbilities) {
+      timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'member_ability', memberIdx: i, ability: ab });
     }
   }
   timers.push({ next: clock + boss.swingInterval, interval: boss.swingInterval, kind: 'boss_basic' });
@@ -337,7 +340,20 @@ function fightBoss(
             tIdx = k;
           }
         }
-        if (tIdx >= 0 && worstMissing > 0) {
+        // Režim healera dle rotace (offensive vs defensive): pokud má vypnuté
+        // VŠECHNY heal-spelly → neléčí (pure DPS); pokud vypnuté všechny útočné
+        // → neútočí (pure HPS). Default (vše zapnuto) = hybrid. Heal-spelly i
+        // útočné spelly samotné jedou přes vlastní timery (member_ability).
+        const healAbilities = member.signatureAbilities.filter((a) => a.kind === 'heal');
+        const offAbilities = member.signatureAbilities.filter(
+          (a) => a.kind === 'strike' || a.kind === 'drain' || a.kind === 'dot',
+        );
+        const canHeal =
+          healAbilities.length === 0 ||
+          healAbilities.some((a) => isAbilityEnabled(member.rotation, a.id));
+        const canDps = offAbilities.some((a) => isAbilityEnabled(member.rotation, a.id));
+
+        if (canHeal && tIdx >= 0 && worstMissing > 0) {
           const amount = Math.max(1, Math.round(member.healPower * (0.9 + rng.next() * 0.2)));
           hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
           events.push({
@@ -349,8 +365,8 @@ function fightBoss(
             targetHealthRemaining: hp[tIdx],
             message: `💚 ${member.name} heals ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
           });
-        } else {
-          // Nikdo zraněný → symbolický úder bossovi.
+        } else if (canDps) {
+          // Nikdo zraněný (nebo pure-DPS healer) → úder bossovi (slabý — healer).
           const hit = computeHit(member, boss, rng, 1, false);
           bossHp = Math.max(0, bossHp - hit.amount);
           events.push({
@@ -364,6 +380,7 @@ function fightBoss(
             message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
           });
         }
+        // jinak (pure HPS a nikdo zraněný) → healer tento swing nic nedělá
       } else {
         const hit = computeHit(member, boss, rng, 1, false);
         bossHp = Math.max(0, bossHp - hit.amount);
@@ -428,12 +445,60 @@ function fightBoss(
       ) {
         continue;
       }
-      const hit = computeHit(member, boss, rng, ability.damageMult, false);
+      // Mitigation cooldown (tank): aktivuje okno snížení příchozího poškození.
+      if (ability.kind === 'mitigation') {
+        mitigationUntil[i] = clock + (ability.mitigationDurationSec ?? 0);
+        mitigationPct[i] = ability.mitigationPct ?? 0;
+        events.push({
+          t: round1(clock),
+          type: 'ability',
+          source: member.name,
+          ability: ability.name,
+          message: `🛡️ ${member.name} uses ${ability.name}, reducing damage taken by ${Math.round((ability.mitigationPct ?? 0) * 100)}%.`,
+        });
+        continue;
+      }
+      // Heal-kind ability: jen healer, jen když je koho léčit (jinak se „drží").
+      if (ability.kind === 'heal') {
+        if (member.role !== 'healer' || member.healPower <= 0) continue;
+        let tIdx = -1;
+        let worstMissing = 0;
+        for (let k = 0; k < party.length; k++) {
+          if (hp[k]! <= 0) continue;
+          const missing = party[k]!.maxHealth - hp[k]!;
+          if (missing > worstMissing) {
+            worstMissing = missing;
+            tIdx = k;
+          }
+        }
+        if (tIdx < 0 || worstMissing <= 0) continue;
+        const amount = Math.max(
+          1,
+          Math.round(member.healPower * ability.damageMult * (0.9 + rng.next() * 0.2)),
+        );
+        hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
+        events.push({
+          t: round1(clock),
+          type: 'heal',
+          source: member.name,
+          target: party[tIdx]!.name,
+          amount,
+          ability: ability.name,
+          targetHealthRemaining: hp[tIdx],
+          message: `💚 ${member.name} casts ${ability.name} on ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
+        });
+        continue;
+      }
+      const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
+      const mult = abilityDamageMult(ability, bossHpPct);
+      const executing = mult > ability.damageMult;
+      const hit = computeHit(member, boss, rng, mult, false);
       bossHp = Math.max(0, bossHp - hit.amount);
       const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
       const healed = healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
       if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
       if (ability.kind === 'dot') scheduleDot(timers, member, ability, clock);
+      const exec = executing ? ' (execute!)' : '';
       events.push({
         t: round1(clock),
         type: healed > 0 ? 'drain' : 'ability',
@@ -445,10 +510,10 @@ function fightBoss(
         targetHealthRemaining: bossHp,
         message:
           healed > 0
-            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
+            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
             : ability.kind === 'dot'
-              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, leaving a burn. ${boss.name}: ${bossHp} HP`
-              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, leaving a burn. ${boss.name}: ${bossHp} HP`
+              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}. ${boss.name}: ${bossHp} HP`,
       });
     } else {
       // Boss útočí.
@@ -459,6 +524,10 @@ function fightBoss(
       const hit = computeHit(boss, target, rng, ability?.damageMult ?? 1, enraged);
       let dmg = hit.amount;
       if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
+      // Aktivní mitigation cooldown (Shield Wall / Ardent Defender).
+      if (clock < mitigationUntil[tIdx]! && mitigationPct[tIdx]! > 0) {
+        dmg = Math.max(1, Math.round(dmg * (1 - mitigationPct[tIdx]!)));
+      }
       // Absorpční štít pohltí část poškození, než dopadne na HP.
       if (shield[tIdx]! > 0) {
         const abs = applyAbsorb(dmg, shield[tIdx]!);

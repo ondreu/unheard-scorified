@@ -294,6 +294,7 @@ export class TeamArenaService {
     const rotation = await this.rotation.rotationForCombat(
       character.id,
       character.class as ClassId,
+      level,
     );
     return rotation ? { ...profile, rotation } : profile;
   }

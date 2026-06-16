@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
   import { ApiError, getTeamMatch, type CombatEvent, type TeamMatchView } from '$lib/api';
+  import CombatMeters from '$lib/components/CombatMeters.svelte';
 
   const ui = {
     title: 'Arena Match',
@@ -82,6 +83,11 @@
     {:else}
       <p class="text-sm text-[var(--text-dim)]">{ui.fighting}</p>
     {/if}
+
+    <CombatMeters
+      events={m.events}
+      names={[...m.myTeam.map((p) => p.name), ...m.enemyTeam.map((p) => p.name)]}
+    />
 
     <section class="panel panel-pad max-h-96 overflow-y-auto text-xs">
       {#each [...m.events].reverse() as e, i (m.events.length - 1 - i)}

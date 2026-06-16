@@ -5,6 +5,7 @@
   import type { Socket } from 'socket.io-client';
   import { ApiError, getArenaMatch, type ArenaMatchView, type CombatEvent } from '$lib/api';
   import { connectArena, watchMatch } from '$lib/arena-socket';
+  import CombatMeters from '$lib/components/CombatMeters.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -101,6 +102,8 @@
     {:else}
       <p class="text-sm text-[var(--text-dim)]">{ui.fighting}</p>
     {/if}
+
+    <CombatMeters events={m.events} names={[m.me.name, m.opponent.name]} />
 
     <!-- Combat log -->
     <section class="panel panel-pad">

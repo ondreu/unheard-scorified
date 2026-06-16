@@ -48,7 +48,10 @@ interface DuelTimer {
   /** Signature ability (jinak basic útok). */
   abilityName?: string;
   abilityId?: string;
+  abilityKind?: string;
   abilityMult?: number;
+  executeBelowPct?: number;
+  executeDamageMult?: number;
 }
 
 /**
@@ -82,7 +85,10 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       side: 'a' as DuelSide,
       abilityName: ab.name,
       abilityId: ab.id,
+      abilityKind: ab.kind,
       abilityMult: ab.damageMult,
+      executeBelowPct: ab.executeBelowPct,
+      executeDamageMult: ab.executeDamageMult,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -90,7 +96,10 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       side: 'b' as DuelSide,
       abilityName: ab.name,
       abilityId: ab.id,
+      abilityKind: ab.kind,
       abilityMult: ab.damageMult,
+      executeBelowPct: ab.executeBelowPct,
+      executeDamageMult: ab.executeDamageMult,
     })),
   ];
 
@@ -111,6 +120,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     const defender = actor[defenderSide];
     const enraged = clock >= PVP_RAMPAGE_SEC;
 
+    // Heal/shield ability v 1v1 nedávají smysl (žádný spojenec) → přeskoč.
+    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield' || timer.abilityKind === 'mitigation') continue;
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&
@@ -122,7 +133,12 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       continue;
     }
 
-    const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
+    let effMult = timer.abilityMult ?? 1;
+    const defHpPct = defender.maxHealth > 0 ? hp[defenderSide] / defender.maxHealth : 0;
+    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
+      effMult = timer.executeDamageMult ?? effMult;
+    }
+    const hit = computeHit(attacker, defender, rng, effMult, enraged);
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide] > 0) {
@@ -208,7 +224,10 @@ interface TeamTimer {
   member: number;
   abilityName?: string;
   abilityId?: string;
+  abilityKind?: string;
   abilityMult?: number;
+  executeBelowPct?: number;
+  executeDamageMult?: number;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -263,7 +282,10 @@ export function simulateTeamFight(
           member: i,
           abilityName: ab.name,
           abilityId: ab.id,
+          abilityKind: ab.kind,
           abilityMult: ab.damageMult,
+          executeBelowPct: ab.executeBelowPct,
+          executeDamageMult: ab.executeDamageMult,
         });
       }
     });
@@ -292,6 +314,7 @@ export function simulateTeamFight(
     const attacker = team[attackerSide][timer.member]!;
     const defender = team[defenderSide][targetIdx]!;
     const enraged = clock >= PVP_RAMPAGE_SEC;
+    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield' || timer.abilityKind === 'mitigation') continue;
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&
@@ -303,7 +326,13 @@ export function simulateTeamFight(
     ) {
       continue;
     }
-    const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
+    let effMult = timer.abilityMult ?? 1;
+    const defHpPct =
+      defender.maxHealth > 0 ? hp[defenderSide][targetIdx]! / defender.maxHealth : 0;
+    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
+      effMult = timer.executeDamageMult ?? effMult;
+    }
+    const hit = computeHit(attacker, defender, rng, effMult, enraged);
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide][targetIdx]! > 0) {

@@ -731,8 +731,34 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       odemčeným ability), zapojeno do snapshotu profilu ve všech 4 combat
       službách (dungeon/raid/arena/team). Web editor `/characters/[id]/rotation`
       (priorita, podmínky, prahy, enable/disable). Testy: shared `rotation.test.ts`
-      (+11) + API `rotation.flow.test.ts` (+5). _Follow-up: kontextové rotace pro
-      healery (heal spell priority), víc typů podmínek (ability ready/enemy count)._
+      (+11) + API `rotation.flow.test.ts` (+5).
+- [x] **Ability kit per class (MIL)** ✅ — aby rotace nebyla prázdná: každá class má
+      **baseline kit ~3-4 abilit** odemčených **levelem** (`CLASS_BASELINE_ABILITIES`
+      v `data/abilities.ts`: Heroic Strike/Rend/Execute, Fireball/Scorch, Shadow
+      Bolt/Corruption/Drain Life, …) navrch capstone (talent). Sjednocený resolver
+      `resolveAbilities(klass, level, tags)` = jediný zdroj pravdy pro engine i
+      editor rotace. **Healerské heal-spelly** (Holy Light, Greater Heal/Renew,
+      Healing Wave/Chain Heal, Healing Touch/Rejuvenation) zapojené do enginu:
+      `fightBoss` routuje `member_ability` dle druhu — heal-kind jen healer (léčí
+      nejzraněnějšího), offensive na bosse; PVP heal/shield ability přeskakuje.
+      Testy: shared `combat-overhaul.test.ts` (+4: resolveAbilities + healer heal
+      ability). _Follow-up: víc podmínek rotace (ability ready/enemy count)._
+- [x] **Healer offensive/defensive režimy** ✅ — healer si přes rotaci (enable/
+      disable spellů) volí: **pure HPS** (vypne útočné → jen léčí), **hybrid**
+      (default, léčí + přihazuje slabý DPS), **pure DPS** (vypne heal spelly →
+      jen slabě útočí). Engine: basic swing healera respektuje rotaci přes
+      `isAbilityEnabled`. Netýká se tanků. Testy: `combat-overhaul.test.ts` (+3).
+- [x] **DPS/HPS metr** ✅ — web `CombatMeters.svelte` (defaultně sbalený
+      `<details>`) ve všech watch view (raid/dungeon/aréna/team-match): per-aktér
+      damage/healing z událostí logu (`attack`/`ability`/`dot`/`drain` → DPS,
+      `heal` → HPS), bary + řazení. Čistě klientské (okno = poslední odhalená událost).
+- [x] **Popisy abilit + execute mechanika** ✅ — každá hráčská ability (baseline +
+      capstone) má `description` (EN tooltip, viditelný v editoru rotace). Reálná
+      **execute** mechanika: `executeBelowPct` + `executeDamageMult` na ability →
+      vyšší poškození proti cíli pod prahem HP (Warrior Execute 220 % → **330 %**
+      pod 30 %, Rogue Eviscerate 190 % → 280 %). Sdílený `abilityDamageMult(ability,
+      targetHpPct)` aplikován v PVE (`fightBoss`, log „(execute!)") i PVP
+      (duel + team). Testy: shared `combat-overhaul.test.ts` (+3)._
   - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
     postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
     levným, deterministickým stavem actora (self HP%, target HP%, ability ready
@@ -741,9 +767,34 @@ lobby) a M8.5-D (P2P trade) — staví se první.
     ability/úder. Tím zůstává **plně deterministické a server-authoritative**
     (lze přehrát ze snapshotu+seedu jako dnes) a zároveň konfigurovatelné.
   - [ ] Kontextové rotace (raid healer rotuje heal, ne dmg; tank threat/mitigace…).
-  - [ ] **Rebalance talentů**: na lvl 60 jde teď utratit ~vše + zbývají body →
-        cíl ~1,5 stromu. Přidat víc nodů + **stromová** struktura (ne seznam) pro
-        min-maxing.
+  - [x] **Rebalance talentů** ✅ — overhaul `data/talents.ts`: 9 class × 3 stromy ×
+        **9 nodů**, **kapacita ~34 bodů/strom** (3 stromy = 102). Na cap 60 = 59
+        bodů → **nelze naplnit vše**, vyjde **1 a 3/4 stromu** (rozhodnutí PM).
+        Mix: filler (staty/HP) + „zábavné" pasivní procy (crit/dmg/haste/lifesteal/
+        štít) + **capstone = nový spell** (tier 28). Doplněno **13 nových capstone
+        spellů** (Shield Slam, Holy Shock, Avenger's Shield, Explosive Shot,
+        Shadowstrike, Penance, Guardian Spirit, Mind Blast, Riptide, Arcane Power,
+        Frostfire Bolt, Demonbolt, Tranquility) — všechny stromy teď odemykají
+        reálnou ability. Žádné dead talenty (každý tag → reálný efekt). Testy:
+        shared `data/talents.test.ts` (+7: kapacita/1.75-strom/no-dead-tag).
+        _Follow-up: plný prerekvizitní graf (šipky) místo tier-gate — UX nice-to-have._
+  - [x] **Balanc síly specců + tank role** ✅ — deterministicky změřeno (sim přes
+        engine, DPS/HPS proti dummy) a vyladěno: spread DPS specců stažen z ~1,9×
+        na ~1,5× (hybridi ↑: feral/ret/balance/ele; čistí casteři/melee ↓: mage/
+        warrior). Healeři mezi sebou ~1,26×. **Tank** = méně DMG (`TANK_DAMAGE_MULT`
+        0.6→0.5, defenzivní prot stromy bez dmg nodů) + **mitigation cooldowny**:
+        nová `AbilityKind 'mitigation'` (Shield Wall −50 %/8s, Ardent Defender
+        −40 %/10s) jako prot capstony; engine aplikuje dočasné okno redukce
+        příchozího poškození na tanka. Testy: `combat-overhaul.test.ts` (+2:
+        mitigation snižuje utržené poškození). _Pozn.: spec≠role — prot talenty
+        dělají málo DMG i kdyby šly do dps role (posiluje identitu)._
+  - [x] **Balanc pass 2 — DPS rozptyl ~1,3×** ✅ (žádost PM): změřeno přes engine,
+        DPS specy staženy na **1,30×** (1020–1328, band 88–115 % průměru). Lift
+        hybridů přes offensive baseline (Lightning Bolt, Wrath, Smite, Crusader
+        Strike, Arcane Shot), trim špičky (Pyroblast/Frostfire/Mortal Strike/
+        Unstable Affliction). **Tanky v tank roli ~0,34–0,44×** DPS průměru,
+        **healeři při DPS rotaci ~0,5–0,65×** (heal-heavy kit přirozeně půlí
+        ofenzivu). Rozmanitost zachována (mage/warrior nahoře, hybridi níž).
   - [ ] **Drobná náhoda** do combatu (už máme `SeededRng` — rozšířit varianci
         hitů/proc šancí, stále reprodukovatelně).
   - [ ] **Testovací target / healing dummy** (sandbox sim pro ladění rotací bez

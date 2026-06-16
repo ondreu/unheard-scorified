@@ -1,13 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  SIGNATURE_ABILITIES,
   aggregateTalentEffects,
   defaultRotation,
+  levelFromXp,
+  resolveAbilities,
   sanitizeRotation,
   type AbilityKind,
   type CharacterRotation,
   type ClassId,
   type RotationRule,
+  type SignatureAbility,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { TalentRepository } from '../talent/talent.repository';
@@ -17,6 +19,7 @@ import { RotationRepository } from './rotation.repository';
 export interface RotationAbilityView {
   id: string;
   name: string;
+  description: string;
   kind: AbilityKind;
   cooldownSec: number;
 }
@@ -41,13 +44,18 @@ export class RotationService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
-    const abilityIds = await this.abilityIdsFor(characterId, character.class as ClassId);
+    const abilities = await this.abilitiesFor(
+      characterId,
+      character.class as ClassId,
+      levelFromXp(character.totalXp),
+    );
+    const abilityIds = abilities.map((a) => a.id);
     const stored = await this.rotations.getRules(characterId);
     const rotation: CharacterRotation = stored
       ? sanitizeRotation({ rules: stored }, abilityIds)
       : defaultRotation(abilityIds);
 
-    return { abilities: this.abilityViews(abilityIds), rules: rotation.rules };
+    return { abilities: this.abilityViews(abilities), rules: rotation.rules };
   }
 
   /** Uloží očištěná pravidla rotace; vrací aktuální stav. */
@@ -59,10 +67,14 @@ export class RotationService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
-    const abilityIds = await this.abilityIdsFor(characterId, character.class as ClassId);
-    const sanitized = sanitizeRotation(input, abilityIds);
+    const abilities = await this.abilitiesFor(
+      characterId,
+      character.class as ClassId,
+      levelFromXp(character.totalXp),
+    );
+    const sanitized = sanitizeRotation(input, abilities.map((a) => a.id));
     await this.rotations.setRules(characterId, sanitized.rules);
-    return { abilities: this.abilityViews(abilityIds), rules: sanitized.rules };
+    return { abilities: this.abilityViews(abilities), rules: sanitized.rules };
   }
 
   /**
@@ -72,27 +84,35 @@ export class RotationService {
   async rotationForCombat(
     characterId: string,
     classId: ClassId,
+    level: number,
   ): Promise<CharacterRotation | undefined> {
     const stored = await this.rotations.getRules(characterId);
     if (!stored || stored.length === 0) return undefined;
-    const abilityIds = await this.abilityIdsFor(characterId, classId);
-    if (abilityIds.length === 0) return undefined;
-    return sanitizeRotation({ rules: stored }, abilityIds);
+    const abilities = await this.abilitiesFor(characterId, classId, level);
+    if (abilities.length === 0) return undefined;
+    return sanitizeRotation({ rules: stored }, abilities.map((a) => a.id));
   }
 
-  /** Id signature abilit odemčených alokovanými talenty postavy. */
-  private async abilityIdsFor(characterId: string, classId: ClassId): Promise<string[]> {
+  /** Kompletní ability kit postavy (baseline dle levelu + capstone dle talentů). */
+  private async abilitiesFor(
+    characterId: string,
+    classId: ClassId,
+    level: number,
+  ): Promise<SignatureAbility[]> {
     const rows = await this.talents.listTalents(characterId);
     const allocations: Record<string, number> = {};
     for (const r of rows) allocations[r.talentId] = r.points;
     const effects = aggregateTalentEffects(classId, allocations);
-    return effects.tags.filter((t) => SIGNATURE_ABILITIES[t.tag]).map((t) => t.tag);
+    return resolveAbilities(classId, level, effects.tags);
   }
 
-  private abilityViews(abilityIds: string[]): RotationAbilityView[] {
-    return abilityIds.map((id) => {
-      const spec = SIGNATURE_ABILITIES[id]!;
-      return { id, name: spec.name, kind: spec.kind, cooldownSec: spec.cooldownSec };
-    });
+  private abilityViews(abilities: SignatureAbility[]): RotationAbilityView[] {
+    return abilities.map((a) => ({
+      id: a.id,
+      name: a.name,
+      description: a.description ?? '',
+      kind: a.kind,
+      cooldownSec: a.cooldownSec,
+    }));
   }
 }

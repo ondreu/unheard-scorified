@@ -5,6 +5,7 @@
   import { ApiError, getDungeonRun, type CombatEvent, type DungeonRunView } from '$lib/api';
   import { ITEMS } from '@game/shared';
   import { ROLE_META } from '$lib/cosmetics';
+  import CombatMeters from '$lib/components/CombatMeters.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -148,6 +149,8 @@
     {:else}
       <p class="text-sm text-[var(--text-dim)]">{ui.fighting}</p>
     {/if}
+
+    <CombatMeters events={r.events} names={r.party.map((p) => p.name)} />
 
     <!-- Combat log -->
     <section class="panel panel-pad">
