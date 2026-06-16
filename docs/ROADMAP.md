@@ -818,9 +818,18 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ### BALANCE
 
-- [ ] 🧑‍💼 Délka všech aktivit — teď příliš rychlé (přeladit `durationSec`/křivky).
-- [ ] 🧑‍💼 Revize drop rate (loot tabulky napříč zónami/dungeony/raidy).
-- [ ] 🧑‍💼 Revize rychlosti progrese (XP křivka vs cílová doba na cap 60).
+- [x] 🧑‍💼 **Délka všech aktivit + rychlost progrese** ✅ (M9 balanc pass): XP křivka
+      přeladěna (`XP_CURVE` exponent 2.0 / scale 120.8) na **cap ≈ 2200 h
+      perfect-chain** s tvarem `čas-na-level ∝ L^1.5` (early rychlé, late pomalé;
+      lvl 10 ≈ 22 h, cap ≈ 3–5 měsíců kalendářně). Idle cadence: všechny questy
+      přeškálovány do **[5 min, 3 h]** (`ACTIVITY_DURATION_BOUNDS`) +
+      `activityEfficiency` (1.0 @ 5 min → 0.8 @ 3 h, mírný punish za dlouhý běh,
+      na XP i zlato). Quest odměny kalibrované na `referenceXpPerHour`; web ukazuje
+      efektivní (post-eff) odměnu. Testy: shared `progression.test.ts` (+12).
+      Detail + cílová křivka (podklad pro content): `docs/systems/progression.md`.
+  - [ ] 🧑‍💼 **Revize drop rate** (loot tabulky napříč zónami/dungeony/raidy) —
+        vědomě odloženo na samostatný pass (rozhodnutí PM).
+  - ⚠️ **Content gap 40–60** (64 % cesty) — late-game obsah doplnit samostatně (FEAT).
 - [ ] 🤖 PVP vs PVE balanc (společný `deriveCombatProfile` → samostatné ladění),
       role tuning (tank/healer/dps), boss HP/AP, Elo K/rampage.
 

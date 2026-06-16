@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { availableQuests, levelFromXp, type QuestDef } from '@game/shared';
+import { activityEfficiency, availableQuests, levelFromXp, type QuestDef } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { CompletedQuestRepository } from './quest.repository';
 
@@ -11,7 +11,9 @@ export interface QuestView {
   kind: string;
   requiredLevel: number;
   durationSec: number;
+  /** Efektivní XP odměna (po `activityEfficiency` dle délky běhu). */
   baseXp: number;
+  /** Efektivní zlato (střed; rolluje se ještě s variancí při claimu). */
   baseGold: number;
 }
 
@@ -34,6 +36,7 @@ export class QuestService {
 }
 
 function toView(q: QuestDef): QuestView {
+  const eff = activityEfficiency(q.durationSec);
   return {
     id: q.id,
     name: q.name,
@@ -42,7 +45,7 @@ function toView(q: QuestDef): QuestView {
     kind: q.kind,
     requiredLevel: q.requiredLevel,
     durationSec: q.durationSec,
-    baseXp: q.baseXp,
-    baseGold: q.baseGold,
+    baseXp: Math.round(q.baseXp * eff),
+    baseGold: Math.round(q.baseGold * eff),
   };
 }

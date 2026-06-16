@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QUESTS } from '@game/shared';
+import { activityEfficiency, QUESTS } from '@game/shared';
 import { AuthService } from '../auth/auth.service';
 import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
@@ -112,7 +112,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
 
     vi.setSystemTime(T0 + KOBOLD.durationSec * 1000 + 1);
     const result = await activity.claim(accountId, id);
-    expect(result.reward.xp).toBe(KOBOLD.baseXp);
+    expect(result.reward.xp).toBe(Math.round(KOBOLD.baseXp * activityEfficiency(KOBOLD.durationSec)));
     expect(result.reward.gold).toBeGreaterThan(0);
     expect(result.character.sheet.level).toBe(1);
     expect(result.character.gold).toBe(result.reward.gold);
@@ -134,19 +134,17 @@ describe('M2 flow: leveling & idle smyčka', () => {
 
   it('postava povýší po dostatku XP', async () => {
     const { accountId, id } = await newCharacter('m2e', 'Modera');
-    // kobold (60) → 60 XP, stále lvl 1
+    // kobold (~99 XP) → stále lvl 1 (xpForNextLevel(1) = 120)
     await activity.start(accountId, id, { activityType: 'quest', questId: KOBOLD.id });
     vi.setSystemTime(T0 + KOBOLD.durationSec * 1000 + 1);
     let r = await activity.claim(accountId, id);
     expect(r.character.sheet.level).toBe(1);
 
-    // dva běhy wolf pelts (45 + 45) → 150 XP > 108 → level 2
-    for (let i = 0; i < 2; i++) {
-      const base = Date.now();
-      await activity.start(accountId, id, { activityType: 'quest', questId: WOLVES.id });
-      vi.setSystemTime(base + WOLVES.durationSec * 1000 + 1);
-      r = await activity.claim(accountId, id);
-    }
+    // wolf pelts (50 XP) → 149 XP > 120 → level 2 (poslední claim = level-up)
+    const base = Date.now();
+    await activity.start(accountId, id, { activityType: 'quest', questId: WOLVES.id });
+    vi.setSystemTime(base + WOLVES.durationSec * 1000 + 1);
+    r = await activity.claim(accountId, id);
     expect(r.leveledUp).toBe(true);
     expect(r.character.sheet.level).toBe(2);
   });

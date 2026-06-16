@@ -8,11 +8,26 @@
  * Model je záměrně OBECNÝ (activityType): M2 implementuje jen 'quest', ale profese
  * a dungeony (M5/M6) se přidají bez refaktoru.
  */
+import { ACTIVITY_DURATION_BOUNDS, ACTIVITY_EFFICIENCY } from './constants';
 import { QUESTS, type QuestDef } from './data/quests';
 import { SeededRng, seedFromString } from './rng';
 import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET } from './loot';
 import { GATHERING_NODES, RECIPES } from './data/professions';
 import { rollGatherYield } from './professions';
+
+/**
+ * Efektivita odměny dle délky běhu (mírný "punish" za dlouhý běh) — lineárně
+ * `ACTIVITY_EFFICIENCY.short` @ `minSec` → `ACTIVITY_EFFICIENCY.long` @ `maxSec`,
+ * clampnuto mimo rozsah. Aplikuje se na XP i zlato. Idle hráč obětuje ~20 % za
+ * pohodlí delšího "set & forget" běhu. Viz `docs/systems/progression.md`.
+ */
+export function activityEfficiency(durationSec: number): number {
+  const { minSec, maxSec } = ACTIVITY_DURATION_BOUNDS;
+  const { short, long } = ACTIVITY_EFFICIENCY;
+  if (durationSec <= minSec) return short;
+  if (durationSec >= maxSec) return long;
+  return short + (long - short) * ((durationSec - minSec) / (maxSec - minSec));
+}
 
 /**
  * Typ idle aktivity. M2: quest; M6: gather/craft (profese).
@@ -100,19 +115,22 @@ export function activityProgress(state: ActivityState, now: number): ActivityPro
 }
 
 /**
- * Deterministická odměna za dokončený quest. XP je fixní; zlato se rolluje
- * v rozsahu ±goldVariance přes SeededRng (seedovaný stejně jako aktivita).
+ * Deterministická odměna za dokončený quest. `baseXp`/`baseGold` jsou definované
+ * jako odměna při efektivitě 1.0 (= referenční rychlost × délka běhu); skutečná
+ * odměna se násobí `activityEfficiency(durationSec)` (mírný punish za dlouhý
+ * běh). Zlato se navíc rolluje v rozsahu ±goldVariance přes SeededRng.
  */
 export function computeQuestReward(quest: QuestDef, seed: number): ActivityReward {
   const rng = new SeededRng(seed);
   const roll = rng.next(); // [0,1)
   const factor = 1 - quest.goldVariance + roll * 2 * quest.goldVariance;
+  const eff = activityEfficiency(quest.durationSec);
   const bracket = ZONE_TO_BRACKET[quest.zoneId];
   const lootTable = bracket !== undefined ? ZONE_LOOT_TABLES[bracket] : undefined;
   const items = lootTable !== undefined ? rollLoot(lootTable, rng) : [];
   return {
-    xp: quest.baseXp,
-    gold: Math.max(0, Math.round(quest.baseGold * factor)),
+    xp: Math.round(quest.baseXp * eff),
+    gold: Math.max(0, Math.round(quest.baseGold * factor * eff)),
     items,
   };
 }

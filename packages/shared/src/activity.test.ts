@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activityEfficiency,
   activityProgress,
   activitySeed,
   computeActivityReward,
@@ -54,14 +55,16 @@ describe('computeQuestReward — determinismus', () => {
     expect(a).toEqual(b);
   });
 
-  it('XP je fixní = baseXp', () => {
+  it('XP = baseXp × efektivita (fixní per quest)', () => {
+    const eff = activityEfficiency(QUEST.durationSec);
     const r = computeQuestReward(QUEST, 42);
-    expect(r.xp).toBe(QUEST.baseXp);
+    expect(r.xp).toBe(Math.round(QUEST.baseXp * eff));
   });
 
-  it('zlato je v rozsahu ±goldVariance', () => {
-    const min = Math.round(QUEST.baseGold * (1 - QUEST.goldVariance));
-    const max = Math.round(QUEST.baseGold * (1 + QUEST.goldVariance));
+  it('zlato je v rozsahu ±goldVariance (po efektivitě)', () => {
+    const eff = activityEfficiency(QUEST.durationSec);
+    const min = Math.floor(QUEST.baseGold * (1 - QUEST.goldVariance) * eff);
+    const max = Math.ceil(QUEST.baseGold * (1 + QUEST.goldVariance) * eff);
     for (let s = 0; s < 200; s++) {
       const g = computeQuestReward(QUEST, s).gold;
       expect(g).toBeGreaterThanOrEqual(min);

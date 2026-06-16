@@ -68,8 +68,8 @@ describe('M4 flow: talent systém', () => {
   });
 
   it('alokace talent bodu na lvl 2+ funguje', async () => {
-    // lvl 2 → 1 bod (108 XP je lvl 2)
-    const { accountId, id } = await newCharacter('talc', 'Turalyon', 'warrior', 108);
+    // lvl 2 → 1 bod (150 XP je lvl 2; xpForNextLevel(1) = 120)
+    const { accountId, id } = await newCharacter('talc', 'Turalyon', 'warrior', 150);
     const before = await talentService.listTalents(accountId, id);
     expect(before.totalPoints).toBe(1);
 
@@ -91,7 +91,7 @@ describe('M4 flow: talent systém', () => {
   });
 
   it('reset vrátí všechny body', async () => {
-    const { accountId, id } = await newCharacter('tale', 'Saurfang', 'warrior', 108);
+    const { accountId, id } = await newCharacter('tale', 'Saurfang', 'warrior', 150);
     await talentService.allocate(accountId, id, 'warrior.arms.weapon_expertise');
     const afterReset = await talentService.resetAll(accountId, id);
     expect(afterReset.spentPoints).toBe(0);
@@ -99,21 +99,21 @@ describe('M4 flow: talent systém', () => {
   });
 
   it('neznámý talent vyhodí chybu', async () => {
-    const { accountId, id } = await newCharacter('talf', 'Orgrim', 'warrior', 108);
+    const { accountId, id } = await newCharacter('talf', 'Orgrim', 'warrior', 150);
     await expect(
       talentService.allocate(accountId, id, 'warrior.unknown.fake_talent'),
     ).rejects.toThrow();
   });
 
   it('talent jiné classy vyhodí chybu', async () => {
-    const { accountId, id } = await newCharacter('talg', 'Durotan', 'warrior', 108);
+    const { accountId, id } = await newCharacter('talg', 'Durotan', 'warrior', 150);
     await expect(
       talentService.allocate(accountId, id, 'mage.fire.ignite'),
     ).rejects.toThrow();
   });
 
   it('cizí účet nemůže spravovat talenty', async () => {
-    const owner = await newCharacter('talha', 'Grom', 'warrior', 108);
+    const owner = await newCharacter('talha', 'Grom', 'warrior', 150);
     const other = await newCharacter('talhb', 'Rexxar');
     await expect(
       talentService.listTalents(other.accountId, owner.id),
