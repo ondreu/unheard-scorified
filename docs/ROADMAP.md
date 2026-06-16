@@ -742,8 +742,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `fightBoss` routuje `member_ability` dle druhu — heal-kind jen healer (léčí
       nejzraněnějšího), offensive na bosse; PVP heal/shield ability přeskakuje.
       Testy: shared `combat-overhaul.test.ts` (+4: resolveAbilities + healer heal
-      ability). _Follow-up: kontextové heal-rotace s prioritou heal-spellů; víc
-      podmínek (ability ready/enemy count); přebalancování talentů na stromy._
+      ability). _Follow-up: víc podmínek rotace (ability ready/enemy count)._
+- [x] **Healer offensive/defensive režimy** ✅ — healer si přes rotaci (enable/
+      disable spellů) volí: **pure HPS** (vypne útočné → jen léčí), **hybrid**
+      (default, léčí + přihazuje slabý DPS), **pure DPS** (vypne heal spelly →
+      jen slabě útočí). Engine: basic swing healera respektuje rotaci přes
+      `isAbilityEnabled`. Netýká se tanků. Testy: `combat-overhaul.test.ts` (+3).
+- [x] **DPS/HPS metr** ✅ — web `CombatMeters.svelte` (defaultně sbalený
+      `<details>`) ve všech watch view (raid/dungeon/aréna/team-match): per-aktér
+      damage/healing z událostí logu (`attack`/`ability`/`dot`/`drain` → DPS,
+      `heal` → HPS), bary + řazení. Čistě klientské (okno = poslední odhalená událost).
 - [x] **Popisy abilit + execute mechanika** ✅ — každá hráčská ability (baseline +
       capstone) má `description` (EN tooltip, viditelný v editoru rotace). Reálná
       **execute** mechanika: `executeBelowPct` + `executeDamageMult` na ability →
