@@ -290,7 +290,10 @@ export function computeHit(
   abilityMult: number,
   enraged: boolean,
 ): HitResult {
-  const variance = 0.85 + rng.next() * 0.3; // 0.85..1.15
+  // Drobná náhoda (MIL): širší rozptyl než dřív (0.85..1.15), pořád seedovaně
+  // reprodukovatelné a se stejným průměrem (symetrické okolo 1.0) → balanc
+  // (DPS pásma z balance passů) zůstává neporušen, fighty jen méně předvídatelné.
+  const variance = 0.8 + rng.next() * 0.4; // 0.8..1.2
   let dmg = attacker.attackPower * abilityMult * variance * (enraged ? 3 : 1);
   const crit = rng.next() < attacker.critChance;
   if (crit) dmg *= attacker.critMultiplier;

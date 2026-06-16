@@ -64,7 +64,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       new PushService(new PushRepository(db)),
       new RaidRepository(db),
       new LockoutRepository(db),
-      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db)),
+      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
       new InMemoryRaidQueue(),
     );
   });

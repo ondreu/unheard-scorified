@@ -6,10 +6,13 @@
     ApiError,
     getRotation,
     setRotation,
+    testRotationDummy,
+    type CombatEvent,
     type RotationAbility,
     type RotationConditionType,
     type RotationRule,
   } from '$lib/api';
+  import CombatMeters from '$lib/components/CombatMeters.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -28,7 +31,21 @@
     condition: 'Condition',
     up: '↑',
     down: '↓',
+    dummyTitle: 'Test on Training Dummy',
+    dummyIntro:
+      'Save your rotation, then run it against a stationary training dummy to see how it plays out — no party or opponent needed.',
+    role: 'Role',
+    duration: 'Duration',
+    runTest: 'Run test',
+    running: 'Running…',
   };
+
+  const ROLES = [
+    { value: 'dps', label: 'DPS' },
+    { value: 'tank', label: 'Tank' },
+    { value: 'healer', label: 'Healer' },
+  ];
+  const DURATIONS = [30, 60, 120];
 
   const CONDITIONS: { value: RotationConditionType; label: string; hasThreshold: boolean }[] = [
     { value: 'always', label: 'Always', hasThreshold: false },
@@ -46,6 +63,12 @@
   let error = $state<string | null>(null);
   let saving = $state(false);
   let savedFlash = $state(false);
+
+  let dummyRole = $state('dps');
+  let dummyDuration = $state(60);
+  let dummyRunning = $state(false);
+  let dummyError = $state<string | null>(null);
+  let dummyEvents = $state<CombatEvent[] | null>(null);
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -105,6 +128,29 @@
     } finally {
       saving = false;
     }
+  }
+
+  async function runDummyTest(): Promise<void> {
+    dummyRunning = true;
+    dummyError = null;
+    try {
+      const result = await testRotationDummy(characterId, dummyRole, dummyDuration);
+      dummyEvents = result.events;
+    } catch (err) {
+      dummyError = (err as Error).message;
+    } finally {
+      dummyRunning = false;
+    }
+  }
+
+  function eventStyle(e: CombatEvent): string {
+    if (e.type === 'defeat' || e.type === 'player_defeated') return 'color:var(--danger);font-weight:600';
+    if (e.type === 'heal') return 'color:var(--success)';
+    if (e.type === 'drain') return 'color:var(--success);opacity:0.9';
+    if (e.type === 'dot') return 'color:var(--gold-bright)';
+    if (e.type === 'absorb') return 'color:var(--info);opacity:0.8';
+    if (e.type === 'ability') return 'color:var(--info)';
+    return 'color:var(--text-dim)';
   }
 </script>
 
@@ -191,4 +237,51 @@
       {#if savedFlash}<span class="text-sm text-[var(--success)]">{ui.saved}</span>{/if}
     </div>
   {/if}
+
+  <div class="panel panel-pad space-y-3">
+    <div>
+      <h2 class="font-display text-lg font-semibold text-[var(--gold-bright)]">{ui.dummyTitle}</h2>
+      <p class="mt-1 max-w-2xl text-sm text-[var(--text-dim)]">{ui.dummyIntro}</p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <label class="flex items-center gap-2 text-sm text-[var(--text-dim)]">
+        {ui.role}
+        <select class="input" bind:value={dummyRole}>
+          {#each ROLES as r (r.value)}
+            <option value={r.value}>{r.label}</option>
+          {/each}
+        </select>
+      </label>
+
+      <label class="flex items-center gap-2 text-sm text-[var(--text-dim)]">
+        {ui.duration}
+        <select class="input" bind:value={dummyDuration}>
+          {#each DURATIONS as d (d)}
+            <option value={d}>{d}s</option>
+          {/each}
+        </select>
+      </label>
+
+      <button class="btn btn-primary" disabled={dummyRunning} onclick={runDummyTest}>
+        {dummyRunning ? ui.running : ui.runTest}
+      </button>
+    </div>
+
+    {#if dummyError}
+      <p class="text-[var(--danger)]">{dummyError}</p>
+    {/if}
+
+    {#if dummyEvents}
+      <CombatMeters events={dummyEvents} />
+      <ul class="max-h-80 space-y-1 overflow-y-auto font-mono text-xs">
+        {#each [...dummyEvents].reverse() as e, i (dummyEvents.length - 1 - i)}
+          <li style={eventStyle(e)}>
+            <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
+            {e.message}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </div>
 </div>

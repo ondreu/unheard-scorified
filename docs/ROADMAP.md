@@ -766,7 +766,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
     místo fixních signature abilit **vyhodnotí první splněné pravidlo** → zvolí
     ability/úder. Tím zůstává **plně deterministické a server-authoritative**
     (lze přehrát ze snapshotu+seedu jako dnes) a zároveň konfigurovatelné.
-  - [ ] Kontextové rotace (raid healer rotuje heal, ne dmg; tank threat/mitigace…).
+  - [x] **Kontextové rotace** ✅ — `isAbilityEnabled` (engine): healer s vypnutými
+        heal-spelly neléčí ani basic swingem (čistě dmg rotace), s vypnutými
+        útočnými spelly jen léčí; tank mitigation cooldowny (Shield Wall/Ardent
+        Defender) řízené stejnou deklarativní rotací.
   - [x] **Rebalance talentů** ✅ — overhaul `data/talents.ts`: 9 class × 3 stromy ×
         **9 nodů**, **kapacita ~34 bodů/strom** (3 stromy = 102). Na cap 60 = 59
         bodů → **nelze naplnit vše**, vyjde **1 a 3/4 stromu** (rozhodnutí PM).
@@ -795,10 +798,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
         Unstable Affliction). **Tanky v tank roli ~0,34–0,44×** DPS průměru,
         **healeři při DPS rotaci ~0,5–0,65×** (heal-heavy kit přirozeně půlí
         ofenzivu). Rozmanitost zachována (mage/warrior nahoře, hybridi níž).
-  - [ ] **Drobná náhoda** do combatu (už máme `SeededRng` — rozšířit varianci
-        hitů/proc šancí, stále reprodukovatelně).
-  - [ ] **Testovací target / healing dummy** (sandbox sim pro ladění rotací bez
-        soupeře) — využije idle sim engine.
+  - [x] **Drobná náhoda** ✅ do combatu — `computeHit` variance rozšířena z
+        0,85–1,15 na 0,8–1,2 (pořád seedovaně reprodukovatelné, symetrické
+        okolo 1,0 → balanc DPS pásem zůstává neporušen).
+  - [x] **Testovací target / sandbox dummy** ✅ — `simulateDummyFight` (shared,
+        recykluje `fightBoss` přes nový `maxClockSec` cutoff) + `RotationService.
+        testDummy` + `POST /characters/:id/rotation/test-dummy`. Stateless,
+        deterministické (seed), bez party/soupeře. UI: panel na stránce rotace
+        (role + délka → spustí test, zobrazí meters + log). Testy: shared
+        `raid.test.ts` (+5), API `rotation.flow.test.ts` (+3).
 - [ ] 🧑‍💼 **Email login** (potvrzení e-mailu).
 - [ ] 🧑‍💼 **Monetizace** (návrh připraven od M0 — kosmetika oddělená od statů):
       skiny, profilové obrázky, zrychlení, gold, volitelné reklamy.

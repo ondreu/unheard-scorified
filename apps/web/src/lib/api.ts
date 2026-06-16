@@ -302,6 +302,23 @@ export function setRotation(characterId: string, rules: RotationRule[]): Promise
   });
 }
 
+export interface DummyFightResult {
+  events: CombatEvent[];
+  durationSec: number;
+}
+
+/** Sandbox test uložené rotace proti trénovacímu terči (MIL) — bez party/soupeře. */
+export function testRotationDummy(
+  characterId: string,
+  role: string,
+  durationSec: number,
+): Promise<DummyFightResult> {
+  return request<DummyFightResult>(`/characters/${characterId}/rotation/test-dummy`, {
+    method: 'POST',
+    body: JSON.stringify({ role, durationSec }),
+  });
+}
+
 export function listDungeons(characterId: string): Promise<DungeonListItem[]> {
   return request<DungeonListItem[]>(`/characters/${characterId}/dungeons`);
 }

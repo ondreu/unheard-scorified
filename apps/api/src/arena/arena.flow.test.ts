@@ -63,7 +63,7 @@ describe('M7 flow: arena PVP', () => {
       arenaRepo,
       push,
       new ArenaEventsRelay(),
-      new RotationService(charRepo, talentRepo, new RotationRepository(db)),
+      new RotationService(charRepo, talentRepo, new RotationRepository(db), invService),
       new InMemoryMatchmakingQueue(),
       new InMemoryArenaLeaderboard(),
     );
