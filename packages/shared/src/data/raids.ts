@@ -106,6 +106,61 @@ export const RAIDS: Record<string, RaidDef> = {
       }),
     ],
   },
+
+  // ── Zul'Gurub (tier 1.5 raid, ~lvl 50, M12) ─────────────────────────────────
+  // Progresní most mezi Molten Core (40) a Blackwing Lair (55): troll-říše
+  // Gurubashi a krvavý bůh Hakkar.
+  zulgurub: {
+    id: 'zulgurub',
+    name: "Zul'Gurub",
+    description:
+      'The ruined jungle city of the Gurubashi trolls, where the priests of Hakkar the Soulflayer bleed the living to call their blood god into the world.',
+    attunement: { requiredLevel: 50, questAnyOf: ['al_paragons_of_power', 'ho_paragons_of_power'] },
+    sizes: [10, 20],
+    baseXp: 13500,
+    baseGold: 430,
+    goldVariance: 0.2,
+    bosses: [
+      boss('zg_venoxis', 'High Priest Venoxis', 6000, 54, 2.4, { armor: 100 }),
+      boss('zg_mandokir', 'Bloodlord Mandokir', 7600, 62, 2.5, {
+        armor: 110,
+        abilities: [{ name: 'Bloodletting', cooldownSec: 12, damageMult: 2.3 }],
+      }),
+      boss('zg_hakkar', 'Hakkar the Soulflayer', 10800, 76, 2.4, {
+        armor: 140,
+        abilities: [{ name: 'Blood Siphon', cooldownSec: 13, damageMult: 2.6 }],
+      }),
+    ],
+  },
+
+  // ── Temple of Ahn'Qiraj (tier 3 raid, ~lvl 58, M12) ─────────────────────────
+  // Nový top-end nad Blackwing Lair: silithidí úl pod pouští a spící Prastarý bůh
+  // C'Thun.
+  ahnqiraj: {
+    id: 'ahnqiraj',
+    name: "Temple of Ahn'Qiraj",
+    description:
+      'Beneath the silithid hive of Ahn\'Qiraj coils C\'Thun, an Old God dreaming of devouring the world. The Qiraji legions stand between you and its slumbering eye.',
+    attunement: { requiredLevel: 58, questAnyOf: ['al_scepter_of_the_sands', 'ho_scepter_of_the_sands'] },
+    sizes: [10, 20],
+    baseXp: 22000,
+    baseGold: 640,
+    goldVariance: 0.2,
+    bosses: [
+      boss('aq_skeram', 'The Prophet Skeram', 13500, 90, 2.4, {
+        armor: 150,
+        abilities: [{ name: 'Arcane Explosion', cooldownSec: 12, damageMult: 2.5 }],
+      }),
+      boss('aq_sartura', 'Battleguard Sartura', 15500, 98, 2.2, {
+        armor: 160,
+        abilities: [{ name: 'Whirlwind', cooldownSec: 11, damageMult: 2.4 }],
+      }),
+      boss('aq_cthun', "C'Thun", 21000, 112, 2.4, {
+        armor: 180,
+        abilities: [{ name: 'Eye Beam', cooldownSec: 13, damageMult: 2.9 }],
+      }),
+    ],
+  },
 };
 
 export const RAID_IDS = Object.keys(RAIDS);

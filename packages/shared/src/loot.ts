@@ -197,6 +197,35 @@ export const RAID_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'ashkandi', dropChance: 0.04 },
     ],
   },
+  // M12 tier 1.5 raid (Zul'Gurub, ~lvl 50) — most mezi Molten Core a Blackwing Lair.
+  zulgurub: {
+    anyDropChance: 0.97,
+    entries: [
+      { itemId: 'zg_halberd_of_smiting', dropChance: 0.16 },
+      { itemId: 'zg_bloodlords_chestplate', dropChance: 0.16 },
+      { itemId: 'zg_primalist_belt', dropChance: 0.16 },
+      { itemId: 'zg_overlord_helmet', dropChance: 0.16 },
+      { itemId: 'zg_jindo_mantle', dropChance: 0.16 },
+      { itemId: 'zg_zanzils_seal', dropChance: 0.16 },
+      // Útěcha z Molten Core (nižší šance)
+      { itemId: 'choker_of_enlightenment', dropChance: 0.08 },
+    ],
+  },
+  // M12 tier 3 raid (Temple of Ahn'Qiraj, ~lvl 58) — nový top-end nad Blackwing Lair.
+  ahnqiraj: {
+    anyDropChance: 1.0,
+    entries: [
+      { itemId: 'aq_silithid_carapace', dropChance: 0.17 },
+      { itemId: 'aq_qiraji_bindings', dropChance: 0.17 },
+      { itemId: 'aq_gloves_of_the_immortal', dropChance: 0.17 },
+      { itemId: 'aq_ring_of_emperors', dropChance: 0.17 },
+      { itemId: 'aq_cloak_of_the_golden_hive', dropChance: 0.17 },
+      // Útěcha z Blackwing Lair
+      { itemId: 'ringo_drakefire', dropChance: 0.1 },
+      // Legendary (velmi vzácný) — C'Thun
+      { itemId: 'aq_scepter_shifting_sands', dropChance: 0.04 },
+    ],
+  },
 };
 
 /**

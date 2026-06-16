@@ -475,6 +475,73 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     stats: { intellect: 14, stamina: 12, spell_power: 14 },
   },
 
+  // --- M12: Zul'Gurub raid loot (epic, ~lvl 50, ilvl 54–57, raid-only, BoP) ---
+  // Vyplňuje progresní krok mezi Molten Core (ilvl ~48–50) a Blackwing Lair
+  // (ilvl ~62–66). Pokrývá zbraň + plate/mail/leather/cloth + prsten.
+  zg_halberd_of_smiting: {
+    id: 'zg_halberd_of_smiting', name: 'Halberd of Smiting', slot: 'main_hand',
+    rarity: 'epic', itemLevel: 57, vendorGold: 95,
+    stats: { strength: 22, stamina: 15, attack_power: 30, crit_rating: 9 },
+  },
+  zg_bloodlords_chestplate: {
+    id: 'zg_bloodlords_chestplate', name: "Bloodlord's Chestplate", slot: 'chest',
+    rarity: 'epic', itemLevel: 56, vendorGold: 92,
+    stats: { strength: 20, stamina: 18, armor: 95 },
+  },
+  zg_primalist_belt: {
+    id: 'zg_primalist_belt', name: 'Primalist Belt', slot: 'waist',
+    rarity: 'epic', itemLevel: 54, vendorGold: 84,
+    stats: { agility: 17, stamina: 13, attack_power: 22 },
+  },
+  zg_overlord_helmet: {
+    id: 'zg_overlord_helmet', name: "Overlord's Helmet", slot: 'head',
+    rarity: 'epic', itemLevel: 55, vendorGold: 88,
+    stats: { agility: 19, stamina: 14, crit_rating: 10 },
+  },
+  zg_jindo_mantle: {
+    id: 'zg_jindo_mantle', name: 'Mantle of the Blood God', slot: 'shoulder',
+    rarity: 'epic', itemLevel: 55, vendorGold: 88,
+    stats: { intellect: 20, spirit: 13, spell_power: 22 },
+  },
+  zg_zanzils_seal: {
+    id: 'zg_zanzils_seal', name: "Zanzil's Seal", slot: 'finger',
+    rarity: 'epic', itemLevel: 54, vendorGold: 84,
+    stats: { intellect: 14, stamina: 12, spell_power: 14 },
+  },
+
+  // --- M12: Temple of Ahn'Qiraj raid loot (epic/legendary, ~lvl 58, ilvl 62–68,
+  // raid-only, BoP) — nový top-end nad Blackwing Lair. C'Thun roní legendu. ---
+  aq_scepter_shifting_sands: {
+    id: 'aq_scepter_shifting_sands', name: 'Scepter of the Shifting Sands', slot: 'main_hand',
+    rarity: 'legendary', itemLevel: 68, vendorGold: 220,
+    stats: { intellect: 32, spirit: 20, spell_power: 40, crit_rating: 14 },
+  },
+  aq_silithid_carapace: {
+    id: 'aq_silithid_carapace', name: 'Silithid Carapace Breastplate', slot: 'chest',
+    rarity: 'epic', itemLevel: 65, vendorGold: 160,
+    stats: { strength: 28, stamina: 24, armor: 130 },
+  },
+  aq_qiraji_bindings: {
+    id: 'aq_qiraji_bindings', name: 'Qiraji Bindings of Command', slot: 'wrist',
+    rarity: 'epic', itemLevel: 63, vendorGold: 145,
+    stats: { agility: 22, stamina: 16, attack_power: 24 },
+  },
+  aq_gloves_of_the_immortal: {
+    id: 'aq_gloves_of_the_immortal', name: 'Gloves of the Immortal', slot: 'hands',
+    rarity: 'epic', itemLevel: 64, vendorGold: 150,
+    stats: { intellect: 24, spirit: 16, spell_power: 24 },
+  },
+  aq_ring_of_emperors: {
+    id: 'aq_ring_of_emperors', name: 'Ring of the Fallen Emperors', slot: 'finger',
+    rarity: 'epic', itemLevel: 63, vendorGold: 145,
+    stats: { strength: 18, stamina: 16, crit_rating: 14 },
+  },
+  aq_cloak_of_the_golden_hive: {
+    id: 'aq_cloak_of_the_golden_hive', name: 'Cloak of the Golden Hive', slot: 'back',
+    rarity: 'epic', itemLevel: 62, vendorGold: 140,
+    stats: { agility: 18, stamina: 14, attack_power: 20 },
+  },
+
   // --- Batohy (M10 limited inventory): vloží se do bag slotu a přidají sloty.
   // Žádné staty; vendor prodává malé, větší jsou cíl craftu (follow-up). ---
   small_pouch: {
@@ -514,6 +581,12 @@ const BIND_ON_PICKUP: ItemId[] = [
   'sabatons_of_the_flamewalker', 'choker_of_enlightenment', 'ashkandi',
   'netherwind_crown', 'drake_talon_pauldrons', 'ringo_drakefire',
   'cloak_of_draconic_might',
+  // M12 Zul'Gurub raid loot
+  'zg_halberd_of_smiting', 'zg_bloodlords_chestplate', 'zg_primalist_belt',
+  'zg_overlord_helmet', 'zg_jindo_mantle', 'zg_zanzils_seal',
+  // M12 Temple of Ahn'Qiraj raid loot
+  'aq_scepter_shifting_sands', 'aq_silithid_carapace', 'aq_qiraji_bindings',
+  'aq_gloves_of_the_immortal', 'aq_ring_of_emperors', 'aq_cloak_of_the_golden_hive',
 ];
 
 /**
@@ -543,22 +616,26 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'acolyte_hood', 'apprentice_mantle', 'silk_girdle', 'woven_wristwraps',
     'enchanters_gloves', 'sandals_of_insight', 'mystic_leggings',
     'plaguebloom_circlet', 'runecloth_robe', 'girdle_of_the_mendicant',
+    'zg_jindo_mantle', 'aq_gloves_of_the_immortal',
   ],
   leather: [
     'leather_cap', 'scout_vest', 'ranger_gloves', 'shadow_cowl',
     'shadow_vambraces', 'aged_core_leather_gloves', 'traveler_boots',
     'simple_bracers',
     'wildheart_spaulders', 'feltracker_boots',
+    'zg_overlord_helmet',
   ],
   mail: [
     'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',
     'chromatic_chainmail', 'plaguehound_leggings',
+    'zg_primalist_belt', 'aq_qiraji_bindings',
   ],
   plate: [
     'soldier_helm', 'marauder_shoulders', 'crusader_belt', 'warlord_plate',
     'titan_boots', 'sentinel_legguards', 'herod_shoulder',
     'sabatons_of_the_flamewalker', 'drake_talon_pauldrons',
     'gauntlets_of_the_fallen', 'bracers_of_undeath',
+    'zg_bloodlords_chestplate', 'aq_silithid_carapace',
   ],
 };
 

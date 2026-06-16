@@ -303,6 +303,52 @@ export const QUESTS: Record<string, QuestDef> = {
       n('The horror collapses into the offal it was sewn from. The barrow-circle is silent, the necropolis\' shadow no nearer than before. It is not victory — Naxxramas still looms — but the line holds another day, and the Argent Dawn will remember who held it. Word of your deeds has reached the war-leaders; greater battles await at the cap of your strength.'),
     ],
   },
+  // ── Raid attunement (Alliance, M12) — gate to Zul'Gurub ──────────────────
+  al_paragons_of_power: {
+    id: 'al_paragons_of_power',
+    name: 'Paragons of Power',
+    description: 'Earn the Zandalar tribe\'s trust and breach the blood-soaked gates of Zul\'Gurub.',
+    zoneId: 'eastern_plaguelands',
+    kind: 'story',
+    requiredLevel: 50,
+    requiresQuest: 'epl_scarlet_crusade',
+    durationSec: 10800,
+    baseXp: 12728,
+    baseGold: 849,
+    goldVariance: 0.2,
+    steps: [
+      n('A Zandalari emissary finds you among the Argent ranks — the Zandalar tribe, troll loremasters who oppose the blood god, seek allies. "Our cousins, the Gurubashi, have called Hakkar the Soulflayer back into the world," he says, voice tight. "His high priests bleed thousands to feed him. Help us, and Zul\'Gurub\'s gates will open to you." He presses a coil of enchanted vines into your hand — a key, if you can prove worthy of it.'),
+      n('You sail to the overgrown coast where the ruined city festers in the jungle heat. The Zandalari ask first that you cull the corrupted beasts the priests have twisted into guardians.'),
+      c('A panther the size of a horse stalks from the canopy, its eyes burning with Hakkar\'s sanguine light.', 'Soulflayer Panther', 'standard'),
+      n('You drag the beast\'s carcass back to the Zandalari camp. The emissary nods grimly — but warns the true threat is the priesthood itself. One of Venoxis\' acolytes patrols the outer terraces, and his death will rattle the cult.'),
+      c('A serpent-priest rises hissing from a blood-pool, twin censers swinging gouts of plague-mist.', 'Acolyte of Venoxis', 'elite'),
+      n('The acolyte dissolves into the pool he served. The Zandalari weave the enchanted vines into a living key and bind it to your arm. "The gates know you now, champion. Gather your warband — Hakkar will not fall to one blade alone." Zul\'Gurub is open to you.'),
+    ],
+  },
+
+  // ── Raid attunement (Alliance, M12) — gate to Temple of Ahn'Qiraj ────────
+  al_scepter_of_the_sands: {
+    id: 'al_scepter_of_the_sands',
+    name: 'The Scepter of the Shifting Sands',
+    description: 'Reforge the ancient scepter that seals Ahn\'Qiraj and sound the call to war against the Old God.',
+    zoneId: 'eastern_plaguelands',
+    kind: 'story',
+    requiredLevel: 58,
+    requiresQuest: 'epl_scourge_necropolis',
+    durationSec: 10800,
+    baseXp: 13708,
+    baseGold: 914,
+    goldVariance: 0.2,
+    steps: [
+      n('A bronze dragon in mortal guise seeks you out — the flight that guards time itself. "The Qiraji wake," she says, and the air around her shivers with the weight of ages. "Behind the wall of Ahn\'Qiraj, an Old God named C\'Thun dreams of unmaking all that is. The Scepter of the Shifting Sands once sealed it away. It lies shattered. Help me reforge it, and the wall will open at your command."'),
+      n('She sends you to recover the first fragment, guarded for a thousand years by a Qiraji vanguard that has crept north along the leylines.'),
+      c('A towering silithid warrior bursts from a tunnel of churned earth, scythe-arms shrieking.', 'Qiraji Vanguard', 'elite'),
+      n('You wrench the shard of bronze from the dead creature\'s grip. The dragon hums with relief, but the final fragment lies deepest — in the keeping of an emissary of C\'Thun itself, a thing of eyes and madness sent to stop you.'),
+      c('A floating horror of clustered eyes and tentacles drifts up from a fissure, whispering in a tongue that withers the grass. "You are already inside the dream, little thing."', 'Emissary of the Old God', 'boss'),
+      n('The emissary collapses into writhing ichor and is still. The dragon takes the fragments, and in a forge older than the sun she reforges the Scepter — and lays it in your hands. "Strike the gong at Ahn\'Qiraj, champion. The war begins with you." The Temple of Ahn\'Qiraj is open.'),
+    ],
+  },
+
   // ╔══ HORDE ═══════════════════════════════════════════════════════════════╗
   // ── Durotar (1–10) ───────────────────────────────────────────────────────
   dt_scorpid_sting: {
@@ -495,6 +541,52 @@ export const QUESTS: Record<string, QuestDef> = {
       n('Past the stalkers, the heart-glade opens: the great ancient towers there, groaning, its eyes two wells of green sorrow. It does not want to fight. It cannot stop itself.'),
       c('The corrupted ancient turns upon you, the Nightmare driving its boughs like battering rams.', 'Nemar the Defiled', 'boss'),
       n('With the last blow the ancient sighs and crumbles, free at last. You plant the Circle\'s seed in the ash; already a single green shoot uncurls toward a sky no longer the colour of bile. The Nightmare\'s grip on Felwood is broken. The druids bow to you as kin — and warn that this was but one root of a far older evil, waiting at the limits of your strength.'),
+    ],
+  },
+
+  // ── Raid attunement (Horde, M12) — gate to Zul'Gurub ─────────────────────
+  ho_paragons_of_power: {
+    id: 'ho_paragons_of_power',
+    name: 'Paragons of Power',
+    description: 'Earn the Zandalar tribe\'s trust and breach the blood-soaked gates of Zul\'Gurub.',
+    zoneId: 'felwood',
+    kind: 'story',
+    requiredLevel: 50,
+    requiresQuest: 'fw_shadow_council',
+    durationSec: 10800,
+    baseXp: 12728,
+    baseGold: 849,
+    goldVariance: 0.2,
+    steps: [
+      n('A Zandalari emissary seeks you out — the Zandalar tribe, troll loremasters who oppose the blood god, look even to the Horde for aid. "Our cousins, the Gurubashi, have called Hakkar the Soulflayer back into the world," he says. "His high priests bleed thousands to feed him. Help us, and Zul\'Gurub\'s gates will open to you." He presses a coil of enchanted vines into your hand — a key, if you can prove worthy of it.'),
+      n('You travel to the overgrown coast where the ruined city festers in the jungle heat. The Zandalari ask first that you cull the corrupted beasts the priests have twisted into guardians.'),
+      c('A panther the size of a kodo stalks from the canopy, its eyes burning with Hakkar\'s sanguine light.', 'Soulflayer Panther', 'standard'),
+      n('You drag the beast\'s carcass back to the Zandalari camp. The emissary nods grimly — but warns the true threat is the priesthood itself. One of Venoxis\' acolytes patrols the outer terraces, and his death will rattle the cult.'),
+      c('A serpent-priest rises hissing from a blood-pool, twin censers swinging gouts of plague-mist.', 'Acolyte of Venoxis', 'elite'),
+      n('The acolyte dissolves into the pool he served. The Zandalari weave the enchanted vines into a living key and bind it to your arm. "The gates know you now, champion. Gather your warband — Hakkar will not fall to one blade alone." Zul\'Gurub is open to you.'),
+    ],
+  },
+
+  // ── Raid attunement (Horde, M12) — gate to Temple of Ahn'Qiraj ───────────
+  ho_scepter_of_the_sands: {
+    id: 'ho_scepter_of_the_sands',
+    name: 'The Scepter of the Shifting Sands',
+    description: 'Reforge the ancient scepter that seals Ahn\'Qiraj and sound the call to war against the Old God.',
+    zoneId: 'felwood',
+    kind: 'story',
+    requiredLevel: 58,
+    requiresQuest: 'fw_deadwind_ritual',
+    durationSec: 10800,
+    baseXp: 13708,
+    baseGold: 914,
+    goldVariance: 0.2,
+    steps: [
+      n('A bronze dragon in mortal guise seeks you out — the flight that guards time itself. "The Qiraji wake," she says, and the air around her shivers with the weight of ages. "Behind the wall of Ahn\'Qiraj, an Old God named C\'Thun dreams of unmaking all that is. The Scepter of the Shifting Sands once sealed it away. It lies shattered. Help me reforge it, and the wall will open at your command."'),
+      n('She sends you to recover the first fragment, guarded for a thousand years by a Qiraji vanguard that has crept north along the leylines.'),
+      c('A towering silithid warrior bursts from a tunnel of churned earth, scythe-arms shrieking.', 'Qiraji Vanguard', 'elite'),
+      n('You wrench the shard of bronze from the dead creature\'s grip. The dragon hums with relief, but the final fragment lies deepest — in the keeping of an emissary of C\'Thun itself, a thing of eyes and madness sent to stop you.'),
+      c('A floating horror of clustered eyes and tentacles drifts up from a fissure, whispering in a tongue that withers the grass. "You are already inside the dream, little thing."', 'Emissary of the Old God', 'boss'),
+      n('The emissary collapses into writhing ichor and is still. The dragon takes the fragments, and in a forge older than the sun she reforges the Scepter — and lays it in your hands. "Strike the gong at Ahn\'Qiraj, champion. The war begins with you." The Temple of Ahn\'Qiraj is open.'),
     ],
   },
 };

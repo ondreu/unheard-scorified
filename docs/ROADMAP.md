@@ -651,7 +651,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > jen data + balanc. Realizovat inkrementálně (po zónách / instancích), ne najednou.
 >
 > **Status: rozpracováno** — 1. inkrement: **nové zóny 40–60 ✅** (Eastern
-> Plaguelands / Felwood, plný narativní questline + frontier loot bracket).
+> Plaguelands / Felwood, plný narativní questline + frontier loot bracket);
+> 2. inkrement: **+2 raidy + attunement ✅** (Zul'Gurub lvl 50 + Temple of
+> Ahn'Qiraj lvl 58, plně narativní attunement questlines). Zbývá: +4 dungeony,
+> dopsat fallback zóny, dungeon attunementy.
 
 - [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
       beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
@@ -674,9 +677,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - [ ] **+4 dungeony** (minimálně) — nové SP/group PVE instance, content gating
       napříč úrovněmi (zvlášť do dnes tenkého pásma 40–60). Trash + boss encountery,
       boss loot tabulky, attunement questline. Recyklují group-run model + combat engine.
-- [ ] **+2 raidy + attunement** — nové MP PVE instance (flex 5/10/20, role T/H/DPS),
-      bossové se škálují velikostí, raid loot (epic/legendary, BoP + weekly lockout),
-      attunement = level + dokončený questline.
+- [x] **+2 raidy + attunement** ✅ (M12.2): **Zul'Gurub** (lvl 50, 10/20, Venoxis /
+      Mandokir / Hakkar) + **Temple of Ahn'Qiraj** (lvl 58, 10/20, Skeram / Sartura /
+      C'Thun) — vyplňují progresní pásmo MC (40) → ZG (50) → BWL (55) → AQ (58).
+      Bossové se škálují velikostí (`scaleBoss`), raid loot je BoP + weekly lockout
+      (recykluje M8/M8.6 mechaniku), attunement = level + plně narativní per-frakce
+      questline (`al_/ho_paragons_of_power`, `al_/ho_scepter_of_the_sands`) navázaná
+      na frontier zóny (EPL / Felwood). AQ shazuje legendu `aq_scepter_shifting_sands`
+      (C'Thun). **Čistě data** — combat/run model i web/API beze změny (vše iteruje
+      přes `RAIDS`). Testy: shared `raid.test.ts` (+4). Detail: `docs/systems/raids.md`.
 - **Výstup:** hráč má napříč celým 1–60 dost příběhového obsahu, dungeonů i raidů;
   každá instance je odemykaná vlastní questline s lore.
 - **Zbývá rozhodnout (PM):** kolik zón/questů na bracket; témata nových zón 40–60;

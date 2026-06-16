@@ -21,6 +21,9 @@ import {
   type RaidActor,
   type RaidRole,
 } from './index';
+import { RAID_LOOT_TABLES } from './loot';
+import { ITEMS } from './data/items';
+import { QUESTS } from './data/quests';
 
 /** Silný generický bojový profil pro testy. */
 function strongActor(name: string, attackPower = 60, maxHealth = 800): CombatActor {
@@ -189,6 +192,46 @@ describe('isRaidUnlocked (attunement)', () => {
 
   it('unknown raid is locked', () => {
     expect(isRaidUnlocked('nonsense', 60, ['al_drakefire_attunement'])).toBe(false);
+  });
+
+  it("Zul'Gurub needs level 50 and the Paragons of Power attunement", () => {
+    expect(isRaidUnlocked('zulgurub', 49, ['al_paragons_of_power'])).toBe(false);
+    expect(isRaidUnlocked('zulgurub', 50, [])).toBe(false);
+    expect(isRaidUnlocked('zulgurub', 50, ['ho_paragons_of_power'])).toBe(true);
+  });
+
+  it("Temple of Ahn'Qiraj needs level 58 and the Scepter attunement", () => {
+    expect(isRaidUnlocked('ahnqiraj', 57, ['al_scepter_of_the_sands'])).toBe(false);
+    expect(isRaidUnlocked('ahnqiraj', 58, ['al_paragons_of_power'])).toBe(false);
+    expect(isRaidUnlocked('ahnqiraj', 58, ['al_scepter_of_the_sands'])).toBe(true);
+  });
+});
+
+describe('raid data integrity', () => {
+  it('every raid has a loot table and all loot entries reference real items', () => {
+    for (const [id, raid] of Object.entries(RAIDS)) {
+      const table = RAID_LOOT_TABLES[id];
+      expect(table, `missing loot table for ${id}`).toBeDefined();
+      for (const entry of table!.entries) {
+        expect(ITEMS[entry.itemId], `unknown item ${entry.itemId} in ${id}`).toBeDefined();
+      }
+      // Attunement questy musí existovat (gate nesmí ukazovat na neznámý quest).
+      for (const q of raid.attunement.questAnyOf) {
+        expect(QUESTS[q], `unknown attunement quest ${q} for ${id}`).toBeDefined();
+      }
+    }
+  });
+
+  it("M12 raids drop their bind-on-pickup loot on victory", () => {
+    for (const id of ['zulgurub', 'ahnqiraj']) {
+      const raid = RAIDS[id]!;
+      // Projdi řadu seedů — alespoň jeden musí vyrolovat item z tabulky.
+      const dropped = new Set<string>();
+      for (let seed = 0; seed < 60; seed++) {
+        for (const item of computeRaidReward(raid, true, seed).items) dropped.add(item);
+      }
+      expect(dropped.size).toBeGreaterThan(0);
+    }
   });
 });
 
