@@ -227,6 +227,10 @@ export function getCharacter(id: string): Promise<CharacterView> {
   return request<CharacterView>(`/characters/${id}`);
 }
 
+export function deleteCharacter(id: string): Promise<{ deleted: true }> {
+  return request<{ deleted: true }>(`/characters/${id}`, { method: 'DELETE' });
+}
+
 export function createCharacter(input: {
   name: string;
   race: string;
@@ -1654,6 +1658,10 @@ export function devUnbanAccount(accountId: string): Promise<{ banned: boolean }>
 
 export function devDeleteAccount(accountId: string): Promise<{ deleted: boolean }> {
   return devRequest(`/dev/mod/accounts/${accountId}`, { method: 'DELETE' });
+}
+
+export function devListAccountCharacters(accountId: string): Promise<DevCharacterSearchResult[]> {
+  return devRequest(`/dev/mod/accounts/${accountId}/characters`);
 }
 
 export function devSearchCharacters(name: string): Promise<DevCharacterSearchResult[]> {

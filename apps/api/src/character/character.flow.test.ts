@@ -114,4 +114,16 @@ describe('M1 flow: účet + postava', () => {
     expect(geared.equipment[0]!.itemId).toBe('iron_shortsword');
     expect(geared.itemLevel).toBe(5);
   });
+
+  it('smaže vlastní postavu; cizí účet ji smazat nemůže', async () => {
+    const owner = await registerAndGetId('henry');
+    const other = await registerAndGetId('iris');
+    const char = await characters.create(owner, { name: 'Henrylock', race: 'human', class: 'warlock' });
+
+    await expect(characters.deleteOwned(other, char.id)).rejects.toThrow();
+
+    const result = await characters.deleteOwned(owner, char.id);
+    expect(result.deleted).toBe(true);
+    await expect(characters.getOwned(owner, char.id)).rejects.toThrow();
+  });
 });

@@ -114,6 +114,14 @@ export class CharacterService {
     return this.toView(row);
   }
 
+  /** Smaže vlastní postavu (ownership check, permanentní). */
+  async deleteOwned(accountId: string, id: string): Promise<{ deleted: true }> {
+    const row = await this.repo.findOwned(accountId, id);
+    if (!row) throw new NotFoundException('Character not found');
+    await this.repo.delete(id);
+    return { deleted: true };
+  }
+
   /**
    * Veřejný inspect cizí postavy (chat → klik na jméno). Vrací jen public combat
    * info: rasu/classu/level, equipnutý gear, ilvl a staty (vč. statů z gearu).

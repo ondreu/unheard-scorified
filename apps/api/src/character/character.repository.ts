@@ -89,4 +89,9 @@ export class CharacterRepository {
       .set({ gold: sql`${characters.gold} + ${amount}` })
       .where(eq(characters.id, id));
   }
+
+  /** Smaže postavu (cascade FK smaže i inventář/aktivity/guild membership atd.). */
+  async delete(id: string): Promise<void> {
+    await this.db.delete(characters).where(eq(characters.id, id));
+  }
 }

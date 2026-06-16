@@ -7,6 +7,7 @@
     devBanAccount,
     devUnbanAccount,
     devDeleteAccount,
+    devListAccountCharacters,
     devSearchCharacters,
     devInspectCharacter,
     devDeleteCharacter,
@@ -143,9 +144,22 @@
   let inspected: DevCharacterInspect | null = $state(null);
   let inspectSearch: string = $state('');
   let inspectResults: DevCharacterSearchResult[] = $state([]);
+  let expandedAccountId: string | null = $state(null);
+  let accountChars: Record<string, DevCharacterSearchResult[]> = $state({});
 
   async function loadAccounts() {
     accounts = await devListAccounts();
+  }
+
+  async function toggleAccountChars(accountId: string) {
+    if (expandedAccountId === accountId) {
+      expandedAccountId = null;
+      return;
+    }
+    expandedAccountId = accountId;
+    if (!accountChars[accountId]) {
+      accountChars = { ...accountChars, [accountId]: await devListAccountCharacters(accountId) };
+    }
   }
 
   async function searchInspect() {
@@ -323,11 +337,16 @@
           <div class="account-list">
             {#each accounts as acc}
               <div class="account-row" class:banned={!!acc.bannedAt}>
-                <div class="account-info">
-                  <strong>{acc.username}</strong>
+                <button
+                  class="account-info account-info--btn"
+                  disabled={acc.characterCount === 0}
+                  onclick={() => toggleAccountChars(acc.id)}
+                  title={acc.characterCount > 0 ? 'Show characters' : 'No characters'}
+                >
+                  <strong>{acc.characterCount > 0 ? (expandedAccountId === acc.id ? '▾ ' : '▸ ') : ''}{acc.username}</strong>
                   <span class="muted">{acc.characterCount} chars · {new Date(acc.createdAt).toLocaleDateString()}</span>
                   {#if acc.bannedAt}<span class="ban-badge">BANNED</span>{/if}
-                </div>
+                </button>
                 <div class="account-actions">
                   {#if acc.bannedAt}
                     <button class="btn btn--sm btn--green" onclick={() => act(() => devUnbanAccount(acc.id), () => { accounts = accounts.map(a => a.id === acc.id ? { ...a, bannedAt: null } : a); return `${acc.username} unbanned`; })}>Unban</button>
@@ -337,6 +356,17 @@
                   <button class="btn btn--sm btn--danger" onclick={() => { if (confirm(`Delete account ${acc.username} and ALL their data?`)) act(() => devDeleteAccount(acc.id), () => { accounts = accounts.filter(a => a.id !== acc.id); return `${acc.username} deleted`; }); }}>Delete</button>
                 </div>
               </div>
+              {#if expandedAccountId === acc.id}
+                <div class="account-chars">
+                  {#each accountChars[acc.id] ?? [] as c}
+                    <button class="result-row" onclick={() => inspect(c.id)}>
+                      <strong>{c.name}</strong> — Lv{c.level} {c.race} {c.class}
+                    </button>
+                  {:else}
+                    <span class="muted">Loading…</span>
+                  {/each}
+                </div>
+              {/if}
             {/each}
           </div>
         </section>
@@ -492,9 +522,12 @@
   .account-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; background: #0d0d1a; border: 1px solid #222244; border-radius: 3px; }
   .account-row.banned { background: #1a0808; border-color: #3a1010; }
   .account-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .account-info--btn { background: none; border: none; color: inherit; text-align: left; cursor: pointer; font-family: monospace; padding: 0; }
+  .account-info--btn:disabled { cursor: default; opacity: 0.7; }
   .account-actions { display: flex; gap: 0.3rem; }
   .muted { color: #666; font-size: 0.72rem; }
   .ban-badge { background: #3a1010; color: #f87171; font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; letter-spacing: 0.05em; }
+  .account-chars { display: flex; flex-direction: column; gap: 2px; margin: -0.15rem 0 0.4rem 1rem; }
 
   /* Inspector */
   .inspect-card { margin-top: 0.75rem; background: #0d0d1a; border: 1px solid #222244; border-radius: 4px; padding: 0.75rem; }

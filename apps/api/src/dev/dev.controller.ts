@@ -106,6 +106,11 @@ export class DevModController {
     return this.dev.deleteAccount(accountId);
   }
 
+  @Get('accounts/:accountId/characters')
+  listAccountCharacters(@Param('accountId') accountId: string) {
+    return this.dev.listCharactersByAccount(accountId);
+  }
+
   @Get('characters/search')
   searchCharacters(@Query('name') name: string) {
     return this.dev.searchCharacters(name ?? '');

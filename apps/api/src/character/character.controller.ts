@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CharacterService, type CharacterView, type InspectView } from './character.service';
@@ -25,6 +25,14 @@ export class CharacterController {
   @Get(':id')
   get(@CurrentUser() user: { accountId: string }, @Param('id') id: string): Promise<CharacterView> {
     return this.characters.getOwned(user.accountId, id);
+  }
+
+  @Delete(':id')
+  remove(
+    @CurrentUser() user: { accountId: string },
+    @Param('id') id: string,
+  ): Promise<{ deleted: true }> {
+    return this.characters.deleteOwned(user.accountId, id);
   }
 
   /**

@@ -105,12 +105,14 @@
     try {
       group = await getGroup(id);
       const invites = group?.invites ?? [];
-      for (const inv of invites) notifications.push('social', ui.inviteGroup(inv.leaderName));
+      for (const inv of invites)
+        notifications.push('social', ui.inviteGroup(inv.leaderName), undefined, `group-invite:${inv.groupId}`);
       // As group leader, surface pending join requests that arrived while offline
       // (they otherwise only appear on the group card).
       if (group?.group?.iAmLeader) {
         for (const m of group.group.members) {
-          if (m.status === 'requested') notifications.push('social', ui.groupJoinReq(m.name));
+          if (m.status === 'requested')
+            notifications.push('social', ui.groupJoinReq(m.name), undefined, `group-join-req:${m.characterId}`);
         }
       }
     } catch {
@@ -121,23 +123,31 @@
     try {
       const social = await getSocial(id);
       for (const req of social.incoming)
-        notifications.push('social', ui.inviteFriendReq(req.name));
+        notifications.push('social', ui.inviteFriendReq(req.name), undefined, `friend-req:${req.requestId}`);
     } catch {
       // best-effort; social panel still reachable from nav
     }
     // Surface pending guild + charter invites that may have arrived while offline.
     try {
       const g = await getGuild(id);
-      for (const inv of g.invites) notifications.push('social', ui.inviteGuildShort(inv.guildName));
+      for (const inv of g.invites)
+        notifications.push('social', ui.inviteGuildShort(inv.guildName), undefined, `guild-invite:${inv.inviteId}`);
       for (const req of g.charterInvites)
-        notifications.push('social', ui.inviteCharterShort(req.guildName));
+        notifications.push(
+          'social',
+          ui.inviteCharterShort(req.guildName),
+          undefined,
+          `charter-invite:${req.charterId}`,
+        );
     } catch {
       // best-effort; guild panel still reachable from nav
     }
-    // Unread mail badge (offline messages arrived).
+    // Unread mail badge (offline messages arrived). Keyed by count so a newly
+    // arrived mail (count change) still notifies, but revisiting doesn't repeat it.
     try {
       const box = await getMailbox(id);
-      if (box.unread > 0) notifications.push('info', ui.mailUnread(box.unread));
+      if (box.unread > 0)
+        notifications.push('info', ui.mailUnread(box.unread), undefined, `mail-unread:${box.unread}`);
     } catch {
       // best-effort
     }
@@ -146,7 +156,7 @@
     try {
       const history = await getHistory(id);
       for (const h of history.slice(0, 3).reverse())
-        notifications.push('reward', h.title, h.detail || undefined);
+        notifications.push('reward', h.title, h.detail || undefined, `history:${h.id}`);
     } catch {
       // best-effort
     }
