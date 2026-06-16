@@ -54,7 +54,8 @@ finishesAt }`.
 - **Gone Questing** (generický grind, ADR 0025): místo repeatable questů jediná
   idle aktivita s **hráčem volenou délkou** (5 min–6 h). Level flexuje s postavou,
   zóna (loot bracket + flavor) se auto-odvodí (`questingZoneForLevel`), odměny =
-  čas × `referenceXpPerHour(level)` × efektivita; loot 1 roll / 30 min běhu.
+  čas × `referenceXpPerHour(level)` × efektivita; loot 1 roll / hod běhu škálovaný
+  `GRIND.lootChanceMult` (skoupější než aktivní obsah — ~0.5 itemu za 6h).
   Interní `ActivityType 'grind'`; engine náhodných událostí (`quest.events`)
   zůstává dostupný, ale data repeatable questů byla odebrána.
 - `availableQuests(level, completedIds, faction)` / `isQuestAvailable(..., faction)` — gating.

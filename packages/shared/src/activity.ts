@@ -155,8 +155,8 @@ export function computeQuestReward(quest: QuestDef, seed: number): ActivityRewar
  * levelu postavy (`params.level`, snapshot ze startu) × délka běhu ×
  * `activityEfficiency` — tj. ekvivalent dřívějších repeatable questů, ale s
  * hráčem volenou délkou. Loot: jeden roll z bracketu zóny na `GRIND.lootRollSec`
- * sekund běhu (∝ času — jako odpovídající počet krátkých questů; strop = délkový
- * limit). Vše přes jediný `SeededRng` → reprodukovatelné a validovatelné serverem.
+ * sekund běhu, šance škálovaná `GRIND.lootChanceMult` (grind je skoupější než
+ * aktivní obsah). Vše přes jediný `SeededRng` → reprodukovatelné a validovatelné.
  */
 export function computeGrindReward(
   params: GrindActivityParams,
@@ -179,7 +179,7 @@ export function computeGrindReward(
   const items: string[] = [];
   if (lootTable !== undefined) {
     const rolls = Math.max(1, Math.round(durationSec / GRIND.lootRollSec));
-    for (let i = 0; i < rolls; i++) items.push(...rollLoot(lootTable, rng));
+    for (let i = 0; i < rolls; i++) items.push(...rollLoot(lootTable, rng, GRIND.lootChanceMult));
   }
   return { xp, gold, items };
 }

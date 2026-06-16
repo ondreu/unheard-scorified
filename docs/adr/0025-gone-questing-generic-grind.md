@@ -28,8 +28,9 @@ upozornil PM:
   - **Odměny podle času**: XP/zlato = referenční rychlost(level) × délka ×
     `activityEfficiency` (mírný punish za dlouhý běh, >3 h plochých 0.8). Funkčně
     ekvivalent dřívějších repeatables, jen s volnou délkou.
-  - **Loot**: jeden roll z bracketu zóny na `GRIND.lootRollSec` (30 min) běhu →
-    drop ∝ času, jako kdyby hráč udělal odpovídající počet krátkých questů. Overflow
+  - **Loot**: jeden roll z bracketu zóny na `GRIND.lootRollSec` (1 hod) běhu,
+    šance navíc škálovaná `GRIND.lootChanceMult` (0.25) — grind je záměrně
+    skoupější než aktivní obsah (loot je bonus, hlavní jsou XP/zlato). Overflow
     nad kapacitu inventáře jde přes poštu (M10 `InventoryGrantService`).
 
 ## Implementace
@@ -57,7 +58,8 @@ upozornil PM:
 
 ## Drop rate (orientačně)
 
-Per roll = `anyDropChance` bracketu (0.25–0.32). 1 roll / 30 min, takže max **6h
-běh = 12 rollů** → očekávaně ~3–4 itemy, šance na alespoň jeden ~97–99 %. XP nad
-cap (lvl 60) se nevyužije (jen zlato/loot mají smysl). Balanc (`GRIND.*`) laditelný
+Per roll = `anyDropChance` bracketu (0.25–0.32) × `GRIND.lootChanceMult` (0.25)
+≈ 0.06–0.08. 1 roll / hod, takže max **6h běh = 6 rollů** → očekávaně **~0.5
+itemu**, šance na alespoň jeden **~30–40 %** (loot je bonus, hlavní jsou XP/zlato).
+XP nad cap (lvl 60) se nevyužije. Balanc (`GRIND.*`) laditelný
 na jednom místě.
