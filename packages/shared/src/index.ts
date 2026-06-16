@@ -13,6 +13,7 @@ export * from './data/items';
 export * from './data/talents';
 export * from './rotation';
 export * from './combat';
+export * from './combat-lookup';
 export * from './quest-run';
 export * from './grind';
 export * from './data/dungeons';

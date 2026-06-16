@@ -56,6 +56,20 @@ export function prefillChat(text: string): void {
   chatPrefill.set(text);
 }
 
+/** Jméno NPC k „inspect" (klik na jméno nepřítele v combat logu) — null = zavřeno. */
+export const inspectNpc = writable<string | null>(null);
+
+export function openNpc(name: string): void {
+  inspectNpc.set(name);
+}
+
+/** Jméno ability k zobrazení detailu (klik na ability v combat logu) — null = zavřeno. */
+export const inspectAbility = writable<string | null>(null);
+
+export function openAbility(name: string): void {
+  inspectAbility.set(name);
+}
+
 /** Cíl whisperu — chat bublina se otevře v režimu „whisper to X". */
 export const whisperTarget = writable<{ characterId: string; name: string } | null>(null);
 

@@ -8,7 +8,9 @@
     getCharacter,
     getGroup,
     getGuild,
+    getHistory,
     getMailbox,
+    getSocial,
     type CharacterView,
     type GroupState,
   } from '$lib/api';
@@ -23,6 +25,8 @@
   import Toasts from '$lib/components/Toasts.svelte';
   import ChatBubble from '$lib/components/ChatBubble.svelte';
   import PlayerProfile from '$lib/components/PlayerProfile.svelte';
+  import NpcProfile from '$lib/components/NpcProfile.svelte';
+  import AbilityDetail from '$lib/components/AbilityDetail.svelte';
   import DevPanel from '$lib/DevPanel.svelte';
 
   let { children } = $props();
@@ -39,6 +43,7 @@
     inviteCharter: (g: string, b: string) => `${b} asked you to sign the charter of ${g}`,
     inviteCharterShort: (g: string) => `Charter signature request: ${g}`,
     inviteGroup: (n: string) => `${n} invited you to a group`,
+    groupJoinReq: (n: string) => `${n} requested to join your group`,
     whisper: (n: string, b: string) => `${n} whispers: ${b}`,
     mailUnread: (n: number) => `You have ${n} unread mail`,
   };
@@ -101,8 +106,24 @@
       group = await getGroup(id);
       const invites = group?.invites ?? [];
       for (const inv of invites) notifications.push('social', ui.inviteGroup(inv.leaderName));
+      // As group leader, surface pending join requests that arrived while offline
+      // (they otherwise only appear on the group card).
+      if (group?.group?.iAmLeader) {
+        for (const m of group.group.members) {
+          if (m.status === 'requested') notifications.push('social', ui.groupJoinReq(m.name));
+        }
+      }
     } catch {
       group = null;
+    }
+    // Surface pending friend requests received while offline (otherwise only
+    // visible on the social card).
+    try {
+      const social = await getSocial(id);
+      for (const req of social.incoming)
+        notifications.push('social', ui.inviteFriendReq(req.name));
+    } catch {
+      // best-effort; social panel still reachable from nav
     }
     // Surface pending guild + charter invites that may have arrived while offline.
     try {
@@ -117,6 +138,15 @@
     try {
       const box = await getMailbox(id);
       if (box.unread > 0) notifications.push('info', ui.mailUnread(box.unread));
+    } catch {
+      // best-effort
+    }
+    // Surface the latest completed-activity results (quest/dungeon/raid/arena)
+    // in the bell — full log lives on the History page.
+    try {
+      const history = await getHistory(id);
+      for (const h of history.slice(0, 3).reverse())
+        notifications.push('reward', h.title, h.detail || undefined);
     } catch {
       // best-effort
     }
@@ -272,5 +302,7 @@
   <ChatBubble viewerId={c.id} viewerName={c.name} />
   <PlayerProfile viewerId={c.id} viewerInGroup={!!group?.group} />
 {/if}
+<NpcProfile />
+<AbilityDetail />
 <Toasts />
 <DevPanel {characterId} />

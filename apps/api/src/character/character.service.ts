@@ -19,6 +19,7 @@ import {
 import { CharacterRepository } from './character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { GroupRepository } from '../group/group.repository';
+import { GuildRepository } from '../social/guild.repository';
 import type { Character } from '../db/schema';
 
 export interface CharacterView {
@@ -51,6 +52,8 @@ export interface InspectView {
   itemLevel: number;
   /** Je postava aktuálně v nějaké skupině (pro „request to join group" v UI)? */
   inGroup: boolean;
+  /** Guilda postavy (jméno + rank), nebo null když není v žádné. */
+  guild: { name: string; rank: string } | null;
   sheet: CharacterSheet;
   equipment: InspectItemView[];
 }
@@ -63,6 +66,7 @@ export class CharacterService {
     // V produkci Nest vždy injektne (provider v CharacterModule).
     private readonly inventory?: InventoryRepository,
     private readonly groups?: GroupRepository,
+    private readonly guilds?: GuildRepository,
   ) {}
 
   async create(
@@ -144,6 +148,15 @@ export class CharacterService {
 
     const inGroup = this.groups ? !!(await this.groups.activeMembership(id)) : false;
 
+    let guild: InspectView['guild'] = null;
+    if (this.guilds) {
+      const membership = await this.guilds.membershipOf(id);
+      if (membership) {
+        const g = await this.guilds.findById(membership.guildId);
+        if (g) guild = { name: g.name, rank: membership.rank };
+      }
+    }
+
     return {
       id: row.id,
       name: row.name,
@@ -152,6 +165,7 @@ export class CharacterService {
       faction: row.faction,
       itemLevel,
       inGroup,
+      guild,
       sheet: buildCharacterSheet(row.race, row.class, row.totalXp, equipmentStats),
       equipment,
     };

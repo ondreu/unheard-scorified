@@ -18,6 +18,7 @@ import { makeGrant } from '../inventory/test-grant';
 import { MountRepository } from '../mount/mount.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { RotationService } from '../rotation/rotation.service';
+import { HistoryRepository } from '../history/history.repository';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { ActivityRepository } from '../activity/activity.repository';
 import { ActivityService } from '../activity/activity.service';
@@ -82,6 +83,7 @@ describe('M6 flow: profese & reputace', () => {
       repRepo,
       mountRepo,
       rotation,
+      new HistoryRepository(db),
       new NoopActivityScheduler(),
     );
   });

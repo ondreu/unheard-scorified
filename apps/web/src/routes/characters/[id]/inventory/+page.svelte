@@ -31,6 +31,8 @@
     vendorGold: 'Vendor:',
     gold: 'g',
     ilvl: 'iLvl',
+    slot: 'Slot:',
+    noStats: 'No stats',
   };
 
   type InventoryItem = { itemId: string; quantity: number; item: ItemDef };
@@ -96,6 +98,8 @@
   let pendingBag = $state<number | null>(null);
   let selectedItem = $state<InventoryItem | null>(null);
   let equipTargetSlot = $state<string | null>(null);
+  // Slot, jehož tooltip se aktuálně zobrazuje (hover nebo klik na touch zařízeních).
+  let tooltipSlot = $state<string | null>(null);
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -233,6 +237,13 @@
     };
     return labels[key] ?? key;
   }
+
+  // Title-attr fallback pro tooltip (přístupnost na zařízeních bez hoveru).
+  function tooltipText(item: ItemDef): string {
+    const stats = Object.entries(item.stats).map(([k, v]) => `+${v} ${statLabel(k)}`).join(', ');
+    const head = `${item.name} (${ui.ilvl} ${item.itemLevel})`;
+    return stats ? `${head} — ${stats}` : head;
+  }
 </script>
 
 <div class="space-y-6">
@@ -254,14 +265,14 @@
             <span class="text-[var(--text-faint)]">({bags.freeSlots} free)</span>
           </span>
         </div>
-        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+        <div class="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
           {#each bags.bags as b (b.slotIndex)}
-            <div class="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-xs text-[var(--text-faint)]">Bag {b.slotIndex + 1}</span>
+            <div class="rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-[0.65rem] text-[var(--text-faint)]">Bag {b.slotIndex + 1}</span>
                 {#if b.bagId}
                   <button
-                    class="btn btn-danger btn-sm"
+                    class="btn btn-danger btn-sm text-xs"
                     disabled={pendingBag !== null}
                     onclick={() => removeBag(b.slotIndex)}
                   >
@@ -270,12 +281,12 @@
                 {/if}
               </div>
               {#if b.bagId}
-                <p class="text-sm font-medium text-[var(--text)]">{b.name} <span class="text-[var(--text-faint)]">(+{b.slots})</span></p>
+                <p class="truncate text-xs font-medium text-[var(--text)]">{b.name} <span class="text-[var(--text-faint)]">(+{b.slots})</span></p>
               {:else if ownedBags.length > 0}
                 <div class="mt-1 flex flex-wrap gap-1">
                   {#each ownedBags as ob (ob.itemId)}
                     <button
-                      class="btn btn-sm"
+                      class="btn btn-sm text-xs"
                       disabled={pendingBag !== null}
                       onclick={() => insertBag(b.slotIndex, ob.itemId)}
                     >
@@ -284,7 +295,7 @@
                   {/each}
                 </div>
               {:else}
-                <p class="text-sm text-[var(--text-faint)]">Empty</p>
+                <p class="text-xs text-[var(--text-faint)]">Empty</p>
               {/if}
             </div>
           {/each}
@@ -303,12 +314,14 @@
             {@const candidate = !!draggedItem && slotAccepts(slot, draggedItem.item)}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
-              class="flex items-center justify-between gap-2 rounded-lg border bg-[var(--surface-2)] px-3 py-2 transition-colors"
+              class="relative flex items-center justify-between gap-2 rounded-lg border bg-[var(--surface-2)] px-3 py-2 transition-colors"
               class:cursor-grab={!!entry}
               style={`border-color:${dragOverSlot === slot && candidate ? 'var(--gold-bright)' : candidate ? 'var(--border-strong)' : 'var(--border)'}`}
               draggable={!!entry}
               ondragstart={() => entry && (draggedFromSlot = slot)}
               ondragend={clearDrag}
+              onmouseenter={() => entry && (tooltipSlot = slot)}
+              onmouseleave={() => tooltipSlot === slot && (tooltipSlot = null)}
               ondragover={(e) => {
                 if (candidate) {
                   e.preventDefault();
@@ -324,10 +337,16 @@
               <div class="min-w-0">
                 <span class="text-xs text-[var(--text-faint)]">{SLOT_LABELS[slot] ?? slot}</span>
                 {#if entry}
-                  <p class="truncate text-sm font-medium" style={`color:${RARITY_COLOR[entry.item.rarity] ?? 'var(--text)'}`}>
+                  <button
+                    type="button"
+                    class="block w-full truncate text-left text-sm font-medium"
+                    style={`color:${RARITY_COLOR[entry.item.rarity] ?? 'var(--text)'}`}
+                    title={tooltipText(entry.item)}
+                    onclick={() => (tooltipSlot = tooltipSlot === slot ? null : slot)}
+                  >
                     {entry.item.name}
                     <span class="ml-1 text-xs text-[var(--text-faint)]">{ui.ilvl} {entry.item.itemLevel}</span>
-                  </p>
+                  </button>
                 {:else}
                   <p class="text-sm text-[var(--text-faint)]">{candidate ? ui.dropHere : ui.empty}</p>
                 {/if}
@@ -340,6 +359,35 @@
                 >
                   {pendingSlot === slot ? ui.unequipping : ui.unequip}
                 </button>
+              {/if}
+
+              <!-- Tooltip se staty vybaveného itemu (hover nebo klik) -->
+              {#if entry && tooltipSlot === slot}
+                {@const it = entry.item}
+                <div
+                  class="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-2)] p-3 shadow-lg"
+                  role="tooltip"
+                >
+                  <p class="text-sm font-semibold" style={`color:${RARITY_COLOR[it.rarity] ?? 'var(--text)'}`}>
+                    {it.name}
+                  </p>
+                  <p class="mt-0.5 text-xs text-[var(--text-faint)]">
+                    {ui.slot} {SLOT_LABELS[slot] ?? slot} · {ui.ilvl} {it.itemLevel}
+                  </p>
+                  <dl class="mt-2 space-y-0.5 text-xs">
+                    {#each Object.entries(it.stats) as [key, val] (key)}
+                      <div class="flex justify-between gap-3">
+                        <dt class="text-[var(--text-dim)]">{statLabel(key)}</dt>
+                        <dd class="text-[var(--gold-bright)]">+{val}</dd>
+                      </div>
+                    {:else}
+                      <p class="text-[var(--text-faint)]">{ui.noStats}</p>
+                    {/each}
+                  </dl>
+                  <p class="mt-2 border-t border-[var(--border)] pt-1.5 text-xs text-[var(--text-faint)]">
+                    {ui.vendorGold} {it.vendorGold}{ui.gold}
+                  </p>
+                </div>
               {/if}
             </div>
           {/each}

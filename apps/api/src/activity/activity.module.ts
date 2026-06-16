@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
+import { HistoryModule } from '../history/history.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { MountDataModule } from '../mount/mount-data.module';
 import { ProfessionDataModule } from '../profession/profession-data.module';
@@ -20,6 +21,7 @@ import { ACTIVITY_SCHEDULER, BullMqActivityScheduler } from './activity.schedule
   imports: [
     AuthModule,
     CharacterModule,
+    HistoryModule,
     QuestModule,
     PushModule,
     InventoryModule,

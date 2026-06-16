@@ -144,6 +144,14 @@ export const NAV_SECTIONS: NavSection[] = [
     group: 'character',
   },
   {
+    path: 'history',
+    icon: '📖',
+    title: 'History',
+    sub: 'Recent activity results',
+    accent: 'var(--text-dim)',
+    group: 'character',
+  },
+  {
     path: 'consumables',
     icon: '🧪',
     title: 'Consumables',

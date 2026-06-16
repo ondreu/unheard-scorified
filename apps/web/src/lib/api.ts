@@ -252,6 +252,7 @@ export interface InspectView {
   faction: string;
   itemLevel: number;
   inGroup: boolean;
+  guild: { name: string; rank: string } | null;
   sheet: CharacterView['sheet'];
   equipment: InspectItemView[];
 }
@@ -896,6 +897,21 @@ export function sendChatMessage(characterId: string, body: string): Promise<Chat
     method: 'POST',
     body: JSON.stringify({ body }),
   });
+}
+
+// Activity history — výsledky dokončených aktivit (quest/dungeon/raid/arena).
+
+export interface HistoryEntry {
+  id: string;
+  kind: string;
+  title: string;
+  detail: string;
+  outcome: string | null;
+  createdAt: string;
+}
+
+export function getHistory(characterId: string): Promise<HistoryEntry[]> {
+  return request<HistoryEntry[]>(`/characters/${characterId}/history`);
 }
 
 // Guild (M9)

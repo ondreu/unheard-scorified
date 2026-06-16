@@ -202,6 +202,12 @@
                 Level {d.sheet.level} · {raceName(d.race)}
                 <span style={`color:${CLASS_COLOR[d.class] ?? 'inherit'}`}>{className(d.class)}</span>
               </p>
+              {#if d.guild}
+                <p class="mt-0.5 text-sm text-[var(--text-dim)]">
+                  🏰 &lt;{d.guild.name}&gt;
+                  <span class="capitalize text-[var(--text-faint)]">· {d.guild.rank}</span>
+                </p>
+              {/if}
               <div class="mt-2 flex flex-wrap gap-1.5">
                 <Badge color={FACTION_COLOR[d.faction as 'alliance' | 'horde'] ?? 'var(--gold)'}>
                   {factionLabel(d.faction)}

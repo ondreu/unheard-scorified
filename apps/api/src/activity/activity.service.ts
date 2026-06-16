@@ -48,6 +48,7 @@ import { CompletedQuestRepository } from '../quest/quest.repository';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import { MountRepository } from '../mount/mount.repository';
 import { RotationService } from '../rotation/rotation.service';
+import { HistoryRepository } from '../history/history.repository';
 import type { Character, CharacterActivity } from '../db/schema';
 import { ActivityRepository } from './activity.repository';
 import { ACTIVITY_SCHEDULER, type ActivityScheduler } from './activity.scheduler';
@@ -141,6 +142,7 @@ export class ActivityService {
     private readonly reputationRepo: ReputationRepository,
     private readonly mounts: MountRepository,
     private readonly rotation: RotationService,
+    private readonly history: HistoryRepository,
     @Inject(ACTIVITY_SCHEDULER) private readonly scheduler: ActivityScheduler,
   ) {}
 
@@ -290,6 +292,23 @@ export class ActivityService {
 
     // Profese (M6): skill-up + reputace u gather/craft běhů.
     const professionRewards = await this.applyProfessionRewards(row);
+
+    // Persistentní historie (best-effort — selhání zápisu nesmí shodit claim).
+    const itemNote =
+      grantedItems.length > 0
+        ? `, ${grantedItems.length} item${grantedItems.length === 1 ? '' : 's'}`
+        : '';
+    try {
+      await this.history.record({
+        characterId,
+        kind: row.activityType,
+        title: this.toActivityView(row, claimAt).title,
+        detail: `+${reward.xp} XP, +${reward.gold}g${itemNote}${gain.leveledUp ? ` · Level ${gain.levelAfter}!` : ''}`,
+        outcome: null,
+      });
+    } catch {
+      /* best-effort */
+    }
 
     await this.activities.deleteById(row.id);
     await this.scheduler.cancel(row.id);

@@ -20,6 +20,7 @@ import { ProfessionRepository, ReputationRepository } from '../profession/profes
 import { MountRepository } from '../mount/mount.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { RotationService } from '../rotation/rotation.service';
+import { HistoryRepository } from '../history/history.repository';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { ActivityRepository } from './activity.repository';
 import { ActivityService } from './activity.service';
@@ -68,6 +69,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
       new ReputationRepository(db),
       new MountRepository(db),
       rotation,
+      new HistoryRepository(db),
       new NoopActivityScheduler(),
     );
   });

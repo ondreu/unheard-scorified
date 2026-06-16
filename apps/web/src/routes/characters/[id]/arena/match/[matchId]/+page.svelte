@@ -3,9 +3,10 @@
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
   import type { Socket } from 'socket.io-client';
-  import { ApiError, getArenaMatch, type ArenaMatchView, type CombatEvent } from '$lib/api';
+  import { ApiError, getArenaMatch, type ArenaMatchView } from '$lib/api';
   import { connectArena, watchMatch } from '$lib/arena-socket';
   import CombatMeters from '$lib/components/CombatMeters.svelte';
+  import CombatLog from '$lib/components/CombatLog.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -58,17 +59,10 @@
     socket?.disconnect();
   });
 
-  function eventClass(e: CombatEvent): string {
-    if (e.type === 'victory') return 'text-[var(--success)] font-semibold';
-    if (e.type === 'player_defeated') return 'text-[var(--danger)] font-semibold';
-    if (e.type === 'encounter_start') return 'text-[var(--gold-bright)] font-semibold';
-    if (e.type === 'heal' || e.type === 'drain') return 'text-[var(--success)]';
-    if (e.type === 'dot') return 'text-[var(--gold-bright)]';
-    if (e.type === 'absorb') return 'text-[var(--info)]';
-    if (e.type === 'ability') return 'text-[var(--info)]';
-    if (e.source === match?.me.name) return 'text-[var(--text)]';
-    return 'text-[var(--text-dim)]';
-  }
+  // Player name → id map so combat-log names open the player card.
+  const players = $derived(
+    match ? { [match.me.name]: match.me.characterId, [match.opponent.name]: match.opponent.characterId } : {},
+  );
 </script>
 
 <div class="space-y-6">
@@ -105,16 +99,7 @@
 
     <CombatMeters events={m.events} names={[m.me.name, m.opponent.name]} />
 
-    <!-- Combat log -->
-    <section class="panel panel-pad">
-      <ul class="space-y-1 font-mono text-xs">
-        {#each [...m.events].reverse() as e, i (m.events.length - 1 - i)}
-          <li class={eventClass(e)}>
-            <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
-            {e.message}
-          </li>
-        {/each}
-      </ul>
-    </section>
+    <!-- Combat log: player names + abilities are clickable for details. -->
+    <CombatLog events={m.events} {players} />
   {/if}
 </div>

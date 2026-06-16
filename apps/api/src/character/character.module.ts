@@ -5,14 +5,21 @@ import { CharacterRepository } from './character.repository';
 import { CharacterService } from './character.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { GroupRepository } from '../group/group.repository';
+import { GuildRepository } from '../social/guild.repository';
 
 @Module({
   imports: [AuthModule],
   controllers: [CharacterController],
-  // InventoryRepository + GroupRepository jsou stateless (jen DB token) — pro
-  // veřejný inspect (gear + zda je hráč ve skupině). Vlastní instance se vyhnou
-  // modulovým cyklům (InventoryModule/GroupModule importují CharacterModule).
-  providers: [CharacterService, CharacterRepository, InventoryRepository, GroupRepository],
+  // InventoryRepository + GroupRepository + GuildRepository jsou stateless (jen
+  // DB token) — pro veřejný inspect (gear, skupina, guilda). Vlastní instance se
+  // vyhnou modulovým cyklům (Inventory/Group/Social moduly importují CharacterModule).
+  providers: [
+    CharacterService,
+    CharacterRepository,
+    InventoryRepository,
+    GroupRepository,
+    GuildRepository,
+  ],
   exports: [CharacterRepository],
 })
 export class CharacterModule {}

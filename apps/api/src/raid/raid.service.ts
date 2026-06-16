@@ -43,6 +43,7 @@ import { TalentRepository } from '../talent/talent.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { PushService } from '../push/push.service';
 import type { Character, RaidRun } from '../db/schema';
+import { HistoryRepository } from '../history/history.repository';
 import { RaidRepository } from './raid.repository';
 import { RaidEventsRelay } from './raid.events';
 import { RAID_QUEUE, type RaidQueue, type RaidQueueEntry } from './raid.matchmaking';
@@ -141,6 +142,7 @@ export class RaidService {
     private readonly events: RaidEventsRelay,
     private readonly lockouts: LockoutRepository,
     private readonly rotation: RotationService,
+    private readonly history: HistoryRepository,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -450,6 +452,23 @@ export class RaidService {
       rewardGold: reward.gold,
       rewardItems: reward.items,
     });
+
+    // Persistentní historie (best-effort).
+    const itemNote =
+      reward.items.length > 0
+        ? `, ${reward.items.length} item${reward.items.length === 1 ? '' : 's'}`
+        : '';
+    try {
+      await this.history.record({
+        characterId: character.id,
+        kind: 'raid',
+        title: `${raid.name} ${victory ? 'cleared' : 'failed'}`,
+        detail: victory ? `+${reward.xp} XP, +${reward.gold}g${itemNote}` : 'The raid wiped.',
+        outcome: victory ? 'victory' : 'defeat',
+      });
+    } catch {
+      /* best-effort */
+    }
     return reward;
   }
 
