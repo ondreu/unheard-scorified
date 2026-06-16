@@ -11,7 +11,14 @@
  * Viz ADR 0010 (arena & PVP), docs/systems/arenas-pvp.md.
  */
 import { SeededRng } from './rng';
-import { applyAbsorb, computeHit, round1, type CombatActor, type CombatEvent } from './combat';
+import {
+  applyAbsorb,
+  buildAttackMessage,
+  computeHit,
+  round1,
+  type CombatActor,
+  type CombatEvent,
+} from './combat';
 import { shouldCastAbility } from './rotation';
 import {
   ARENA_SEASONS,
@@ -161,7 +168,6 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
         message: `🛡️ ${defender.name}'s shield absorbs ${absorbed}${shield[defenderSide] > 0 ? ` (${shield[defenderSide]} left)` : ' (shield breaks)'}.`,
       });
     }
-    const verb = timer.abilityName ? `casts ${timer.abilityName} on` : healed > 0 ? 'drains' : 'hits';
     events.push({
       t: round1(clock),
       type: healed > 0 ? 'drain' : timer.abilityName ? 'ability' : 'attack',
@@ -171,7 +177,15 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       crit: hit.crit,
       ability: timer.abilityName,
       targetHealthRemaining: hp[defenderSide],
-      message: `${healed > 0 ? '🩸 ' : ''}${attacker.name} ${verb} ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${healed > 0 ? `, healed for ${healed}` : ''}${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`,
+      message: buildAttackMessage({
+        attacker,
+        targetName: defender.name,
+        amount: hit.amount,
+        crit: hit.crit,
+        healed,
+        abilityName: timer.abilityName,
+        suffix: `${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`,
+      }),
     });
   }
 
@@ -360,7 +374,6 @@ export function simulateTeamFight(
       });
     }
     const fell = hp[defenderSide][targetIdx] === 0;
-    const verb = timer.abilityName ? `casts ${timer.abilityName} on` : healed > 0 ? 'drains' : 'hits';
     events.push({
       t: round1(clock),
       type: healed > 0 ? 'drain' : timer.abilityName ? 'ability' : 'attack',
@@ -370,7 +383,15 @@ export function simulateTeamFight(
       crit: hit.crit,
       ability: timer.abilityName,
       targetHealthRemaining: hp[defenderSide][targetIdx]!,
-      message: `${healed > 0 ? '🩸 ' : ''}${attacker.name} ${verb} ${defender.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${healed > 0 ? `, healed for ${healed}` : ''}${enraged ? ' [rampage]' : ''}.${fell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
+      message: buildAttackMessage({
+        attacker,
+        targetName: defender.name,
+        amount: hit.amount,
+        crit: hit.crit,
+        healed,
+        abilityName: timer.abilityName,
+        suffix: `${enraged ? ' [rampage]' : ''}.${fell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
+      }),
     });
   }
 

@@ -89,6 +89,16 @@ export const COMBAT_TAG_EFFECTS: Record<string, TagEffect> = {
   lifesteal_minor: { lifesteal: 0.04 },
 };
 
+/**
+ * Lidsky čitelné názvy tagů poskytujících lifesteal — pro combat-log label
+ * pasivního leeche („…and heals for N (from Bloodthirst)"). Tag id → flavor.
+ */
+export const LIFESTEAL_TAG_LABELS: Record<string, string> = {
+  bloodthirst: 'Bloodthirst',
+  vampiric_embrace: 'Vampiric Embrace',
+  lifesteal_minor: 'Lifesteal',
+};
+
 // ── Typy aktérů a událostí ──────────────────────────────────────────────────
 
 /** Bojový aktér (postava nebo nepřítel). Plně serializovatelný (snapshot). */
@@ -107,6 +117,12 @@ export interface CombatActor {
   armor: number;
   /** Lifesteal — podíl uděleného poškození, který aktéra vyléčí. */
   lifesteal: number;
+  /**
+   * Lidsky čitelný zdroj pasivního lifestealu (label tagu, který přispívá
+   * nejvíc) — pro combat log u pasivního leeche bez named ability. `undefined`
+   * = bez lifestealu nebo nepřítel.
+   */
+  lifestealSource?: string;
   /** Absorpční štít (pohlcuje příchozí poškození, než se vyčerpá). 0 = bez štítu. */
   shield: number;
   signatureAbilities: SignatureAbility[];
@@ -209,6 +225,9 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
   let healthFlat = 0;
   let lifesteal = 0;
   let shieldMult = 0;
+  // Sleduj tag, který přispívá nejvíc lifestealu → label pro combat log.
+  let topLifestealContribution = 0;
+  let lifestealSource: string | undefined;
 
   for (const { tag, ranks } of talents.tags) {
     const eff = COMBAT_TAG_EFFECTS[tag];
@@ -217,7 +236,13 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
       damageMult += (eff.damageMult ?? 0) * ranks;
       attackSpeed += (eff.attackSpeed ?? 0) * ranks;
       healthFlat += (eff.healthFlat ?? 0) * ranks;
-      lifesteal += (eff.lifesteal ?? 0) * ranks;
+      const contribution = (eff.lifesteal ?? 0) * ranks;
+      lifesteal += contribution;
+      const label = LIFESTEAL_TAG_LABELS[tag];
+      if (label && contribution > topLifestealContribution) {
+        topLifestealContribution = contribution;
+        lifestealSource = label;
+      }
     }
     shieldMult += (SHIELD_TAGS[tag] ?? 0) * ranks;
   }
@@ -239,6 +264,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     critMultiplier: CRIT_MULTIPLIER,
     armor: equipment.armor ?? 0,
     lifesteal,
+    lifestealSource,
     shield: Math.round(shieldMult * (level * 6 + effStamina * 2)),
     signatureAbilities: abilities,
   };
@@ -323,4 +349,44 @@ export interface AbsorbResult {
 export function applyAbsorb(rawDamage: number, shieldRemaining: number): AbsorbResult {
   const absorbed = Math.max(0, Math.min(shieldRemaining, rawDamage));
   return { netDamage: rawDamage - absorbed, absorbed, shieldRemaining: shieldRemaining - absorbed };
+}
+
+/** Vstup pro `buildAttackMessage` — jeden zásah včetně volitelného lifestealu. */
+export interface AttackMessageInput {
+  /** Útočník (kvůli `lifestealSource` u pasivního leeche). */
+  attacker: Pick<CombatActor, 'name' | 'lifestealSource'>;
+  targetName: string;
+  amount: number;
+  crit: boolean;
+  /** Vyléčeno lifestealem (0 = bez leeche). */
+  healed: number;
+  /** Jméno aktivní ability (named source). `undefined` = základní úder / pasiva. */
+  abilityName?: string;
+  /** Doplněk za hlavní větu (např. ` [rampage]. Target: 42 HP`). */
+  suffix: string;
+}
+
+/**
+ * Sestaví anglický combat-log řádek pro útok. Jednotná logika napříč PVE i PVP,
+ * aby lifesteal log obsahoval VŽDY i jméno ability i číslo vyléčení (žádná
+ * duplikace formátování). Formáty:
+ * - aktivní ability + lifesteal: `🩸 A hits B with Ability for N (crit!), healing for M.{suffix}`
+ * - pasivní lifesteal:           `🩸 A hits B for N (crit!) and heals for M (from Source).{suffix}`
+ * - aktivní ability bez leeche:  `A casts Ability on B for N (crit!).{suffix}`
+ * - prostý úder:                 `A hits B for N (crit!).{suffix}`
+ */
+export function buildAttackMessage(input: AttackMessageInput): string {
+  const { attacker, targetName, amount, crit, healed, abilityName, suffix } = input;
+  const critTag = crit ? ' (crit!)' : '';
+  if (healed > 0) {
+    if (abilityName) {
+      return `🩸 ${attacker.name} hits ${targetName} with ${abilityName} for ${amount}${critTag}, healing for ${healed}${suffix}`;
+    }
+    const source = attacker.lifestealSource ? ` (from ${attacker.lifestealSource})` : '';
+    return `🩸 ${attacker.name} hits ${targetName} for ${amount}${critTag} and heals for ${healed}${source}${suffix}`;
+  }
+  if (abilityName) {
+    return `${attacker.name} casts ${abilityName} on ${targetName} for ${amount}${critTag}${suffix}`;
+  }
+  return `${attacker.name} hits ${targetName} for ${amount}${critTag}${suffix}`;
 }

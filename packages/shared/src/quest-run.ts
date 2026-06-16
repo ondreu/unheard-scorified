@@ -19,6 +19,7 @@
 import {
   abilityDamageMult,
   applyAbsorb,
+  buildAttackMessage,
   buildEnemyActor,
   computeHit,
   round1,
@@ -130,15 +131,22 @@ export function simulateQuestEncounter(
       }
       const hit = computeHit(player, enemy, rng, mult, false);
       enemyHp = Math.max(0, enemyHp - hit.amount);
-      if (player.lifesteal > 0 && enemyHp >= 0) {
-        playerHp = Math.min(player.maxHealth, playerHp + Math.round(hit.amount * player.lifesteal));
+      const healed = player.lifesteal > 0 ? Math.round(hit.amount * player.lifesteal) : 0;
+      if (healed > 0) {
+        playerHp = Math.min(player.maxHealth, playerHp + healed);
       }
       events.push({
         t: round1(t),
-        type: abilityName ? 'ability' : 'attack',
-        message: abilityName
-          ? `✨ ${player.name} hits ${enemy.name} with ${abilityName} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}.`
-          : `${player.name} strikes ${enemy.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}.`,
+        type: healed > 0 ? 'drain' : abilityName ? 'ability' : 'attack',
+        message: buildAttackMessage({
+          attacker: player,
+          targetName: enemy.name,
+          amount: hit.amount,
+          crit: hit.crit,
+          healed,
+          abilityName,
+          suffix: '.',
+        }),
         source: player.name,
         target: enemy.name,
         amount: hit.amount,

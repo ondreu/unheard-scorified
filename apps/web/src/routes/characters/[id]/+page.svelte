@@ -8,6 +8,11 @@
     getActivity,
     getCharacter,
     getGroup,
+    getArena,
+    getDungeonRun,
+    getRaidRun,
+    recentDungeonRuns,
+    recentRaidRuns,
     type ActivityView,
     type CharacterView,
     type ClaimResult,
@@ -42,6 +47,12 @@
     formGroup: 'Form a group →',
     questStory: 'What happened',
     hpLeft: 'HP left',
+    ongoing: 'In progress elsewhere',
+    inDungeon: '⚔️ Dungeon',
+    inRaid: '🐉 Raid',
+    inArenaQueue: '⚔️ In the arena queue',
+    watch: 'Watch →',
+    open: 'Open →',
   };
 
   let character = $state<CharacterView | null>(null);
@@ -52,6 +63,14 @@
   let claiming = $state(false);
   let claimResult = $state<ClaimResult | null>(null);
   let now = $state(Date.now());
+
+  // Other activities running in parallel (server-authoritative, idle): an
+  // in-progress dungeon/raid run or an arena queue. Surfaced here so you can
+  // leave the run watch page without losing track of it — progress never stops.
+  let ongoingDungeon = $state<{ runId: string; name: string } | null>(null);
+  let ongoingRaid = $state<{ runId: string; name: string } | null>(null);
+  let arenaQueued = $state(false);
+  const hasOngoing = $derived(!!ongoingDungeon || !!ongoingRaid || arenaQueued);
 
   const characterId = $derived($page.params.id ?? '');
   let ticker: ReturnType<typeof setInterval> | undefined;
@@ -74,6 +93,7 @@
       } catch {
         group = null;
       }
+      void loadOngoing();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
@@ -105,6 +125,46 @@
       error = (err as Error).message;
     } finally {
       claiming = false;
+    }
+  }
+
+  function closeClaim(): void {
+    claimResult = null;
+  }
+
+  // Detect parallel activities (best-effort). The newest dungeon/raid run row
+  // may still be in progress; arena exposes a queued flag. Runs are lazy on the
+  // server, so checking the newest run's completion is enough.
+  async function loadOngoing(): Promise<void> {
+    try {
+      const dRuns = await recentDungeonRuns(characterId);
+      const newest = dRuns[0];
+      if (newest) {
+        const view = await getDungeonRun(characterId, newest.runId);
+        ongoingDungeon = view.progress.completed
+          ? null
+          : { runId: newest.runId, name: view.dungeonName };
+      }
+    } catch {
+      /* best-effort */
+    }
+    try {
+      const rRuns = await recentRaidRuns(characterId);
+      const newest = rRuns[0];
+      if (newest) {
+        const view = await getRaidRun(characterId, newest.runId);
+        ongoingRaid = view.progress.completed
+          ? null
+          : { runId: newest.runId, name: view.raidName };
+      }
+    } catch {
+      /* best-effort */
+    }
+    try {
+      const arena = await getArena(characterId);
+      arenaQueued = arena.queued;
+    } catch {
+      /* best-effort */
     }
   }
 
@@ -213,72 +273,6 @@
       <h2 class="panel-title">{ui.activity}</h2>
       {#if error && character}<p class="mt-2 text-sm text-[var(--danger)]">{error}</p>{/if}
 
-      {#if claimResult}
-        {@const r = claimResult}
-        <div
-          class="mt-3 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 p-3 text-sm"
-        >
-          {#if r.offlineDurationSec > 60}
-            <p class="mb-1 text-xs text-[var(--text-faint)]">
-              🌙 {ui.offlineFor}
-              {formatOffline(r.offlineDurationSec)}
-            </p>
-          {/if}
-          <p class="font-semibold text-[var(--success)]">
-            {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold} g
-          </p>
-          {#if r.items.length > 0}
-            <p class="mt-1 text-[var(--text-dim)]">
-              🎁 {r.items.map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id).join(', ')}
-            </p>
-          {/if}
-          {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">
-              ⭐ {ui.levelUp}
-              {r.levelBefore} → {r.levelAfter}
-            </p>{/if}
-        </div>
-
-        {#if r.questLog && r.questLog.length > 0}
-          <div
-            class="mt-3 space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-sm"
-          >
-            <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-faint)]">
-              {ui.questStory}
-            </p>
-            {#each r.questLog as step, i (i)}
-              {#if step.kind === 'narrative'}
-                <p class="italic leading-relaxed text-[var(--text-dim)]">{step.text}</p>
-              {:else}
-                <div class="rounded-md border border-[var(--border)]/60 bg-[var(--surface)]/50 p-2">
-                  <p class="leading-relaxed text-[var(--text-dim)]">{step.text}</p>
-                  <details class="mt-1">
-                    <summary
-                      class="cursor-pointer text-xs text-[var(--text-faint)] hover:text-[var(--gold)]"
-                    >
-                      ⚔️ {step.enemyName}
-                      {#if step.playerHpPct !== undefined}<span
-                          class="ml-1 text-[var(--text-faint)]"
-                          >· {ui.hpLeft} {step.playerHpPct}%</span
-                        >{/if}
-                    </summary>
-                    <ul class="mt-1 space-y-0.5 font-mono text-xs text-[var(--text-faint)]">
-                      {#each step.events ?? [] as ev (ev.t + ev.message)}
-                        <li
-                          class:text-[var(--success)]={ev.type === 'enemy_defeated'}
-                          class:text-[var(--gold-bright)]={ev.crit}
-                        >
-                          {ev.message}
-                        </li>
-                      {/each}
-                    </ul>
-                  </details>
-                </div>
-              {/if}
-            {/each}
-          </div>
-        {/if}
-      {/if}
-
       {#if activity}
         {@const a = activity}
         <p class="mt-3 text-sm text-[var(--text-dim)]">
@@ -304,11 +298,49 @@
             <span class="font-mono text-[var(--gold-bright)]">{formatRemaining(remainingMs)}</span>
           </p>
         {/if}
-      {:else}
+      {:else if !hasOngoing}
         <p class="mt-3 text-sm text-[var(--text-faint)]">{ui.idle}</p>
         <a href={`/characters/${characterId}/quests`} class="btn btn-primary mt-3 w-full"
           >{ui.goQuesting}</a
         >
+      {/if}
+
+      <!-- Parallel activities: dungeon/raid runs + arena queue run server-side
+           (idle), so you can navigate away from their watch pages freely. -->
+      {#if hasOngoing}
+        <div class="mt-4 border-t border-[var(--border)]/60 pt-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-faint)]">
+            {ui.ongoing}
+          </p>
+          <ul class="mt-2 space-y-2 text-sm">
+            {#if ongoingDungeon}
+              <li class="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2">
+                <span class="min-w-0 truncate">{ui.inDungeon}: {ongoingDungeon.name}</span>
+                <a
+                  href={`/characters/${characterId}/dungeon/${ongoingDungeon.runId}`}
+                  class="btn btn-sm shrink-0">{ui.watch}</a
+                >
+              </li>
+            {/if}
+            {#if ongoingRaid}
+              <li class="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2">
+                <span class="min-w-0 truncate">{ui.inRaid}: {ongoingRaid.name}</span>
+                <a
+                  href={`/characters/${characterId}/raid/${ongoingRaid.runId}`}
+                  class="btn btn-sm shrink-0">{ui.watch}</a
+                >
+              </li>
+            {/if}
+            {#if arenaQueued}
+              <li class="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2">
+                <span class="min-w-0 truncate">{ui.inArenaQueue}</span>
+                <a href={`/characters/${characterId}/arena`} class="btn btn-sm shrink-0"
+                  >{ui.open}</a
+                >
+              </li>
+            {/if}
+          </ul>
+        </div>
       {/if}
     </section>
   </div>
@@ -376,4 +408,106 @@
       {/each}
     </div>
   </section>
+
+  <!-- Claim result: pops up as its own card (modal) instead of expanding the
+       Activity panel inline. -->
+  {#if claimResult}
+    {@const r = claimResult}
+    <div
+      class="overlay"
+      role="button"
+      tabindex="0"
+      onclick={closeClaim}
+      onkeydown={(e) => e.key === 'Escape' && closeClaim()}
+    >
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="panel w-full max-w-md"
+        role="dialog"
+        tabindex="-1"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={() => {}}
+      >
+        <div class="panel-pad">
+          <div class="flex items-center justify-between">
+            <h2 class="panel-title">
+              {claimResult.leveledUp ? `⭐ ${ui.levelUp}` : ui.activityDone}
+            </h2>
+            <button
+              class="text-[var(--text-faint)] hover:text-[var(--text)]"
+              onclick={closeClaim}
+              aria-label="Close">✕</button
+            >
+          </div>
+
+          <div
+            class="mt-3 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 p-3 text-sm"
+          >
+            {#if r.offlineDurationSec > 60}
+              <p class="mb-1 text-xs text-[var(--text-faint)]">
+                🌙 {ui.offlineFor}
+                {formatOffline(r.offlineDurationSec)}
+              </p>
+            {/if}
+            <p class="font-semibold text-[var(--success)]">
+              {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold} g
+            </p>
+            {#if r.items.length > 0}
+              <p class="mt-1 text-[var(--text-dim)]">
+                🎁 {r.items.map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id).join(', ')}
+              </p>
+            {/if}
+            {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">
+                ⭐ {ui.levelUp}
+                {r.levelBefore} → {r.levelAfter}
+              </p>{/if}
+          </div>
+
+          {#if r.questLog && r.questLog.length > 0}
+            <div
+              class="mt-3 max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-sm"
+            >
+              <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-faint)]">
+                {ui.questStory}
+              </p>
+              {#each r.questLog as step, i (i)}
+                {#if step.kind === 'narrative'}
+                  <p class="italic leading-relaxed text-[var(--text-dim)]">{step.text}</p>
+                {:else}
+                  <div
+                    class="rounded-md border border-[var(--border)]/60 bg-[var(--surface)]/50 p-2"
+                  >
+                    <p class="leading-relaxed text-[var(--text-dim)]">{step.text}</p>
+                    <details class="mt-1">
+                      <summary
+                        class="cursor-pointer text-xs text-[var(--text-faint)] hover:text-[var(--gold)]"
+                      >
+                        ⚔️ {step.enemyName}
+                        {#if step.playerHpPct !== undefined}<span
+                            class="ml-1 text-[var(--text-faint)]"
+                            >· {ui.hpLeft} {step.playerHpPct}%</span
+                          >{/if}
+                      </summary>
+                      <ul class="mt-1 space-y-0.5 font-mono text-xs text-[var(--text-faint)]">
+                        {#each step.events ?? [] as ev (ev.t + ev.message)}
+                          <li
+                            class:text-[var(--success)]={ev.type === 'enemy_defeated'}
+                            class:text-[var(--gold-bright)]={ev.crit}
+                          >
+                            {ev.message}
+                          </li>
+                        {/each}
+                      </ul>
+                    </details>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          {/if}
+
+          <button class="btn btn-primary mt-4 w-full" onclick={closeClaim}>OK</button>
+        </div>
+      </div>
+    </div>
+  {/if}
 {/if}

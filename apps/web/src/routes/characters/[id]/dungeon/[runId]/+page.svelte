@@ -2,10 +2,11 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
-  import { ApiError, getDungeonRun, type CombatEvent, type DungeonRunView } from '$lib/api';
+  import { ApiError, getDungeonRun, type DungeonRunView } from '$lib/api';
   import { ITEMS } from '@game/shared';
   import { ROLE_META } from '$lib/cosmetics';
   import CombatMeters from '$lib/components/CombatMeters.svelte';
+  import CombatLog from '$lib/components/CombatLog.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -64,19 +65,6 @@
 
   function itemName(id: string): string {
     return ITEMS[id as keyof typeof ITEMS]?.name ?? id;
-  }
-
-  function eventStyle(e: CombatEvent): string {
-    if (e.type === 'victory') return 'color:var(--success);font-weight:600';
-    if (e.type === 'defeat' || e.type === 'player_defeated') return 'color:var(--danger);font-weight:600';
-    if (e.type === 'encounter_start') return 'color:var(--gold-bright);font-weight:600';
-    if (e.type === 'enemy_defeated') return 'color:var(--success)';
-    if (e.type === 'heal') return 'color:var(--success)';
-    if (e.type === 'drain') return 'color:var(--success);opacity:0.9';
-    if (e.type === 'dot') return 'color:var(--gold-bright)';
-    if (e.type === 'absorb') return 'color:var(--info);opacity:0.8';
-    if (e.type === 'ability') return 'color:var(--info)';
-    return 'color:var(--text-dim)';
   }
 </script>
 
@@ -152,16 +140,7 @@
 
     <CombatMeters events={r.events} names={r.party.map((p) => p.name)} />
 
-    <!-- Combat log -->
-    <section class="panel panel-pad">
-      <ul class="space-y-1 font-mono text-xs">
-        {#each [...r.events].reverse() as e, i (r.events.length - 1 - i)}
-          <li style={eventStyle(e)}>
-            <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
-            {e.message}
-          </li>
-        {/each}
-      </ul>
-    </section>
+    <!-- Combat log: NPC names + abilities are clickable for details. -->
+    <CombatLog events={r.events} />
   {/if}
 </div>

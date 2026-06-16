@@ -252,6 +252,7 @@ export interface InspectView {
   faction: string;
   itemLevel: number;
   inGroup: boolean;
+  guild: { name: string; rank: string } | null;
   sheet: CharacterView['sheet'];
   equipment: InspectItemView[];
 }

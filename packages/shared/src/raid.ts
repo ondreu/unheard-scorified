@@ -19,6 +19,7 @@ import { SeededRng } from './rng';
 import {
   abilityDamageMult,
   applyAbsorb,
+  buildAttackMessage,
   buildEnemyActor,
   computeHit,
   determinationFactor,
@@ -390,29 +391,24 @@ function fightBoss(
         bossHp = Math.max(0, bossHp - hit.amount);
         const healed = member.lifesteal > 0 ? Math.round(hit.amount * member.lifesteal) : 0;
         if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
-        events.push(
-          healed > 0
-            ? {
-                t: round1(clock),
-                type: 'drain',
-                source: member.name,
-                target: boss.name,
-                amount: hit.amount,
-                crit: hit.crit,
-                targetHealthRemaining: bossHp,
-                message: `🩸 ${member.name} drains ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`,
-              }
-            : {
-                t: round1(clock),
-                type: 'attack',
-                source: member.name,
-                target: boss.name,
-                amount: hit.amount,
-                crit: hit.crit,
-                targetHealthRemaining: bossHp,
-                message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
-              },
-        );
+        events.push({
+          t: round1(clock),
+          type: healed > 0 ? 'drain' : 'attack',
+          source: member.name,
+          target: boss.name,
+          amount: hit.amount,
+          crit: hit.crit,
+          targetHealthRemaining: bossHp,
+          message: buildAttackMessage({
+            attacker: member,
+            targetName: boss.name,
+            amount: hit.amount,
+            crit: hit.crit,
+            healed,
+            abilityName: undefined,
+            suffix: `. ${boss.name}: ${bossHp} HP`,
+          }),
+        });
       }
     } else if (timer.kind === 'dot_tick') {
       if (bossHp <= 0) {
