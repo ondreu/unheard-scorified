@@ -67,7 +67,7 @@ describe('M8 flow: raids (MP PVE)', () => {
       new RaidRepository(db),
       new RaidEventsRelay(),
       new LockoutRepository(db),
-      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db)),
+      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
       new InMemoryRaidQueue(),
     );
   });

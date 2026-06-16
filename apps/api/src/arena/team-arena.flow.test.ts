@@ -48,13 +48,14 @@ describe('M9 flow: team arena (launchForGroup)', () => {
   beforeEach(() => {
     seq += 1;
     const invRepo = new InventoryRepository(db);
+    const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
     team = new TeamArenaService(
       charRepo,
-      new InventoryService(charRepo, invRepo, new BuffRepository(db)),
+      invService,
       new TalentRepository(db),
       new ArenaRepository(db),
       new PushService(new PushRepository(db)),
-      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db)),
+      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
       new InMemoryTeamArenaQueue(),
     );
   });

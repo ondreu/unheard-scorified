@@ -9,6 +9,9 @@ import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
+import { BuffRepository } from '../buff/buff.repository';
+import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryService } from '../inventory/inventory.service';
 import { TalentRepository } from '../talent/talent.repository';
 import { TalentService } from '../talent/talent.service';
 import { RotationRepository } from './rotation.repository';
@@ -37,7 +40,8 @@ describe('MIL flow: deklarativní rotace', () => {
     characters = new CharacterService(charRepo);
     const talentRepo = new TalentRepository(db);
     talents = new TalentService(charRepo, talentRepo);
-    rotation = new RotationService(charRepo, talentRepo, new RotationRepository(db));
+    const inventory = new InventoryService(charRepo, new InventoryRepository(db), new BuffRepository(db));
+    rotation = new RotationService(charRepo, talentRepo, new RotationRepository(db), inventory);
   });
 
   /** Postava s capstone talentem odemykajícím signature ability (Mortal Strike). */
@@ -121,5 +125,26 @@ describe('MIL flow: deklarativní rotace', () => {
     const otherAccount = auth.verifyAccessToken(tokens.accessToken).sub;
     await expect(rotation.getRotation(otherAccount, owner.id)).rejects.toThrow();
     await expect(rotation.setRotation(otherAccount, owner.id, { rules: [] })).rejects.toThrow();
+  });
+
+  it('testDummy odbojuje sandbox proti trénovacímu terči a vrátí timeline', async () => {
+    const { accountId, id } = await warriorWithMortalStrike('rotg', 'Sylvanas');
+    const result = await rotation.testDummy(accountId, id, 'dps', 30);
+    expect(result.durationSec).toBeLessThanOrEqual(30);
+    expect(result.events.length).toBeGreaterThan(0);
+    expect(result.events.some((e) => e.source === 'Sylvanas')).toBe(true);
+  });
+
+  it('testDummy clampne mimo rozsah délku a neznámou roli spadne na dps', async () => {
+    const { accountId, id } = await warriorWithMortalStrike('roth', 'Cairne');
+    const result = await rotation.testDummy(accountId, id, 'not-a-role', 999);
+    expect(result.durationSec).toBeLessThanOrEqual(180);
+  });
+
+  it('testDummy odmítne cizí postavu', async () => {
+    const owner = await warriorWithMortalStrike('roti', 'Jaina');
+    const tokens = await auth.register('rotj', 'password123');
+    const otherAccount = auth.verifyAccessToken(tokens.accessToken).sub;
+    await expect(rotation.testDummy(otherAccount, owner.id, 'dps', 30)).rejects.toThrow();
   });
 });

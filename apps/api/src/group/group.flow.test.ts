@@ -70,7 +70,7 @@ describe('M9 flow: groups (party)', () => {
     const lockouts = new LockoutRepository(db);
     const queue = new InMemoryRaidQueue();
     const arenaRepo = new ArenaRepository(db);
-    const rotation = new RotationService(charRepo, talents, new RotationRepository(db));
+    const rotation = new RotationService(charRepo, talents, new RotationRepository(db), invService);
 
     const raids = new RaidService(
       charRepo, invService, invRepo, makeGrant(db, invRepo), talents, completed, push, raidRepo,

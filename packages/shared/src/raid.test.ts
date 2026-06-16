@@ -5,6 +5,7 @@ import {
   RAID_PARTY_SIZE,
   RAID_SIZES,
   buildRaidBoss,
+  buildTrainingDummy,
   compositionSize,
   computeRaidReward,
   defaultRaidComposition,
@@ -14,6 +15,7 @@ import {
   isRaidUnlocked,
   isValidComposition,
   scaleBoss,
+  simulateDummyFight,
   simulateRaidRun,
   type CombatActor,
   type RaidActor,
@@ -212,5 +214,42 @@ describe('computeRaidReward', () => {
     expect(clean.xp).toBe(raid.baseXp);
     expect(wiped.xp).toBeLessThan(clean.xp);
     expect(wiped.gold).toBeLessThanOrEqual(clean.gold);
+  });
+});
+
+describe('training dummy sandbox (MIL)', () => {
+  it('runs for the requested duration and stays alive (huge HP)', () => {
+    const dps = strongActor('Garrosh', 60, 800);
+    const result = simulateDummyFight(dps, 'dps', 30, 42);
+    expect(result.durationSec).toBeLessThanOrEqual(30);
+    expect(result.durationSec).toBeGreaterThan(20);
+    expect(result.events.some((e) => e.type === 'attack' && e.source === 'Garrosh')).toBe(true);
+    expect(result.events.some((e) => e.type === 'enemy_defeated')).toBe(false);
+  });
+
+  it('is deterministic for the same seed', () => {
+    const dps = strongActor('Thrall', 55, 700);
+    const a = simulateDummyFight(dps, 'dps', 20, 7);
+    const b = simulateDummyFight(dps, 'dps', 20, 7);
+    expect(a).toEqual(b);
+  });
+
+  it('healer role can self-heal off the dummy chip damage', () => {
+    const healer = strongActor('Tyrande', 40, 500);
+    const result = simulateDummyFight(healer, 'healer', 60, 9);
+    expect(result.events.some((e) => e.type === 'heal' && e.source === 'Tyrande')).toBe(true);
+  });
+
+  it('tank role takes mitigated, survivable chip damage from the dummy', () => {
+    const tank = strongActor('Magni', 35, 400);
+    const result = simulateDummyFight(tank, 'tank', 60, 3);
+    expect(result.events.some((e) => e.type === 'player_defeated')).toBe(false);
+  });
+
+  it('buildTrainingDummy scales chip damage off the reference max health', () => {
+    const small = buildTrainingDummy(100);
+    const big = buildTrainingDummy(1000);
+    expect(big.attackPower).toBeGreaterThan(small.attackPower);
+    expect(small.maxHealth).toBe(big.maxHealth);
   });
 });

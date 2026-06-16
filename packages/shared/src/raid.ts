@@ -19,6 +19,7 @@ import { SeededRng } from './rng';
 import {
   abilityDamageMult,
   applyAbsorb,
+  buildEnemyActor,
   computeHit,
   determinationFactor,
   round1,
@@ -274,6 +275,8 @@ function fightBoss(
   startClock: number,
   startHp: number[],
   attempt: number,
+  /** Sandbox dummy testing (MIL): zastaví pokus v daném čase místo na smrti bosse/party. */
+  maxClockSec?: number,
 ): BossAttemptResult {
   const events: CombatEvent[] = [];
   const hp = [...startHp];
@@ -319,6 +322,7 @@ function fightBoss(
       if (timers[j]!.next < timers[idx]!.next) idx = j;
     }
     const timer = timers[idx]!;
+    if (maxClockSec !== undefined && timer.next > maxClockSec) break;
     clock = timer.next;
     timer.next += timer.interval;
     const enraged = clock - encStart >= RAID_ENRAGE_SEC;
@@ -657,4 +661,52 @@ export function simulateRaidRun(
     defeatedAtBoss,
     wipes,
   };
+}
+
+// ── Trénovací terč / sandbox (MIL) ──────────────────────────────────────────
+// „Testovací target/healing dummy" — ladění rotace bez nutnosti soupeře/party.
+// Recykluje `fightBoss` (role routing, mitigation, heal, DoT, execute — žádná
+// duplikace), jen s časovým stropem místo ukončení na smrti bosse/party.
+
+/** HP terče — dost vysoko, aby v rozumné délce testu nikdy nepadl. */
+const DUMMY_MAX_HEALTH = 50_000_000;
+const DUMMY_SWING_INTERVAL = 3;
+/** Terč „čapne" za úder podíl max HP testovaného aktéra — dost na to, aby šlo
+ * reálně testovat mitigation/heal/self-sustain rotaci, ne aby ohrozilo přežití. */
+const DUMMY_CHIP_DAMAGE_FRACTION = 0.04;
+
+/** Stacionární trénovací terč; útočí slabě zpět, aby šla testovat i obranná/heal rotace. */
+export function buildTrainingDummy(referenceMaxHealth: number): CombatActor {
+  return buildEnemyActor({
+    name: 'Training Dummy',
+    maxHealth: DUMMY_MAX_HEALTH,
+    attackPower: Math.max(1, Math.round(referenceMaxHealth * DUMMY_CHIP_DAMAGE_FRACTION)),
+    swingInterval: DUMMY_SWING_INTERVAL,
+  });
+}
+
+export interface DummyFightResult {
+  events: CombatEvent[];
+  durationSec: number;
+}
+
+/**
+ * Sandbox sim (MIL): otestuje rotaci postavy proti trénovacímu terči přesně po
+ * `durationSec`, bez party/soupeře. Stateless — žádná persistence, čistě
+ * request/response; deterministické (seed), takže reprodukovatelné pro debug.
+ */
+export function simulateDummyFight(
+  actor: CombatActor,
+  role: RaidRole,
+  durationSec: number,
+  seed: number,
+): DummyFightResult {
+  const rng = new SeededRng(seed);
+  const member = deriveRaidActor(actor, role);
+  const dummy = buildTrainingDummy(member.maxHealth);
+  const attempt = fightBoss([member], dummy, rng, 0, [member.maxHealth], 0, durationSec);
+  const events = attempt.events.map((e) =>
+    e.type === 'encounter_start' ? { ...e, message: `⚔️ ${actor.name} starts attacking the Training Dummy.` } : e,
+  );
+  return { events, durationSec: Math.max(0, Math.round(attempt.clock)) };
 }
