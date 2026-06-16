@@ -77,7 +77,7 @@ describe('M9 flow: groups (party)', () => {
       new RaidEventsRelay(), lockouts, rotation, queue,
     );
     const dungeons = new DungeonService(
-      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, rotation, queue,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, rotation, completed, queue,
     );
     const arena = new ArenaService(
       charRepo, invService, talents, arenaRepo, push,
@@ -147,6 +147,7 @@ describe('M9 flow: groups (party)', () => {
 
   it('launch dungeon → group PVE run (runId)', async () => {
     const [a, b] = await friends('Dun', 2);
+    await completed.markCompleted(a!.id, 'ho_ragefire_attunement'); // M9 ragefire attunement
     await group.create(a!.accountId, a!.id, 'tank');
     await group.invite(a!.accountId, a!.id, b!.name, 'healer');
     const inv = await group.getState(b!.accountId, b!.id);

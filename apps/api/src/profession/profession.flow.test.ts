@@ -12,8 +12,13 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryService } from '../inventory/inventory.service';
+import { BuffRepository } from '../buff/buff.repository';
 import { makeGrant } from '../inventory/test-grant';
 import { MountRepository } from '../mount/mount.repository';
+import { TalentRepository } from '../talent/talent.repository';
+import { RotationService } from '../rotation/rotation.service';
+import { RotationRepository } from '../rotation/rotation.repository';
 import { ActivityRepository } from '../activity/activity.repository';
 import { ActivityService } from '../activity/activity.service';
 import { NoopActivityScheduler } from '../activity/activity.scheduler';
@@ -60,6 +65,13 @@ describe('M6 flow: profese & reputace', () => {
       mountRepo,
       new NoopActivityScheduler(),
     );
+    const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
+    const rotation = new RotationService(
+      charRepo,
+      new TalentRepository(db),
+      new RotationRepository(db),
+      invService,
+    );
     activity = new ActivityService(
       charRepo,
       activityRepo,
@@ -69,6 +81,7 @@ describe('M6 flow: profese & reputace', () => {
       profRepo,
       repRepo,
       mountRepo,
+      rotation,
       new NoopActivityScheduler(),
     );
   });

@@ -11,6 +11,7 @@ import {
   computeGroupReward,
   deriveCombatProfile,
   deriveRaidActor,
+  dungeonAttunementQuests,
   DUNGEON_SIZES,
   DUNGEONS,
   groupComposition,
@@ -41,6 +42,7 @@ import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { TalentRepository } from '../talent/talent.repository';
+import { CompletedQuestRepository } from '../quest/quest.repository';
 import { PushService } from '../push/push.service';
 import type { Character, RaidRun } from '../db/schema';
 import { RaidRepository } from '../raid/raid.repository';
@@ -71,6 +73,10 @@ export interface DungeonListItem {
   /** Povolené velikosti party (1 = solo, 3, 5). */
   sizes: number[];
   unlocked: boolean;
+  /** Dungeon vyžaduje attunement questline (M9) nad rámec levelu. */
+  requiresAttunement: boolean;
+  /** Postava splnila attunement (nebo dungeon žádný nemá). */
+  attuned: boolean;
   /** Role, ve které postava čeká ve frontě group dungeonu (nebo null). */
   queuedRole: RaidRole | null;
   /** Tato instance má weekly lockout (M8.6) — clear se počítá jen jednou týdně. */
@@ -141,6 +147,7 @@ export class DungeonService {
     private readonly repo: RaidRepository,
     private readonly lockouts: LockoutRepository,
     private readonly rotation: RotationService,
+    private readonly completed: CompletedQuestRepository,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -150,12 +157,15 @@ export class DungeonService {
     if (!character) throw new NotFoundException('Character not found');
 
     const level = levelFromXp(character.totalXp);
+    const completedIds = await this.completed.completedIds(characterId);
+    const completedSet = new Set(completedIds);
     const weekId = weeklyLockoutId(Date.now());
     const result: DungeonListItem[] = [];
     for (const d of Object.values(DUNGEONS).sort((a, b) => a.requiredLevel - b.requiredLevel)) {
       const queuedRole = await this.queue.queuedRole(queueKey(d.id), characterId);
       const lockoutId = lockoutIdForContent('dungeon', d.id);
       const lockedOut = lockoutId !== null && (await this.lockouts.isLocked(characterId, lockoutId, weekId));
+      const attunementQuests = dungeonAttunementQuests(d.id);
       result.push({
         id: d.id,
         name: d.name,
@@ -165,7 +175,9 @@ export class DungeonService {
         encounterCount: d.encounters.length,
         bossName: d.encounters.at(-1)?.name ?? '',
         sizes: [...DUNGEON_SIZES],
-        unlocked: isDungeonUnlocked(d.id, level),
+        unlocked: isDungeonUnlocked(d.id, level, completedSet),
+        requiresAttunement: attunementQuests.length > 0,
+        attuned: attunementQuests.length === 0 || attunementQuests.some((q) => completedSet.has(q)),
         queuedRole,
         hasLockout: lockoutId !== null,
         lockedOut,
@@ -187,9 +199,7 @@ export class DungeonService {
     if (!isRaidRole(role)) throw new BadRequestException('Invalid role');
 
     const level = levelFromXp(character.totalXp);
-    if (!isDungeonUnlocked(dungeonId, level)) {
-      throw new BadRequestException(`Dungeon requires level ${DUNGEONS[dungeonId]!.requiredLevel}`);
-    }
+    await this.assertDungeonUnlocked(characterId, dungeonId, level);
 
     const snapshot = await this.buildRaidActor(character, level, role);
     await this.queue.enqueue(queueKey(dungeonId), {
@@ -234,11 +244,8 @@ export class DungeonService {
     if (!character) throw new NotFoundException('Character not found');
     if (!isDungeonId(dungeonId)) throw new BadRequestException('Unknown dungeon');
 
-    const dungeon = DUNGEONS[dungeonId]!;
     const level = levelFromXp(character.totalXp);
-    if (!isDungeonUnlocked(dungeonId, level)) {
-      throw new BadRequestException(`Dungeon requires level ${dungeon.requiredLevel}`);
-    }
+    await this.assertDungeonUnlocked(characterId, dungeonId, level);
 
     const chosenSize = size ?? 1;
     if (!isDungeonSize(chosenSize)) {
@@ -283,11 +290,27 @@ export class DungeonService {
     members: DungeonMember[],
   ): Promise<DungeonRunView> {
     if (!isDungeonId(dungeonId)) throw new BadRequestException('Unknown dungeon');
-    const dungeon = DUNGEONS[dungeonId]!;
-    if (!isDungeonUnlocked(dungeonId, levelFromXp(leader.totalXp))) {
-      throw new BadRequestException(`Dungeon requires level ${dungeon.requiredLevel}`);
-    }
+    await this.assertDungeonUnlocked(leader.id, dungeonId, levelFromXp(leader.totalXp));
     return this.finalizeDungeonRun(dungeonId, leader, members);
+  }
+
+  /**
+   * Ověří, že postava může vstoupit do dungeonu (level + případný attunement
+   * questline, M9). Vyhodí `BadRequestException` s konkrétním důvodem.
+   */
+  private async assertDungeonUnlocked(
+    characterId: string,
+    dungeonId: string,
+    level: number,
+  ): Promise<void> {
+    const dungeon = DUNGEONS[dungeonId]!;
+    const completedSet = new Set(await this.completed.completedIds(characterId));
+    if (!isDungeonUnlocked(dungeonId, level, completedSet)) {
+      if (level < dungeon.requiredLevel) {
+        throw new BadRequestException(`Dungeon requires level ${dungeon.requiredLevel}`);
+      }
+      throw new BadRequestException('Dungeon requires attunement — complete the unlock questline first');
+    }
   }
 
   /**

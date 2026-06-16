@@ -24,6 +24,7 @@ import {
   QUESTS,
   RECIPES,
   reputationProgress,
+  simulateQuestRun,
   type ActivityReward,
   type ActivityState,
   type CharacterSheet,
@@ -32,6 +33,7 @@ import {
   type GatherActivityParams,
   type ProfessionId,
   type QuestActivityParams,
+  type QuestStepResult,
   type RepTier,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
@@ -40,6 +42,7 @@ import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import { MountRepository } from '../mount/mount.repository';
+import { RotationService } from '../rotation/rotation.service';
 import type { Character, CharacterActivity } from '../db/schema';
 import { ActivityRepository } from './activity.repository';
 import { ACTIVITY_SCHEDULER, type ActivityScheduler } from './activity.scheduler';
@@ -106,6 +109,11 @@ export interface ClaimResult {
   profession?: ProfessionGainView;
   /** Reputační zisky (jen u gather/craft). */
   reputation?: ReputationGainView[];
+  /**
+   * Příběhový log questu (M9): narativní beaty + auto-resolved combaty, generované
+   * deterministicky ze seedu aktivity. Jen u `quest` aktivit; flavor nad odměnami.
+   */
+  questLog?: QuestStepResult[];
 }
 
 export interface StartActivityInput {
@@ -124,6 +132,7 @@ export class ActivityService {
     private readonly professionRepo: ProfessionRepository,
     private readonly reputationRepo: ReputationRepository,
     private readonly mounts: MountRepository,
+    private readonly rotation: RotationService,
     @Inject(ACTIVITY_SCHEDULER) private readonly scheduler: ActivityScheduler,
   ) {}
 
@@ -202,10 +211,19 @@ export class ActivityService {
     const gain = applyXpGain(character.totalXp, reward.xp);
     const updated = await this.characters.addRewards(character.id, reward.xp, reward.gold);
 
+    // Quest narrative log (M9): deterministicky ze seedu aktivity. Combat kroky
+    // používají snapshot bojového profilu (gear/talenty/rotace) → silnější
+    // postava = čistší boj. Flavor vrstva — odměny (výše) tím nejsou dotčené.
+    let questLog: QuestStepResult[] | undefined;
     if (row.activityType === 'quest') {
       const questId = (row.params as QuestActivityParams).questId;
-      if (QUESTS[questId]?.kind === 'story') {
-        await this.completed.markCompleted(characterId, questId);
+      const quest = QUESTS[questId];
+      if (quest) {
+        const profile = await this.rotation.buildCombatProfile(character, gain.levelBefore);
+        questLog = simulateQuestRun(quest, profile, state.seed).steps;
+        if (quest.kind === 'story') {
+          await this.completed.markCompleted(characterId, questId);
+        }
       }
     }
 
@@ -231,6 +249,7 @@ export class ActivityService {
       character: toCharacterStateView(updated),
       offlineDurationSec,
       items: grantedItems,
+      questLog,
       ...professionRewards,
     };
   }

@@ -114,7 +114,7 @@ export function isGroupContentUnlocked(
   level: number,
   completedQuestIds: string[],
 ): boolean {
-  if (contentType === 'dungeon') return isDungeonUnlocked(contentId, level);
+  if (contentType === 'dungeon') return isDungeonUnlocked(contentId, level, completedQuestIds);
   return isRaidUnlocked(contentId, level, completedQuestIds);
 }
 

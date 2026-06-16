@@ -135,8 +135,12 @@ export class RotationService {
     return simulateDummyFight(profile, safeRole, safeDuration, seed);
   }
 
-  /** Bojový profil postavy (staty + gear + talenty + uložená rotace), jako raid/dungeon/arena. */
-  private async buildCombatProfile(character: Character, level: number): Promise<CombatActor> {
+  /**
+   * Bojový profil postavy (staty + gear + talenty + uložená rotace), jako
+   * raid/dungeon/arena. Veřejné — recykluje ho i quest narrative engine
+   * (`ActivityService` při claimu) bez duplikace profil-buildingu.
+   */
+  async buildCombatProfile(character: Character, level: number): Promise<CombatActor> {
     const primary = baseStatsFor(character.race as RaceId, character.class as ClassId, level);
     const equipment = await this.inventory.getEquipmentStats(character.id);
     const rotation = await this.rotationForCombat(character.id, character.class as ClassId, level);

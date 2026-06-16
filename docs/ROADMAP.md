@@ -617,6 +617,20 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (gear/ilvl/staty); klik na jméno hráče (chat/party/friends) → profil-modal
       s inspectem a akcemi (whisper/group/trade/guild). Trade tlačítko odebráno
       (obchod z profilu hráče). Asset spec pro malířku: `docs/systems/ui-art-assets.md`.
+- [x] **Quest narrative + combat overhaul** ✅: questy už nejsou „nudný timer" —
+      jsou **vícekrokový příběh** (narativní beaty prokládané auto-resolved combaty),
+      generovaný deterministicky při claimu (`questLog` v `ClaimResult`). Idle
+      zachováno (jeden běh, žádná migrace, žádná nová interakce); **combat nelze
+      prohrát** (silnější postava = čistší boj, slabší = víc utržených ran, ale
+      quest se vždy dokončí) → odměny netknuté. `QuestDef.steps` (story) +
+      `events`/`eventCount` (repeatable = deterministicky generovaná podmnožina →
+      pokaždé jiný průběh). Engine `@game/shared/quest-run.ts` recykluje
+      `computeHit`/`applyAbsorb` + `RotationService.buildCombatProfile`. **Dungeon
+      attunement** (`DungeonDef.attunement.questAnyOf`, vzorově Ragefire Chasm).
+      Rozsah: engine + bohaté startovní zóny **Northshire** (Alliance) + **Durotar**
+      (Horde) + lore; ostatní zóny fallback (doplní se v content passu). Testy:
+      shared `quest-run.test.ts` (+8) + API questLog/attunement. **ADR 0024**,
+      `docs/systems/questing.md`.
 - [ ] PixiJS pixel scénky, nahrazení placeholderů (art dle `ui-art-assets.md`).
 - [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
@@ -646,9 +660,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
   - [x] +6 repeatable filler questů (1 na zónu, M9) — víc idle obsahu napříč brackety.
-  - [ ] Příběhové (story) questlinky.
-  - [ ] Questy s **combatem** (kill/clear cíl řešený combat enginem, ne jen idle timer).
-  - [ ] Každý dungeon má vlastní **questlinku** (attunement/lore → odemykání).
+  - [x] **Narrative engine + vícekrokové story questy s combatem** (M9, ADR 0024):
+        startovní zóny Northshire + Durotar přepsané jako příběh (beaty + auto-resolved
+        combaty + lore); repeatable = deterministicky generované náhodné události.
+  - [ ] **Dopsat steps/lore pro zbylé zóny** (Westfall/Duskwood/Barrens/Thousand
+        Needles + raid-attunement questy) — engine hotový, jde o obsah.
+  - [ ] Questy s **reálným combat cílem** (kill/clear řešený enginem s rizikem, ne
+        jen flavor uvnitř idle questu).
+  - [x] **Dungeon attunement questline** (M9): Ragefire Chasm gated startovním
+        questlinem (`DungeonDef.attunement`). Zbylé dungeony pod attunement = follow-up.
 - [x] 🧑‍💼 **Mounty** ✅ — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
       questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
       (skin) od bonusu (speed) → kompatibilní s monetizací. 2 tiery (basic

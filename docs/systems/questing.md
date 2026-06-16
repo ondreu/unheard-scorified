@@ -1,7 +1,9 @@
-# System: Leveling & questing (M2)
+# System: Leveling & questing (M2, narrative overhaul M9)
 
-Stav: implementováno v M2. Zdroj pravdy pro data i vzorce: `packages/shared`.
-Architektura: viz `docs/adr/0006-activities-and-questing.md` a `0002-idle-model.md`.
+Stav: implementováno v M2; **narrative + combat overhaul v M9** (viz níže).
+Zdroj pravdy pro data i vzorce: `packages/shared`. Architektura: viz
+`docs/adr/0006-activities-and-questing.md`, `0002-idle-model.md` a
+`docs/adr/0024-quest-narrative-engine.md` (M9 overhaul).
 
 ## Idle smyčka (výstup M2)
 
@@ -66,9 +68,47 @@ finishesAt }`.
 - `quests/+page.svelte` — seznam dostupných questů, „Send" → start aktivity.
 - Herní stringy anglicky, oddělené od logiky (`ui` objekt) pro pozdější i18n.
 
+## Narrative + combat overhaul (M9)
+
+Cíl (zadání PM): questy přestaly být „nudný timer → claim zlato". Quest je teď
+**vícekrokový příběh** — narativní beaty prokládané **auto-resolved combaty** —
+generovaný deterministicky při claimu. Detail rozhodnutí: `docs/adr/0024`.
+
+- **Idle zachováno**: quest je pořád jeden idle běh (timer). Při claimu se ze
+  `seed`u (stejný jako pro odměny) vygeneruje **příběhový log** (`questLog` v
+  `ClaimResult`). Žádná nová nutná interakce — „vrátím se a přečtu, co se stalo".
+- **Combat NELZE prohrát** (rozhodnutí PM): silnější postava = rychlejší/čistší
+  boj (vyšší zbylé HP v logu), slabší = víc utržených ran, ale quest se vždy
+  dokončí (clamp na 1 HP). Log je **flavor vrstva nad odměnami** —
+  `computeQuestReward` se nemění → balanc netknutý.
+- **Datový model** (`data/quests.ts`): `QuestDef.steps?: QuestStep[]` (ručně
+  psané story questy = narativní + combat kroky) a `events?: QuestEventDef[]` +
+  `eventCount?` (repeatable: z poolu se deterministicky vybere podmnožina →
+  pokaždé trochu jiný průběh). Combat krok zadává jen **jméno + tier** nepřítele;
+  HP/AP se odvodí z levelu questu × tieru (`questFoeStats`) — autor neřeší čísla.
+- **Engine** (`quest-run.ts`): `simulateQuestRun(quest, profile, seed)` →
+  `QuestRunResult.steps`. Combat kroky recyklují `computeHit`/`applyAbsorb`
+  z combat enginu (žádná duplikace). Combat profil postavy (gear/talenty/rotace)
+  bere `RotationService.buildCombatProfile` (sdílené s dungeon/raid/arena).
+- **Rozsah M9**: engine + bohatě napsané startovní zóny **Northshire** (Alliance)
+  a **Durotar** (Horde) + jejich repeatable s náhodnými událostmi. Ostatní zóny
+  zatím používají fallback (jednoduchý beat z `description`) — doplní se v dalším
+  content passu (viz ROADMAP M10+ „Více a kvalitnějších questů").
+
+## Dungeon attunement (M9)
+
+`DungeonDef.attunement?: { questAnyOf: string[] }` (mirroruje `RaidAttunement`):
+dungeon vyžaduje level **i** dokončený questline (stačí jeden z uvedených questů
+— paralelní Alliance/Horde varianty). `isDungeonUnlocked(id, level, completedIds)`.
+Vzorově: **Ragefire Chasm** gated questem `al_ragefire_attunement` /
+`ho_ragefire_attunement` (startovní zóny). Web list vystavuje `requiresAttunement`
+/ `attuned` → „🔒 Attunement required".
+
 ## Testy
 
 - `packages/shared`: unit testy vzorců (leveling aliasy + applyXpGain, activity
-  progress/reward determinismus, quest gating).
+  progress/reward determinismus, quest gating) + **`quest-run.test.ts`** (no-fail
+  combat, determinismus, autorský story log, generované repeatable události).
 - `apps/api`: integrační flow přes **pglite** (bez Dockeru/Redisu, NoopScheduler):
-  start → běh → claim → XP/zlato/level-up, story anti-repeat, ownership, konflikt.
+  start → běh → claim → XP/zlato/level-up + **questLog**, story anti-repeat,
+  ownership, konflikt; dungeon attunement gating.

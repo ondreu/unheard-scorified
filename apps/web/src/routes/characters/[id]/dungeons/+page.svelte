@@ -14,6 +14,8 @@
     encounters: 'Encounters',
     locked: 'Locked',
     reqLevel: 'Requires level',
+    attunement: 'Attunement required',
+    attunementHint: 'Complete the unlock questline to gain entry.',
     party: 'Party',
     solo: 'Solo',
     savedThisWeek: '🔒 Saved this week',
@@ -109,11 +111,18 @@
               </div>
             {:else}
               <span class="chip shrink-0">
-                {ui.locked} · {ui.reqLevel} {d.requiredLevel}
+                {#if d.requiresAttunement && !d.attuned}
+                  🔒 {ui.attunement}
+                {:else}
+                  {ui.locked} · {ui.reqLevel} {d.requiredLevel}
+                {/if}
               </span>
             {/if}
           </div>
           <p class="mt-2 text-sm text-[var(--text-dim)]">{d.description}</p>
+          {#if d.requiresAttunement && !d.attuned}
+            <p class="mt-1 text-xs text-[var(--text-faint)]">{ui.attunementHint}</p>
+          {/if}
         </li>
       {/each}
     </ul>

@@ -5,6 +5,7 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { LockoutModule } from '../lockout/lockout.module';
 import { TalentModule } from '../talent/talent.module';
 import { PushModule } from '../push/push.module';
+import { QuestModule } from '../quest/quest.module';
 import { RaidModule } from '../raid/raid.module';
 import { RotationModule } from '../rotation/rotation.module';
 import { DungeonController } from './dungeon.controller';
@@ -26,6 +27,7 @@ import { DungeonService } from './dungeon.service';
     RaidModule,
     LockoutModule,
     RotationModule,
+    QuestModule,
   ],
   controllers: [DungeonController],
   providers: [DungeonService],
