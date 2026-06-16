@@ -87,6 +87,11 @@ Pro inventář, inspect a loot.
 - **Šířkové bannery 640×200 px** (pixel art scenérie), tmavnoucí dolů kvůli textu.
 - Umístění: `apps/web/static/scenes/<zoneId|dungeonId|raidId>.png`.
 - Pozn.: cílově PixiJS scénky (ROADMAP M9) — statický banner je mezikrok.
+- **Stav (M9): hotová PixiJS procedurální vrstva.** Místo plochého CSS placeholderu
+  se teď renderuje **deterministická procedurální pixel-art scenérie** (`PixiScene.svelte`
+  + datový katalog témat `apps/web/src/lib/scenes.ts`; zapojeno přes `SceneBanner.svelte`
+  v hlavičkách quests/dungeons/raids + watch). Reálný malovaný banner ji kdykoli
+  nahradí — stačí přidat `<img>`/texturu; procedurální scéna je default mezikrok.
 
 ## 8. App / PWA ikony — priorita 1 (blokuje M0 TODO)
 
@@ -110,4 +115,6 @@ Pro inventář, inspect a loot.
 
 - **Avatary:** gradient z rasy+classy + iniciála jména + emoji emblém classy.
 - **Emblémy/role/rarity/faction:** emoji + CSS barvy.
-- **Item/slot/zóna ikony:** zatím bez artu (text + barvy dle rarity).
+- **Item/slot ikony:** zatím bez artu (text + barvy dle rarity).
+- **Zóna/dungeon/raid scénky:** **PixiJS procedurální pixel art** (deterministický,
+  seedovaný) — viz sekce 7. Reálné malované bannery je nahradí později.

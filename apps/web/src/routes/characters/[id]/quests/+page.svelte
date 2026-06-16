@@ -10,6 +10,7 @@
     type QuestView,
   } from '$lib/api';
   import { ZONES } from '@game/shared';
+  import SceneBanner from '$lib/components/SceneBanner.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -93,10 +94,17 @@
     if (sec >= 60) return `${Math.floor(sec / 60)}m`;
     return `${sec}s`;
   }
+
+  // Scéna hlavičky = zóna prvního dostupného questu (frakce už zakódována v zoneId).
+  const bannerScene = $derived(quests[0]?.zoneId ?? 'northshire');
 </script>
 
 <div class="space-y-6">
-  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
+  <SceneBanner
+    sceneId={bannerScene}
+    title={ui.title}
+    subtitle="Adventure awaits across the realm."
+  />
 
   {#if error}
     <p class="text-[var(--danger)]">{error}</p>

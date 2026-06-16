@@ -7,6 +7,7 @@
   import { ROLE_META } from '$lib/cosmetics';
   import CombatMeters from '$lib/components/CombatMeters.svelte';
   import CombatLog from '$lib/components/CombatLog.svelte';
+  import SceneBanner from '$lib/components/SceneBanner.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -77,10 +78,11 @@
     <p class="text-[var(--danger)]">{error ?? ui.notFound}</p>
   {:else}
     {@const r = run}
-    <div>
-      <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{r.raidName}</h1>
-      <p class="mt-1 text-sm text-[var(--text-dim)]">{r.party.length}-player party · {r.bosses.length} bosses</p>
-    </div>
+    <SceneBanner
+      sceneId={r.raidId}
+      title={r.raidName}
+      subtitle={`${r.party.length}-player party · ${r.bosses.length} bosses`}
+    />
 
     <!-- Progress -->
     <div class="bar">

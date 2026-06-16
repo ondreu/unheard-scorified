@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { ApiError, enterDungeon, listDungeons, type DungeonListItem } from '$lib/api';
+  import SceneBanner from '$lib/components/SceneBanner.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -64,10 +65,13 @@
   function sizeLabel(n: number): string {
     return n === 1 ? ui.solo : `${n}-player`;
   }
+
+  // Reprezentativní scéna pro hlavičku (první/nejnižší dungeon v seznamu).
+  const bannerScene = $derived(dungeons[0]?.id ?? 'ragefire_chasm');
 </script>
 
 <div class="space-y-6">
-  <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
+  <SceneBanner sceneId={bannerScene} title={ui.title} subtitle="Delve into instanced dungeons for gear." />
 
   {#if error}
     <p class="text-[var(--danger)]">{error}</p>
