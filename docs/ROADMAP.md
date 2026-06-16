@@ -770,6 +770,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
         reálnou ability. Žádné dead talenty (každý tag → reálný efekt). Testy:
         shared `data/talents.test.ts` (+7: kapacita/1.75-strom/no-dead-tag).
         _Follow-up: plný prerekvizitní graf (šipky) místo tier-gate — UX nice-to-have._
+  - [x] **Balanc síly specců + tank role** ✅ — deterministicky změřeno (sim přes
+        engine, DPS/HPS proti dummy) a vyladěno: spread DPS specců stažen z ~1,9×
+        na ~1,5× (hybridi ↑: feral/ret/balance/ele; čistí casteři/melee ↓: mage/
+        warrior). Healeři mezi sebou ~1,26×. **Tank** = méně DMG (`TANK_DAMAGE_MULT`
+        0.6→0.5, defenzivní prot stromy bez dmg nodů) + **mitigation cooldowny**:
+        nová `AbilityKind 'mitigation'` (Shield Wall −50 %/8s, Ardent Defender
+        −40 %/10s) jako prot capstony; engine aplikuje dočasné okno redukce
+        příchozího poškození na tanka. Testy: `combat-overhaul.test.ts` (+2:
+        mitigation snižuje utržené poškození). _Pozn.: spec≠role — prot talenty
+        dělají málo DMG i kdyby šly do dps role (posiluje identitu)._
   - [ ] **Drobná náhoda** do combatu (už máme `SeededRng` — rozšířit varianci
         hitů/proc šancí, stále reprodukovatelně).
   - [ ] **Testovací target / healing dummy** (sandbox sim pro ladění rotací bez

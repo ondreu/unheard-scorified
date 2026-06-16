@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLASS_BASELINE_ABILITIES,
+  CLASS_TALENTS,
   SIGNATURE_ABILITIES,
   abilityDamageMult,
   aggregateTalentEffects,
@@ -180,6 +181,49 @@ describe('rich combat log (raid/dungeon engine)', () => {
     const b = simulateRaidRun(make(), boss, 9001);
     expect(a.events.length).toBe(b.events.length);
     expect(a.events).toEqual(b.events);
+  });
+});
+
+describe('tank mitigation', () => {
+  function protTank(withTalents: boolean): RaidActor {
+    const tree = CLASS_TALENTS.warrior![2]!; // Protection
+    const alloc: Record<string, number> = {};
+    if (withTalents) for (const node of tree.nodes) alloc[node.id] = node.maxRanks;
+    const base = deriveCombatProfile({
+      name: 'Protector',
+      level: 60,
+      klass: 'warrior',
+      primary: baseStatsFor('human', 'warrior', 60),
+      equipment: { attack_power: 150, strength: 200, stamina: 400, armor: 200 },
+      talents: aggregateTalentEffects('warrior', alloc),
+    });
+    return deriveRaidActor(base, 'tank');
+  }
+  const pressureBoss: CombatActor = {
+    name: 'Boss', maxHealth: 200000, attackPower: 400, swingInterval: 1.5,
+    critChance: 0.1, critMultiplier: 2, armor: 0, lifesteal: 0, shield: 0,
+    signatureAbilities: [], isBoss: true,
+  };
+
+  it('prot capstone is a mitigation ability', () => {
+    const cap = CLASS_TALENTS.warrior![2]!.nodes.at(-1)!;
+    expect(SIGNATURE_ABILITIES[cap.effect.combatTags![0]!]!.kind).toBe('mitigation');
+    expect(CLASS_TALENTS.paladin![1]!.nodes.at(-1)!.name).toBe('Ardent Defender');
+  });
+
+  it('a mitigation cooldown reduces damage taken by the tank', () => {
+    const dmgTaken = (party: RaidActor[]): number => {
+      const r = simulateRaidRun(party, [pressureBoss], 999);
+      let d = 0;
+      for (const e of r.events) {
+        if (e.t > 60) break;
+        if (e.source === 'Boss' && (e.type === 'attack' || e.type === 'ability') && e.amount) d += e.amount;
+      }
+      return d;
+    };
+    const withMit = simulateRaidRun([protTank(true)], [pressureBoss], 999);
+    expect(withMit.events.some((e) => e.ability === 'Shield Wall')).toBe(true);
+    expect(dmgTaken([protTank(true)])).toBeLessThan(dmgTaken([protTank(false)]));
   });
 });
 

@@ -121,7 +121,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     const enraged = clock >= PVP_RAMPAGE_SEC;
 
     // Heal/shield ability v 1v1 nedávají smysl (žádný spojenec) → přeskoč.
-    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield') continue;
+    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield' || timer.abilityKind === 'mitigation') continue;
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&
@@ -314,7 +314,7 @@ export function simulateTeamFight(
     const attacker = team[attackerSide][timer.member]!;
     const defender = team[defenderSide][targetIdx]!;
     const enraged = clock >= PVP_RAMPAGE_SEC;
-    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield') continue;
+    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield' || timer.abilityKind === 'mitigation') continue;
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&

@@ -98,8 +98,8 @@ export const RAID_PARTY_SIZE = compositionSize(RAID_COMPOSITION);
 
 // ── Role tuning (laditelný balanc, vyladí se v M9) ──────────────────────────
 /** Tank: víc HP, míň dmg, zmírněné příchozí poškození. */
-const TANK_HP_MULT = 1.5;
-const TANK_DAMAGE_MULT = 0.6;
+const TANK_HP_MULT = 1.6;
+const TANK_DAMAGE_MULT = 0.5;
 const TANK_MITIGATION = 0.65;
 /** Healer: léčí (násobek attack power), jen symbolický dmg. */
 const HEALER_HEAL_MULT = 1.6;
@@ -279,6 +279,9 @@ function fightBoss(
   const hp = [...startHp];
   // Absorpční štíty členů (per pull). Nedoplňují se; pohlcují příchozí poškození.
   const shield = party.map((p) => p.shield ?? 0);
+  // Aktivní mitigation okno (tank cooldowny): do kdy platí + jaké % redukce.
+  const mitigationUntil = party.map(() => -1);
+  const mitigationPct = party.map(() => 0);
   let clock = startClock;
   let bossHp = boss.maxHealth;
   const encStart = clock;
@@ -428,6 +431,19 @@ function fightBoss(
       ) {
         continue;
       }
+      // Mitigation cooldown (tank): aktivuje okno snížení příchozího poškození.
+      if (ability.kind === 'mitigation') {
+        mitigationUntil[i] = clock + (ability.mitigationDurationSec ?? 0);
+        mitigationPct[i] = ability.mitigationPct ?? 0;
+        events.push({
+          t: round1(clock),
+          type: 'ability',
+          source: member.name,
+          ability: ability.name,
+          message: `🛡️ ${member.name} uses ${ability.name}, reducing damage taken by ${Math.round((ability.mitigationPct ?? 0) * 100)}%.`,
+        });
+        continue;
+      }
       // Heal-kind ability: jen healer, jen když je koho léčit (jinak se „drží").
       if (ability.kind === 'heal') {
         if (member.role !== 'healer' || member.healPower <= 0) continue;
@@ -494,6 +510,10 @@ function fightBoss(
       const hit = computeHit(boss, target, rng, ability?.damageMult ?? 1, enraged);
       let dmg = hit.amount;
       if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
+      // Aktivní mitigation cooldown (Shield Wall / Ardent Defender).
+      if (clock < mitigationUntil[tIdx]! && mitigationPct[tIdx]! > 0) {
+        dmg = Math.max(1, Math.round(dmg * (1 - mitigationPct[tIdx]!)));
+      }
       // Absorpční štít pohltí část poškození, než dopadne na HP.
       if (shield[tIdx]! > 0) {
         const abs = applyAbsorb(dmg, shield[tIdx]!);

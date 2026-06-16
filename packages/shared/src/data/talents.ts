@@ -71,7 +71,7 @@ const WARRIOR_TALENTS: ClassTalents = [
       n('warrior.arms.deep_wounds', 'Deep Wounds', 'Your critical strikes cause extra bleed damage (1% per rank).', 15, 3, TAG('deep_wounds')),
       n('warrior.arms.two_handed_specialization', 'Two-Handed Specialization', D.dmg1, 20, 4, TAG('dmg_minor')),
       n('warrior.arms.sudden_death', 'Sudden Death', D.lifesteal, 25, 3, TAG('lifesteal_minor')),
-      n('warrior.arms.mortal_strike', 'Mortal Strike', 'A brutal strike for 180% weapon damage.', 28, 1, TAG('mortal_strike')),
+      n('warrior.arms.mortal_strike', 'Mortal Strike', 'A brutal strike for 160% weapon damage.', 28, 1, TAG('mortal_strike')),
     ],
   },
   {
@@ -85,21 +85,22 @@ const WARRIOR_TALENTS: ClassTalents = [
       n('warrior.fury.bloodcraze', 'Bloodcraze', D.lifesteal, 15, 3, TAG('lifesteal_minor')),
       n('warrior.fury.improved_cleave', 'Improved Cleave', D.crit, 20, 4, TAG('crit_minor')),
       n('warrior.fury.rampage', 'Rampage', D.dmg1, 25, 3, TAG('dmg_minor')),
-      n('warrior.fury.bloodthirst', 'Bloodthirst', 'Strikes for 160% weapon damage, healing you for 20% of the damage dealt.', 28, 1, TAG('bloodthirst')),
+      n('warrior.fury.bloodthirst', 'Bloodthirst', 'Strikes for 150% weapon damage, healing you for 20% of the damage dealt.', 28, 1, TAG('bloodthirst')),
     ],
   },
   {
+    // Tank strom: vysoká výdrž, nízké poškození (jen threat), mitigation capstone.
     name: 'Protection',
     nodes: [
       n('warrior.prot.toughness', 'Toughness', D.hp, 0, 5, TAG('toughness')),
       n('warrior.prot.anticipation', 'Anticipation', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
       n('warrior.prot.shield_specialization', 'Shield Specialization', D.hp, 5, 5, TAG('hp_minor')),
-      n('warrior.prot.defiance', 'Defiance', D.dmg1, 10, 5, TAG('dmg_minor')),
-      n('warrior.prot.last_stand', 'Last Stand', D.shield, 15, 3, TAG('shield_minor')),
-      n('warrior.prot.one_handed_specialization', 'One-Handed Specialization', D.dmg2, 20, 5, TAG('dmg_major')),
-      n('warrior.prot.vitality', 'Vitality', 'Increases Stamina by 1 per rank.', 25, 3, STAT('stamina')),
-      n('warrior.prot.concussion_blow', 'Concussion Blow', D.crit, 25, 2, TAG('crit_minor')),
-      n('warrior.prot.shield_slam', 'Shield Slam', 'Slams the enemy with your shield for 170% weapon damage.', 28, 1, TAG('shield_slam')),
+      n('warrior.prot.vitality', 'Vitality', 'Increases Stamina by 1 per rank.', 10, 5, STAT('stamina')),
+      n('warrior.prot.last_stand', 'Last Stand', D.shield, 10, 3, TAG('shield_minor')),
+      n('warrior.prot.improved_defensive_stance', 'Improved Defensive Stance', D.hp, 15, 5, TAG('hp_minor')),
+      n('warrior.prot.shield_slam', 'Shield Slam', 'Slams the enemy with your shield for 150% weapon damage (threat).', 20, 1, TAG('shield_slam')),
+      n('warrior.prot.defiance', 'Defiance', D.dmg1, 20, 4, TAG('dmg_minor')),
+      n('warrior.prot.shield_wall', 'Shield Wall', 'Raises your shield, reducing damage taken by 50% for 8s.', 28, 1, TAG('shield_wall')),
     ],
   },
 ];
@@ -120,17 +121,18 @@ const PALADIN_TALENTS: ClassTalents = [
     ],
   },
   {
+    // Tank strom: vysoká výdrž, nízké poškození (jen threat), mitigation capstone.
     name: 'Protection',
     nodes: [
       n('paladin.prot.divinity', 'Divinity', D.hp, 0, 5, TAG('hp_minor')),
       n('paladin.prot.stoicism', 'Stoicism', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
       n('paladin.prot.toughness', 'Toughness', D.hp, 5, 5, TAG('toughness')),
-      n('paladin.prot.anticipation', 'Anticipation', D.dmg1, 10, 5, TAG('dmg_minor')),
-      n('paladin.prot.holy_shield', 'Holy Shield', D.shield, 15, 3, TAG('holy_shield')),
-      n('paladin.prot.one_handed_specialization', 'One-Handed Specialization', D.dmg2, 20, 5, TAG('dmg_major')),
-      n('paladin.prot.sacred_duty', 'Sacred Duty', 'Increases Stamina by 1 per rank.', 25, 3, STAT('stamina')),
-      n('paladin.prot.reckoning', 'Reckoning', D.crit, 25, 2, TAG('crit_minor')),
-      n('paladin.prot.avengers_shield', "Avenger's Shield", 'Hurls a holy shield at the enemy for 180% damage.', 28, 1, TAG('avengers_shield')),
+      n('paladin.prot.sacred_duty', 'Sacred Duty', 'Increases Stamina by 1 per rank.', 10, 5, STAT('stamina')),
+      n('paladin.prot.holy_shield', 'Holy Shield', D.shield, 10, 3, TAG('holy_shield')),
+      n('paladin.prot.improved_devotion_aura', 'Improved Devotion Aura', D.hp, 15, 5, TAG('hp_minor')),
+      n('paladin.prot.avengers_shield', "Avenger's Shield", 'Hurls a holy shield at the enemy for 180% damage (threat).', 20, 1, TAG('avengers_shield')),
+      n('paladin.prot.anticipation', 'Anticipation', D.dmg1, 20, 4, TAG('dmg_minor')),
+      n('paladin.prot.ardent_defender', 'Ardent Defender', 'A holy ward reducing damage taken by 40% for 10s.', 28, 1, TAG('ardent_defender')),
     ],
   },
   {
@@ -144,7 +146,7 @@ const PALADIN_TALENTS: ClassTalents = [
       n('paladin.ret.conviction', 'Conviction', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('paladin.ret.sanctity_aura', 'Sanctity Aura', D.haste, 25, 3, TAG('haste_minor')),
       n('paladin.ret.eye_for_an_eye', 'Eye for an Eye', D.lifesteal, 25, 2, TAG('lifesteal_minor')),
-      n('paladin.ret.repentance', 'Repentance', 'Smites the target for 160% weapon damage.', 28, 1, TAG('repentance')),
+      n('paladin.ret.repentance', 'Repentance', 'Smites the target for 210% weapon damage.', 28, 1, TAG('repentance')),
     ],
   },
 ];
@@ -206,7 +208,7 @@ const ROGUE_TALENTS: ClassTalents = [
       n('rogue.ass.seal_fate', 'Seal Fate', D.dmg2, 20, 5, TAG('dmg_major')),
       n('rogue.ass.quick_recovery', 'Quick Recovery', D.lifesteal, 25, 3, TAG('lifesteal_minor')),
       n('rogue.ass.deadliness', 'Deadliness', 'Increases Agility by 1 per rank.', 25, 2, STAT('agility')),
-      n('rogue.ass.mutilate', 'Mutilate', 'A flurry of blades for 220% weapon damage.', 28, 1, TAG('mutilate')),
+      n('rogue.ass.mutilate', 'Mutilate', 'A flurry of blades for 200% weapon damage.', 28, 1, TAG('mutilate')),
     ],
   },
   {
@@ -296,7 +298,7 @@ const SHAMAN_TALENTS: ClassTalents = [
       n('shaman.ele.lightning_mastery', 'Lightning Mastery', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('shaman.ele.elemental_precision', 'Elemental Precision', D.crit, 25, 3, TAG('crit_minor')),
       n('shaman.ele.unrelenting_storm', 'Unrelenting Storm', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
-      n('shaman.ele.thunderstorm', 'Thunderstorm', 'Calls down lightning for 240% spell damage.', 28, 1, TAG('thunderstorm')),
+      n('shaman.ele.thunderstorm', 'Thunderstorm', 'Calls down lightning for 270% spell damage.', 28, 1, TAG('thunderstorm')),
     ],
   },
   {
@@ -341,7 +343,7 @@ const MAGE_TALENTS: ClassTalents = [
       n('mage.arcane.arcane_instability', 'Arcane Instability', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('mage.arcane.arcane_potency', 'Arcane Potency', D.crit, 25, 3, TAG('crit_minor')),
       n('mage.arcane.mind_mastery', 'Mind Mastery', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
-      n('mage.arcane.arcane_power', 'Arcane Power', 'Unleashes raw arcane power for 240% spell damage.', 28, 1, TAG('arcane_power')),
+      n('mage.arcane.arcane_power', 'Arcane Power', 'Unleashes raw arcane power for 200% spell damage.', 28, 1, TAG('arcane_power')),
     ],
   },
   {
@@ -355,7 +357,7 @@ const MAGE_TALENTS: ClassTalents = [
       n('mage.fire.master_of_elements', 'Master of Elements', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('mage.fire.burning_soul', 'Burning Soul', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intellect')),
       n('mage.fire.pyromaniac', 'Pyromaniac', D.crit, 25, 2, TAG('crit_minor')),
-      n('mage.fire.pyroblast', 'Pyroblast', 'A massive fireball for 250% damage that burns for a further 75% over 6s.', 28, 1, TAG('pyroblast_mastery')),
+      n('mage.fire.pyroblast', 'Pyroblast', 'A massive fireball for 210% damage that burns for a further 60% over 6s.', 28, 1, TAG('pyroblast_mastery')),
     ],
   },
   {
@@ -369,7 +371,7 @@ const MAGE_TALENTS: ClassTalents = [
       n('mage.frost.arctic_winds', 'Arctic Winds', D.dmg2, 20, 5, TAG('dmg_major')),
       n('mage.frost.shatter', 'Shatter', D.crit, 25, 3, TAG('crit_minor')),
       n('mage.frost.frost_channeling', 'Frost Channeling', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
-      n('mage.frost.frostfire_bolt', 'Frostfire Bolt', 'A bolt of frost and fire for 230% spell damage.', 28, 1, TAG('frostfire_bolt')),
+      n('mage.frost.frostfire_bolt', 'Frostfire Bolt', 'A bolt of frost and fire for 200% spell damage.', 28, 1, TAG('frostfire_bolt')),
     ],
   },
 ];
@@ -386,7 +388,7 @@ const WARLOCK_TALENTS: ClassTalents = [
       n('warlock.aff.shadow_embrace', 'Shadow Embrace', D.dmg2, 20, 5, TAG('dmg_major')),
       n('warlock.aff.malediction', 'Malediction', D.crit, 25, 3, TAG('crit_minor')),
       n('warlock.aff.contagion', 'Contagion', D.dmg1, 25, 2, TAG('dmg_minor')),
-      n('warlock.aff.unstable_affliction', 'Unstable Affliction', 'Afflicts the target for 190% damage plus 120% over 8s.', 28, 1, TAG('unstable_affliction')),
+      n('warlock.aff.unstable_affliction', 'Unstable Affliction', 'Afflicts the target for 170% damage plus 120% over 8s.', 28, 1, TAG('unstable_affliction')),
     ],
   },
   {
@@ -431,7 +433,7 @@ const DRUID_TALENTS: ClassTalents = [
       n('druid.bal.moonfury', 'Moonfury', D.dmg2, 20, 5, TAG('dmg_major')),
       n('druid.bal.wrath_of_cenarius', 'Wrath of Cenarius', D.dmg1, 25, 3, TAG('dmg_minor')),
       n('druid.bal.dreamstate', 'Dreamstate', 'Increases Spirit by 1 per rank.', 25, 2, STAT('spirit')),
-      n('druid.bal.starfall', 'Starfall', 'Calls down starlight for 230% spell damage.', 28, 1, TAG('starfall')),
+      n('druid.bal.starfall', 'Starfall', 'Calls down starlight for 260% spell damage.', 28, 1, TAG('starfall')),
     ],
   },
   {
@@ -445,7 +447,7 @@ const DRUID_TALENTS: ClassTalents = [
       n('druid.feral.heart_of_the_wild', 'Heart of the Wild', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('druid.feral.predatory_instincts', 'Predatory Instincts', D.crit, 25, 3, TAG('crit_minor')),
       n('druid.feral.primal_fury', 'Primal Fury', D.haste, 25, 2, TAG('haste_minor')),
-      n('druid.feral.berserk', 'Berserk', 'Enters a frenzy, striking for 180% damage.', 28, 1, TAG('berserk')),
+      n('druid.feral.berserk', 'Berserk', 'Enters a frenzy, striking for 250% damage.', 28, 1, TAG('berserk')),
     ],
   },
   {
