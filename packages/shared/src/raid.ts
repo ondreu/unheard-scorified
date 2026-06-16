@@ -17,6 +17,7 @@
  */
 import { SeededRng } from './rng';
 import {
+  abilityDamageMult,
   applyAbsorb,
   computeHit,
   determinationFactor,
@@ -458,12 +459,16 @@ function fightBoss(
         });
         continue;
       }
-      const hit = computeHit(member, boss, rng, ability.damageMult, false);
+      const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
+      const mult = abilityDamageMult(ability, bossHpPct);
+      const executing = mult > ability.damageMult;
+      const hit = computeHit(member, boss, rng, mult, false);
       bossHp = Math.max(0, bossHp - hit.amount);
       const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
       const healed = healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
       if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
       if (ability.kind === 'dot') scheduleDot(timers, member, ability, clock);
+      const exec = executing ? ' (execute!)' : '';
       events.push({
         t: round1(clock),
         type: healed > 0 ? 'drain' : 'ability',
@@ -475,10 +480,10 @@ function fightBoss(
         targetHealthRemaining: bossHp,
         message:
           healed > 0
-            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
+            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
             : ability.kind === 'dot'
-              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, leaving a burn. ${boss.name}: ${bossHp} HP`
-              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, leaving a burn. ${boss.name}: ${bossHp} HP`
+              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}. ${boss.name}: ${bossHp} HP`,
       });
     } else {
       // Boss útočí.

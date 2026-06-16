@@ -19,6 +19,7 @@ import { RotationRepository } from './rotation.repository';
 export interface RotationAbilityView {
   id: string;
   name: string;
+  description: string;
   kind: AbilityKind;
   cooldownSec: number;
 }
@@ -109,6 +110,7 @@ export class RotationService {
     return abilities.map((a) => ({
       id: a.id,
       name: a.name,
+      description: a.description ?? '',
       kind: a.kind,
       cooldownSec: a.cooldownSec,
     }));

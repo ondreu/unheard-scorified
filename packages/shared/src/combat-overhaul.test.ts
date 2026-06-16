@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CLASS_BASELINE_ABILITIES,
+  SIGNATURE_ABILITIES,
+  abilityDamageMult,
   aggregateTalentEffects,
   applyAbsorb,
   baseStatsFor,
@@ -11,6 +14,33 @@ import {
   type CombatActor,
   type RaidActor,
 } from './index';
+
+describe('ability descriptions & execute', () => {
+  it('every player ability (baseline + capstone) has a description', () => {
+    for (const list of Object.values(CLASS_BASELINE_ABILITIES)) {
+      for (const ab of list) {
+        expect(ab.description, ab.id).toBeTruthy();
+      }
+    }
+    for (const [id, spec] of Object.entries(SIGNATURE_ABILITIES)) {
+      expect(spec.description, id).toBeTruthy();
+    }
+  });
+
+  it('abilityDamageMult applies the execute bonus below the threshold', () => {
+    const execute = CLASS_BASELINE_ABILITIES.warrior!.find((a) => a.id === 'warrior_execute')!;
+    expect(execute.executeBelowPct).toBe(0.3);
+    // Above threshold → base mult; at/below → boosted mult.
+    expect(abilityDamageMult(execute, 0.5)).toBe(execute.damageMult);
+    expect(abilityDamageMult(execute, 0.3)).toBe(execute.executeDamageMult);
+    expect(abilityDamageMult(execute, 0.1)).toBe(execute.executeDamageMult);
+  });
+
+  it('a plain ability ignores execute (returns base mult)', () => {
+    const heroic = CLASS_BASELINE_ABILITIES.warrior!.find((a) => a.id === 'warrior_heroic_strike')!;
+    expect(abilityDamageMult(heroic, 0.1)).toBe(heroic.damageMult);
+  });
+});
 
 describe('resolveAbilities (baseline + capstone kit)', () => {
   it('grants baseline abilities by level, gating higher ones', () => {

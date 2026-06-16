@@ -122,11 +122,16 @@
       {#each rules as rule, i (rule.abilityId)}
         <li class="panel panel-pad flex flex-wrap items-center gap-3">
           <span class="text-[var(--text-faint)] w-6 text-right">{i + 1}.</span>
-          <div class="min-w-40 flex-1">
+          <div class="min-w-48 flex-1">
             <div class="font-semibold text-[var(--text)]">{abilityName(rule.abilityId)}</div>
             <div class="text-xs text-[var(--text-faint)]">
               {abilityMeta(rule.abilityId)?.kind} · {abilityMeta(rule.abilityId)?.cooldownSec}s CD
             </div>
+            {#if abilityMeta(rule.abilityId)?.description}
+              <div class="mt-0.5 text-xs text-[var(--text-dim)]">
+                {abilityMeta(rule.abilityId)?.description}
+              </div>
+            {/if}
           </div>
 
           <label class="flex items-center gap-1 text-sm text-[var(--text-dim)]">

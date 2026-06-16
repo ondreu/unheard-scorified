@@ -22,7 +22,7 @@ import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abi
 import type { CharacterRotation } from './rotation';
 
 export type { AbilityKind, SignatureAbility, BaselineAbility } from './data/abilities';
-export { SIGNATURE_ABILITIES, SHIELD_TAGS, CLASS_BASELINE_ABILITIES, resolveAbilities } from './data/abilities';
+export { SIGNATURE_ABILITIES, SHIELD_TAGS, CLASS_BASELINE_ABILITIES, resolveAbilities, abilityDamageMult } from './data/abilities';
 
 // ── Bojové konstanty (laditelný balanc, vyladí se v M9) ─────────────────────
 

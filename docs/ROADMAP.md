@@ -744,6 +744,13 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       Testy: shared `combat-overhaul.test.ts` (+4: resolveAbilities + healer heal
       ability). _Follow-up: kontextové heal-rotace s prioritou heal-spellů; víc
       podmínek (ability ready/enemy count); přebalancování talentů na stromy._
+- [x] **Popisy abilit + execute mechanika** ✅ — každá hráčská ability (baseline +
+      capstone) má `description` (EN tooltip, viditelný v editoru rotace). Reálná
+      **execute** mechanika: `executeBelowPct` + `executeDamageMult` na ability →
+      vyšší poškození proti cíli pod prahem HP (Warrior Execute 220 % → **330 %**
+      pod 30 %, Rogue Eviscerate 190 % → 280 %). Sdílený `abilityDamageMult(ability,
+      targetHpPct)` aplikován v PVE (`fightBoss`, log „(execute!)") i PVP
+      (duel + team). Testy: shared `combat-overhaul.test.ts` (+3)._
   - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
     postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
     levným, deterministickým stavem actora (self HP%, target HP%, ability ready

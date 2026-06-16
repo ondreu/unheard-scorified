@@ -50,6 +50,8 @@ interface DuelTimer {
   abilityId?: string;
   abilityKind?: string;
   abilityMult?: number;
+  executeBelowPct?: number;
+  executeDamageMult?: number;
 }
 
 /**
@@ -85,6 +87,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityId: ab.id,
       abilityKind: ab.kind,
       abilityMult: ab.damageMult,
+      executeBelowPct: ab.executeBelowPct,
+      executeDamageMult: ab.executeDamageMult,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -94,6 +98,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityId: ab.id,
       abilityKind: ab.kind,
       abilityMult: ab.damageMult,
+      executeBelowPct: ab.executeBelowPct,
+      executeDamageMult: ab.executeDamageMult,
     })),
   ];
 
@@ -127,7 +133,12 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       continue;
     }
 
-    const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
+    let effMult = timer.abilityMult ?? 1;
+    const defHpPct = defender.maxHealth > 0 ? hp[defenderSide] / defender.maxHealth : 0;
+    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
+      effMult = timer.executeDamageMult ?? effMult;
+    }
+    const hit = computeHit(attacker, defender, rng, effMult, enraged);
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide] > 0) {
@@ -215,6 +226,8 @@ interface TeamTimer {
   abilityId?: string;
   abilityKind?: string;
   abilityMult?: number;
+  executeBelowPct?: number;
+  executeDamageMult?: number;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -271,6 +284,8 @@ export function simulateTeamFight(
           abilityId: ab.id,
           abilityKind: ab.kind,
           abilityMult: ab.damageMult,
+          executeBelowPct: ab.executeBelowPct,
+          executeDamageMult: ab.executeDamageMult,
         });
       }
     });
@@ -311,7 +326,13 @@ export function simulateTeamFight(
     ) {
       continue;
     }
-    const hit = computeHit(attacker, defender, rng, timer.abilityMult ?? 1, enraged);
+    let effMult = timer.abilityMult ?? 1;
+    const defHpPct =
+      defender.maxHealth > 0 ? hp[defenderSide][targetIdx]! / defender.maxHealth : 0;
+    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
+      effMult = timer.executeDamageMult ?? effMult;
+    }
+    const hit = computeHit(attacker, defender, rng, effMult, enraged);
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide][targetIdx]! > 0) {
