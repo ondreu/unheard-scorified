@@ -6,6 +6,7 @@ import { MountDataModule } from '../mount/mount-data.module';
 import { ProfessionDataModule } from '../profession/profession-data.module';
 import { PushModule } from '../push/push.module';
 import { QuestModule } from '../quest/quest.module';
+import { RotationModule } from '../rotation/rotation.module';
 import { ActivityController } from './activity.controller';
 import { ActivityRepository } from './activity.repository';
 import { ActivityService } from './activity.service';
@@ -13,6 +14,8 @@ import { ACTIVITY_SCHEDULER, BullMqActivityScheduler } from './activity.schedule
 
 // ProfessionDataModule (leaf): ActivityService při claimu připisuje profession
 // skill + reputaci (M6). Žádný cyklus — repos žijí v leaf modulu, ne v ProfessionModule.
+// RotationModule: ActivityService recykluje `buildCombatProfile` pro quest
+// narrative log (M9 quest overhaul). Žádný cyklus (Rotation neimportuje Activity).
 @Module({
   imports: [
     AuthModule,
@@ -22,6 +25,7 @@ import { ACTIVITY_SCHEDULER, BullMqActivityScheduler } from './activity.schedule
     InventoryModule,
     ProfessionDataModule,
     MountDataModule,
+    RotationModule,
   ],
   controllers: [ActivityController],
   providers: [

@@ -13,9 +13,14 @@ import * as schema from '../db/schema';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { QuestService } from '../quest/quest.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
+import { InventoryService } from '../inventory/inventory.service';
+import { BuffRepository } from '../buff/buff.repository';
 import { makeGrant } from '../inventory/test-grant';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import { MountRepository } from '../mount/mount.repository';
+import { TalentRepository } from '../talent/talent.repository';
+import { RotationService } from '../rotation/rotation.service';
+import { RotationRepository } from '../rotation/rotation.repository';
 import { ActivityRepository } from './activity.repository';
 import { ActivityService } from './activity.service';
 import { NoopActivityScheduler } from './activity.scheduler';
@@ -46,15 +51,24 @@ describe('M2 flow: leveling & idle smyčka', () => {
     characters = new CharacterService(charRepo);
     const completed = new CompletedQuestRepository(db);
     quests = new QuestService(charRepo, completed);
+    const invRepo = new InventoryRepository(db);
+    const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
+    const rotation = new RotationService(
+      charRepo,
+      new TalentRepository(db),
+      new RotationRepository(db),
+      invService,
+    );
     activity = new ActivityService(
       charRepo,
       new ActivityRepository(db),
       completed,
-      new InventoryRepository(db),
+      invRepo,
       makeGrant(db),
       new ProfessionRepository(db),
       new ReputationRepository(db),
       new MountRepository(db),
+      rotation,
       new NoopActivityScheduler(),
     );
   });
@@ -116,6 +130,14 @@ describe('M2 flow: leveling & idle smyčka', () => {
     expect(result.reward.gold).toBeGreaterThan(0);
     expect(result.character.sheet.level).toBe(1);
     expect(result.character.gold).toBe(result.reward.gold);
+
+    // M9: claim story questu vrací příběhový log (narativní beaty + combaty).
+    expect(result.questLog).toBeDefined();
+    expect(result.questLog!.length).toBe(KOBOLD.steps!.length);
+    const combat = result.questLog!.filter((s) => s.kind === 'combat');
+    expect(combat.length).toBeGreaterThan(0);
+    expect(combat[0]!.enemyName).toBeTruthy();
+    expect(combat[0]!.events!.at(-1)!.type).toBe('enemy_defeated');
 
     // Aktivita je pryč → lze poslat na další.
     expect(await activity.getCurrent(accountId, id)).toBeNull();

@@ -22,6 +22,52 @@ import { ZONES, type ZoneId } from './zones';
 
 export type QuestKind = 'story' | 'repeatable';
 
+/**
+ * Tier nepřítele v questovém combat kroku. Konkrétní HP/AP se NEpíše ručně —
+ * odvodí se z levelu questu × násobič tieru (viz `quest-run.ts → questFoeStats`),
+ * takže autor questu řeší jen jméno + tier (flavor), ne balanc čísla.
+ */
+export type QuestEnemyTier = 'minion' | 'standard' | 'elite' | 'boss';
+
+/** Nepřítel v questovém combat kroku. */
+export interface QuestFoe {
+  /** Anglické jméno (game language = EN). */
+  name: string;
+  tier: QuestEnemyTier;
+}
+
+/** Narativní krok — příběhový beat (anglicky), bez boje. */
+export interface QuestNarrativeStep {
+  kind: 'narrative';
+  text: string;
+}
+
+/**
+ * Combat krok — auto-resolved souboj uvnitř questu. NELZE prohrát (silnější
+ * postava = rychlejší/čistší boj, slabší = víc utržených ran), takže idle
+ * progres nikdy nezamrzne (rozhodnutí PM).
+ */
+export interface QuestCombatStep {
+  kind: 'combat';
+  /** Úvodní věta před bojem (anglicky). */
+  intro: string;
+  foe: QuestFoe;
+}
+
+export type QuestStep = QuestNarrativeStep | QuestCombatStep;
+
+/**
+ * Šablona náhodné události pro repeatable quest. Z poolu se při každém běhu
+ * deterministicky (seed = čas startu) vybere podmnožina → repeatable quest se
+ * pokaždé „odehraje" trochu jinak (rozhodnutí PM: repeatable = generované události).
+ */
+export interface QuestEventDef {
+  /** Narativní popis události (anglicky). */
+  text: string;
+  /** Volitelný souboj v rámci události. */
+  foe?: QuestFoe;
+}
+
 export interface QuestDef {
   id: string;
   /** Anglický herní název (game language = EN). */
@@ -42,7 +88,27 @@ export interface QuestDef {
   baseGold: number;
   /** Frakce variance zlata (0..1), aplikovaná přes SeededRng. */
   goldVariance: number;
+  /**
+   * Vícekrokový příběh (story questy): narativní beaty prokládané combaty. Při
+   * claimu se z nich (+ seedu) vygeneruje příběhový log. Chybí ⇒ fallback
+   * (jednoduchý log z `description`). Odměny tím NEjsou dotčené (flavor vrstva).
+   */
+  steps?: QuestStep[];
+  /** Pool náhodných událostí pro repeatable quest (vybírá se podmnožina). */
+  events?: QuestEventDef[];
+  /** Kolik událostí z `events` se vygeneruje za běh (default 3, clamp na velikost poolu). */
+  eventCount?: number;
 }
+
+// Pomocné buildery kroků/událostí (drží data čitelná, vynucují typy).
+const n = (text: string): QuestNarrativeStep => ({ kind: 'narrative', text });
+const c = (intro: string, name: string, tier: QuestEnemyTier): QuestCombatStep => ({
+  kind: 'combat',
+  intro,
+  foe: { name, tier },
+});
+const ev = (text: string, name?: string, tier?: QuestEnemyTier): QuestEventDef =>
+  name && tier ? { text, foe: { name, tier } } : { text };
 
 export const QUESTS: Record<string, QuestDef> = {
   // ╔══ ALLIANCE ════════════════════════════════════════════════════════════╗
@@ -58,6 +124,13 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 100,
     baseGold: 7,
     goldVariance: 0.3,
+    steps: [
+      n('Marshal McBride hands you a worn shortsword. "The kobolds out of Echo Ridge Mine have grown bold — they raid our supplies at night. Thin them out before the Abbey goes hungry." You set off along the creek toward the mine.'),
+      c('A candle-helmed kobold blocks the mine mouth, hissing "You no take candle!"', 'Kobold Tunneler', 'minion'),
+      n('Inside, the tunnels reek of tallow and fear. Scratched into the rock you find a crude Defias brand — someone has been arming these creatures.'),
+      c('A robed kobold raises a sputtering ward, the air crackling with stolen magic.', 'Kobold Geomancer', 'standard'),
+      n('You pry a sealed letter from the geomancer\'s claws — Westfall wax, the mark of the Defias Brotherhood. The kobolds were only the first thread of something larger. You carry the letter back to the Abbey.'),
+    ],
   },
   ns_brotherhood_intel: {
     id: 'ns_brotherhood_intel',
@@ -71,11 +144,18 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 400,
     baseGold: 27,
     goldVariance: 0.3,
+    steps: [
+      n('The letter spoke of a courier moving through Northshire under cover of dusk. Brother Sammuel asks you to follow the old vineyard road and learn what the Brotherhood is planning so close to Stormwind.'),
+      c('A masked lookout perched in the vines spots you and draws a dagger.', 'Defias Lookout', 'minion'),
+      n('From the lookout\'s satchel spills a map dotted with marks across Elwynn and Westfall — supply caches, every one. You press on toward the rendezvous they\'d circled twice.'),
+      c('The courier himself wheels his horse around, blade flashing. "You\'ve seen too much, whelp!"', 'Defias Courier', 'standard'),
+      n('Among the courier\'s effects is a coded ledger naming the next strike: the farmsteads of Westfall. The Abbey can no longer pretend the war stays beyond its walls. You ride for the western road.'),
+    ],
   },
   ns_wolf_pelts: {
     id: 'ns_wolf_pelts',
     name: 'Wolves Across the Border',
-    description: 'Hunt the timber wolves and bring back their pelts.',
+    description: 'The timber wolves have crossed from the Forest\'s Edge again. Cull the pack and bring back their pelts.',
     zoneId: 'northshire',
     kind: 'repeatable',
     requiredLevel: 1,
@@ -83,6 +163,37 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 50,
     baseGold: 3,
     goldVariance: 0.4,
+    eventCount: 3,
+    events: [
+      ev('You pick up a fresh trail along the muddy creek bank and follow it into the brush.'),
+      ev('A lean grey hunter breaks cover, hackles raised.', 'Timber Wolf', 'minion'),
+      ev('The pack\'s scarred leader stalks you between the pines, eyes gleaming.', 'Elder Timber Wolf', 'standard'),
+      ev('You find a half-eaten Abbey sheep and stake out the carcass until the scavenger returns.', 'Starving Wolf', 'minion'),
+      ev('A thicket gives way to a den of yipping pups; their mother charges to defend them.', 'Den Mother', 'standard'),
+      ev('You skin the kills by lantern-light and bundle the pelts for the tanner.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Alliance) — gate to Ragefire Chasm ───────────────
+  al_ragefire_attunement: {
+    id: 'al_ragefire_attunement',
+    name: 'Into the Cleft of Shadow',
+    description: 'Earn passage into Ragefire Chasm by proving your worth against the Searing Blade.',
+    zoneId: 'northshire',
+    kind: 'story',
+    requiredLevel: 7,
+    requiresQuest: 'ns_brotherhood_intel',
+    durationSec: 900,
+    baseXp: 397,
+    baseGold: 26,
+    goldVariance: 0.3,
+    steps: [
+      n('A wounded scout staggers into the Abbey with word of a fiery cult — the Searing Blade — gathering beneath distant Orgrimmar in a volcanic warren called Ragefire Chasm. The Stormwind agents need someone blooded enough to scout its mouth. First, prove you can stand against their kind.'),
+      c('A cultist sentry wreathed in embers bars the warren\'s entrance.', 'Searing Blade Sentry', 'standard'),
+      n('Past the sentry the heat is suffocating; cracked obsidian steps spiral down into red gloom. You scratch a sigil of passage into the stone as the agents instructed.'),
+      c('A bound fire spirit lashes out from a brazier, testing your resolve.', 'Ragefire Wisp', 'elite'),
+      n('The wisp dissipates into harmless sparks. The wards recognize you now — Ragefire Chasm will open to you and those you bring. You have earned your attunement.'),
+    ],
   },
 
   // ── Westfall (10–25) ─────────────────────────────────────────────────────
@@ -193,6 +304,13 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 100,
     baseGold: 7,
     goldVariance: 0.3,
+    steps: [
+      n('Overseer Gar\'thok eyes you from the dust of the Valley of Trials. "Every whelp who would call themselves Horde must spill blood first. The scorpids breed thick by the southern rocks — go cut your teeth on them." You heft a crude axe and stride into the heat.'),
+      c('A clattering scorpid scuttles from beneath a flat rock, tail arched to strike.', 'Valley Scorpid', 'minion'),
+      n('Venom hisses on the sand where your blade fell. Deeper among the boulders, the sand itself shifts — something far larger has been feeding on the rest.'),
+      c('The brood-mother bursts from the dune, pincers wide, her sting dripping black.', 'Scorpid Broodmother', 'standard'),
+      n('You sever the stinger as a trophy and return to the encampment. Gar\'thok grunts approval — for an outsider, you have the makings of a warrior. There is darker work waiting in the caves.'),
+    ],
   },
   dt_burning_blade: {
     id: 'dt_burning_blade',
@@ -206,11 +324,18 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 400,
     baseGold: 27,
     goldVariance: 0.3,
+    steps: [
+      n('Spiritcaller Dohgar\'s vision was grim: the Burning Blade — demon-worshipping traitors — have crept into the sea caves along Durotar\'s coast. "Their fel taint poisons the land, stranger. Burn it out before it spreads to the Den." You follow the tide-line to a smoke-stained cavern.'),
+      c('A chanting acolyte turns from a bloody altar, eyes burning green.', 'Burning Blade Acolyte', 'minion'),
+      n('The cave walls are scrawled with summoning marks still wet with ichor. Whatever they were calling, it has already half-answered. The air grows hot and wrong.'),
+      c('A bound imp skitters from the shadows, flinging gouts of fel-fire and shrieking laughter.', 'Bound Felhound', 'standard'),
+      n('You scatter the ritual stones and the green flame gutters out. On the altar lies a fragment of obsidian etched with a fiery sigil — the same warren the elders whisper of: Ragefire Chasm. You bring it back to Dohgar.'),
+    ],
   },
   dt_boar_hides: {
     id: 'dt_boar_hides',
     name: 'Tusks and Hides',
-    description: 'Hunt the razormane boars and gather their tough hides.',
+    description: 'The Razormane boars are fat with the spring rains. Hunt them and bring back their tough hides.',
     zoneId: 'durotar',
     kind: 'repeatable',
     requiredLevel: 1,
@@ -218,6 +343,37 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 50,
     baseGold: 3,
     goldVariance: 0.4,
+    eventCount: 3,
+    events: [
+      ev('You cut a wide circle through the scrub, reading the churned earth where the herd has rooted.'),
+      ev('A young boar bursts squealing from a thornbush and lowers its tusks.', 'Razormane Boar', 'minion'),
+      ev('A scarred old tusker — too cunning to be cornered easily — charges through the brush.', 'Elder Razortusk', 'standard'),
+      ev('You spot a quilboar poacher trying to claim your kill for himself.', 'Bristleback Interloper', 'minion'),
+      ev('The herd\'s great bull stamps and snorts, ready to gore anything that nears its sows.', 'Razormane Bull', 'standard'),
+      ev('You dress the hides at a dry wash and lash the bundle across your shoulders.'),
+    ],
+  },
+
+  // ── Dungeon attunement (Horde) — gate to Ragefire Chasm ──────────────────
+  ho_ragefire_attunement: {
+    id: 'ho_ragefire_attunement',
+    name: 'The Cleft of Shadow',
+    description: 'Earn passage into Ragefire Chasm by driving back the Searing Blade beneath Orgrimmar.',
+    zoneId: 'durotar',
+    kind: 'story',
+    requiredLevel: 7,
+    requiresQuest: 'dt_burning_blade',
+    durationSec: 900,
+    baseXp: 397,
+    baseGold: 26,
+    goldVariance: 0.3,
+    steps: [
+      n('The obsidian shard led the elders to a grim truth: the Searing Blade has dug into Ragefire Chasm, the volcanic warren beneath Orgrimmar itself. Neeru Fireblade of the Cleft of Shadow wants the warren\'s mouth scouted and its sentries broken before the cult can fortify. Prove you are worthy to descend.'),
+      c('A Searing Blade enforcer guards the smoldering entrance, twin blades glowing red.', 'Searing Blade Enforcer', 'standard'),
+      n('Beyond the gate the warren breathes heat like a forge. You mark the passage with the Cleft\'s sigil so the warchief\'s warriors can follow.'),
+      c('A fire elemental, chained to the cult\'s will, erupts from a lava seam to test you.', 'Ragefire Shambler', 'elite'),
+      n('The elemental collapses into cooling slag. The Cleft of Shadow recognizes your right of passage — Ragefire Chasm now opens to you and your war-band. The attunement is yours.'),
+    ],
   },
 
   // ── The Barrens (10–25) ──────────────────────────────────────────────────
@@ -332,6 +488,15 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 245,
     baseGold: 16,
     goldVariance: 0.45,
+    eventCount: 3,
+    events: [
+      ev('You shadow the abbey\'s western approach, watching for gnoll sign in the long grass.'),
+      ev('A Riverpaw scout breaks from cover, yipping a warning to its pack.', 'Riverpaw Scout', 'minion'),
+      ev('The scouts have set a crude ambush; their pack-leader lunges first.', 'Riverpaw Pack-Leader', 'standard'),
+      ev('You find a stolen Abbey strongbox half-buried by the creek — its thief still lurks nearby.', 'Riverpaw Thief', 'minion'),
+      ev('A mangy gnoll mystic hurls a clay totem at your feet, calling on dark spirits.', 'Riverpaw Mystic', 'standard'),
+      ev('You scatter the survivors back toward the river and report the approaches clear.'),
+    ],
   },
   dt_scorpid_venom: {
     id: 'dt_scorpid_venom',
@@ -344,6 +509,15 @@ export const QUESTS: Record<string, QuestDef> = {
     baseXp: 735,
     baseGold: 49,
     goldVariance: 0.35,
+    eventCount: 4,
+    events: [
+      ev('You range across the sun-cracked valley, prying venom glands from every nest you can find.'),
+      ev('A Venomtail scorpid skitters up from its burrow, tail snapping.', 'Venomtail Scorpid', 'minion'),
+      ev('The sand erupts beneath you — an ambushing lurker the size of a kodu.', 'Venomtail Lurker', 'elite'),
+      ev('A rival troll alchemist tries to poach the same nests; words turn to blows.', 'Darkspear Poacher', 'standard'),
+      ev('You smoke out a deep den and seize a clutch of venom-heavy eggs.', 'Brood Guardian', 'standard'),
+      ev('Vials full and sloshing, you trek back to the brewmaster under a blistering sun.'),
+    ],
   },
 
   // Mid bracket (10–25): quick (Alliance) vs long (Horde).

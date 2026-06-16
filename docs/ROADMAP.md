@@ -617,6 +617,20 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (gear/ilvl/staty); klik na jméno hráče (chat/party/friends) → profil-modal
       s inspectem a akcemi (whisper/group/trade/guild). Trade tlačítko odebráno
       (obchod z profilu hráče). Asset spec pro malířku: `docs/systems/ui-art-assets.md`.
+- [x] **Quest narrative + combat overhaul** ✅: questy už nejsou „nudný timer" —
+      jsou **vícekrokový příběh** (narativní beaty prokládané auto-resolved combaty),
+      generovaný deterministicky při claimu (`questLog` v `ClaimResult`). Idle
+      zachováno (jeden běh, žádná migrace, žádná nová interakce); **combat nelze
+      prohrát** (silnější postava = čistší boj, slabší = víc utržených ran, ale
+      quest se vždy dokončí) → odměny netknuté. `QuestDef.steps` (story) +
+      `events`/`eventCount` (repeatable = deterministicky generovaná podmnožina →
+      pokaždé jiný průběh). Engine `@game/shared/quest-run.ts` recykluje
+      `computeHit`/`applyAbsorb` + `RotationService.buildCombatProfile`. **Dungeon
+      attunement** (`DungeonDef.attunement.questAnyOf`, vzorově Ragefire Chasm).
+      Rozsah: engine + bohaté startovní zóny **Northshire** (Alliance) + **Durotar**
+      (Horde) + lore; ostatní zóny fallback (doplní se v content passu). Testy:
+      shared `quest-run.test.ts` (+8) + API questLog/attunement. **ADR 0024**,
+      `docs/systems/questing.md`.
 - [ ] PixiJS pixel scénky, nahrazení placeholderů (art dle `ui-art-assets.md`).
 - [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
@@ -629,6 +643,56 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (vytvoř postavu → pošli questovat → claim odměn → equip gearu → talenty),
       kontextové nápovědy, bez nové herní mechaniky (čistě UX vrstva).
 
+### M12 — Content expansion: questy, lore, dungeony, raidy 🧑‍💼
+
+> Navazuje na M9 quest narrative + combat overhaul (ADR 0024): engine je hotový,
+> tohle je **velká dávka obsahu**. Vše staví na existujících systémech (quest
+> steps/events, `DungeonDef.attunement`, `RaidAttunement`) — žádná nová mechanika,
+> jen data + balanc. Realizovat inkrementálně (po zónách / instancích), ne najednou.
+
+- [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
+      beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
+      grind 1–60 nebyl pár questů dokola, ať je vždy „co dělat dál".
+- [ ] **Lore rozdělený po zónách** — každá zóna má soudržný příběh/téma (frakce
+      kosmetická → Alliance/Horde paralelně). Lokace, NPC, nepřátelé, motiv questline.
+      Dopsat zbylé existující zóny (Westfall/Duskwood/Barrens/Thousand Needles) +
+      nové zóny pro pásmo 40–60 (viz „Late-game obsah 40–60" v backlogu).
+- [ ] **Attunement questlinky** — pro dungeony i raidy (rozšíření `DungeonDef.
+      attunement` / `RaidAttunement`). Každá instance má vlastní lore questline,
+      který ji odemyká (ne jen level gate).
+- [ ] **+4 dungeony** (minimálně) — nové SP/group PVE instance, content gating
+      napříč úrovněmi (zvlášť do dnes tenkého pásma 40–60). Trash + boss encountery,
+      boss loot tabulky, attunement questline. Recyklují group-run model + combat engine.
+- [ ] **+2 raidy + attunement** — nové MP PVE instance (flex 5/10/20, role T/H/DPS),
+      bossové se škálují velikostí, raid loot (epic/legendary, BoP + weekly lockout),
+      attunement = level + dokončený questline.
+- **Výstup:** hráč má napříč celým 1–60 dost příběhového obsahu, dungeonů i raidů;
+  každá instance je odemykaná vlastní questline s lore.
+- **Zbývá rozhodnout (PM):** kolik zón/questů na bracket; témata nových zón 40–60;
+  konkrétní dungeony/raidy (vanilla-inspirace) a jejich úrovně; rozsah loot tabulek.
+
+### M13 — Aktivní hráč: minihra / time-killer 🧑‍💼
+
+> **Nesouvisí** s idle jádrem — samostatná aktivita pro chvíle, kdy hráč CHCE
+> aktivně hrát (čekárna u doktora, MHD, fronta). Idle hra zůstává „set & forget";
+> tohle je volitelná vrstva navrch, která zabaví a ideálně se napojí na progresi
+> (drobné odměny: gold/XP/materiály), ale nesmí být povinná ani pay-to-win.
+
+- [ ] **Navrhnout koncept minihry** (vybere PM z návrhů): krátká sezení (1–5 min),
+      ovladatelná jednou rukou na telefonu, offline-friendly (PWA). Kandidáti k rozpracování:
+  - aktivní **combat režim** (ruční řízení rotace/abilit v reálném čase proti vlně
+    nepřátel — „arcade" verze jinak idle combatu);
+  - **karetní / deck** minihra postavená na talentech/abilitách postavy;
+  - **dungeon-crawl / roguelite** běh (krátký, náhodný, seedovaný);
+  - **puzzle / match** s herním motivem (crafting/gathering reskin).
+- [ ] **Napojení na ekonomiku** — drobné, „nice-to-have" odměny (denní strop, aby
+      to nebyl povinný grind); čistě kosmetické odměny jako alternativa (monetizace later).
+- [ ] **Determinismus & anti-cheat** — pokud dává herní odměny, výsledek validovat
+      serverem (seed/score), ne slepě věřit klientu. Sezení nezávislé na idle stavu.
+- **Výstup:** hráč má „co dělat rukama" pár minut, aniž by to narušilo idle balanc.
+- **Zbývá rozhodnout (PM):** který koncept; jestli vůbec dává herní odměny (vs čistě
+  zábava/kosmetika); rozsah MVP.
+
 ---
 
 ## M10+ — Backlog & refinements (živý seznam)
@@ -639,6 +703,12 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ### FEAT — obsah & systémy
 
+- [ ] 🧑‍💼 **Overhaul chatovací karty (Friends & chat).** Stávající chat bublina +
+      `/social` panel přepracovat do použitelnější komunikační vrstvy: přehlednější
+      UI (kanály global/whisper/guild, historie, nepřečtené, online stav přátel),
+      lepší práce s whispery a notifikacemi, plynulejší realtime (recyklovat WS
+      Redis pub/sub z M7). Funkčně staví na hotovém social/chat/whisper/guild (M9);
+      jde primárně o UX/redesign, případně guild chat kanál (viz follow-up níže).
 - [ ] 🧑‍💼 **Late-game obsah 40–60 (priorita po M9 balanc passu).** Progresní
       křivka klade **64 % cesty** do pásma 40–60 (viz `docs/systems/progression.md`),
       kde je dnes tenký obsah (dungeony končí Scarlet Monastery lvl 30–38, pak jen
@@ -646,9 +716,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
   - [x] +6 repeatable filler questů (1 na zónu, M9) — víc idle obsahu napříč brackety.
-  - [ ] Příběhové (story) questlinky.
-  - [ ] Questy s **combatem** (kill/clear cíl řešený combat enginem, ne jen idle timer).
-  - [ ] Každý dungeon má vlastní **questlinku** (attunement/lore → odemykání).
+  - [x] **Narrative engine + vícekrokové story questy s combatem** (M9, ADR 0024):
+        startovní zóny Northshire + Durotar přepsané jako příběh (beaty + auto-resolved
+        combaty + lore); repeatable = deterministicky generované náhodné události.
+  - [ ] **Dopsat steps/lore pro zbylé zóny** (Westfall/Duskwood/Barrens/Thousand
+        Needles + raid-attunement questy) — engine hotový, jde o obsah.
+  - [ ] Questy s **reálným combat cílem** (kill/clear řešený enginem s rizikem, ne
+        jen flavor uvnitř idle questu).
+  - [x] **Dungeon attunement questline** (M9): Ragefire Chasm gated startovním
+        questlinem (`DungeonDef.attunement`). Zbylé dungeony pod attunement = follow-up.
 - [x] 🧑‍💼 **Mounty** ✅ — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
       questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
       (skin) od bonusu (speed) → kompatibilní s monetizací. 2 tiery (basic

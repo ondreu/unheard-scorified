@@ -40,6 +40,8 @@
     group: 'Your group',
     soloHint: 'Not in a group — party up for dungeons, raids and arena.',
     formGroup: 'Form a group →',
+    questStory: 'What happened',
+    hpLeft: 'HP left',
   };
 
   let character = $state<CharacterView | null>(null);
@@ -219,6 +221,34 @@
           {/if}
           {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">⭐ {ui.levelUp} {r.levelBefore} → {r.levelAfter}</p>{/if}
         </div>
+
+        {#if r.questLog && r.questLog.length > 0}
+          <div class="mt-3 space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-sm">
+            <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-faint)]">{ui.questStory}</p>
+            {#each r.questLog as step, i (i)}
+              {#if step.kind === 'narrative'}
+                <p class="italic leading-relaxed text-[var(--text-dim)]">{step.text}</p>
+              {:else}
+                <div class="rounded-md border border-[var(--border)]/60 bg-[var(--surface)]/50 p-2">
+                  <p class="leading-relaxed text-[var(--text-dim)]">{step.text}</p>
+                  <details class="mt-1">
+                    <summary class="cursor-pointer text-xs text-[var(--text-faint)] hover:text-[var(--gold)]">
+                      ⚔️ {step.enemyName}
+                      {#if step.playerHpPct !== undefined}<span class="ml-1 text-[var(--text-faint)]">· {ui.hpLeft} {step.playerHpPct}%</span>{/if}
+                    </summary>
+                    <ul class="mt-1 space-y-0.5 font-mono text-xs text-[var(--text-faint)]">
+                      {#each step.events ?? [] as ev (ev.t + ev.message)}
+                        <li class:text-[var(--success)]={ev.type === 'enemy_defeated'} class:text-[var(--gold-bright)]={ev.crit}>
+                          {ev.message}
+                        </li>
+                      {/each}
+                    </ul>
+                  </details>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
       {/if}
 
       {#if activity}

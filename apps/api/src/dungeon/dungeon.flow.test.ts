@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
+import { CompletedQuestRepository } from '../quest/quest.repository';
 import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
@@ -35,6 +36,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
   let characters: CharacterService;
   let charRepo: CharacterRepository;
   let invRepo: InventoryRepository;
+  let completedRepo: CompletedQuestRepository;
   let dungeons: DungeonService;
 
   const RFC = DUNGEONS.ragefire_chasm!;
@@ -49,6 +51,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     charRepo = new CharacterRepository(db);
     characters = new CharacterService(charRepo);
     invRepo = new InventoryRepository(db);
+    completedRepo = new CompletedQuestRepository(db);
   });
 
   beforeEach(() => {
@@ -65,6 +68,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       new RaidRepository(db),
       new LockoutRepository(db),
       new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
+      completedRepo,
       new InMemoryRaidQueue(),
     );
   });
@@ -77,6 +81,9 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
     const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    // M9: Ragefire Chasm vyžaduje attunement questline → splň ho pro testovací postavy
+    // (gating ragefire v těchto testech je vždy levelem, ne attunementem).
+    await completedRepo.markCompleted(char.id, 'ho_ragefire_attunement');
     return { accountId, id: char.id };
   }
 

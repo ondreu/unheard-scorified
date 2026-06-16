@@ -15,6 +15,15 @@ export interface EnemyDef extends EnemyStats {
   id: string;
 }
 
+/**
+ * Attunement dungeonu (M9): kromě levelu vyžaduje dokončený questline. `questAnyOf`
+ * = stačí JEDEN z uvedených questů (typicky paralelní Alliance/Horde varianty).
+ * Chybí ⇒ dungeon gated jen levelem (jako dosud). Mirroruje `RaidAttunement`.
+ */
+export interface DungeonAttunement {
+  questAnyOf: string[];
+}
+
 export interface DungeonDef {
   id: string;
   /** Anglický herní název (game language = EN). */
@@ -23,6 +32,8 @@ export interface DungeonDef {
   description: string;
   /** Minimální level pro vstup (content gating). */
   requiredLevel: number;
+  /** Volitelný attunement (level + dokončený questline). Chybí ⇒ jen level. */
+  attunement?: DungeonAttunement;
   /** Doporučený horní level (jen UI hint). */
   recommendedLevel: number;
   /** Sekvence nepřátel: trash → boss (poslední je obvykle `isBoss`). */
@@ -59,6 +70,8 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     name: 'Ragefire Chasm',
     description: 'A volcanic warren beneath Orgrimmar crawling with Searing Blade cultists.',
     requiredLevel: 8,
+    // Attunement (M9): vyžaduje dokončený startovní questline (Alliance/Horde paralelně).
+    attunement: { questAnyOf: ['al_ragefire_attunement', 'ho_ragefire_attunement'] },
     recommendedLevel: 13,
     baseXp: 320,
     baseGold: 25,
@@ -133,9 +146,26 @@ export function isDungeonId(value: string): value is string {
 }
 
 /** Je dungeon odemčený pro daný level postavy? */
-export function isDungeonUnlocked(dungeonId: string, level: number): boolean {
+export function isDungeonUnlocked(
+  dungeonId: string,
+  level: number,
+  completedQuestIds: ReadonlySet<string> | readonly string[] = [],
+): boolean {
   const dungeon = DUNGEONS[dungeonId];
-  return dungeon !== undefined && level >= dungeon.requiredLevel;
+  if (dungeon === undefined) return false;
+  if (level < dungeon.requiredLevel) return false;
+  const att = dungeon.attunement;
+  if (att && att.questAnyOf.length > 0) {
+    const completed =
+      completedQuestIds instanceof Set ? completedQuestIds : new Set(completedQuestIds);
+    if (!att.questAnyOf.some((q) => completed.has(q))) return false;
+  }
+  return true;
+}
+
+/** Má dungeon attunement (questline gate nad rámec levelu)? */
+export function dungeonAttunementQuests(dungeonId: string): string[] {
+  return DUNGEONS[dungeonId]?.attunement?.questAnyOf ?? [];
 }
 
 /** Dungeony dostupné pro daný level (seřazené dle requiredLevel). */

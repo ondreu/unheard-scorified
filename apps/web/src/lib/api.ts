@@ -73,6 +73,17 @@ export interface ClaimResult {
   profession?: ProfessionGainView;
   /** Reputační zisky (jen u gather/craft). */
   reputation?: ReputationGainView[];
+  /** Příběhový log questu (M9): narativní beaty + auto-resolved combaty. */
+  questLog?: QuestStepResult[];
+}
+
+/** Krok vygenerovaného příběhového logu questu (M9). */
+export interface QuestStepResult {
+  kind: 'narrative' | 'combat';
+  text: string;
+  enemyName?: string;
+  events?: CombatEvent[];
+  playerHpPct?: number;
 }
 
 export interface DungeonListItem {
@@ -85,6 +96,10 @@ export interface DungeonListItem {
   bossName: string;
   sizes: number[];
   unlocked: boolean;
+  /** Dungeon vyžaduje attunement questline (M9) nad rámec levelu. */
+  requiresAttunement: boolean;
+  /** Postava splnila attunement (nebo dungeon žádný nemá). */
+  attuned: boolean;
   queuedRole: RaidRole | null;
   hasLockout: boolean;
   lockedOut: boolean;

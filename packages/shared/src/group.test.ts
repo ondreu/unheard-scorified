@@ -75,9 +75,15 @@ describe('computeGroupReward', () => {
 });
 
 describe('isGroupContentUnlocked', () => {
-  it('dungeon gates on level', () => {
+  it('dungeon gates on level + attunement (M9)', () => {
+    // ragefire má teď attunement questline → samotný level nestačí
     expect(isGroupContentUnlocked('dungeon', 'ragefire_chasm', 1, [])).toBe(false);
-    expect(isGroupContentUnlocked('dungeon', 'ragefire_chasm', 60, [])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'ragefire_chasm', 60, [])).toBe(false);
+    expect(
+      isGroupContentUnlocked('dungeon', 'ragefire_chasm', 60, ['ho_ragefire_attunement']),
+    ).toBe(true);
+    // dungeon bez attunementu gatuje jen levelem
+    expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, [])).toBe(true);
   });
 
   it('raid gates on level + attunement', () => {
