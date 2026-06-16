@@ -8,8 +8,10 @@
  * Model je záměrně OBECNÝ (activityType): M2 implementuje jen 'quest', ale profese
  * a dungeony (M5/M6) se přidají bez refaktoru.
  */
-import { ACTIVITY_DURATION_BOUNDS, ACTIVITY_EFFICIENCY } from './constants';
+import { ACTIVITY_DURATION_BOUNDS, ACTIVITY_EFFICIENCY, GRIND } from './constants';
 import { QUESTS, type QuestDef } from './data/quests';
+import type { ZoneId } from './data/zones';
+import { referenceGoldPerHour, referenceXpPerHour } from './leveling';
 import { SeededRng, seedFromString } from './rng';
 import { rollLoot, ZONE_LOOT_TABLES, ZONE_TO_BRACKET } from './loot';
 import { GATHERING_NODES, RECIPES } from './data/professions';
@@ -35,11 +37,23 @@ export function activityEfficiency(durationSec: number): number {
  * ℹ️ Dungeony NEjsou idle aktivita — od M8.5-B (ADR 0014) běží na group-run
  * modelu (`RaidRepository`/`simulateRaidRun`), ne přes `character_activities`.
  */
-export type ActivityType = 'quest' | 'gather' | 'craft';
+export type ActivityType = 'quest' | 'gather' | 'craft' | 'grind';
 
 /** Parametry questovací aktivity. */
 export interface QuestActivityParams {
   questId: string;
+}
+
+/**
+ * Parametry generického grindu ("Gone Questing" v UI, rozhodnutí PM): hráč zvolí
+ * jen délku běhu (`durationSec` na aktivitě). `level` je SNAPSHOT aktuálního
+ * levelu postavy při startu (flexuje s hráčem) → odměna roste s postavou a
+ * zůstává plně deterministická z params+durationSec+seed. `zoneId` se auto-odvodí
+ * z levelu+frakce (`questingZoneForLevel`) a určuje loot bracket + flavor nepřátele.
+ */
+export interface GrindActivityParams {
+  zoneId: ZoneId;
+  level: number;
 }
 
 /** Parametry gathering aktivity (M6). `nodeId` určuje materiálový výnos. */
@@ -58,7 +72,8 @@ export interface CraftActivityParams {
 export type ActivityParams =
   | QuestActivityParams
   | GatherActivityParams
-  | CraftActivityParams;
+  | CraftActivityParams
+  | GrindActivityParams;
 
 /** Perzistovaný stav běžící aktivity (vstup pro dopočet). */
 export interface ActivityState {
@@ -136,6 +151,40 @@ export function computeQuestReward(quest: QuestDef, seed: number): ActivityRewar
 }
 
 /**
+ * Deterministická odměna za dokončený grind. XP/zlato = referenční rychlost na
+ * levelu postavy (`params.level`, snapshot ze startu) × délka běhu ×
+ * `activityEfficiency` — tj. ekvivalent dřívějších repeatable questů, ale s
+ * hráčem volenou délkou. Loot: jeden roll z bracketu zóny na `GRIND.lootRollSec`
+ * sekund běhu, šance škálovaná `GRIND.lootChanceMult` (grind je skoupější než
+ * aktivní obsah). Vše přes jediný `SeededRng` → reprodukovatelné a validovatelné.
+ */
+export function computeGrindReward(
+  params: GrindActivityParams,
+  durationSec: number,
+  seed: number,
+): ActivityReward {
+  const rng = new SeededRng(seed);
+  const hours = durationSec / 3600;
+  const eff = activityEfficiency(durationSec);
+  const level = Math.max(1, params.level);
+
+  const goldRoll = rng.next();
+  const factor = 1 - GRIND.goldVariance + goldRoll * 2 * GRIND.goldVariance;
+
+  const xp = Math.round(referenceXpPerHour(level) * hours * eff);
+  const gold = Math.max(0, Math.round(referenceGoldPerHour(level) * hours * factor * eff));
+
+  const bracket = ZONE_TO_BRACKET[params.zoneId];
+  const lootTable = bracket !== undefined ? ZONE_LOOT_TABLES[bracket] : undefined;
+  const items: string[] = [];
+  if (lootTable !== undefined) {
+    const rolls = Math.max(1, Math.round(durationSec / GRIND.lootRollSec));
+    for (let i = 0; i < rolls; i++) items.push(...rollLoot(lootTable, rng, GRIND.lootChanceMult));
+  }
+  return { xp, gold, items };
+}
+
+/**
  * Odměna za dokončený gathering běh: materiály (rollnuté deterministicky) +
  * character XP. Profession skill a reputace se připisují zvlášť při claimu
  * (mají vlastní perzistenci, nejsou součástí generické `ActivityReward`).
@@ -177,6 +226,12 @@ export function computeActivityReward(state: ActivityState, now: number): Activi
       return computeGatherReward(state.params as GatherActivityParams, state.seed);
     case 'craft':
       return computeCraftReward(state.params as CraftActivityParams);
+    case 'grind':
+      return computeGrindReward(
+        state.params as GrindActivityParams,
+        state.durationSec,
+        state.seed,
+      );
     default:
       return null;
   }

@@ -80,3 +80,38 @@ export const ACTIVITY_EFFICIENCY = {
  * progrese (rozhodnutí PM). Slouží testům a dokumentaci (`progression.md`).
  */
 export const TARGET_HOURS_TO_CAP = 2200;
+
+/**
+ * Generický grind ("Gone Questing" v UI) — idle aktivita, kde si hráč zvolí jen
+ * DÉLKU běhu (místo výběru z konkrétních repeatable questů, rozhodnutí PM).
+ *
+ * - **Level flexuje s hráčem**: efektivní level = aktuální level postavy
+ *   (snapshot při startu) → odměna roste, jak postava roste. Zóna (loot bracket +
+ *   flavor nepřátelé) se auto-odvodí z levelu a frakce, hráč ji neřeší.
+ * - **Odměna podle času**: XP/zlato = referenční rychlost(level) × délka ×
+ *   `activityEfficiency` (ekvivalent dřívějších repeatable questů, jen volná délka).
+ * - **Loot**: jeden roll z bracketu na `lootRollSec` běhu, navíc škálovaný
+ *   `lootChanceMult` (grind je záměrně SKOUPĚJŠÍ než aktivní obsah — loot je
+ *   bonus, hlavní jsou XP/zlato). Overflow nad kapacitu přes poštu.
+ *
+ * Vlastní (delší) délkové meze než `ACTIVITY_DURATION_BOUNDS`: questing je
+ * „set & forget" → strop až `maxSec` (delší než 3h quest cap). Efektivita >3 h
+ * zůstává 0.8 (křivka je clampnutá). Balanc se ladí ZDE.
+ */
+export const GRIND = {
+  /** Variance zlata (±) přes SeededRng. */
+  goldVariance: 0.3,
+  /** Délka běhu (s) na jeden loot roll z bracketu (1 roll / hodina). */
+  lootRollSec: 3600,
+  /**
+   * Násobič šance na drop za roll (grind je skoupější než aktivní obsah).
+   * Efektivní šance = `anyDropChance` bracketu × tento násobič. Při 0.25 a
+   * bracketu ~0.3 vyjde ~0.075/roll → max 6h běh (6 rollů) ≈ 0.5 itemu,
+   * šance na aspoň jeden ~30–40 %.
+   */
+  lootChanceMult: 0.25,
+  /** Nejkratší questing běh (s) — 5 min. */
+  minSec: 300,
+  /** Nejdelší questing běh (s) — 6 h (idle „set & forget", delší než 3h quest cap). */
+  maxSec: 21600,
+} as const;

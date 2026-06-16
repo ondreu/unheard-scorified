@@ -1,4 +1,4 @@
-import { MAX_LEVEL, XP_CURVE, XP_REWARD_RATE } from './constants';
+import { GOLD_REWARD_RATE, MAX_LEVEL, XP_CURVE, XP_REWARD_RATE } from './constants';
 
 /**
  * Referenční XP/h "nejlepší dostupné" idle aktivity na daném levelu (efektivita
@@ -8,6 +8,16 @@ import { MAX_LEVEL, XP_CURVE, XP_REWARD_RATE } from './constants';
 export function referenceXpPerHour(level: number): number {
   if (level < 1) throw new RangeError(`level must be >= 1, got ${level}`);
   return XP_REWARD_RATE.base * Math.pow(level, XP_REWARD_RATE.levelExponent);
+}
+
+/**
+ * Referenční zlato/h idle aktivity na daném levelu (efektivita 1.0) — mírnější
+ * ekonomika než XP (viz `GOLD_REWARD_RATE`). Stejná kotva, jakou používá
+ * kalibrace quest odměn; teď i sdílená pro generický grind (`computeGrindReward`).
+ */
+export function referenceGoldPerHour(level: number): number {
+  if (level < 1) throw new RangeError(`level must be >= 1, got ${level}`);
+  return GOLD_REWARD_RATE.base * Math.pow(level, GOLD_REWARD_RATE.levelExponent);
 }
 
 /**

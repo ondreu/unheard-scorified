@@ -107,8 +107,6 @@ const c = (intro: string, name: string, tier: QuestEnemyTier): QuestCombatStep =
   intro,
   foe: { name, tier },
 });
-const ev = (text: string, name?: string, tier?: QuestEnemyTier): QuestEventDef =>
-  name && tier ? { text, foe: { name, tier } } : { text };
 
 export const QUESTS: Record<string, QuestDef> = {
   // ╔══ ALLIANCE ════════════════════════════════════════════════════════════╗
@@ -152,28 +150,6 @@ export const QUESTS: Record<string, QuestDef> = {
       n('Among the courier\'s effects is a coded ledger naming the next strike: the farmsteads of Westfall. The Abbey can no longer pretend the war stays beyond its walls. You ride for the western road.'),
     ],
   },
-  ns_wolf_pelts: {
-    id: 'ns_wolf_pelts',
-    name: 'Wolves Across the Border',
-    description: 'The timber wolves have crossed from the Forest\'s Edge again. Cull the pack and bring back their pelts.',
-    zoneId: 'northshire',
-    kind: 'repeatable',
-    requiredLevel: 1,
-    durationSec: 300,
-    baseXp: 50,
-    baseGold: 3,
-    goldVariance: 0.4,
-    eventCount: 3,
-    events: [
-      ev('You pick up a fresh trail along the muddy creek bank and follow it into the brush.'),
-      ev('A lean grey hunter breaks cover, hackles raised.', 'Timber Wolf', 'minion'),
-      ev('The pack\'s scarred leader stalks you between the pines, eyes gleaming.', 'Elder Timber Wolf', 'standard'),
-      ev('You find a half-eaten Abbey sheep and stake out the carcass until the scavenger returns.', 'Starving Wolf', 'minion'),
-      ev('A thicket gives way to a den of yipping pups; their mother charges to defend them.', 'Den Mother', 'standard'),
-      ev('You skin the kills by lantern-light and bundle the pelts for the tanner.'),
-    ],
-  },
-
   // ── Dungeon attunement (Alliance) — gate to Ragefire Chasm ───────────────
   al_ragefire_attunement: {
     id: 'al_ragefire_attunement',
@@ -223,19 +199,6 @@ export const QUESTS: Record<string, QuestDef> = {
     baseGold: 160,
     goldVariance: 0.25,
   },
-  wf_murloc_scales: {
-    id: 'wf_murloc_scales',
-    name: 'Murlocs on the Coast',
-    description: 'Clear the murloc camps along the Longshore.',
-    zoneId: 'westfall',
-    kind: 'repeatable',
-    requiredLevel: 12,
-    durationSec: 900,
-    baseXp: 520,
-    baseGold: 35,
-    goldVariance: 0.35,
-  },
-
   // ── Duskwood (25–40) ─────────────────────────────────────────────────────
   dw_nightbane: {
     id: 'dw_nightbane',
@@ -263,19 +226,6 @@ export const QUESTS: Record<string, QuestDef> = {
     baseGold: 453,
     goldVariance: 0.2,
   },
-  dw_grave_moss: {
-    id: 'dw_grave_moss',
-    name: 'Grave Moss for the Apothecary',
-    description: 'Collect grave moss from the Raven Hill cemetery.',
-    zoneId: 'duskwood',
-    kind: 'repeatable',
-    requiredLevel: 27,
-    durationSec: 1200,
-    baseXp: 1039,
-    baseGold: 69,
-    goldVariance: 0.3,
-  },
-
   // ── Raid attunement (Alliance, M8) — gate to Blackwing Lair ──────────────
   al_drakefire_attunement: {
     id: 'al_drakefire_attunement',
@@ -353,49 +303,6 @@ export const QUESTS: Record<string, QuestDef> = {
       n('The horror collapses into the offal it was sewn from. The barrow-circle is silent, the necropolis\' shadow no nearer than before. It is not victory — Naxxramas still looms — but the line holds another day, and the Argent Dawn will remember who held it. Word of your deeds has reached the war-leaders; greater battles await at the cap of your strength.'),
     ],
   },
-  epl_cleansing_crystals: {
-    id: 'epl_cleansing_crystals',
-    name: 'Cleansing the Fields',
-    description: 'Plant Argent cleansing crystals across the blighted fields and defend them while they work.',
-    zoneId: 'eastern_plaguelands',
-    kind: 'repeatable',
-    requiredLevel: 42,
-    durationSec: 900,
-    baseXp: 972,
-    baseGold: 65,
-    goldVariance: 0.35,
-    eventCount: 3,
-    events: [
-      ev('You range across the dead fields, driving Argent crystals into the poisoned soil where the Light still has purchase.'),
-      ev('A plaguehound catches your scent and bursts snarling from a ditch of black water.', 'Plaguehound', 'minion'),
-      ev('A cloud of diseased carrion-flies coalesces into something almost solid, buzzing toward the nearest crystal.', 'Carrion Swarm', 'standard'),
-      ev('A shambling corpse drags itself toward a humming crystal, drawn to disrupt the cleansing.', 'Rotting Dead', 'minion'),
-      ev('The soil heaves and a plague-bloated maggot the size of a man erupts beneath your feet.', 'Devouring Maggot', 'standard'),
-      ev('The crystals flare clean white and a patch of green dares to show through the grey. You log the reclaimed ground for the Dawn.'),
-    ],
-  },
-  epl_plague_cauldrons: {
-    id: 'epl_plague_cauldrons',
-    name: 'Foul Brews',
-    description: 'Hunt down and destroy the Scourge plague cauldrons seeding the fields — a long, grim patrol.',
-    zoneId: 'eastern_plaguelands',
-    kind: 'repeatable',
-    requiredLevel: 52,
-    durationSec: 7200,
-    baseXp: 8653,
-    baseGold: 577,
-    goldVariance: 0.3,
-    eventCount: 4,
-    events: [
-      ev('You quarter the dead farmsteads one by one, following the reek of bubbling corruption to where the Scourge has set its cauldrons.'),
-      ev('A cultist tends a steaming cauldron, ladling plague into the wind. He turns at your approach, knife in hand.', 'Plague Brewer', 'standard'),
-      ev('The cauldron\'s fumes coalesce into a bound elemental of pure contagion.', 'Cauldron Wraith', 'elite'),
-      ev('A patrol of skeletal guardians clatters out of a ruined barn to defend the brew.', 'Skeletal Warden', 'standard'),
-      ev('You find the largest cauldron yet, watched over by a bloated overseer who has drunk too deeply of his own poison.', 'Bilebrood Overseer', 'elite'),
-      ev('The last cauldron cracks and drains into the dirt. You scatter the embers and trudge back, lungs aching, to report another nest cleared.'),
-    ],
-  },
-
   // ╔══ HORDE ═══════════════════════════════════════════════════════════════╗
   // ── Durotar (1–10) ───────────────────────────────────────────────────────
   dt_scorpid_sting: {
@@ -437,28 +344,6 @@ export const QUESTS: Record<string, QuestDef> = {
       n('You scatter the ritual stones and the green flame gutters out. On the altar lies a fragment of obsidian etched with a fiery sigil — the same warren the elders whisper of: Ragefire Chasm. You bring it back to Dohgar.'),
     ],
   },
-  dt_boar_hides: {
-    id: 'dt_boar_hides',
-    name: 'Tusks and Hides',
-    description: 'The Razormane boars are fat with the spring rains. Hunt them and bring back their tough hides.',
-    zoneId: 'durotar',
-    kind: 'repeatable',
-    requiredLevel: 1,
-    durationSec: 300,
-    baseXp: 50,
-    baseGold: 3,
-    goldVariance: 0.4,
-    eventCount: 3,
-    events: [
-      ev('You cut a wide circle through the scrub, reading the churned earth where the herd has rooted.'),
-      ev('A young boar bursts squealing from a thornbush and lowers its tusks.', 'Razormane Boar', 'minion'),
-      ev('A scarred old tusker — too cunning to be cornered easily — charges through the brush.', 'Elder Razortusk', 'standard'),
-      ev('You spot a quilboar poacher trying to claim your kill for himself.', 'Bristleback Interloper', 'minion'),
-      ev('The herd\'s great bull stamps and snorts, ready to gore anything that nears its sows.', 'Razormane Bull', 'standard'),
-      ev('You dress the hides at a dry wash and lash the bundle across your shoulders.'),
-    ],
-  },
-
   // ── Dungeon attunement (Horde) — gate to Ragefire Chasm ──────────────────
   ho_ragefire_attunement: {
     id: 'ho_ragefire_attunement',
@@ -508,19 +393,6 @@ export const QUESTS: Record<string, QuestDef> = {
     baseGold: 160,
     goldVariance: 0.25,
   },
-  ba_plainstrider_meat: {
-    id: 'ba_plainstrider_meat',
-    name: 'Plainstrider Hunt',
-    description: 'Bring down plainstriders and harvest their meat for the caravans.',
-    zoneId: 'barrens',
-    kind: 'repeatable',
-    requiredLevel: 12,
-    durationSec: 900,
-    baseXp: 520,
-    baseGold: 35,
-    goldVariance: 0.35,
-  },
-
   // ── Thousand Needles (25–40) ─────────────────────────────────────────────
   tn_grimtotem: {
     id: 'tn_grimtotem',
@@ -548,19 +420,6 @@ export const QUESTS: Record<string, QuestDef> = {
     baseGold: 453,
     goldVariance: 0.2,
   },
-  tn_salt_flats: {
-    id: 'tn_salt_flats',
-    name: 'Salt of the Shimmering Flats',
-    description: 'Scavenge salvage and salt from the dried Shimmering Flats.',
-    zoneId: 'thousand_needles',
-    kind: 'repeatable',
-    requiredLevel: 27,
-    durationSec: 1200,
-    baseXp: 1039,
-    baseGold: 69,
-    goldVariance: 0.3,
-  },
-
   // ── Raid attunement (Horde, M8) — gate to Blackwing Lair ─────────────────
   ho_drakefire_attunement: {
     id: 'ho_drakefire_attunement',
@@ -637,149 +496,6 @@ export const QUESTS: Record<string, QuestDef> = {
       c('The corrupted ancient turns upon you, the Nightmare driving its boughs like battering rams.', 'Nemar the Defiled', 'boss'),
       n('With the last blow the ancient sighs and crumbles, free at last. You plant the Circle\'s seed in the ash; already a single green shoot uncurls toward a sky no longer the colour of bile. The Nightmare\'s grip on Felwood is broken. The druids bow to you as kin — and warn that this was but one root of a far older evil, waiting at the limits of your strength.'),
     ],
-  },
-  fw_felpine_cleanup: {
-    id: 'fw_felpine_cleanup',
-    name: 'Tainted Glades',
-    description: 'Cleanse fel-soaked soil and put the corrupted wildlife of Felwood out of its misery.',
-    zoneId: 'felwood',
-    kind: 'repeatable',
-    requiredLevel: 42,
-    durationSec: 900,
-    baseXp: 972,
-    baseGold: 65,
-    goldVariance: 0.35,
-    eventCount: 3,
-    events: [
-      ev('You move from glade to glade with the Circle\'s censer, burning the taint out of the soil one scorched patch at a time.'),
-      ev('A fel-touched wolf, ribs showing through patchy green-lit fur, bursts from the ferns.', 'Felpine Wolf', 'minion'),
-      ev('A swarm of corrupted sprites flits from a dead tree, flinging stinging motes of fel.', 'Corrupt Sprite', 'standard'),
-      ev('A diseased boar, tusks dripping ichor, charges blindly through the underbrush.', 'Tainted Boar', 'minion'),
-      ev('A lashing fel-vine, thick as a leg, rips itself from the ground to throttle the nearest sapling.', 'Strangling Felvine', 'standard'),
-      ev('The last glade flares clean and the soil steams as the taint lifts. You note the reclaimed ground for the Emerald Sanctuary.'),
-    ],
-  },
-  fw_demon_wardens: {
-    id: 'fw_demon_wardens',
-    name: 'Wardens of the Wood',
-    description: 'Patrol Felwood\'s long trails hunting the demons the Shadow Council loosed — a marathon hunt.',
-    zoneId: 'felwood',
-    kind: 'repeatable',
-    requiredLevel: 52,
-    durationSec: 7200,
-    baseXp: 8653,
-    baseGold: 577,
-    goldVariance: 0.3,
-    eventCount: 4,
-    events: [
-      ev('You walk the wardens\' long circuit through the rotting wood, tracking the demons that slipped loose when the Council\'s rifts were torn open.'),
-      ev('A felhound prowls a dead clearing, draining the green from everything it nears.', 'Loosed Felhound', 'standard'),
-      ev('An imp warren erupts in shrieking chaos as you stumble onto its nest.', 'Imp Warren-Keeper', 'elite'),
-      ev('A voidwalker, summoned and abandoned, drifts the trail in mindless hunger.', 'Forsaken Voidwalker', 'standard'),
-      ev('At a ruined shrine a doomguard stands sentinel, too proud to flee the world it was dragged into.', 'Stranded Doomguard', 'elite'),
-      ev('The last of the loosed demons is banished in a clap of foul air. You drag yourself back to the Sanctuary, the wood a fraction safer for your long walk.'),
-    ],
-  },
-
-  // ── Doplňkové repeatable questy (M9): RŮZNÉ délky napříč brackety ───────────
-  // Délka jen mění objem odměny (≈ délka × referenční rychlost); XP/h drží
-  // konstantní per bracket. Mírný „punish" za dlouhý běh řeší `activityEfficiency`
-  // (ne per-quest), takže nejdelší repeatable je o ~10–20 % méně efektivní.
-
-  // Low bracket (1–10): quick (Alliance) vs long (Horde).
-  ns_riverpaw_scouts: {
-    id: 'ns_riverpaw_scouts',
-    name: 'Riverpaw Scouts',
-    description: 'Drive off a Riverpaw gnoll scout probing the abbey approaches — quick work.',
-    zoneId: 'northshire',
-    kind: 'repeatable',
-    requiredLevel: 6,
-    durationSec: 600,
-    baseXp: 245,
-    baseGold: 16,
-    goldVariance: 0.45,
-    eventCount: 3,
-    events: [
-      ev('You shadow the abbey\'s western approach, watching for gnoll sign in the long grass.'),
-      ev('A Riverpaw scout breaks from cover, yipping a warning to its pack.', 'Riverpaw Scout', 'minion'),
-      ev('The scouts have set a crude ambush; their pack-leader lunges first.', 'Riverpaw Pack-Leader', 'standard'),
-      ev('You find a stolen Abbey strongbox half-buried by the creek — its thief still lurks nearby.', 'Riverpaw Thief', 'minion'),
-      ev('A mangy gnoll mystic hurls a clay totem at your feet, calling on dark spirits.', 'Riverpaw Mystic', 'standard'),
-      ev('You scatter the survivors back toward the river and report the approaches clear.'),
-    ],
-  },
-  dt_scorpid_venom: {
-    id: 'dt_scorpid_venom',
-    name: 'Venom for the Brew',
-    description: 'Harvest a full batch of Venomtail venom across the Valley of Trials — a long haul.',
-    zoneId: 'durotar',
-    kind: 'repeatable',
-    requiredLevel: 6,
-    durationSec: 1800,
-    baseXp: 735,
-    baseGold: 49,
-    goldVariance: 0.35,
-    eventCount: 4,
-    events: [
-      ev('You range across the sun-cracked valley, prying venom glands from every nest you can find.'),
-      ev('A Venomtail scorpid skitters up from its burrow, tail snapping.', 'Venomtail Scorpid', 'minion'),
-      ev('The sand erupts beneath you — an ambushing lurker the size of a kodu.', 'Venomtail Lurker', 'elite'),
-      ev('A rival troll alchemist tries to poach the same nests; words turn to blows.', 'Darkspear Poacher', 'standard'),
-      ev('You smoke out a deep den and seize a clutch of venom-heavy eggs.', 'Brood Guardian', 'standard'),
-      ev('Vials full and sloshing, you trek back to the brewmaster under a blistering sun.'),
-    ],
-  },
-
-  // Mid bracket (10–25): quick (Alliance) vs long (Horde).
-  wf_harvest_golems: {
-    id: 'wf_harvest_golems',
-    name: 'Malfunctioning Golems',
-    description: 'Down a rogue harvest golem before it reaches the farmsteads — fast strike.',
-    zoneId: 'westfall',
-    kind: 'repeatable',
-    requiredLevel: 18,
-    durationSec: 600,
-    baseXp: 424,
-    baseGold: 28,
-    goldVariance: 0.4,
-  },
-  ba_quilboar_raid: {
-    id: 'ba_quilboar_raid',
-    name: 'Bristleback Incursion',
-    description: 'Break a sustained Bristleback quilboar assault on the Crossroads caravans.',
-    zoneId: 'barrens',
-    kind: 'repeatable',
-    requiredLevel: 18,
-    durationSec: 3600,
-    baseXp: 2546,
-    baseGold: 170,
-    goldVariance: 0.3,
-  },
-
-  // High bracket (25–40): quick (Alliance) vs long (Horde).
-  dw_worgen_cull: {
-    id: 'dw_worgen_cull',
-    name: 'Night of the Worgen',
-    description: 'Cull a worgen pack on the Darkshire treeline at dusk — short but vicious.',
-    zoneId: 'duskwood',
-    kind: 'repeatable',
-    requiredLevel: 33,
-    durationSec: 900,
-    baseXp: 862,
-    baseGold: 57,
-    goldVariance: 0.35,
-  },
-  tn_harpy_feathers: {
-    id: 'tn_harpy_feathers',
-    name: 'Wings of the Wyvern Hunters',
-    description: 'Clear the Screeching harpy roosts above the Shimmering Flats — a marathon hunt.',
-    zoneId: 'thousand_needles',
-    kind: 'repeatable',
-    requiredLevel: 33,
-    durationSec: 7200,
-    baseXp: 6893,
-    baseGold: 460,
-    goldVariance: 0.3,
   },
 };
 

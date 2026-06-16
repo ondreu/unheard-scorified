@@ -81,8 +81,30 @@ describe('simulateQuestRun', () => {
     }
   });
 
-  it('repeatable quest generates a variable subset of events', () => {
-    const quest = QUESTS.ns_wolf_pelts!;
+  it('repeatable quest generates a variable subset of events (engine, dormantní data)', () => {
+    // Repeatable questy nahradil generický grind (žádná repeatable data), ale
+    // engine náhodných událostí (`quest.events`) zůstává — ověř syntetickým questem.
+    const quest: QuestDef = {
+      id: 'rep_synthetic',
+      name: 'Synthetic Repeatable',
+      description: 'You set out hunting.',
+      zoneId: 'northshire',
+      kind: 'repeatable',
+      requiredLevel: 1,
+      durationSec: 300,
+      baseXp: 10,
+      baseGold: 1,
+      goldVariance: 0,
+      eventCount: 3,
+      events: [
+        { text: 'A trail in the brush.' },
+        { text: 'A lean wolf lunges.', foe: { name: 'Timber Wolf', tier: 'minion' } },
+        { text: 'The pack leader stalks you.', foe: { name: 'Elder Wolf', tier: 'standard' } },
+        { text: 'A scavenger circles a carcass.', foe: { name: 'Starving Wolf', tier: 'minion' } },
+        { text: 'A den mother charges.', foe: { name: 'Den Mother', tier: 'standard' } },
+        { text: 'You bundle the pelts.' },
+      ],
+    };
     expect(quest.events!.length).toBeGreaterThan(0);
     const run1 = simulateQuestRun(quest, makeProfile(3), 1);
     const run5 = simulateQuestRun(quest, makeProfile(3), 5);
@@ -94,7 +116,7 @@ describe('simulateQuestRun', () => {
   });
 
   it('is deterministic for the same seed', () => {
-    const quest = QUESTS.dt_boar_hides!;
+    const quest = QUESTS.dt_scorpid_sting!;
     const a = simulateQuestRun(quest, makeProfile(4), 99);
     const b = simulateQuestRun(quest, makeProfile(4), 99);
     expect(a.steps.map((s) => s.text)).toEqual(b.steps.map((s) => s.text));

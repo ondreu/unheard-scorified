@@ -658,11 +658,11 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       grind 1–60 nebyl pár questů dokola, ať je vždy „co dělat dál".
   - [x] **Nové 40–60 zóny** (M12.1): Eastern Plaguelands (Alliance) + Felwood
         (Horde), paralelní 3-dílná story questline (lvl 40/48/55, plné narativní
-        `steps` + combat) + 2 repeatable (quick/long) na zónu. Odměny kalibrované
-        (`600·√L·h` XP / `40·√L·h` gold). Nový loot bracket `bracket_4` (ilvl
-        ~45–56, 14 nových itemů napříč armor typy + zbraň/štít/plášť/šperky, 1 epic).
-        Při tom opraven loot bug: Barrens mapovaný špatným klíčem (`the_barrens`)
-        → questy v Barrens nedropovaly loot.
+        `steps` + combat). Odměny kalibrované (`600·√L·h` XP / `40·√L·h` gold).
+        Nový loot bracket `bracket_4` (ilvl ~45–56, 14 nových itemů napříč armor
+        typy + zbraň/štít/plášť/šperky, 1 epic). Při tom opraven loot bug: Barrens
+        mapovaný špatným klíčem (`the_barrens`) → questy v Barrens nedropovaly loot.
+        (Pozn.: per-zone repeatable questy později nahrazeny „Gone Questing", ADR 0025.)
 - [ ] **Lore rozdělený po zónách** — každá zóna má soudržný příběh/téma (frakce
       kosmetická → Alliance/Horde paralelně). Lokace, NPC, nepřátelé, motiv questline.
       - [x] Nové 40–60 zóny (Eastern Plaguelands / Felwood) — viz výše.
@@ -726,10 +726,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       repeatable questy + 2 raidy). Doplnit zóny/questlinky a **dungeony pro 40–60**,
       ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
   - [x] **Zóny + questy 40–60** (M12.1): Eastern Plaguelands / Felwood (story
-        questline 40/48/55 + repeatable + `bracket_4` loot). Zbývají **dungeony
-        a raidy pro 40–60** (M12).
+        questline 40/48/55 + `bracket_4` loot). Idle filler napříč levely teď nese
+        „Gone Questing" (ADR 0025). Zbývají **dungeony a raidy pro 40–60** (M12).
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
-  - [x] +6 repeatable filler questů (1 na zónu, M9) — víc idle obsahu napříč brackety.
+  - [x] **Repeatable questy nahrazeny „Gone Questing"** (ADR 0025): generická idle
+        aktivita s hráčem volenou délkou (5 min–12 h), level flexuje s hráčem,
+        odměny/loot podle času. Fixuje „na nízkých levelech jen krátké questy" a
+        odpadá nutnost psát hromady filler questů (count neovlivňuje tempo, to drží
+        XP křivka). Story questy zůstávají kurátorovaná páteř.
   - [x] **Narrative engine + vícekrokové story questy s combatem** (M9, ADR 0024):
         startovní zóny Northshire + Durotar přepsané jako příběh (beaty + auto-resolved
         combaty + lore); repeatable = deterministicky generované náhodné události.

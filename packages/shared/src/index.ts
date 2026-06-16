@@ -14,6 +14,7 @@ export * from './data/talents';
 export * from './rotation';
 export * from './combat';
 export * from './quest-run';
+export * from './grind';
 export * from './data/dungeons';
 export * from './data/factions';
 export * from './data/materials';

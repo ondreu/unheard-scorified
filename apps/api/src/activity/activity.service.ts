@@ -14,6 +14,7 @@ import {
   computeActivityReward,
   FACTIONS,
   GATHERING_NODES,
+  GRIND,
   isQuestAvailable,
   isQuestId,
   levelFromXp,
@@ -22,15 +23,19 @@ import {
   professionSkillUp,
   PROFESSIONS,
   QUESTS,
+  questingZoneForLevel,
   RECIPES,
   reputationProgress,
+  simulateGrindRun,
   simulateQuestRun,
+  ZONES,
   type ActivityReward,
   type ActivityState,
   type CharacterSheet,
   type CraftActivityParams,
   type FactionId,
   type GatherActivityParams,
+  type GrindActivityParams,
   type ProfessionId,
   type QuestActivityParams,
   type QuestStepResult,
@@ -118,7 +123,10 @@ export interface ClaimResult {
 
 export interface StartActivityInput {
   activityType: string;
-  questId: string;
+  /** Jen pro `activityType === 'quest'`. */
+  questId?: string;
+  /** Jen pro `activityType === 'grind'` (Gone Questing) — hráčem volená délka (s). */
+  durationSec?: number;
 }
 
 @Injectable()
@@ -145,15 +153,21 @@ export class ActivityService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
+    const existing = await this.activities.findByCharacter(characterId);
+    if (existing) throw new ConflictException('Character already has an active activity');
+
+    // Gone Questing (generický grind): hráč volí jen délku; level flexuje s ním,
+    // zóna (loot bracket + flavor) se auto-odvodí z levelu + frakce.
+    if (input.activityType === 'grind') {
+      return this.startQuesting(character, input.durationSec);
+    }
+
     if (input.activityType !== 'quest') {
       throw new BadRequestException('Unsupported activity type');
     }
-    if (!isQuestId(input.questId)) {
+    if (input.questId === undefined || !isQuestId(input.questId)) {
       throw new BadRequestException('Unknown quest');
     }
-
-    const existing = await this.activities.findByCharacter(characterId);
-    if (existing) throw new ConflictException('Character already has an active activity');
 
     const quest = QUESTS[input.questId]!;
     const level = levelFromXp(character.totalXp);
@@ -177,6 +191,37 @@ export class ActivityService {
     });
 
     await this.scheduler.schedule(row.id, characterId, durationSec * 1000);
+    return this.toActivityView(row, Date.now());
+  }
+
+  /**
+   * Spustí "Gone Questing" (generický grind). Caller už ověřil vlastnictví a
+   * absenci běžící aktivity. Level je snapshot aktuálního levelu (flexuje s
+   * hráčem), zóna se auto-odvodí z levelu + frakce; délku volí hráč v mezích
+   * `GRIND.minSec..maxSec` (clamp). Žádný mount speed — délku si hráč zvolil sám.
+   */
+  private async startQuesting(character: Character, durationSecInput?: number): Promise<ActivityView> {
+    const requested = Number(durationSecInput);
+    if (!Number.isFinite(requested) || requested <= 0) {
+      throw new BadRequestException('Invalid questing duration');
+    }
+    const durationSec = Math.round(Math.max(GRIND.minSec, Math.min(GRIND.maxSec, requested)));
+
+    const level = levelFromXp(character.totalXp);
+    const zoneId = questingZoneForLevel(character.faction, level);
+    const startAt = new Date();
+    const seed = activitySeed(character.id, 'grind', startAt.getTime());
+    const params: GrindActivityParams = { zoneId, level };
+    const row = await this.activities.create({
+      characterId: character.id,
+      activityType: 'grind',
+      params,
+      startAt,
+      durationSec,
+      seed,
+    });
+
+    await this.scheduler.schedule(row.id, character.id, durationSec * 1000);
     return this.toActivityView(row, Date.now());
   }
 
@@ -225,6 +270,15 @@ export class ActivityService {
           await this.completed.markCompleted(characterId, questId);
         }
       }
+    } else if (row.activityType === 'grind') {
+      // Gone Questing: generický flavor log (úvod + auto-resolved souboje + závěr).
+      const profile = await this.rotation.buildCombatProfile(character, gain.levelBefore);
+      questLog = simulateGrindRun(
+        row.params as GrindActivityParams,
+        profile,
+        row.durationSec,
+        state.seed,
+      ).steps;
     }
 
     // Přidá loot/materiály/output do inventáře (přebytek nad kapacitu → pošta).
@@ -343,6 +397,11 @@ export class ActivityService {
     if (row.activityType === 'craft') {
       const recipe = RECIPES[(row.params as CraftActivityParams).recipeId];
       return { ...base, title: recipe ? `Crafting: ${recipe.name}` : 'Crafting' };
+    }
+
+    if (row.activityType === 'grind') {
+      const zone = ZONES[(row.params as GrindActivityParams).zoneId];
+      return { ...base, title: zone ? `Gone Questing: ${zone.name}` : 'Gone Questing' };
     }
 
     const questId = (row.params as QuestActivityParams).questId;

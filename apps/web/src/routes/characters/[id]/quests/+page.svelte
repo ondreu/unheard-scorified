@@ -2,24 +2,44 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { ApiError, listAvailableQuests, startActivity, type QuestView } from '$lib/api';
+  import {
+    ApiError,
+    listAvailableQuests,
+    startActivity,
+    startQuesting,
+    type QuestView,
+  } from '$lib/api';
   import { ZONES } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Available Quests',
-    empty: 'No quests available right now. Level up to unlock more.',
+    empty: 'No story quests available right now. Level up to unlock more — or just go questing below.',
     send: 'Send',
     sending: 'Sending…',
     reward: 'Reward',
     duration: 'Duration',
     level: 'Lvl',
+    questingTitle: 'Gone Questing',
+    questingBlurb:
+      'No fixed objective — just head out and quest for as long as you like. Rewards scale with the time you commit and your level.',
+    go: 'Go questing',
   };
+
+  // Preset délky pro Gone Questing (v mezích GRIND.minSec..maxSec na serveru).
+  const QUESTING_PRESETS: { label: string; sec: number }[] = [
+    { label: '30 min', sec: 1800 },
+    { label: '1 hour', sec: 3600 },
+    { label: '3 hours', sec: 10800 },
+    { label: '6 hours', sec: 21600 },
+  ];
 
   let quests = $state<QuestView[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let sendingId = $state<string | null>(null);
+  let questingSec = $state(3600);
+  let questingBusy = $state(false);
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -52,6 +72,18 @@
     }
   }
 
+  async function goQuesting(): Promise<void> {
+    questingBusy = true;
+    error = null;
+    try {
+      await startQuesting(characterId, questingSec);
+      await goto(`/characters/${characterId}`);
+    } catch (err) {
+      error = (err as Error).message;
+      questingBusy = false;
+    }
+  }
+
   function zoneName(zoneId: string): string {
     return ZONES[zoneId as keyof typeof ZONES]?.name ?? zoneId;
   }
@@ -69,6 +101,30 @@
   {#if error}
     <p class="text-[var(--danger)]">{error}</p>
   {/if}
+
+  <!-- Gone Questing: generická idle aktivita s volnou délkou (nahradila repeatables). -->
+  <section class="panel panel-pad space-y-3">
+    <h2 class="panel-title">{ui.questingTitle}</h2>
+    <p class="text-sm text-[var(--text-dim)]">{ui.questingBlurb}</p>
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="text-xs uppercase tracking-wide text-[var(--text-faint)]" for="questing-dur">
+        {ui.duration}
+      </label>
+      <select
+        id="questing-dur"
+        bind:value={questingSec}
+        disabled={questingBusy}
+        class="input w-auto"
+      >
+        {#each QUESTING_PRESETS as p (p.sec)}
+          <option value={p.sec}>{p.label}</option>
+        {/each}
+      </select>
+      <button onclick={goQuesting} disabled={questingBusy} class="btn btn-primary btn-sm">
+        {questingBusy ? ui.sending : ui.go}
+      </button>
+    </div>
+  </section>
 
   {#if loading}
     <p class="text-[var(--text-dim)]">Loading…</p>
