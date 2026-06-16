@@ -79,6 +79,14 @@ export const COMBAT_TAG_EFFECTS: Record<string, TagEffect> = {
   toughness: { healthFlat: 12 },
   bloodthirst: { lifesteal: 0.1 },
   vampiric_embrace: { lifesteal: 0.08 },
+  // Generické laditelné efekty pro talent overhaul (jméno talentu = flavor,
+  // tag = mechanika; sdílené napříč classami).
+  crit_minor: { critChance: 0.01 },
+  dmg_minor: { damageMult: 0.01 },
+  dmg_major: { damageMult: 0.02 },
+  haste_minor: { attackSpeed: 0.03 },
+  hp_minor: { healthFlat: 12 },
+  lifesteal_minor: { lifesteal: 0.04 },
 };
 
 // ── Typy aktérů a událostí ──────────────────────────────────────────────────

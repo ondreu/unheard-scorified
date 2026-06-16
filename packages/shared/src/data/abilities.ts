@@ -172,6 +172,104 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
     cooldownSec: 9,
     damageMult: 1.6,
   },
+
+  // ── Talent overhaul capstones (nové spelly per strom) ─────────────────────
+  shield_slam: {
+    name: 'Shield Slam',
+    description: 'Slams the enemy with your shield for 170% weapon damage.',
+    kind: 'strike',
+    cooldownSec: 6,
+    damageMult: 1.7,
+  },
+  holy_shock: {
+    name: 'Holy Shock',
+    description: 'Instantly restores 260% of your healing power to a wounded ally.',
+    kind: 'heal',
+    cooldownSec: 6,
+    damageMult: 2.6,
+  },
+  avengers_shield: {
+    name: "Avenger's Shield",
+    description: 'Hurls a holy shield at the enemy for 180% damage.',
+    kind: 'strike',
+    cooldownSec: 8,
+    damageMult: 1.8,
+  },
+  explosive_shot: {
+    name: 'Explosive Shot',
+    description: 'Sears the target for 150% damage plus 120% over 6s.',
+    kind: 'dot',
+    cooldownSec: 8,
+    damageMult: 1.5,
+    dotDurationSec: 6,
+    dotTicks: 3,
+    dotTickMult: 0.4,
+  },
+  shadowstrike: {
+    name: 'Shadowstrike',
+    description: 'Strikes from the shadows for 230% weapon damage, increased to 300% against targets below 35% health.',
+    kind: 'strike',
+    cooldownSec: 9,
+    damageMult: 2.3,
+    executeBelowPct: 0.35,
+    executeDamageMult: 3.0,
+  },
+  penance: {
+    name: 'Penance',
+    description: 'Channels healing for 250% of your healing power to a wounded ally.',
+    kind: 'heal',
+    cooldownSec: 7,
+    damageMult: 2.5,
+  },
+  guardian_spirit: {
+    name: 'Guardian Spirit',
+    description: 'A powerful heal restoring 300% of your healing power to a wounded ally.',
+    kind: 'heal',
+    cooldownSec: 9,
+    damageMult: 3.0,
+  },
+  mind_blast: {
+    name: 'Mind Blast',
+    description: "Blasts the target's mind for 220% spell damage.",
+    kind: 'strike',
+    cooldownSec: 7,
+    damageMult: 2.2,
+  },
+  riptide: {
+    name: 'Riptide',
+    description: 'A surging wave restoring 260% of your healing power to a wounded ally.',
+    kind: 'heal',
+    cooldownSec: 6,
+    damageMult: 2.6,
+  },
+  arcane_power: {
+    name: 'Arcane Power',
+    description: 'Unleashes raw arcane power for 240% spell damage.',
+    kind: 'strike',
+    cooldownSec: 10,
+    damageMult: 2.4,
+  },
+  frostfire_bolt: {
+    name: 'Frostfire Bolt',
+    description: 'A bolt of frost and fire for 230% spell damage.',
+    kind: 'strike',
+    cooldownSec: 9,
+    damageMult: 2.3,
+  },
+  demonbolt: {
+    name: 'Demonbolt',
+    description: 'Hurls demonic fire at the target for 230% spell damage.',
+    kind: 'strike',
+    cooldownSec: 9,
+    damageMult: 2.3,
+  },
+  tranquility: {
+    name: 'Tranquility',
+    description: "Channels nature's tranquility, restoring 300% of your healing power to a wounded ally.",
+    kind: 'heal',
+    cooldownSec: 10,
+    damageMult: 3.0,
+  },
 };
 
 // ── Baseline ability kit per class (MIL) ────────────────────────────────────
@@ -316,4 +414,5 @@ export function abilityDamageMult(ability: SignatureAbility, targetHpPct: number
 export const SHIELD_TAGS: Record<string, number> = {
   ice_barrier: 1.6,
   holy_shield: 1.2,
+  shield_minor: 0.6,
 };

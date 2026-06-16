@@ -759,9 +759,17 @@ lobby) a M8.5-D (P2P trade) — staví se první.
     ability/úder. Tím zůstává **plně deterministické a server-authoritative**
     (lze přehrát ze snapshotu+seedu jako dnes) a zároveň konfigurovatelné.
   - [ ] Kontextové rotace (raid healer rotuje heal, ne dmg; tank threat/mitigace…).
-  - [ ] **Rebalance talentů**: na lvl 60 jde teď utratit ~vše + zbývají body →
-        cíl ~1,5 stromu. Přidat víc nodů + **stromová** struktura (ne seznam) pro
-        min-maxing.
+  - [x] **Rebalance talentů** ✅ — overhaul `data/talents.ts`: 9 class × 3 stromy ×
+        **9 nodů**, **kapacita ~34 bodů/strom** (3 stromy = 102). Na cap 60 = 59
+        bodů → **nelze naplnit vše**, vyjde **1 a 3/4 stromu** (rozhodnutí PM).
+        Mix: filler (staty/HP) + „zábavné" pasivní procy (crit/dmg/haste/lifesteal/
+        štít) + **capstone = nový spell** (tier 28). Doplněno **13 nových capstone
+        spellů** (Shield Slam, Holy Shock, Avenger's Shield, Explosive Shot,
+        Shadowstrike, Penance, Guardian Spirit, Mind Blast, Riptide, Arcane Power,
+        Frostfire Bolt, Demonbolt, Tranquility) — všechny stromy teď odemykají
+        reálnou ability. Žádné dead talenty (každý tag → reálný efekt). Testy:
+        shared `data/talents.test.ts` (+7: kapacita/1.75-strom/no-dead-tag).
+        _Follow-up: plný prerekvizitní graf (šipky) místo tier-gate — UX nice-to-have._
   - [ ] **Drobná náhoda** do combatu (už máme `SeededRng` — rozšířit varianci
         hitů/proc šancí, stále reprodukovatelně).
   - [ ] **Testovací target / healing dummy** (sandbox sim pro ladění rotací bez

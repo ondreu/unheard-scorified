@@ -48,19 +48,21 @@ describe('MIL flow: deklarativní rotace', () => {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
     const char = await characters.create(accountId, { name, race: 'human', class: 'warrior' });
-    // Vysoký level → dost bodů; alokuj Arms strom až po Mortal Strike (tier 14).
+    // Vysoký level → dost bodů. Naplň Arms strom k capstone (tier 28).
     await charRepo.addRewards(char.id, 60_000_000, 0);
-    await talents.allocate(accountId, char.id, 'warrior.arms.weapon_expertise'); // 5
-    for (let i = 0; i < 4; i++)
-      await talents.allocate(accountId, char.id, 'warrior.arms.weapon_expertise');
-    await talents.allocate(accountId, char.id, 'warrior.arms.tactical_mastery'); // 5 more → 10
-    for (let i = 0; i < 4; i++)
-      await talents.allocate(accountId, char.id, 'warrior.arms.tactical_mastery');
-    await talents.allocate(accountId, char.id, 'warrior.arms.improved_rend'); // tier 5 ok
-    for (let i = 0; i < 2; i++)
-      await talents.allocate(accountId, char.id, 'warrior.arms.improved_rend'); // 13
-    await talents.allocate(accountId, char.id, 'warrior.arms.deep_wounds'); // tier 10 → 14
-    await talents.allocate(accountId, char.id, 'warrior.arms.mortal_strike'); // tier 14 capstone
+    const arms: [string, number][] = [
+      ['warrior.arms.weapon_expertise', 5],
+      ['warrior.arms.tactical_mastery', 5],
+      ['warrior.arms.deflection', 5],
+      ['warrior.arms.improved_rend', 3],
+      ['warrior.arms.poleaxe_specialization', 5],
+      ['warrior.arms.deep_wounds', 3],
+      ['warrior.arms.two_handed_specialization', 4], // → 30 pts in tree (≥28)
+    ];
+    for (const [id, ranks] of arms) {
+      for (let i = 0; i < ranks; i++) await talents.allocate(accountId, char.id, id);
+    }
+    await talents.allocate(accountId, char.id, 'warrior.arms.mortal_strike'); // tier 28 capstone
     return { accountId, id: char.id };
   }
 
