@@ -542,6 +542,30 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     stats: { agility: 18, stamina: 14, attack_power: 20 },
   },
 
+  // --- M12: nízkoúrovňové dungeon loot (BoP, instance-only) ---
+  // Wailing Caverns (~lvl 17–24)
+  wc_serpentine_band: {
+    id: 'wc_serpentine_band', name: 'Serpentine Band', slot: 'finger',
+    rarity: 'rare', itemLevel: 22, vendorGold: 14,
+    stats: { intellect: 6, spirit: 5 },
+  },
+  wc_deviate_hide_pauldrons: {
+    id: 'wc_deviate_hide_pauldrons', name: 'Deviate Hide Pauldrons', slot: 'shoulder',
+    rarity: 'rare', itemLevel: 23, vendorGold: 16,
+    stats: { agility: 7, stamina: 6 },
+  },
+  // Blackfathom Deeps (~lvl 24–29)
+  bfd_rod_of_the_sleeper: {
+    id: 'bfd_rod_of_the_sleeper', name: 'Rod of the Sleeper', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 28, vendorGold: 22,
+    stats: { intellect: 9, spirit: 5, spell_power: 11 },
+  },
+  bfd_gaze_dreamer_robes: {
+    id: 'bfd_gaze_dreamer_robes', name: "Gaze Dreamer's Robes", slot: 'chest',
+    rarity: 'rare', itemLevel: 27, vendorGold: 20,
+    stats: { intellect: 10, spirit: 7, spell_power: 8 },
+  },
+
   // --- M12: 40–60 dungeon loot (BoP, instance-only). Vyplňuje itemizaci pásma
   // 42–60 vedle bracket_4 quest gearu a raid epiců. ---
   // Zul'Farrak (~lvl 42–47)
@@ -659,6 +683,9 @@ const BIND_ON_PICKUP: ItemId[] = [
   'mar_theradras_scepter', 'mar_elemental_girdle', 'mar_lifegiving_gem',
   'brd_ironfoe', 'brd_emperors_seal', 'brd_flameweave_cuffs',
   'strat_runeblade_rivendare', 'strat_deathbone_legguards', 'strat_skul_cap',
+  // M12 nízkoúrovňové dungeon loot
+  'wc_serpentine_band', 'wc_deviate_hide_pauldrons',
+  'bfd_rod_of_the_sleeper', 'bfd_gaze_dreamer_robes',
 ];
 
 /**
@@ -690,6 +717,7 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'plaguebloom_circlet', 'runecloth_robe', 'girdle_of_the_mendicant',
     'zg_jindo_mantle', 'aq_gloves_of_the_immortal',
     'brd_flameweave_cuffs', 'strat_skul_cap',
+    'bfd_gaze_dreamer_robes',
   ],
   leather: [
     'leather_cap', 'scout_vest', 'ranger_gloves', 'shadow_cowl',
@@ -698,6 +726,7 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'wildheart_spaulders', 'feltracker_boots',
     'zg_overlord_helmet',
     'zf_sandstalker_ankleguards',
+    'wc_deviate_hide_pauldrons',
   ],
   mail: [
     'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',

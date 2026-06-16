@@ -89,6 +89,7 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     name: 'The Deadmines',
     description: 'The Defias Brotherhood\'s hidden goblin shipyard carved into the Westfall cliffs.',
     requiredLevel: 15,
+    attunement: { questAnyOf: ['al_dm_attune_2', 'ho_dm_attune_2'] },
     recommendedLevel: 20,
     baseXp: 760,
     baseGold: 45,
@@ -101,12 +102,32 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
+  // ── Wailing Caverns (17–24, M12) ────────────────────────────────────────────
+  wailing_caverns: {
+    id: 'wailing_caverns',
+    name: 'Wailing Caverns',
+    description: 'A humid network of vine-choked tunnels beneath the Barrens, where the druid Naralex dreams a nightmare into the world.',
+    requiredLevel: 17,
+    attunement: { questAnyOf: ['al_wc_attune_2', 'ho_wc_attune_2'] },
+    recommendedLevel: 24,
+    baseXp: 1050,
+    baseGold: 55,
+    goldVariance: 0.25,
+    encounters: [
+      enemy('wc_adder', 'Deviate Adder', 250, 16, 2.5),
+      enemy('wc_druid', 'Druid of the Fang', 280, 19, 2.6),
+      enemy('wc_serpent', 'Deviate Ravager', 360, 22, 2.4, { armor: 40 }),
+      enemy('wc_mutanus', 'Mutanus the Devourer', 640, 27, 2.3, { armor: 60, isBoss: true }),
+    ],
+  },
+
   // ── Shadowfang Keep (20–26) ────────────────────────────────────────────────
   shadowfang_keep: {
     id: 'shadowfang_keep',
     name: 'Shadowfang Keep',
     description: 'A cursed fortress where Archmage Arugal\'s worgen prowl the moonlit halls.',
     requiredLevel: 20,
+    attunement: { questAnyOf: ['al_sfk_attune_2', 'ho_sfk_attune_2'] },
     recommendedLevel: 26,
     baseXp: 1500,
     baseGold: 70,
@@ -119,12 +140,32 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
+  // ── Blackfathom Deeps (24–29, M12) ──────────────────────────────────────────
+  blackfathom_deeps: {
+    id: 'blackfathom_deeps',
+    name: 'Blackfathom Deeps',
+    description: 'A sunken temple of the moon goddess off the Ashenvale coast, now a flooded lair where naga and the Twilight\'s Hammer rouse the beast Aku\'mai.',
+    requiredLevel: 24,
+    attunement: { questAnyOf: ['al_bfd_attune_2', 'ho_bfd_attune_2'] },
+    recommendedLevel: 29,
+    baseXp: 2600,
+    baseGold: 95,
+    goldVariance: 0.2,
+    encounters: [
+      enemy('bfd_acolyte', 'Twilight Acolyte', 380, 25, 2.5),
+      enemy('bfd_naga', 'Aku\'mai Servant', 420, 28, 2.6),
+      enemy('bfd_priestess', 'Twilight Priestess', 560, 31, 2.4, { armor: 50 }),
+      enemy('bfd_akumai', 'Aku\'mai', 880, 35, 2.3, { armor: 70, isBoss: true }),
+    ],
+  },
+
   // ── Scarlet Monastery (30–38) ──────────────────────────────────────────────
   scarlet_monastery: {
     id: 'scarlet_monastery',
     name: 'Scarlet Monastery',
     description: 'The fanatical Scarlet Crusade\'s stronghold, led by the zealot Herod and High Inquisitor Whitemane.',
     requiredLevel: 30,
+    attunement: { questAnyOf: ['al_sm_attune_2', 'ho_sm_attune_2'] },
     recommendedLevel: 38,
     baseXp: 4200,
     baseGold: 140,

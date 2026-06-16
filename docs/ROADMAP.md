@@ -655,8 +655,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > 2. inkrement: **+2 raidy + attunement ✅** (Zul'Gurub lvl 50 + Temple of
 > Ahn'Qiraj lvl 58); 3. inkrement: **+4 dungeony 40–60 ✅** (Zul'Farrak / Maraudon /
 > Blackrock Depths / Stratholme); 4. inkrement: **attunement questlines pro všechny
-> 40–60 instance ✅** (raidy i dungeony, BWL drakefire doplněn o narativ). Zbývá:
-> dopsat fallback zóny (Westfall/Duskwood/Barrens/Thousand Needles).
+> 40–60 instance ✅**; 5. inkrement: **+2 nízké dungeony (Wailing Caverns 17,
+> Blackfathom Deeps 24) + attunement pro VŠECHNY dungeony ✅** (každý dungeon i raid
+> má teď vlastní questline). Zbývá: dopsat fallback zóny (Westfall/Duskwood/Barrens/
+> Thousand Needles).
 
 - [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
       beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
@@ -673,22 +675,24 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       - [x] Nové 40–60 zóny (Eastern Plaguelands / Felwood) — viz výše.
       - [ ] Dopsat narativní `steps`/lore zbylých fallback zón
             (Westfall/Duskwood/Barrens/Thousand Needles) — engine hotový, jen obsah.
-- [x] **Attunement questlinky** ✅ (M12.4): **všechny 40–60 instance** mají vlastní
-      plně narativní per-frakce attunement questline — raidy (Zul'Gurub `paragons_of_power`,
-      Temple of Ahn'Qiraj `scepter_of_the_sands`; BWL `drakefire_attunement` doplněn
-      o plný narativ) i dungeony (Zul'Farrak `zf`, Maraudon `mar`, Blackrock Depths `brd`,
-      Stratholme `culling_stratholme`). Klasické nízké dungeony (Deadmines/SFK/Scarlet
-      Monastery) zůstávají level-gated kvůli plynulosti early-game (vědomé rozhodnutí).
-      Testy: shared `group.test.ts` (gating). Detail: `docs/systems/combat-dungeons.md`.
+- [x] **Attunement questlinky** ✅ (M12.4 + M12.5): **každý dungeon i raid má vlastní
+      plně narativní per-frakce attunement questline** (ne jen level gate). Raidy:
+      `paragons_of_power` (ZG), `scepter_of_the_sands` (AQ), `drakefire_attunement`
+      (BWL, doplněn o narativ), MC tier-3 capstone. Dungeony 40–60: 1-questový gate
+      (`zf`/`mar`/`brd`/`culling_stratholme`). Nízkoúrovňové dungeony (Deadmines/Wailing
+      Caverns/Shadowfang Keep/Blackfathom Deeps/Scarlet Monastery): **2-questový řetězec**
+      (`_1 → _2` přes `requiresQuest`). Celkem +20 attunement questů v M12.5. Testy:
+      shared `group.test.ts` + API `dungeon.flow.test.ts`. Detail: `docs/systems/combat-dungeons.md`.
 - [x] **+4 dungeony** ✅ (M12.3): **Zul'Farrak** (42), **Maraudon** (46), **Blackrock
       Depths** (52), **Stratholme** (58) — vyplňují dříve prázdné pásmo 40–60 (obsah
       předtím končil na Scarlet Monastery lvl 30). Trash + boss encountery škálované
       velikostí party (recyklují group-run model + combat engine), boss loot tabulky
       (`DUNGEON_LOOT_TABLES`) + 12 nových BoP dungeon itemů (`items.ts`). BRD i Stratholme
-      pod weekly lockout. **Stratholme** gated vlastní attunement questline
-      (`al_/ho_culling_stratholme`, plně narativní, navazuje na frontier EPL/Felwood);
-      ostatní level-gated. Čistě data (web/API iterují přes `DUNGEONS`). Testy: shared
-      `group.test.ts` (+3). Detail: `docs/systems/combat-dungeons.md`.
+      pod weekly lockout. Čistě data (web/API iterují přes `DUNGEONS`). Detail:
+      `docs/systems/combat-dungeons.md`.
+  - [x] **+2 nízké dungeony** ✅ (M12.5): **Wailing Caverns** (17) + **Blackfathom
+        Deeps** (24) vyplňují pásmo 15–30 (+4 nové BoP itemy, loot tabulky). Spolu
+        s attunementy (viz níže) má teď **každý** dungeon vlastní questline.
 - [x] **+2 raidy + attunement** ✅ (M12.2): **Zul'Gurub** (lvl 50, 10/20, Venoxis /
       Mandokir / Hakkar) + **Temple of Ahn'Qiraj** (lvl 58, 10/20, Skeram / Sartura /
       C'Thun) — vyplňují progresní pásmo MC (40) → ZG (50) → BWL (55) → AQ (58).
@@ -765,10 +769,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
         Needles + raid-attunement questy) — engine hotový, jde o obsah.
   - [ ] Questy s **reálným combat cílem** (kill/clear řešený enginem s rizikem, ne
         jen flavor uvnitř idle questu).
-  - [x] **Dungeon attunement questline** (M9 + M12.4): Ragefire Chasm gated startovním
-        questlinem; v M12.4 dostaly vlastní attunement questline i všechny 40–60 dungeony
-        (Zul'Farrak/Maraudon/Blackrock Depths/Stratholme). Klasické nízké dungeony
-        (Deadmines/SFK/Scarlet Monastery) zůstávají level-gated (early-game flow).
+  - [x] **Dungeon attunement questline** (M9 + M12.4 + M12.5): **každý dungeon** má
+        teď vlastní attunement questline. 40–60 dungeony 1-questový gate; nízkoúrovňové
+        (Deadmines/Wailing Caverns/SFK/Blackfathom Deeps/Scarlet Monastery) 2-questový
+        řetězec. Raidy dtto (viz „Attunement questlinky" v M12).
 - [x] 🧑‍💼 **Mounty** ✅ — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
       questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
       (skin) od bonusu (speed) → kompatibilní s monetizací. 2 tiery (basic

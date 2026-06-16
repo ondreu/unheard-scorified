@@ -85,8 +85,9 @@ describe('isGroupContentUnlocked', () => {
     expect(
       isGroupContentUnlocked('dungeon', 'ragefire_chasm', 60, ['ho_ragefire_attunement']),
     ).toBe(true);
-    // dungeon bez attunementu gatuje jen levelem
-    expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, [])).toBe(true);
+    // Deadmines má teď (M12.5) vlastní 2-questový attunement → level nestačí
+    expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, ['al_dm_attune_2'])).toBe(true);
   });
 
   it('raid gates on level + attunement', () => {
@@ -107,8 +108,24 @@ describe('isGroupContentUnlocked', () => {
     // Stratholme: level + attunement questline
     expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, [])).toBe(false);
     expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, ['al_culling_stratholme'])).toBe(true);
-    // Klasické nízké dungeony zůstávají level-gated (early-game flow)
-    expect(isGroupContentUnlocked('dungeon', 'deadmines', 15, [])).toBe(true);
+  });
+
+  it('M12.5 low-level dungeons gate on a multi-quest attunement chain', () => {
+    // Wailing Caverns / Blackfathom Deeps (nové) + Deadmines/SFK/SM (doplněné)
+    expect(isGroupContentUnlocked('dungeon', 'wailing_caverns', 17, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'wailing_caverns', 17, ['ho_wc_attune_2'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'blackfathom_deeps', 24, ['al_bfd_attune_2'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'shadowfang_keep', 20, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'shadowfang_keep', 20, ['al_sfk_attune_2'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'scarlet_monastery', 30, ['ho_sm_attune_2'])).toBe(true);
+    // Chain: finální quest vyžaduje předchozí (requiresQuest)
+    expect(QUESTS['al_dm_attune_2']!.requiresQuest).toBe('al_dm_attune_1');
+  });
+
+  it('every dungeon now has an attunement questline', () => {
+    for (const d of Object.values(DUNGEONS)) {
+      expect(d.attunement?.questAnyOf.length, `${d.id} missing attunement`).toBeGreaterThan(0);
+    }
   });
 });
 

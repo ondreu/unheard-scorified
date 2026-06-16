@@ -164,6 +164,28 @@ export const DUNGEON_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'arcane_robes', dropChance: 0.06 },
     ],
   },
+  // ── M12: nízkoúrovňové dungeony ─────────────────────────────────────────────
+  wailing_caverns: {
+    anyDropChance: 0.82,
+    entries: [
+      { itemId: 'wc_serpentine_band', dropChance: 0.2 },
+      { itemId: 'wc_deviate_hide_pauldrons', dropChance: 0.2 },
+      // bracket_2 doplněk
+      { itemId: 'ranger_gloves', dropChance: 0.2 },
+      { itemId: 'huntsman_cloak', dropChance: 0.2 },
+      { itemId: 'amber_necklace', dropChance: 0.2 },
+    ],
+  },
+  blackfathom_deeps: {
+    anyDropChance: 0.85,
+    entries: [
+      { itemId: 'bfd_rod_of_the_sleeper', dropChance: 0.2 },
+      { itemId: 'bfd_gaze_dreamer_robes', dropChance: 0.2 },
+      { itemId: 'marauder_shoulders', dropChance: 0.18 },
+      { itemId: 'crusader_belt', dropChance: 0.18 },
+      { itemId: 'mage_trinket', dropChance: 0.18 },
+    ],
+  },
   // ── M12: 40–60 dungeony ─────────────────────────────────────────────────────
   zulfarrak: {
     anyDropChance: 0.88,

@@ -78,25 +78,25 @@ PVE neutrální (obě frakce), gated `requiredLevel` (content gating). Každý
 dungeon = sekvence `EnemyDef` (trash → boss) + `baseXp`/`baseGold` + odkaz na
 boss loot tabulku.
 
-| Dungeon            | Req lvl | Boss                          | Pozn.                          |
-| ------------------ | ------- | ----------------------------- | ------------------------------ |
-| Ragefire Chasm     | 8       | Taragaman the Hungerer        | attunement (startovní questline) |
-| The Deadmines      | 15      | Edwin VanCleef                |                                |
-| Shadowfang Keep    | 20      | Archmage Arugal               |                                |
-| Scarlet Monastery  | 30      | High Inquisitor Whitemane     | weekly lockout                 |
-| Zul'Farrak         | 42      | Chief Ukorz Sandscalp         | M12, attunement                |
-| Maraudon           | 46      | Princess Theradras            | M12, attunement                |
-| Blackrock Depths   | 52      | Emperor Dagran Thaurissan     | M12, attunement + weekly lockout |
-| Stratholme         | 58      | Baron Rivendare               | M12, attunement + weekly lockout |
+| Dungeon            | Req lvl | Boss                          | Attunement (gate quest)            | Pozn.          |
+| ------------------ | ------- | ----------------------------- | ---------------------------------- | -------------- |
+| Ragefire Chasm     | 8       | Taragaman the Hungerer        | startovní questline (1 quest)      |                |
+| The Deadmines      | 15      | Edwin VanCleef                | `*_dm_attune_1→2` (2-quest)        | M12.5          |
+| Wailing Caverns    | 17      | Mutanus the Devourer          | `*_wc_attune_1→2` (2-quest)        | M12.5 (nový)   |
+| Shadowfang Keep    | 20      | Archmage Arugal               | `*_sfk_attune_1→2` (2-quest)       | M12.5          |
+| Blackfathom Deeps  | 24      | Aku'mai                       | `*_bfd_attune_1→2` (2-quest)       | M12.5 (nový)   |
+| Scarlet Monastery  | 30      | High Inquisitor Whitemane     | `*_sm_attune_1→2` (2-quest)        | M12.5, lockout |
+| Zul'Farrak         | 42      | Chief Ukorz Sandscalp         | `*_zf_attunement` (1 quest)        | M12            |
+| Maraudon           | 46      | Princess Theradras            | `*_mar_attunement` (1 quest)       | M12            |
+| Blackrock Depths   | 52      | Emperor Dagran Thaurissan     | `*_brd_attunement` (1 quest)       | M12, lockout   |
+| Stratholme         | 58      | Baron Rivendare               | `*_culling_stratholme` (1 quest)   | M12, lockout   |
 
-Dungeony 42–58 (Zul'Farrak / Maraudon / Blackrock Depths / Stratholme) přibyly v
-**M12** a vyplňují dříve prázdné pásmo 40–60 (předtím obsah končil na Scarlet
-Monastery, lvl 30). **Všechny čtyři 40–60 dungeony jsou gated vlastní attunement
-questline** (per-frakce, plně narativní; `al_/ho_{zf,mar,brd,culling_stratholme}`).
-Klasické nízké dungeony (Deadmines 15 / Shadowfang Keep 20 / Scarlet Monastery 30)
-zůstávají level-gated kvůli plynulosti early-game (rozhodnutí: attunement gate jen
-tam, kde dává smysl). Jen data — group-run model, combat engine i web/API se
-nemění (vše iteruje přes `DUNGEONS`).
+**Každý dungeon má teď vlastní attunement questline** (per-frakce, `al_`/`ho_`
+varianty, plně narativní). Nízkoúrovňové instance (Deadmines/WC/SFK/BFD/SM) mají
+**2-questový řetězec** (`_1 → _2` přes `requiresQuest`; dungeon gated finálním
+questem); 40–60 instance mají 1-questový gate. Dungeony **Wailing Caverns** (17) a
+**Blackfathom Deeps** (24) přibyly v M12.5 a vyplňují pásmo 15–30. Vše čistě data —
+group-run model, combat engine i web/API se nemění (vše iteruje přes `DUNGEONS`).
 
 ### Boss loot (`DUNGEON_LOOT_TABLES` v `loot.ts`)
 
