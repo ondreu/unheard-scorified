@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { availableQuests, isQuestAvailable, QUESTS, QUEST_IDS } from './quests';
-import { ZONES } from './zones';
+import { ZONES, ZONE_IDS } from './zones';
+import { ZONE_TO_BRACKET, ZONE_LOOT_TABLES } from '../loot';
+import { questHasNarrative } from '../quest-run';
 
 describe('katalog questů — integrita', () => {
   it('id záznamu = id questu', () => {
@@ -74,10 +76,12 @@ describe('availableQuests', () => {
   });
 
   it('frakce vidí jen své zóny napříč levely', () => {
-    const allianceZones = new Set(availableQuests(40, [], 'alliance').map((q) => q.zoneId));
-    const hordeZones = new Set(availableQuests(40, [], 'horde').map((q) => q.zoneId));
-    for (const z of allianceZones) expect(['northshire', 'westfall', 'duskwood']).toContain(z);
-    for (const z of hordeZones) expect(['durotar', 'barrens', 'thousand_needles']).toContain(z);
+    const allianceZones = new Set(availableQuests(60, [], 'alliance').map((q) => q.zoneId));
+    const hordeZones = new Set(availableQuests(60, [], 'horde').map((q) => q.zoneId));
+    for (const z of allianceZones)
+      expect(['northshire', 'westfall', 'duskwood', 'eastern_plaguelands']).toContain(z);
+    for (const z of hordeZones)
+      expect(['durotar', 'barrens', 'thousand_needles', 'felwood']).toContain(z);
   });
 
   it('řadí podle requiredLevel vzestupně', () => {
@@ -94,5 +98,55 @@ describe('availableQuests', () => {
     ).map((q) => q.requiredLevel);
     const sorted = [...levels].sort((a, b) => a - b);
     expect(levels).toEqual(sorted);
+  });
+});
+
+describe('M12 — 40–60 frontier zóny (Eastern Plaguelands / Felwood)', () => {
+  it('každá zóna má přiřazený loot bracket (a ten existuje)', () => {
+    for (const z of ZONE_IDS) {
+      const bracket = ZONE_TO_BRACKET[z];
+      expect(bracket, `zóna ${z} nemá loot bracket`).toBeDefined();
+      expect(ZONE_LOOT_TABLES[bracket!], `bracket ${bracket} chybí v ZONE_LOOT_TABLES`).toBeDefined();
+    }
+  });
+
+  it('nové story questy mají vícekrokový narativ (steps)', () => {
+    const storyIds = [
+      'epl_argent_dawn', 'epl_scarlet_crusade', 'epl_scourge_necropolis',
+      'fw_cenarion_aid', 'fw_shadow_council', 'fw_deadwind_ritual',
+    ];
+    for (const id of storyIds) {
+      const q = QUESTS[id]!;
+      expect(q, `quest ${id} chybí`).toBeDefined();
+      expect(questHasNarrative(q), `quest ${id} nemá narativ`).toBe(true);
+      expect(q.steps!.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('frontier story chain je gated předchozí zónou a levelem 40', () => {
+    // Bez dokončené předchozí zóny ani na správném levelu nepustí.
+    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, [], 'alliance')).toBe(false);
+    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_morbent_fel'], 'alliance')).toBe(true);
+    expect(isQuestAvailable(QUESTS.fw_cenarion_aid!, 40, ['tn_galak_ogres'], 'horde')).toBe(true);
+    // a patří jen své frakci
+    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_morbent_fel'], 'horde')).toBe(false);
+  });
+
+  it('frontier zóny jsou paralelní (stejné levely/odměny napříč frakcemi)', () => {
+    const pairs: [string, string][] = [
+      ['epl_argent_dawn', 'fw_cenarion_aid'],
+      ['epl_scarlet_crusade', 'fw_shadow_council'],
+      ['epl_scourge_necropolis', 'fw_deadwind_ritual'],
+      ['epl_cleansing_crystals', 'fw_felpine_cleanup'],
+      ['epl_plague_cauldrons', 'fw_demon_wardens'],
+    ];
+    for (const [a, b] of pairs) {
+      const qa = QUESTS[a]!;
+      const qb = QUESTS[b]!;
+      expect(qa.requiredLevel).toBe(qb.requiredLevel);
+      expect(qa.durationSec).toBe(qb.durationSec);
+      expect(qa.baseXp).toBe(qb.baseXp);
+      expect(qa.baseGold).toBe(qb.baseGold);
+    }
   });
 });

@@ -79,6 +79,27 @@ export const ZONE_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'arcane_robes', dropChance: 0.03 },
     ],
   },
+  // Alliance/Horde Tier 4 zóny (level 40–60) — M12 frontier (EPL / Felwood)
+  bracket_4: {
+    anyDropChance: 0.32,
+    entries: [
+      { itemId: 'plaguebloom_circlet', dropChance: 0.10 },
+      { itemId: 'runecloth_robe', dropChance: 0.10 },
+      { itemId: 'girdle_of_the_mendicant', dropChance: 0.10 },
+      { itemId: 'wildheart_spaulders', dropChance: 0.10 },
+      { itemId: 'feltracker_boots', dropChance: 0.10 },
+      { itemId: 'chromatic_chainmail', dropChance: 0.10 },
+      { itemId: 'plaguehound_leggings', dropChance: 0.10 },
+      { itemId: 'gauntlets_of_the_fallen', dropChance: 0.10 },
+      { itemId: 'bracers_of_undeath', dropChance: 0.10 },
+      { itemId: 'bonereaver_greatsword', dropChance: 0.08 },
+      { itemId: 'wardens_bulwark', dropChance: 0.08 },
+      { itemId: 'corruptors_cloak', dropChance: 0.10 },
+      { itemId: 'cenarion_signet', dropChance: 0.10 },
+      // Epic (vzácný)
+      { itemId: 'nightmare_band', dropChance: 0.03 },
+    ],
+  },
 };
 
 /** Zone → loot bracket mapping (z quests.ts zoneId). */
@@ -86,9 +107,11 @@ export const ZONE_TO_BRACKET: Record<string, string> = {
   northshire: 'bracket_1',
   durotar: 'bracket_1',
   westfall: 'bracket_2',
-  the_barrens: 'bracket_2',
+  barrens: 'bracket_2',
   duskwood: 'bracket_3',
   thousand_needles: 'bracket_3',
+  eastern_plaguelands: 'bracket_4',
+  felwood: 'bracket_4',
 };
 
 /**

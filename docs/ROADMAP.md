@@ -649,14 +649,25 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > tohle je **velká dávka obsahu**. Vše staví na existujících systémech (quest
 > steps/events, `DungeonDef.attunement`, `RaidAttunement`) — žádná nová mechanika,
 > jen data + balanc. Realizovat inkrementálně (po zónách / instancích), ne najednou.
+>
+> **Status: rozpracováno** — 1. inkrement: **nové zóny 40–60 ✅** (Eastern
+> Plaguelands / Felwood, plný narativní questline + frontier loot bracket).
 
 - [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
       beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
       grind 1–60 nebyl pár questů dokola, ať je vždy „co dělat dál".
+  - [x] **Nové 40–60 zóny** (M12.1): Eastern Plaguelands (Alliance) + Felwood
+        (Horde), paralelní 3-dílná story questline (lvl 40/48/55, plné narativní
+        `steps` + combat) + 2 repeatable (quick/long) na zónu. Odměny kalibrované
+        (`600·√L·h` XP / `40·√L·h` gold). Nový loot bracket `bracket_4` (ilvl
+        ~45–56, 14 nových itemů napříč armor typy + zbraň/štít/plášť/šperky, 1 epic).
+        Při tom opraven loot bug: Barrens mapovaný špatným klíčem (`the_barrens`)
+        → questy v Barrens nedropovaly loot.
 - [ ] **Lore rozdělený po zónách** — každá zóna má soudržný příběh/téma (frakce
       kosmetická → Alliance/Horde paralelně). Lokace, NPC, nepřátelé, motiv questline.
-      Dopsat zbylé existující zóny (Westfall/Duskwood/Barrens/Thousand Needles) +
-      nové zóny pro pásmo 40–60 (viz „Late-game obsah 40–60" v backlogu).
+      - [x] Nové 40–60 zóny (Eastern Plaguelands / Felwood) — viz výše.
+      - [ ] Dopsat narativní `steps`/lore zbylých fallback zón
+            (Westfall/Duskwood/Barrens/Thousand Needles) — engine hotový, jen obsah.
 - [ ] **Attunement questlinky** — pro dungeony i raidy (rozšíření `DungeonDef.
       attunement` / `RaidAttunement`). Každá instance má vlastní lore questline,
       který ji odemyká (ne jen level gate).
@@ -714,6 +725,9 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       kde je dnes tenký obsah (dungeony končí Scarlet Monastery lvl 30–38, pak jen
       repeatable questy + 2 raidy). Doplnit zóny/questlinky a **dungeony pro 40–60**,
       ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
+  - [x] **Zóny + questy 40–60** (M12.1): Eastern Plaguelands / Felwood (story
+        questline 40/48/55 + repeatable + `bracket_4` loot). Zbývají **dungeony
+        a raidy pro 40–60** (M12).
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
   - [x] +6 repeatable filler questů (1 na zónu, M9) — víc idle obsahu napříč brackety.
   - [x] **Narrative engine + vícekrokové story questy s combatem** (M9, ADR 0024):
