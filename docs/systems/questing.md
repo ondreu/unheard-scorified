@@ -52,7 +52,7 @@ finishesAt }`.
 - **Questy**: `story` (lineární chain přes `requiresQuest`, jednorázové). Balanc
   (doba, odměny) se ladí v datech.
 - **Gone Questing** (generický grind, ADR 0025): místo repeatable questů jediná
-  idle aktivita s **hráčem volenou délkou** (5 min–12 h). Level flexuje s postavou,
+  idle aktivita s **hráčem volenou délkou** (5 min–6 h). Level flexuje s postavou,
   zóna (loot bracket + flavor) se auto-odvodí (`questingZoneForLevel`), odměny =
   čas × `referenceXpPerHour(level)` × efektivita; loot 1 roll / 30 min běhu.
   Interní `ActivityType 'grind'`; engine náhodných událostí (`quest.events`)

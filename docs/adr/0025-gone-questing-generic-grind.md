@@ -21,7 +21,7 @@ upozornil PM:
 - **Příběhové (`story`) questy zůstávají** jako kurátorovaná, jednorázová páteř
   (rozšíří se v M12).
 - **Repeatable questy se ruší** a nahrazuje je jeden generický **„Gone Questing"**:
-  - Hráč zvolí **jen délku** běhu (5 min – 12 h). Žádný výběr konkrétního questu/zóny.
+  - Hráč zvolí **jen délku** běhu (5 min – 6 h). Žádný výběr konkrétního questu/zóny.
   - **Level flexuje s hráčem**: efektivní level = aktuální level postavy (snapshot
     při startu). Zóna (loot bracket + flavor nepřátele) se **auto-odvodí** z levelu
     a frakce (`questingZoneForLevel`).
@@ -48,7 +48,7 @@ upozornil PM:
 
 ## Důsledky
 
-- **Idle od začátku**: level-1 hráč zařadí klidně 12h běh přes noc.
+- **Idle od začátku**: level-1 hráč zařadí klidně 6h běh (set & forget).
 - **Míň nutného obsahu**: grind nese propustnost; do questů investujeme úsilí jen
   na kvalitní příběh (M12), ne na kvantitu filleru.
 - **Interní název zůstává `grind`** (odlišení od reálných questů `quest`); „Gone
@@ -57,7 +57,7 @@ upozornil PM:
 
 ## Drop rate (orientačně)
 
-Per roll = `anyDropChance` bracketu (0.25–0.32). 1 roll / 30 min, takže např. **10h
-běh ≈ 20 rollů** → očekávaně ~5–6 itemů, šance na alespoň jeden ~99,7 %+. XP nad
+Per roll = `anyDropChance` bracketu (0.25–0.32). 1 roll / 30 min, takže max **6h
+běh = 12 rollů** → očekávaně ~3–4 itemy, šance na alespoň jeden ~97–99 %. XP nad
 cap (lvl 60) se nevyužije (jen zlato/loot mají smysl). Balanc (`GRIND.*`) laditelný
 na jednom místě.

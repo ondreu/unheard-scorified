@@ -94,8 +94,8 @@ export const TARGET_HOURS_TO_CAP = 2200;
  *   hráč udělal odpovídající počet krátkých questů). Overflow přes poštu.
  *
  * Vlastní (delší) délkové meze než `ACTIVITY_DURATION_BOUNDS`: questing je
- * „set & forget přes noc" → strop až `maxSec`. Efektivita >3 h zůstává 0.8
- * (křivka je clampnutá). Balanc se ladí ZDE.
+ * „set & forget" → strop až `maxSec` (delší než 3h quest cap). Efektivita >3 h
+ * zůstává 0.8 (křivka je clampnutá). Balanc se ladí ZDE.
  */
 export const GRIND = {
   /** Variance zlata (±) přes SeededRng. */
@@ -104,6 +104,6 @@ export const GRIND = {
   lootRollSec: 1800,
   /** Nejkratší questing běh (s) — 5 min. */
   minSec: 300,
-  /** Nejdelší questing běh (s) — 12 h (idle přes noc, delší než 3h quest cap). */
-  maxSec: 43200,
+  /** Nejdelší questing běh (s) — 6 h (idle „set & forget", delší než 3h quest cap). */
+  maxSec: 21600,
 } as const;

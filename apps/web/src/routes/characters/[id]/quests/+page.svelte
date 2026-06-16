@@ -32,7 +32,6 @@
     { label: '1 hour', sec: 3600 },
     { label: '3 hours', sec: 10800 },
     { label: '6 hours', sec: 21600 },
-    { label: '12 hours', sec: 43200 },
   ];
 
   let quests = $state<QuestView[]>([]);
