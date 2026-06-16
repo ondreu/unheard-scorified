@@ -14,6 +14,7 @@
     type RaidRole,
     type RaidRunSummary,
   } from '$lib/api';
+  import SceneBanner from '$lib/components/SceneBanner.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -54,6 +55,8 @@
   let busyId = $state<string | null>(null);
 
   const characterId = $derived($page.params.id ?? '');
+  // Reprezentativní scéna pro hlavičku (první raid v seznamu).
+  const bannerScene = $derived(raids[0]?.id ?? 'molten_core');
 
   onMount(load);
 
@@ -128,13 +131,9 @@
 </script>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <h1 class="font-display text-2xl font-bold text-[var(--gold-bright)]">{ui.title}</h1>
-    <a href={`/characters/${characterId}/group`} class="btn btn-sm">
-      Form a group →
-    </a>
-  </div>
-  <p class="text-xs text-[var(--text-faint)]">{ui.party}</p>
+  <SceneBanner sceneId={bannerScene} title={ui.title} subtitle={ui.party}>
+    <a href={`/characters/${characterId}/group`} class="btn btn-sm"> Form a group → </a>
+  </SceneBanner>
 
   {#if error}
     <p class="text-[var(--danger)]">{error}</p>

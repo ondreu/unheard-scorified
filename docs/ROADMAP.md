@@ -631,7 +631,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (Horde) + lore; ostatní zóny fallback (doplní se v content passu). Testy:
       shared `quest-run.test.ts` (+8) + API questLog/attunement. **ADR 0024**,
       `docs/systems/questing.md`.
-- [ ] PixiJS pixel scénky, nahrazení placeholderů (art dle `ui-art-assets.md`).
+- [x] **PixiJS pixel scénky** ✅ — první PixiJS rendering vrstva v projektu:
+      izolovaná, **deterministická** (seedovaná přes `SeededRng`/`seedFromString`)
+      procedurální pixel-art scenérie pro zóny/dungeony/raidy místo plochých CSS
+      placeholderů. Data-driven katalog témat (`apps/web/src/lib/scenes.ts`:
+      paleta + hřebeny siluet + midground propy + částice per id) → renderer
+      `PixiScene.svelte` (Pixi 8, SSR-safe dynamický import, CSS-gradient fallback,
+      respektuje `prefers-reduced-motion`) + prezentační `SceneBanner.svelte`.
+      Zapojeno do hlaviček: quests / dungeons / raids list + dungeon/raid **watch**.
+      Čistě kosmetické (žádná herní logika). _Reálné PNG bannery/portréty zůstávají
+      na malířce (viz `ui-art-assets.md`) — tohle je „mezikrok" zmíněný v asset specu._
 - [ ] Balanc pass, legacy úklid a další refinementy → viz **M10+ backlog** níže.
 - **Výstup:** vyladěná, vizuálně oživená hra.
 
