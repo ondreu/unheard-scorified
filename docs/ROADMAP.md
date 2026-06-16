@@ -657,12 +657,20 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > Blackrock Depths / Stratholme); 4. inkrement: **attunement questlines pro všechny
 > 40–60 instance ✅**; 5. inkrement: **+2 nízké dungeony (Wailing Caverns 17,
 > Blackfathom Deeps 24) + attunement pro VŠECHNY dungeony ✅** (každý dungeon i raid
-> má teď vlastní questline). Zbývá: dopsat fallback zóny (Westfall/Duskwood/Barrens/
-> Thousand Needles).
+> má teď vlastní questline); 6. inkrement: **fallback zóny dopsány ✅** (Westfall/
+> Duskwood/Barrens/Thousand Needles — viz níže).
 
-- [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
-      beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
-      grind 1–60 nebyl pár questů dokola, ať je vždy „co dělat dál".
+- [x] **Velké množství story questů napříč úrovněmi** ✅ (M12.7): vícekrokové
+      (narativní beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9.
+      Cíl: aby grind 1–60 nebyl pár questů dokola, ať je vždy „co dělat dál".
+      **72 → 108 story questů** (+36, paralelně Alliance/Horde): Northshire/Durotar
+      +4 (vsunuto mezi `_brotherhood_intel`/`_burning_blade` a raid-attunement
+      gate), Westfall/Barrens +4 (vsunuto do existujícího 7-dílného řetězce),
+      Duskwood/Thousand Needles +4 (vsunuto do 6-dílného řetězce), Eastern
+      Plaguelands/Felwood +6 (rozšíření 3-dílné frontier story na 9 dílů, capstone
+      na lvl 60). Odměny dál kalibrované (`600·√L·h` XP / `40·√L·h` gold), žádná
+      kotevní quest ID (referencovaná z attunementů/testů) nezměněna — nové questy
+      vsunuty jako mezičlánky přes `requiresQuest` redirect.
   - [x] **Nové 40–60 zóny** (M12.1): Eastern Plaguelands (Alliance) + Felwood
         (Horde), paralelní 3-dílná story questline (lvl 40/48/55, plné narativní
         `steps` + combat). Odměny kalibrované (`600·√L·h` XP / `40·√L·h` gold).
@@ -673,8 +681,12 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - [ ] **Lore rozdělený po zónách** — každá zóna má soudržný příběh/téma (frakce
       kosmetická → Alliance/Horde paralelně). Lokace, NPC, nepřátelé, motiv questline.
       - [x] Nové 40–60 zóny (Eastern Plaguelands / Felwood) — viz výše.
-      - [ ] Dopsat narativní `steps`/lore zbylých fallback zón
+      - [x] Dopsat narativní `steps`/lore zbylých fallback zón
             (Westfall/Duskwood/Barrens/Thousand Needles) — engine hotový, jen obsah.
+            Westfall/Barrens (lvl 10–24, paralelní 7-dílné questline) a Duskwood/
+            Thousand Needles (lvl 25–38, paralelní 6-dílné questline) plně přepsané
+            na vícekrokový narativ (steps + auto-resolved combaty), zónové gate-questy
+            (`epl_argent_dawn`/`fw_cenarion_aid`) přesměrované na nové konce řetězců.
 - [x] **Attunement questlinky** ✅ (M12.4 + M12.5): **každý dungeon i raid má vlastní
       plně narativní per-frakce attunement questline** (ne jen level gate). Raidy:
       `paragons_of_power` (ZG), `scepter_of_the_sands` (AQ), `drakefire_attunement`
@@ -765,8 +777,9 @@ lobby) a M8.5-D (P2P trade) — staví se první.
   - [x] **Narrative engine + vícekrokové story questy s combatem** (M9, ADR 0024):
         startovní zóny Northshire + Durotar přepsané jako příběh (beaty + auto-resolved
         combaty + lore); repeatable = deterministicky generované náhodné události.
-  - [ ] **Dopsat steps/lore pro zbylé zóny** (Westfall/Duskwood/Barrens/Thousand
-        Needles + raid-attunement questy) — engine hotový, jde o obsah.
+  - [x] **Dopsat steps/lore pro zbylé zóny** (Westfall/Duskwood/Barrens/Thousand
+        Needles) — engine hotový, jde o obsah. Raid-attunement questy řešeny
+        samostatně (viz M12.4/M12.5 výše).
   - [ ] Questy s **reálným combat cílem** (kill/clear řešený enginem s rizikem, ne
         jen flavor uvnitř idle questu).
   - [x] **Dungeon attunement questline** (M9 + M12.4 + M12.5): **každý dungeon** má
