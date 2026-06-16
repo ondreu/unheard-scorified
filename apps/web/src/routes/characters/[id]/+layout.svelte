@@ -17,7 +17,7 @@
   import { RACES, CLASSES } from '@game/shared';
   import { CLASS_COLOR, ROLE_META } from '$lib/cosmetics';
   import { notifications, openProfile } from '$lib/ui-stores';
-  import { NAV_SECTIONS } from '$lib/nav';
+  import { NAV_CATEGORIES, sectionsInGroup, type NavGroup } from '$lib/nav';
   import Avatar from '$lib/components/Avatar.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
@@ -137,10 +137,15 @@
     }
   }
 
-  function isActive(path: string): boolean {
+  function isOverview(): boolean {
+    return pathname === `/characters/${characterId}`;
+  }
+
+  // Kategorie je aktivní na své hub-stránce i na kterékoli své leaf-sekci.
+  function isCategoryActive(group: NavGroup): boolean {
     const base = `/characters/${characterId}`;
-    if (path === '') return pathname === base;
-    return pathname.startsWith(`${base}/${path}`);
+    if (pathname.startsWith(`${base}/hub/${group}`)) return true;
+    return sectionsInGroup(group).some((s) => pathname.startsWith(`${base}/${s.path}`));
   }
 
   const c = $derived(character);
@@ -151,13 +156,19 @@
   <!-- Top bar: identity + gold + alerts -->
   <header class="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur">
     <div class="mx-auto flex max-w-4xl items-center gap-3 px-4 py-2.5">
-      <a href="/characters" class="text-[var(--text-faint)] hover:text-[var(--gold)]" title="Switch character">‹</a>
+      <a
+        href="/characters"
+        class="text-[var(--text-faint)] hover:text-[var(--gold)]"
+        title="Switch character">‹</a
+      >
 
       {#if c}
         <button class="flex min-w-0 items-center gap-2.5" onclick={() => openProfile(c.id, c.name)}>
           <Avatar name={c.name} race={c.race} klass={c.class} size={40} />
           <span class="min-w-0 text-left">
-            <span class="block truncate font-display font-semibold text-[var(--gold-bright)]">{c.name}</span>
+            <span class="block truncate font-display font-semibold text-[var(--gold-bright)]"
+              >{c.name}</span
+            >
             <span class="block truncate text-xs text-[var(--text-dim)]">
               Lv {c.sheet.level} · {RACES[c.race as keyof typeof RACES]?.name}
               <span style={`color:${CLASS_COLOR[c.class] ?? 'inherit'}`}
@@ -177,7 +188,10 @@
           </div>
         </div>
 
-        <span class="ml-auto whitespace-nowrap font-semibold text-[var(--gold-bright)]" title="Gold">
+        <span
+          class="ml-auto whitespace-nowrap font-semibold text-[var(--gold-bright)]"
+          title="Gold"
+        >
           {c.gold} <span class="text-xs text-[var(--text-faint)]">g</span>
         </span>
       {:else}
@@ -220,25 +234,25 @@
       </div>
     {/if}
 
-    <!-- Compact section nav -->
+    <!-- Top nav: Overview + 4 categories (leaves live on the category pages) -->
     <nav class="border-t border-[var(--border)]/60">
-      <div class="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-3 py-1.5 text-sm">
+      <div class="mx-auto flex max-w-4xl gap-1 px-3 py-1.5 text-sm">
         <a
           href={`/characters/${characterId}`}
-          class="shrink-0 rounded-md px-2.5 py-1 {isActive('')
+          class="flex-1 rounded-md px-2.5 py-1 text-center {isOverview()
             ? 'bg-[var(--surface-raised)] text-[var(--gold-bright)]'
             : 'text-[var(--text-dim)] hover:text-[var(--text)]'}"
         >
-          🏠 Overview
+          🏠 <span class="hidden sm:inline">Overview</span>
         </a>
-        {#each NAV_SECTIONS as s (s.path)}
+        {#each NAV_CATEGORIES as cat (cat.group)}
           <a
-            href={`/characters/${characterId}/${s.path}`}
-            class="shrink-0 rounded-md px-2.5 py-1 {isActive(s.path)
+            href={`/characters/${characterId}/hub/${cat.group}`}
+            class="flex-1 rounded-md px-2.5 py-1 text-center {isCategoryActive(cat.group)
               ? 'bg-[var(--surface-raised)] text-[var(--gold-bright)]'
               : 'text-[var(--text-dim)] hover:text-[var(--text)]'}"
           >
-            {s.icon} {s.title}
+            {cat.icon} <span class="hidden sm:inline">{cat.title}</span>
           </a>
         {/each}
       </div>
