@@ -164,6 +164,71 @@ export const DUNGEON_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'arcane_robes', dropChance: 0.06 },
     ],
   },
+  // ── M12: nízkoúrovňové dungeony ─────────────────────────────────────────────
+  wailing_caverns: {
+    anyDropChance: 0.82,
+    entries: [
+      { itemId: 'wc_serpentine_band', dropChance: 0.2 },
+      { itemId: 'wc_deviate_hide_pauldrons', dropChance: 0.2 },
+      // bracket_2 doplněk
+      { itemId: 'ranger_gloves', dropChance: 0.2 },
+      { itemId: 'huntsman_cloak', dropChance: 0.2 },
+      { itemId: 'amber_necklace', dropChance: 0.2 },
+    ],
+  },
+  blackfathom_deeps: {
+    anyDropChance: 0.85,
+    entries: [
+      { itemId: 'bfd_rod_of_the_sleeper', dropChance: 0.2 },
+      { itemId: 'bfd_gaze_dreamer_robes', dropChance: 0.2 },
+      { itemId: 'marauder_shoulders', dropChance: 0.18 },
+      { itemId: 'crusader_belt', dropChance: 0.18 },
+      { itemId: 'mage_trinket', dropChance: 0.18 },
+    ],
+  },
+  // ── M12: 40–60 dungeony ─────────────────────────────────────────────────────
+  zulfarrak: {
+    anyDropChance: 0.88,
+    entries: [
+      { itemId: 'zf_sandstalker_ankleguards', dropChance: 0.18 },
+      { itemId: 'zf_jinxed_hoodoo_staff', dropChance: 0.18 },
+      { itemId: 'zf_bloodmail_gauntlets', dropChance: 0.18 },
+      // bracket_4 frontier gear jako doplněk
+      { itemId: 'feltracker_boots', dropChance: 0.12 },
+      { itemId: 'bracers_of_undeath', dropChance: 0.12 },
+    ],
+  },
+  maraudon: {
+    anyDropChance: 0.9,
+    entries: [
+      { itemId: 'mar_theradras_scepter', dropChance: 0.18 },
+      { itemId: 'mar_elemental_girdle', dropChance: 0.18 },
+      { itemId: 'mar_lifegiving_gem', dropChance: 0.18 },
+      { itemId: 'plaguehound_leggings', dropChance: 0.12 },
+      { itemId: 'cenarion_signet', dropChance: 0.12 },
+    ],
+  },
+  blackrock_depths: {
+    anyDropChance: 0.92,
+    entries: [
+      { itemId: 'brd_ironfoe', dropChance: 0.15 },
+      { itemId: 'brd_emperors_seal', dropChance: 0.18 },
+      { itemId: 'brd_flameweave_cuffs', dropChance: 0.18 },
+      { itemId: 'chromatic_chainmail', dropChance: 0.12 },
+      { itemId: 'gauntlets_of_the_fallen', dropChance: 0.12 },
+    ],
+  },
+  stratholme: {
+    anyDropChance: 0.95,
+    entries: [
+      { itemId: 'strat_runeblade_rivendare', dropChance: 0.14 },
+      { itemId: 'strat_deathbone_legguards', dropChance: 0.16 },
+      { itemId: 'strat_skul_cap', dropChance: 0.18 },
+      { itemId: 'corruptors_cloak', dropChance: 0.12 },
+      // Epic (vzácný)
+      { itemId: 'nightmare_band', dropChance: 0.05 },
+    ],
+  },
 };
 
 /**
@@ -195,6 +260,35 @@ export const RAID_LOOT_TABLES: Record<string, LootTable> = {
       { itemId: 'robe_of_volatile_power', dropChance: 0.1 },
       // Legendary (vzácný)
       { itemId: 'ashkandi', dropChance: 0.04 },
+    ],
+  },
+  // M12 tier 1.5 raid (Zul'Gurub, ~lvl 50) — most mezi Molten Core a Blackwing Lair.
+  zulgurub: {
+    anyDropChance: 0.97,
+    entries: [
+      { itemId: 'zg_halberd_of_smiting', dropChance: 0.16 },
+      { itemId: 'zg_bloodlords_chestplate', dropChance: 0.16 },
+      { itemId: 'zg_primalist_belt', dropChance: 0.16 },
+      { itemId: 'zg_overlord_helmet', dropChance: 0.16 },
+      { itemId: 'zg_jindo_mantle', dropChance: 0.16 },
+      { itemId: 'zg_zanzils_seal', dropChance: 0.16 },
+      // Útěcha z Molten Core (nižší šance)
+      { itemId: 'choker_of_enlightenment', dropChance: 0.08 },
+    ],
+  },
+  // M12 tier 3 raid (Temple of Ahn'Qiraj, ~lvl 58) — nový top-end nad Blackwing Lair.
+  ahnqiraj: {
+    anyDropChance: 1.0,
+    entries: [
+      { itemId: 'aq_silithid_carapace', dropChance: 0.17 },
+      { itemId: 'aq_qiraji_bindings', dropChance: 0.17 },
+      { itemId: 'aq_gloves_of_the_immortal', dropChance: 0.17 },
+      { itemId: 'aq_ring_of_emperors', dropChance: 0.17 },
+      { itemId: 'aq_cloak_of_the_golden_hive', dropChance: 0.17 },
+      // Útěcha z Blackwing Lair
+      { itemId: 'ringo_drakefire', dropChance: 0.1 },
+      // Legendary (velmi vzácný) — C'Thun
+      { itemId: 'aq_scepter_shifting_sands', dropChance: 0.04 },
     ],
   },
 };

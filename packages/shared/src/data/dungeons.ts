@@ -89,6 +89,7 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     name: 'The Deadmines',
     description: 'The Defias Brotherhood\'s hidden goblin shipyard carved into the Westfall cliffs.',
     requiredLevel: 15,
+    attunement: { questAnyOf: ['al_dm_attune_2', 'ho_dm_attune_2'] },
     recommendedLevel: 20,
     baseXp: 760,
     baseGold: 45,
@@ -101,12 +102,32 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
+  // ── Wailing Caverns (17–24, M12) ────────────────────────────────────────────
+  wailing_caverns: {
+    id: 'wailing_caverns',
+    name: 'Wailing Caverns',
+    description: 'A humid network of vine-choked tunnels beneath the Barrens, where the druid Naralex dreams a nightmare into the world.',
+    requiredLevel: 17,
+    attunement: { questAnyOf: ['al_wc_attune_2', 'ho_wc_attune_2'] },
+    recommendedLevel: 24,
+    baseXp: 1050,
+    baseGold: 55,
+    goldVariance: 0.25,
+    encounters: [
+      enemy('wc_adder', 'Deviate Adder', 250, 16, 2.5),
+      enemy('wc_druid', 'Druid of the Fang', 280, 19, 2.6),
+      enemy('wc_serpent', 'Deviate Ravager', 360, 22, 2.4, { armor: 40 }),
+      enemy('wc_mutanus', 'Mutanus the Devourer', 640, 27, 2.3, { armor: 60, isBoss: true }),
+    ],
+  },
+
   // ── Shadowfang Keep (20–26) ────────────────────────────────────────────────
   shadowfang_keep: {
     id: 'shadowfang_keep',
     name: 'Shadowfang Keep',
     description: 'A cursed fortress where Archmage Arugal\'s worgen prowl the moonlit halls.',
     requiredLevel: 20,
+    attunement: { questAnyOf: ['al_sfk_attune_2', 'ho_sfk_attune_2'] },
     recommendedLevel: 26,
     baseXp: 1500,
     baseGold: 70,
@@ -119,12 +140,32 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
+  // ── Blackfathom Deeps (24–29, M12) ──────────────────────────────────────────
+  blackfathom_deeps: {
+    id: 'blackfathom_deeps',
+    name: 'Blackfathom Deeps',
+    description: 'A sunken temple of the moon goddess off the Ashenvale coast, now a flooded lair where naga and the Twilight\'s Hammer rouse the beast Aku\'mai.',
+    requiredLevel: 24,
+    attunement: { questAnyOf: ['al_bfd_attune_2', 'ho_bfd_attune_2'] },
+    recommendedLevel: 29,
+    baseXp: 2600,
+    baseGold: 95,
+    goldVariance: 0.2,
+    encounters: [
+      enemy('bfd_acolyte', 'Twilight Acolyte', 380, 25, 2.5),
+      enemy('bfd_naga', 'Aku\'mai Servant', 420, 28, 2.6),
+      enemy('bfd_priestess', 'Twilight Priestess', 560, 31, 2.4, { armor: 50 }),
+      enemy('bfd_akumai', 'Aku\'mai', 880, 35, 2.3, { armor: 70, isBoss: true }),
+    ],
+  },
+
   // ── Scarlet Monastery (30–38) ──────────────────────────────────────────────
   scarlet_monastery: {
     id: 'scarlet_monastery',
     name: 'Scarlet Monastery',
     description: 'The fanatical Scarlet Crusade\'s stronghold, led by the zealot Herod and High Inquisitor Whitemane.',
     requiredLevel: 30,
+    attunement: { questAnyOf: ['al_sm_attune_2', 'ho_sm_attune_2'] },
     recommendedLevel: 38,
     baseXp: 4200,
     baseGold: 140,
@@ -135,6 +176,86 @@ export const DUNGEONS: Record<string, DungeonDef> = {
       enemy('sm_monk', 'Scarlet Monk', 500, 33, 2.6),
       enemy('sm_herod', 'Herod the Champion', 820, 38, 2.2, { armor: 90 }),
       enemy('sm_whitemane', 'High Inquisitor Whitemane', 1050, 42, 2.4, { armor: 70, isBoss: true }),
+    ],
+  },
+
+  // ── Zul'Farrak (42–47, M12) ─────────────────────────────────────────────────
+  zulfarrak: {
+    id: 'zulfarrak',
+    name: "Zul'Farrak",
+    description: 'A Sandfury troll city baking in the Tanaris desert, where blood rituals call a serpent god from the sacred pool.',
+    requiredLevel: 42,
+    attunement: { questAnyOf: ['al_zf_attunement', 'ho_zf_attunement'] },
+    recommendedLevel: 47,
+    baseXp: 6500,
+    baseGold: 200,
+    goldVariance: 0.2,
+    encounters: [
+      enemy('zf_axethrower', 'Sandfury Axe Thrower', 560, 44, 2.5),
+      enemy('zf_hoodoo', 'Sandfury Hoodoo Priest', 600, 47, 2.6),
+      enemy('zf_gahzrilla', "Gahz'rilla", 980, 52, 2.3, { armor: 80 }),
+      enemy('zf_ukorz', 'Chief Ukorz Sandscalp', 1300, 56, 2.4, { armor: 90, isBoss: true }),
+    ],
+  },
+
+  // ── Maraudon (46–52, M12) ───────────────────────────────────────────────────
+  maraudon: {
+    id: 'maraudon',
+    name: 'Maraudon',
+    description: 'A crystalline cavern poisoned by the union of an earth elemental and the demigod Zaetar, ruled now by their daughter Princess Theradras.',
+    requiredLevel: 46,
+    attunement: { questAnyOf: ['al_mar_attunement', 'ho_mar_attunement'] },
+    recommendedLevel: 52,
+    baseXp: 8200,
+    baseGold: 250,
+    goldVariance: 0.2,
+    encounters: [
+      enemy('mar_noxxion', 'Noxxion Spawn', 700, 50, 2.5),
+      enemy('mar_treant', 'Corrupted Treant', 760, 54, 2.6),
+      enemy('mar_landslide', 'Landslide', 1150, 58, 2.3, { armor: 100 }),
+      enemy('mar_theradras', 'Princess Theradras', 1600, 62, 2.4, { armor: 90, isBoss: true }),
+    ],
+  },
+
+  // ── Blackrock Depths (52–58, M12) ───────────────────────────────────────────
+  blackrock_depths: {
+    id: 'blackrock_depths',
+    name: 'Blackrock Depths',
+    description: 'The vast Dark Iron dwarf city deep in the mountain, where Emperor Dagran Thaurissan rules over forge, arena, and prison.',
+    requiredLevel: 52,
+    attunement: { questAnyOf: ['al_brd_attunement', 'ho_brd_attunement'] },
+    recommendedLevel: 58,
+    baseXp: 11000,
+    baseGold: 320,
+    goldVariance: 0.2,
+    weeklyLockout: true,
+    encounters: [
+      enemy('brd_guard', 'Anvilrage Guardsman', 900, 60, 2.5, { armor: 80 }),
+      enemy('brd_geologist', 'Dark Iron Geologist', 950, 64, 2.6),
+      enemy('brd_angerforge', 'General Angerforge', 1500, 70, 2.3, { armor: 110 }),
+      enemy('brd_thaurissan', 'Emperor Dagran Thaurissan', 2100, 74, 2.4, { armor: 120, isBoss: true }),
+    ],
+  },
+
+  // ── Stratholme (58–60, M12) ─────────────────────────────────────────────────
+  stratholme: {
+    id: 'stratholme',
+    name: 'Stratholme',
+    description: 'The plagued city of Lordaeron, half claimed by the Scarlet Crusade and half by the Scourge under the dreadlord-served Baron Rivendare.',
+    requiredLevel: 58,
+    // Attunement (M12): capstone dungeon gated vlastní questline navazující na
+    // frontier zóny (Eastern Plaguelands / Felwood).
+    attunement: { questAnyOf: ['al_culling_stratholme', 'ho_culling_stratholme'] },
+    recommendedLevel: 60,
+    baseXp: 14500,
+    baseGold: 400,
+    goldVariance: 0.2,
+    weeklyLockout: true,
+    encounters: [
+      enemy('strat_zombie', 'Plagued Zombie', 1100, 72, 2.5),
+      enemy('strat_cryptfiend', 'Crypt Fiend', 1180, 76, 2.6, { armor: 70 }),
+      enemy('strat_ramstein', 'Ramstein the Gorger', 1900, 82, 2.3, { armor: 120 }),
+      enemy('strat_baron', 'Baron Rivendare', 2600, 88, 2.4, { armor: 130, isBoss: true }),
     ],
   },
 };

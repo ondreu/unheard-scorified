@@ -35,16 +35,25 @@ party útočí/léčí, boss cílí prvního živého tanka (jinak nejodolnějš
 `RAID_ENRAGE_SEC` enrage. Wipe (celá party mrtvá) = defeat, mezi bossy částečný
 heal. Vrací `CombatEvent[]` timeline + `victory` + `durationSec`.
 
-## Obsah (2 raidy × 3 bossy)
+## Obsah (4 raidy × 3 bossy)
 
 `packages/shared/src/data/raids.ts`:
 
-| Raid | Level | Bossové | Attunement |
-| --- | --- | --- | --- |
-| Molten Core | 40 | Lucifron, Magmadar, Ragnaros | dokončený tier-3 capstone (`dw_morbent_fel` / `tn_galak_ogres`) |
-| Blackwing Lair | 55 | Razorgore, Vaelastrasz, Nefarian | `al_/ho_drakefire_attunement` (questline) |
+| Raid | Level | Velikosti | Bossové | Attunement |
+| --- | --- | --- | --- | --- |
+| Molten Core | 40 | 5/10/20 | Lucifron, Magmadar, Ragnaros | dokončený tier-3 capstone (`dw_morbent_fel` / `tn_galak_ogres`) |
+| Zul'Gurub | 50 | 10/20 | High Priest Venoxis, Bloodlord Mandokir, Hakkar the Soulflayer | `al_/ho_paragons_of_power` (questline, M12) |
+| Blackwing Lair | 55 | 10/20 | Razorgore, Vaelastrasz, Nefarian | `al_/ho_drakefire_attunement` (questline) |
+| Temple of Ahn'Qiraj | 58 | 10/20 | The Prophet Skeram, Battleguard Sartura, C'Thun | `al_/ho_scepter_of_the_sands` (questline, M12) |
 
-Loot: `RAID_LOOT_TABLES` (loot.ts) → epic/legendary raid gear (`items.ts`).
+Progrese: MC (40) → **Zul'Gurub (50)** → BWL (55) → **Temple of Ahn'Qiraj (58)** vyplňuje
+dříve tenké pásmo 40–60. ZG i AQ přibyly v **M12** (jen data — combat/run model i
+web/API se nemění, vše iteruje přes `RAIDS`).
+
+Loot: `RAID_LOOT_TABLES` (loot.ts) → epic/legendary raid gear (`items.ts`, vše BoP).
+ZG = epic ilvl 54–57; AQ = epic ilvl 62–65 + legendary `aq_scepter_shifting_sands`
+(ilvl 68) od C'Thuna. Attunement questy jsou plně narativní (M12 styl, per-frakce
+paralelní), navazují na frontier questlines (EPL / Felwood).
 `isRaidUnlocked(raidId, level, completedQuestIds)` = level + alespoň jeden attunement quest.
 
 ## Matchmaking (jen reální hráči — bez NPC backfillu)

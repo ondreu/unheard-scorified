@@ -475,6 +475,164 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     stats: { intellect: 14, stamina: 12, spell_power: 14 },
   },
 
+  // --- M12: Zul'Gurub raid loot (epic, ~lvl 50, ilvl 54–57, raid-only, BoP) ---
+  // Vyplňuje progresní krok mezi Molten Core (ilvl ~48–50) a Blackwing Lair
+  // (ilvl ~62–66). Pokrývá zbraň + plate/mail/leather/cloth + prsten.
+  zg_halberd_of_smiting: {
+    id: 'zg_halberd_of_smiting', name: 'Halberd of Smiting', slot: 'main_hand',
+    rarity: 'epic', itemLevel: 57, vendorGold: 95,
+    stats: { strength: 22, stamina: 15, attack_power: 30, crit_rating: 9 },
+  },
+  zg_bloodlords_chestplate: {
+    id: 'zg_bloodlords_chestplate', name: "Bloodlord's Chestplate", slot: 'chest',
+    rarity: 'epic', itemLevel: 56, vendorGold: 92,
+    stats: { strength: 20, stamina: 18, armor: 95 },
+  },
+  zg_primalist_belt: {
+    id: 'zg_primalist_belt', name: 'Primalist Belt', slot: 'waist',
+    rarity: 'epic', itemLevel: 54, vendorGold: 84,
+    stats: { agility: 17, stamina: 13, attack_power: 22 },
+  },
+  zg_overlord_helmet: {
+    id: 'zg_overlord_helmet', name: "Overlord's Helmet", slot: 'head',
+    rarity: 'epic', itemLevel: 55, vendorGold: 88,
+    stats: { agility: 19, stamina: 14, crit_rating: 10 },
+  },
+  zg_jindo_mantle: {
+    id: 'zg_jindo_mantle', name: 'Mantle of the Blood God', slot: 'shoulder',
+    rarity: 'epic', itemLevel: 55, vendorGold: 88,
+    stats: { intellect: 20, spirit: 13, spell_power: 22 },
+  },
+  zg_zanzils_seal: {
+    id: 'zg_zanzils_seal', name: "Zanzil's Seal", slot: 'finger',
+    rarity: 'epic', itemLevel: 54, vendorGold: 84,
+    stats: { intellect: 14, stamina: 12, spell_power: 14 },
+  },
+
+  // --- M12: Temple of Ahn'Qiraj raid loot (epic/legendary, ~lvl 58, ilvl 62–68,
+  // raid-only, BoP) — nový top-end nad Blackwing Lair. C'Thun roní legendu. ---
+  aq_scepter_shifting_sands: {
+    id: 'aq_scepter_shifting_sands', name: 'Scepter of the Shifting Sands', slot: 'main_hand',
+    rarity: 'legendary', itemLevel: 68, vendorGold: 220,
+    stats: { intellect: 32, spirit: 20, spell_power: 40, crit_rating: 14 },
+  },
+  aq_silithid_carapace: {
+    id: 'aq_silithid_carapace', name: 'Silithid Carapace Breastplate', slot: 'chest',
+    rarity: 'epic', itemLevel: 65, vendorGold: 160,
+    stats: { strength: 28, stamina: 24, armor: 130 },
+  },
+  aq_qiraji_bindings: {
+    id: 'aq_qiraji_bindings', name: 'Qiraji Bindings of Command', slot: 'wrist',
+    rarity: 'epic', itemLevel: 63, vendorGold: 145,
+    stats: { agility: 22, stamina: 16, attack_power: 24 },
+  },
+  aq_gloves_of_the_immortal: {
+    id: 'aq_gloves_of_the_immortal', name: 'Gloves of the Immortal', slot: 'hands',
+    rarity: 'epic', itemLevel: 64, vendorGold: 150,
+    stats: { intellect: 24, spirit: 16, spell_power: 24 },
+  },
+  aq_ring_of_emperors: {
+    id: 'aq_ring_of_emperors', name: 'Ring of the Fallen Emperors', slot: 'finger',
+    rarity: 'epic', itemLevel: 63, vendorGold: 145,
+    stats: { strength: 18, stamina: 16, crit_rating: 14 },
+  },
+  aq_cloak_of_the_golden_hive: {
+    id: 'aq_cloak_of_the_golden_hive', name: 'Cloak of the Golden Hive', slot: 'back',
+    rarity: 'epic', itemLevel: 62, vendorGold: 140,
+    stats: { agility: 18, stamina: 14, attack_power: 20 },
+  },
+
+  // --- M12: nízkoúrovňové dungeon loot (BoP, instance-only) ---
+  // Wailing Caverns (~lvl 17–24)
+  wc_serpentine_band: {
+    id: 'wc_serpentine_band', name: 'Serpentine Band', slot: 'finger',
+    rarity: 'rare', itemLevel: 22, vendorGold: 14,
+    stats: { intellect: 6, spirit: 5 },
+  },
+  wc_deviate_hide_pauldrons: {
+    id: 'wc_deviate_hide_pauldrons', name: 'Deviate Hide Pauldrons', slot: 'shoulder',
+    rarity: 'rare', itemLevel: 23, vendorGold: 16,
+    stats: { agility: 7, stamina: 6 },
+  },
+  // Blackfathom Deeps (~lvl 24–29)
+  bfd_rod_of_the_sleeper: {
+    id: 'bfd_rod_of_the_sleeper', name: 'Rod of the Sleeper', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 28, vendorGold: 22,
+    stats: { intellect: 9, spirit: 5, spell_power: 11 },
+  },
+  bfd_gaze_dreamer_robes: {
+    id: 'bfd_gaze_dreamer_robes', name: "Gaze Dreamer's Robes", slot: 'chest',
+    rarity: 'rare', itemLevel: 27, vendorGold: 20,
+    stats: { intellect: 10, spirit: 7, spell_power: 8 },
+  },
+
+  // --- M12: 40–60 dungeon loot (BoP, instance-only). Vyplňuje itemizaci pásma
+  // 42–60 vedle bracket_4 quest gearu a raid epiců. ---
+  // Zul'Farrak (~lvl 42–47)
+  zf_sandstalker_ankleguards: {
+    id: 'zf_sandstalker_ankleguards', name: 'Sandstalker Ankleguards', slot: 'feet',
+    rarity: 'rare', itemLevel: 47, vendorGold: 42,
+    stats: { agility: 13, stamina: 10, crit_rating: 5 },
+  },
+  zf_jinxed_hoodoo_staff: {
+    id: 'zf_jinxed_hoodoo_staff', name: 'Jinxed Hoodoo Staff', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 48, vendorGold: 46,
+    stats: { intellect: 15, spirit: 9, spell_power: 16 },
+  },
+  zf_bloodmail_gauntlets: {
+    id: 'zf_bloodmail_gauntlets', name: 'Bloodmail Gauntlets', slot: 'hands',
+    rarity: 'rare', itemLevel: 47, vendorGold: 42,
+    stats: { strength: 13, stamina: 11, armor: 50 },
+  },
+  // Maraudon (~lvl 46–52)
+  mar_theradras_scepter: {
+    id: 'mar_theradras_scepter', name: "Theradras' Scepter", slot: 'main_hand',
+    rarity: 'rare', itemLevel: 51, vendorGold: 54,
+    stats: { intellect: 17, spirit: 10, spell_power: 18 },
+  },
+  mar_elemental_girdle: {
+    id: 'mar_elemental_girdle', name: 'Elemental Rockridge Girdle', slot: 'waist',
+    rarity: 'rare', itemLevel: 50, vendorGold: 50,
+    stats: { agility: 14, stamina: 12, attack_power: 18 },
+  },
+  mar_lifegiving_gem: {
+    id: 'mar_lifegiving_gem', name: 'Lifegiving Gem', slot: 'trinket',
+    rarity: 'rare', itemLevel: 51, vendorGold: 54,
+    stats: { stamina: 18, spirit: 8 },
+  },
+  // Blackrock Depths (~lvl 52–58)
+  brd_ironfoe: {
+    id: 'brd_ironfoe', name: 'Ironfoe', slot: 'main_hand',
+    rarity: 'epic', itemLevel: 56, vendorGold: 92,
+    stats: { strength: 20, stamina: 14, attack_power: 26, crit_rating: 8 },
+  },
+  brd_emperors_seal: {
+    id: 'brd_emperors_seal', name: "Emperor's Seal", slot: 'finger',
+    rarity: 'rare', itemLevel: 55, vendorGold: 56,
+    stats: { strength: 12, stamina: 12, crit_rating: 6 },
+  },
+  brd_flameweave_cuffs: {
+    id: 'brd_flameweave_cuffs', name: 'Flameweave Cuffs', slot: 'wrist',
+    rarity: 'rare', itemLevel: 54, vendorGold: 52,
+    stats: { intellect: 13, spirit: 8, spell_power: 10 },
+  },
+  // Stratholme (~lvl 58–60)
+  strat_runeblade_rivendare: {
+    id: 'strat_runeblade_rivendare', name: 'Runeblade of Baron Rivendare', slot: 'main_hand',
+    rarity: 'epic', itemLevel: 60, vendorGold: 110,
+    stats: { strength: 24, stamina: 16, attack_power: 30, crit_rating: 10 },
+  },
+  strat_deathbone_legguards: {
+    id: 'strat_deathbone_legguards', name: 'Deathbone Legguards', slot: 'legs',
+    rarity: 'epic', itemLevel: 60, vendorGold: 105,
+    stats: { strength: 22, stamina: 20, armor: 110 },
+  },
+  strat_skul_cap: {
+    id: 'strat_skul_cap', name: "Skul's Ghastly Touch", slot: 'head',
+    rarity: 'rare', itemLevel: 58, vendorGold: 60,
+    stats: { intellect: 18, spirit: 11, spell_power: 16 },
+  },
+
   // --- Batohy (M10 limited inventory): vloží se do bag slotu a přidají sloty.
   // Žádné staty; vendor prodává malé, větší jsou cíl craftu (follow-up). ---
   small_pouch: {
@@ -514,6 +672,20 @@ const BIND_ON_PICKUP: ItemId[] = [
   'sabatons_of_the_flamewalker', 'choker_of_enlightenment', 'ashkandi',
   'netherwind_crown', 'drake_talon_pauldrons', 'ringo_drakefire',
   'cloak_of_draconic_might',
+  // M12 Zul'Gurub raid loot
+  'zg_halberd_of_smiting', 'zg_bloodlords_chestplate', 'zg_primalist_belt',
+  'zg_overlord_helmet', 'zg_jindo_mantle', 'zg_zanzils_seal',
+  // M12 Temple of Ahn'Qiraj raid loot
+  'aq_scepter_shifting_sands', 'aq_silithid_carapace', 'aq_qiraji_bindings',
+  'aq_gloves_of_the_immortal', 'aq_ring_of_emperors', 'aq_cloak_of_the_golden_hive',
+  // M12 40–60 dungeon loot
+  'zf_sandstalker_ankleguards', 'zf_jinxed_hoodoo_staff', 'zf_bloodmail_gauntlets',
+  'mar_theradras_scepter', 'mar_elemental_girdle', 'mar_lifegiving_gem',
+  'brd_ironfoe', 'brd_emperors_seal', 'brd_flameweave_cuffs',
+  'strat_runeblade_rivendare', 'strat_deathbone_legguards', 'strat_skul_cap',
+  // M12 nízkoúrovňové dungeon loot
+  'wc_serpentine_band', 'wc_deviate_hide_pauldrons',
+  'bfd_rod_of_the_sleeper', 'bfd_gaze_dreamer_robes',
 ];
 
 /**
@@ -543,22 +715,32 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'acolyte_hood', 'apprentice_mantle', 'silk_girdle', 'woven_wristwraps',
     'enchanters_gloves', 'sandals_of_insight', 'mystic_leggings',
     'plaguebloom_circlet', 'runecloth_robe', 'girdle_of_the_mendicant',
+    'zg_jindo_mantle', 'aq_gloves_of_the_immortal',
+    'brd_flameweave_cuffs', 'strat_skul_cap',
+    'bfd_gaze_dreamer_robes',
   ],
   leather: [
     'leather_cap', 'scout_vest', 'ranger_gloves', 'shadow_cowl',
     'shadow_vambraces', 'aged_core_leather_gloves', 'traveler_boots',
     'simple_bracers',
     'wildheart_spaulders', 'feltracker_boots',
+    'zg_overlord_helmet',
+    'zf_sandstalker_ankleguards',
+    'wc_deviate_hide_pauldrons',
   ],
   mail: [
     'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',
     'chromatic_chainmail', 'plaguehound_leggings',
+    'zg_primalist_belt', 'aq_qiraji_bindings',
+    'mar_elemental_girdle',
   ],
   plate: [
     'soldier_helm', 'marauder_shoulders', 'crusader_belt', 'warlord_plate',
     'titan_boots', 'sentinel_legguards', 'herod_shoulder',
     'sabatons_of_the_flamewalker', 'drake_talon_pauldrons',
     'gauntlets_of_the_fallen', 'bracers_of_undeath',
+    'zg_bloodlords_chestplate', 'aq_silithid_carapace',
+    'zf_bloodmail_gauntlets', 'strat_deathbone_legguards',
   ],
 };
 

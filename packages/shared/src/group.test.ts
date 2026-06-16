@@ -8,6 +8,9 @@ import {
   DUNGEONS,
   RAIDS,
 } from './index';
+import { DUNGEON_LOOT_TABLES } from './loot';
+import { ITEMS } from './data/items';
+import { QUESTS } from './data/quests';
 
 describe('group content sizes & composition', () => {
   it('dungeon supports 1/3/5; raid mirrors raid sizes', () => {
@@ -82,12 +85,68 @@ describe('isGroupContentUnlocked', () => {
     expect(
       isGroupContentUnlocked('dungeon', 'ragefire_chasm', 60, ['ho_ragefire_attunement']),
     ).toBe(true);
-    // dungeon bez attunementu gatuje jen levelem
-    expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, [])).toBe(true);
+    // Deadmines má teď (M12.5) vlastní 2-questový attunement → level nestačí
+    expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, ['al_dm_attune_2'])).toBe(true);
   });
 
   it('raid gates on level + attunement', () => {
     expect(isGroupContentUnlocked('raid', 'molten_core', 40, [])).toBe(false);
     expect(isGroupContentUnlocked('raid', 'molten_core', 40, ['tn_galak_ogres'])).toBe(true);
+  });
+
+  it('M12 40–60 dungeons gate on level + attunement questline', () => {
+    // Pod úrovní → zamčeno i s attunementem
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 41, ['al_zf_attunement'])).toBe(false);
+    // Level bez attunementu nestačí
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, ['ho_zf_attunement'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'maraudon', 46, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'maraudon', 46, ['al_mar_attunement'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, ['ho_brd_attunement'])).toBe(true);
+    // Stratholme: level + attunement questline
+    expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, ['al_culling_stratholme'])).toBe(true);
+  });
+
+  it('M12.5 low-level dungeons gate on a multi-quest attunement chain', () => {
+    // Wailing Caverns / Blackfathom Deeps (nové) + Deadmines/SFK/SM (doplněné)
+    expect(isGroupContentUnlocked('dungeon', 'wailing_caverns', 17, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'wailing_caverns', 17, ['ho_wc_attune_2'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'blackfathom_deeps', 24, ['al_bfd_attune_2'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'shadowfang_keep', 20, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'shadowfang_keep', 20, ['al_sfk_attune_2'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'scarlet_monastery', 30, ['ho_sm_attune_2'])).toBe(true);
+    // Chain: finální quest vyžaduje předchozí (requiresQuest)
+    expect(QUESTS['al_dm_attune_2']!.requiresQuest).toBe('al_dm_attune_1');
+  });
+
+  it('every dungeon now has an attunement questline', () => {
+    for (const d of Object.values(DUNGEONS)) {
+      expect(d.attunement?.questAnyOf.length, `${d.id} missing attunement`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('dungeon data integrity (M12)', () => {
+  it('every dungeon with a loot table references real items, and 40–60 dungeons have one', () => {
+    for (const [id, table] of Object.entries(DUNGEON_LOOT_TABLES)) {
+      expect(DUNGEONS[id], `loot table for unknown dungeon ${id}`).toBeDefined();
+      for (const entry of table.entries) {
+        expect(ITEMS[entry.itemId], `unknown item ${entry.itemId} in ${id}`).toBeDefined();
+      }
+    }
+    for (const id of ['zulfarrak', 'maraudon', 'blackrock_depths', 'stratholme']) {
+      expect(DUNGEON_LOOT_TABLES[id], `missing loot table for ${id}`).toBeDefined();
+    }
+  });
+
+  it('dungeon attunement quests exist', () => {
+    for (const d of Object.values(DUNGEONS)) {
+      for (const q of d.attunement?.questAnyOf ?? []) {
+        expect(QUESTS[q], `unknown attunement quest ${q}`).toBeDefined();
+      }
+    }
   });
 });

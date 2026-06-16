@@ -651,7 +651,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > jen data + balanc. Realizovat inkrementálně (po zónách / instancích), ne najednou.
 >
 > **Status: rozpracováno** — 1. inkrement: **nové zóny 40–60 ✅** (Eastern
-> Plaguelands / Felwood, plný narativní questline + frontier loot bracket).
+> Plaguelands / Felwood, plný narativní questline + frontier loot bracket);
+> 2. inkrement: **+2 raidy + attunement ✅** (Zul'Gurub lvl 50 + Temple of
+> Ahn'Qiraj lvl 58); 3. inkrement: **+4 dungeony 40–60 ✅** (Zul'Farrak / Maraudon /
+> Blackrock Depths / Stratholme); 4. inkrement: **attunement questlines pro všechny
+> 40–60 instance ✅**; 5. inkrement: **+2 nízké dungeony (Wailing Caverns 17,
+> Blackfathom Deeps 24) + attunement pro VŠECHNY dungeony ✅** (každý dungeon i raid
+> má teď vlastní questline). Zbývá: dopsat fallback zóny (Westfall/Duskwood/Barrens/
+> Thousand Needles).
 
 - [ ] **Velké množství story questů napříč úrovněmi** — vícekrokové (narativní
       beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9. Cíl: aby
@@ -668,15 +675,33 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       - [x] Nové 40–60 zóny (Eastern Plaguelands / Felwood) — viz výše.
       - [ ] Dopsat narativní `steps`/lore zbylých fallback zón
             (Westfall/Duskwood/Barrens/Thousand Needles) — engine hotový, jen obsah.
-- [ ] **Attunement questlinky** — pro dungeony i raidy (rozšíření `DungeonDef.
-      attunement` / `RaidAttunement`). Každá instance má vlastní lore questline,
-      který ji odemyká (ne jen level gate).
-- [ ] **+4 dungeony** (minimálně) — nové SP/group PVE instance, content gating
-      napříč úrovněmi (zvlášť do dnes tenkého pásma 40–60). Trash + boss encountery,
-      boss loot tabulky, attunement questline. Recyklují group-run model + combat engine.
-- [ ] **+2 raidy + attunement** — nové MP PVE instance (flex 5/10/20, role T/H/DPS),
-      bossové se škálují velikostí, raid loot (epic/legendary, BoP + weekly lockout),
-      attunement = level + dokončený questline.
+- [x] **Attunement questlinky** ✅ (M12.4 + M12.5): **každý dungeon i raid má vlastní
+      plně narativní per-frakce attunement questline** (ne jen level gate). Raidy:
+      `paragons_of_power` (ZG), `scepter_of_the_sands` (AQ), `drakefire_attunement`
+      (BWL, doplněn o narativ), MC tier-3 capstone. Dungeony 40–60: 1-questový gate
+      (`zf`/`mar`/`brd`/`culling_stratholme`). Nízkoúrovňové dungeony (Deadmines/Wailing
+      Caverns/Shadowfang Keep/Blackfathom Deeps/Scarlet Monastery): **2-questový řetězec**
+      (`_1 → _2` přes `requiresQuest`). Celkem +20 attunement questů v M12.5. Testy:
+      shared `group.test.ts` + API `dungeon.flow.test.ts`. Detail: `docs/systems/combat-dungeons.md`.
+- [x] **+4 dungeony** ✅ (M12.3): **Zul'Farrak** (42), **Maraudon** (46), **Blackrock
+      Depths** (52), **Stratholme** (58) — vyplňují dříve prázdné pásmo 40–60 (obsah
+      předtím končil na Scarlet Monastery lvl 30). Trash + boss encountery škálované
+      velikostí party (recyklují group-run model + combat engine), boss loot tabulky
+      (`DUNGEON_LOOT_TABLES`) + 12 nových BoP dungeon itemů (`items.ts`). BRD i Stratholme
+      pod weekly lockout. Čistě data (web/API iterují přes `DUNGEONS`). Detail:
+      `docs/systems/combat-dungeons.md`.
+  - [x] **+2 nízké dungeony** ✅ (M12.5): **Wailing Caverns** (17) + **Blackfathom
+        Deeps** (24) vyplňují pásmo 15–30 (+4 nové BoP itemy, loot tabulky). Spolu
+        s attunementy (viz níže) má teď **každý** dungeon vlastní questline.
+- [x] **+2 raidy + attunement** ✅ (M12.2): **Zul'Gurub** (lvl 50, 10/20, Venoxis /
+      Mandokir / Hakkar) + **Temple of Ahn'Qiraj** (lvl 58, 10/20, Skeram / Sartura /
+      C'Thun) — vyplňují progresní pásmo MC (40) → ZG (50) → BWL (55) → AQ (58).
+      Bossové se škálují velikostí (`scaleBoss`), raid loot je BoP + weekly lockout
+      (recykluje M8/M8.6 mechaniku), attunement = level + plně narativní per-frakce
+      questline (`al_/ho_paragons_of_power`, `al_/ho_scepter_of_the_sands`) navázaná
+      na frontier zóny (EPL / Felwood). AQ shazuje legendu `aq_scepter_shifting_sands`
+      (C'Thun). **Čistě data** — combat/run model i web/API beze změny (vše iteruje
+      přes `RAIDS`). Testy: shared `raid.test.ts` (+4). Detail: `docs/systems/raids.md`.
 - **Výstup:** hráč má napříč celým 1–60 dost příběhového obsahu, dungeonů i raidů;
   každá instance je odemykaná vlastní questline s lore.
 - **Zbývá rozhodnout (PM):** kolik zón/questů na bracket; témata nových zón 40–60;
@@ -727,7 +752,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
   - [x] **Zóny + questy 40–60** (M12.1): Eastern Plaguelands / Felwood (story
         questline 40/48/55 + `bracket_4` loot). Idle filler napříč levely teď nese
-        „Gone Questing" (ADR 0025). Zbývají **dungeony a raidy pro 40–60** (M12).
+        „Gone Questing" (ADR 0025).
+  - [x] **Dungeony a raidy 40–60** (M12.2/M12.3): +2 raidy (Zul'Gurub 50, Temple
+        of Ahn'Qiraj 58) + 4 dungeony (Zul'Farrak 42 / Maraudon 46 / Blackrock
+        Depths 52 / Stratholme 58). Content gap 40–60 zaplněn.
 - [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
   - [x] **Repeatable questy nahrazeny „Gone Questing"** (ADR 0025): generická idle
         aktivita s hráčem volenou délkou (5 min–12 h), level flexuje s hráčem,
@@ -741,8 +769,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
         Needles + raid-attunement questy) — engine hotový, jde o obsah.
   - [ ] Questy s **reálným combat cílem** (kill/clear řešený enginem s rizikem, ne
         jen flavor uvnitř idle questu).
-  - [x] **Dungeon attunement questline** (M9): Ragefire Chasm gated startovním
-        questlinem (`DungeonDef.attunement`). Zbylé dungeony pod attunement = follow-up.
+  - [x] **Dungeon attunement questline** (M9 + M12.4 + M12.5): **každý dungeon** má
+        teď vlastní attunement questline. 40–60 dungeony 1-questový gate; nízkoúrovňové
+        (Deadmines/Wailing Caverns/SFK/Blackfathom Deeps/Scarlet Monastery) 2-questový
+        řetězec. Raidy dtto (viz „Attunement questlinky" v M12).
 - [x] 🧑‍💼 **Mounty** ✅ — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
       questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
       (skin) od bonusu (speed) → kompatibilní s monetizací. 2 tiery (basic

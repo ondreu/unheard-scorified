@@ -83,9 +83,15 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
     const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
-    // M9: Ragefire Chasm vyžaduje attunement questline → splň ho pro testovací postavy
-    // (gating ragefire v těchto testech je vždy levelem, ne attunementem).
-    await completedRepo.markCompleted(char.id, 'ho_ragefire_attunement');
+    // M9/M12: dungeony mají attunement questline → splň všechny pro testovací postavy
+    // (gating dungeonů v těchto testech je vždy levelem, ne attunementem).
+    for (const q of [
+      'ho_ragefire_attunement',
+      'ho_dm_attune_2', 'ho_wc_attune_2', 'ho_sfk_attune_2', 'ho_bfd_attune_2', 'ho_sm_attune_2',
+      'ho_zf_attunement', 'ho_mar_attunement', 'ho_brd_attunement', 'ho_culling_stratholme',
+    ]) {
+      await completedRepo.markCompleted(char.id, q);
+    }
     return { accountId, id: char.id };
   }
 

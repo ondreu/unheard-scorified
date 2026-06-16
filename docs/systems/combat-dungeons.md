@@ -78,12 +78,25 @@ PVE neutrální (obě frakce), gated `requiredLevel` (content gating). Každý
 dungeon = sekvence `EnemyDef` (trash → boss) + `baseXp`/`baseGold` + odkaz na
 boss loot tabulku.
 
-| Dungeon            | Req lvl | Boss                          |
-| ------------------ | ------- | ----------------------------- |
-| Ragefire Chasm     | 8       | Taragaman the Hungerer        |
-| The Deadmines      | 15      | Edwin VanCleef                |
-| Shadowfang Keep    | 20      | Archmage Arugal               |
-| Scarlet Monastery  | 30      | High Inquisitor Whitemane     |
+| Dungeon            | Req lvl | Boss                          | Attunement (gate quest)            | Pozn.          |
+| ------------------ | ------- | ----------------------------- | ---------------------------------- | -------------- |
+| Ragefire Chasm     | 8       | Taragaman the Hungerer        | startovní questline (1 quest)      |                |
+| The Deadmines      | 15      | Edwin VanCleef                | `*_dm_attune_1→2` (2-quest)        | M12.5          |
+| Wailing Caverns    | 17      | Mutanus the Devourer          | `*_wc_attune_1→2` (2-quest)        | M12.5 (nový)   |
+| Shadowfang Keep    | 20      | Archmage Arugal               | `*_sfk_attune_1→2` (2-quest)       | M12.5          |
+| Blackfathom Deeps  | 24      | Aku'mai                       | `*_bfd_attune_1→2` (2-quest)       | M12.5 (nový)   |
+| Scarlet Monastery  | 30      | High Inquisitor Whitemane     | `*_sm_attune_1→2` (2-quest)        | M12.5, lockout |
+| Zul'Farrak         | 42      | Chief Ukorz Sandscalp         | `*_zf_attunement` (1 quest)        | M12            |
+| Maraudon           | 46      | Princess Theradras            | `*_mar_attunement` (1 quest)       | M12            |
+| Blackrock Depths   | 52      | Emperor Dagran Thaurissan     | `*_brd_attunement` (1 quest)       | M12, lockout   |
+| Stratholme         | 58      | Baron Rivendare               | `*_culling_stratholme` (1 quest)   | M12, lockout   |
+
+**Každý dungeon má teď vlastní attunement questline** (per-frakce, `al_`/`ho_`
+varianty, plně narativní). Nízkoúrovňové instance (Deadmines/WC/SFK/BFD/SM) mají
+**2-questový řetězec** (`_1 → _2` přes `requiresQuest`; dungeon gated finálním
+questem); 40–60 instance mají 1-questový gate. Dungeony **Wailing Caverns** (17) a
+**Blackfathom Deeps** (24) přibyly v M12.5 a vyplňují pásmo 15–30. Vše čistě data —
+group-run model, combat engine i web/API se nemění (vše iteruje přes `DUNGEONS`).
 
 ### Boss loot (`DUNGEON_LOOT_TABLES` v `loot.ts`)
 
@@ -148,8 +161,8 @@ view vystaví `wipes` po dokončení. Detail: ADR 0013.
 
 ## Weekly lockout (M8.6)
 
-Vyšší dungeony (`DungeonDef.weeklyLockout`, zatím jen **Scarlet Monastery**)
-podléhají **týdennímu lockoutu per postava** — stejná mechanika jako raidy (první
+Vyšší dungeony (`DungeonDef.weeklyLockout`: **Scarlet Monastery, Blackrock
+Depths, Stratholme**) podléhají **týdennímu lockoutu per postava** — stejná mechanika jako raidy (první
 vítězný run v UTC týdnu zamkne, další clear týž týden nedá odměnu). Nižší dungeony
 zůstávají volně farmitelné (idle-friendly). Vzorce `@game/shared/lockout.ts`
 (`lockoutIdForContent('dungeon', id)`); run view vystaví `myLockedOut`. Detail:
