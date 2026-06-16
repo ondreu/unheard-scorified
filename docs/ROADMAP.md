@@ -731,8 +731,19 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       odemčeným ability), zapojeno do snapshotu profilu ve všech 4 combat
       službách (dungeon/raid/arena/team). Web editor `/characters/[id]/rotation`
       (priorita, podmínky, prahy, enable/disable). Testy: shared `rotation.test.ts`
-      (+11) + API `rotation.flow.test.ts` (+5). _Follow-up: kontextové rotace pro
-      healery (heal spell priority), víc typů podmínek (ability ready/enemy count)._
+      (+11) + API `rotation.flow.test.ts` (+5).
+- [x] **Ability kit per class (MIL)** ✅ — aby rotace nebyla prázdná: každá class má
+      **baseline kit ~3-4 abilit** odemčených **levelem** (`CLASS_BASELINE_ABILITIES`
+      v `data/abilities.ts`: Heroic Strike/Rend/Execute, Fireball/Scorch, Shadow
+      Bolt/Corruption/Drain Life, …) navrch capstone (talent). Sjednocený resolver
+      `resolveAbilities(klass, level, tags)` = jediný zdroj pravdy pro engine i
+      editor rotace. **Healerské heal-spelly** (Holy Light, Greater Heal/Renew,
+      Healing Wave/Chain Heal, Healing Touch/Rejuvenation) zapojené do enginu:
+      `fightBoss` routuje `member_ability` dle druhu — heal-kind jen healer (léčí
+      nejzraněnějšího), offensive na bosse; PVP heal/shield ability přeskakuje.
+      Testy: shared `combat-overhaul.test.ts` (+4: resolveAbilities + healer heal
+      ability). _Follow-up: kontextové heal-rotace s prioritou heal-spellů; víc
+      podmínek (ability ready/enemy count); přebalancování talentů na stromy._
   - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
     postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
     levným, deterministickým stavem actora (self HP%, target HP%, ability ready

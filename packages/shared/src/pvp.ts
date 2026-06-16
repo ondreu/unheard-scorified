@@ -48,6 +48,7 @@ interface DuelTimer {
   /** Signature ability (jinak basic útok). */
   abilityName?: string;
   abilityId?: string;
+  abilityKind?: string;
   abilityMult?: number;
 }
 
@@ -82,6 +83,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       side: 'a' as DuelSide,
       abilityName: ab.name,
       abilityId: ab.id,
+      abilityKind: ab.kind,
       abilityMult: ab.damageMult,
     })),
     ...b.signatureAbilities.map((ab) => ({
@@ -90,6 +92,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       side: 'b' as DuelSide,
       abilityName: ab.name,
       abilityId: ab.id,
+      abilityKind: ab.kind,
       abilityMult: ab.damageMult,
     })),
   ];
@@ -111,6 +114,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     const defender = actor[defenderSide];
     const enraged = clock >= PVP_RAMPAGE_SEC;
 
+    // Heal/shield ability v 1v1 nedávají smysl (žádný spojenec) → přeskoč.
+    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield') continue;
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&
@@ -208,6 +213,7 @@ interface TeamTimer {
   member: number;
   abilityName?: string;
   abilityId?: string;
+  abilityKind?: string;
   abilityMult?: number;
 }
 
@@ -263,6 +269,7 @@ export function simulateTeamFight(
           member: i,
           abilityName: ab.name,
           abilityId: ab.id,
+          abilityKind: ab.kind,
           abilityMult: ab.damageMult,
         });
       }
@@ -292,6 +299,7 @@ export function simulateTeamFight(
     const attacker = team[attackerSide][timer.member]!;
     const defender = team[defenderSide][targetIdx]!;
     const enraged = clock >= PVP_RAMPAGE_SEC;
+    if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield') continue;
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&

@@ -296,12 +296,11 @@ function fightBoss(
   const timers: RaidTimer[] = [];
   for (let i = 0; i < party.length; i++) {
     timers.push({ next: clock + party[i]!.swingInterval, interval: party[i]!.swingInterval, kind: 'member', memberIdx: i });
-    // Útočné role (tank/dps) používají i signature abilities (M8.5: sjednocený
-    // party combat — solo dungeon dps takto neztratí abilities). Healeři léčí.
-    if (party[i]!.role !== 'healer') {
-      for (const ab of party[i]!.signatureAbilities) {
-        timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'member_ability', memberIdx: i, ability: ab });
-      }
+    // Všechny role mají timery svých abilit (MIL). Branch `member_ability` routuje
+    // dle druhu: heal-kind jen pro healery (léčí spojence), offensive na bosse
+    // (i healer může DPSit jako filler). Healer navíc auto-léčí basic swingem.
+    for (const ab of party[i]!.signatureAbilities) {
+      timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'member_ability', memberIdx: i, ability: ab });
     }
   }
   timers.push({ next: clock + boss.swingInterval, interval: boss.swingInterval, kind: 'boss_basic' });
@@ -426,6 +425,37 @@ function fightBoss(
           selfHpPct: member.maxHealth > 0 ? hp[i]! / member.maxHealth : 0,
         })
       ) {
+        continue;
+      }
+      // Heal-kind ability: jen healer, jen když je koho léčit (jinak se „drží").
+      if (ability.kind === 'heal') {
+        if (member.role !== 'healer' || member.healPower <= 0) continue;
+        let tIdx = -1;
+        let worstMissing = 0;
+        for (let k = 0; k < party.length; k++) {
+          if (hp[k]! <= 0) continue;
+          const missing = party[k]!.maxHealth - hp[k]!;
+          if (missing > worstMissing) {
+            worstMissing = missing;
+            tIdx = k;
+          }
+        }
+        if (tIdx < 0 || worstMissing <= 0) continue;
+        const amount = Math.max(
+          1,
+          Math.round(member.healPower * ability.damageMult * (0.9 + rng.next() * 0.2)),
+        );
+        hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
+        events.push({
+          t: round1(clock),
+          type: 'heal',
+          source: member.name,
+          target: party[tIdx]!.name,
+          amount,
+          ability: ability.name,
+          targetHealthRemaining: hp[tIdx],
+          message: `💚 ${member.name} casts ${ability.name} on ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
+        });
         continue;
       }
       const hit = computeHit(member, boss, rng, ability.damageMult, false);

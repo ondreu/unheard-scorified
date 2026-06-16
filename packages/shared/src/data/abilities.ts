@@ -40,6 +40,12 @@ export interface SignatureAbility {
 /** Šablona katalogu (id se doplní z klíče = combat tag). */
 type AbilitySpec = Omit<SignatureAbility, 'id'>;
 
+/** Baseline ability classy (odemčená levelem, ne talentem). */
+export interface BaselineAbility extends SignatureAbility {
+  /** Minimální level, od kterého je ability dostupná. */
+  unlockLevel: number;
+}
+
 /**
  * Capstone combat tag → signature ability (kurátorováno). Druhy:
  *  - `strike` — silný okamžitý úder.
@@ -92,6 +98,111 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   // Paladin
   repentance: { name: 'Repentance', kind: 'strike', cooldownSec: 9, damageMult: 1.6 },
 };
+
+// ── Baseline ability kit per class (MIL) ────────────────────────────────────
+//
+// Každá classa má základní sadu abilit odemčených LEVELEM (nezávisle na
+// talentech) → rotace nikdy není prázdná. Capstone signature ability (talent)
+// se přidává navrch. Spec identitu dál odlišují capstone + pasivní talenty.
+// Heal-kind ability využije jen healer role (viz engine); offensive ability
+// (strike/drain/dot) používá tank/dps i healer jako filler.
+
+function ba(
+  id: string,
+  name: string,
+  kind: AbilityKind,
+  cooldownSec: number,
+  damageMult: number,
+  unlockLevel: number,
+  dot?: { dotDurationSec: number; dotTicks: number; dotTickMult: number },
+  drainHealFraction?: number,
+): BaselineAbility {
+  return { id, name, kind, cooldownSec, damageMult, unlockLevel, ...dot, ...(drainHealFraction ? { drainHealFraction } : {}) };
+}
+
+export const CLASS_BASELINE_ABILITIES: Record<string, BaselineAbility[]> = {
+  warrior: [
+    ba('warrior_heroic_strike', 'Heroic Strike', 'strike', 4, 1.3, 1),
+    ba('warrior_rend', 'Rend', 'dot', 8, 0.5, 6, { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.3 }),
+    ba('warrior_overpower', 'Overpower', 'strike', 6, 1.5, 14),
+    ba('warrior_execute', 'Execute', 'strike', 8, 2.2, 30),
+  ],
+  paladin: [
+    ba('paladin_crusader_strike', 'Crusader Strike', 'strike', 5, 1.3, 1),
+    ba('paladin_consecration', 'Consecration', 'dot', 8, 0.4, 12, { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.25 }),
+    ba('paladin_holy_light', 'Holy Light', 'heal', 6, 2.2, 1),
+    ba('paladin_flash_of_light', 'Flash of Light', 'heal', 4, 1.3, 20),
+  ],
+  hunter: [
+    ba('hunter_arcane_shot', 'Arcane Shot', 'strike', 5, 1.4, 1),
+    ba('hunter_serpent_sting', 'Serpent Sting', 'dot', 9, 0.4, 10, { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0.25 }),
+    ba('hunter_aimed_shot', 'Aimed Shot', 'strike', 8, 1.9, 30),
+  ],
+  rogue: [
+    ba('rogue_sinister_strike', 'Sinister Strike', 'strike', 4, 1.3, 1),
+    ba('rogue_rupture', 'Rupture', 'dot', 9, 0.45, 12, { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.3 }),
+    ba('rogue_eviscerate', 'Eviscerate', 'strike', 7, 1.9, 20),
+  ],
+  priest: [
+    ba('priest_smite', 'Smite', 'strike', 5, 1.3, 1),
+    ba('priest_shadow_word_pain', 'Shadow Word: Pain', 'dot', 9, 0.4, 8, { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.2 }),
+    ba('priest_greater_heal', 'Greater Heal', 'heal', 6, 2.4, 1),
+    ba('priest_renew', 'Renew', 'heal', 5, 1.4, 14),
+  ],
+  shaman: [
+    ba('shaman_lightning_bolt', 'Lightning Bolt', 'strike', 5, 1.4, 1),
+    ba('shaman_flame_shock', 'Flame Shock', 'dot', 8, 0.4, 10, { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.3 }),
+    ba('shaman_healing_wave', 'Healing Wave', 'heal', 6, 2.3, 1),
+    ba('shaman_chain_heal', 'Chain Heal', 'heal', 8, 1.8, 30),
+  ],
+  mage: [
+    ba('mage_fireball', 'Fireball', 'strike', 4, 1.4, 1),
+    ba('mage_frostbolt', 'Frostbolt', 'strike', 4, 1.2, 1),
+    ba('mage_scorch', 'Scorch', 'dot', 8, 0.4, 14, { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.25 }),
+    ba('mage_arcane_blast', 'Arcane Blast', 'strike', 7, 1.9, 30),
+  ],
+  warlock: [
+    ba('warlock_shadow_bolt', 'Shadow Bolt', 'strike', 5, 1.4, 1),
+    ba('warlock_corruption', 'Corruption', 'dot', 9, 0.45, 6, { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }),
+    ba('warlock_drain_life', 'Drain Life', 'drain', 6, 1.0, 10, undefined, 0.5),
+    ba('warlock_immolate', 'Immolate', 'dot', 9, 0.4, 20, { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.25 }),
+  ],
+  druid: [
+    ba('druid_wrath', 'Wrath', 'strike', 5, 1.3, 1),
+    ba('druid_moonfire', 'Moonfire', 'dot', 8, 0.45, 8, { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.3 }),
+    ba('druid_healing_touch', 'Healing Touch', 'heal', 6, 2.4, 1),
+    ba('druid_rejuvenation', 'Rejuvenation', 'heal', 5, 1.4, 14),
+  ],
+};
+
+/**
+ * Sestaví kompletní seznam abilit postavy: **baseline** (gated levelem) +
+ * **capstone signature** (gated alokovaným talentem). Jediný zdroj pravdy pro
+ * combat engine (`deriveCombatProfile`) i editor rotace (API) → nemůžou se
+ * rozejít. Pořadí: baseline (dle katalogu), pak capstone.
+ */
+export function resolveAbilities(
+  klass: string,
+  level: number,
+  tags: readonly { tag: string }[],
+): SignatureAbility[] {
+  const out: SignatureAbility[] = [];
+  const seen = new Set<string>();
+  for (const ab of CLASS_BASELINE_ABILITIES[klass] ?? []) {
+    if (level < ab.unlockLevel) continue;
+    const { unlockLevel: _u, ...sig } = ab;
+    out.push(sig);
+    seen.add(sig.id);
+  }
+  for (const { tag } of tags) {
+    const spec = SIGNATURE_ABILITIES[tag];
+    if (spec && !seen.has(tag)) {
+      out.push({ id: tag, ...spec });
+      seen.add(tag);
+    }
+  }
+  return out;
+}
 
 /**
  * Tagy poskytující absorpční štít (pohlcuje příchozí poškození, než se „rozbije").

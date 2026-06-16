@@ -5,11 +5,33 @@ import {
   baseStatsFor,
   deriveCombatProfile,
   deriveRaidActor,
+  resolveAbilities,
   simulatePvpDuel,
   simulateRaidRun,
   type CombatActor,
   type RaidActor,
 } from './index';
+
+describe('resolveAbilities (baseline + capstone kit)', () => {
+  it('grants baseline abilities by level, gating higher ones', () => {
+    const low = resolveAbilities('warrior', 1, []).map((a) => a.id);
+    expect(low).toContain('warrior_heroic_strike'); // unlock 1
+    expect(low).not.toContain('warrior_overpower'); // unlock 14
+    const high = resolveAbilities('warrior', 40, []).map((a) => a.id);
+    expect(high).toContain('warrior_overpower');
+    expect(high).toContain('warrior_execute');
+  });
+
+  it('adds the capstone signature ability from talent tags', () => {
+    const ids = resolveAbilities('warrior', 60, [{ tag: 'mortal_strike' }]).map((a) => a.id);
+    expect(ids).toContain('mortal_strike');
+  });
+
+  it('healer classes expose heal abilities', () => {
+    const priest = resolveAbilities('priest', 60, []);
+    expect(priest.some((a) => a.kind === 'heal')).toBe(true);
+  });
+});
 
 function profile(klass: Parameters<typeof aggregateTalentEffects>[0], allocations: Record<string, number>, level = 50): CombatActor {
   return deriveCombatProfile({
@@ -89,6 +111,22 @@ describe('rich combat log (raid/dungeon engine)', () => {
     ];
     const r = simulateRaidRun(party, boss, 13);
     expect(r.events.some((e) => e.type === 'dot')).toBe(true);
+  });
+
+  it('a healer casts heal abilities (not just auto-heals)', () => {
+    // High-pressure boss so the tank is frequently injured (heal abilities fire).
+    const hardBoss: CombatActor = { ...tankyBoss('Pressure'), attackPower: 220, swingInterval: 1, maxHealth: 6000 };
+    const party: RaidActor[] = [
+      deriveRaidActor(profile('warrior', {}), 'tank'),
+      deriveRaidActor(profile('priest', {}, 50), 'healer'),
+      deriveRaidActor(profile('warrior', {}), 'dps'),
+      deriveRaidActor(profile('warrior', {}), 'dps'),
+    ];
+    const r = simulateRaidRun(party, [hardBoss], 808);
+    // At least one heal event from a named heal spell (Greater Heal / Renew).
+    expect(
+      r.events.some((e) => e.type === 'heal' && (e.ability === 'Greater Heal' || e.ability === 'Renew')),
+    ).toBe(true);
   });
 
   it('a shielded tank produces absorb events', () => {

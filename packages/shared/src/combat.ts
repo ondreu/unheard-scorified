@@ -18,11 +18,11 @@ import type { PrimaryStat, PrimaryStats } from './character';
 import { CLASSES, type ClassId } from './data/classes';
 import type { ItemStats } from './data/items';
 import type { AggregatedTalentEffects } from './data/talents';
-import { SHIELD_TAGS, SIGNATURE_ABILITIES, type SignatureAbility } from './data/abilities';
+import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
 import type { CharacterRotation } from './rotation';
 
-export type { AbilityKind, SignatureAbility } from './data/abilities';
-export { SIGNATURE_ABILITIES, SHIELD_TAGS } from './data/abilities';
+export type { AbilityKind, SignatureAbility, BaselineAbility } from './data/abilities';
+export { SIGNATURE_ABILITIES, SHIELD_TAGS, CLASS_BASELINE_ABILITIES, resolveAbilities } from './data/abilities';
 
 // ── Bojové konstanty (laditelný balanc, vyladí se v M9) ─────────────────────
 
@@ -201,7 +201,6 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
   let healthFlat = 0;
   let lifesteal = 0;
   let shieldMult = 0;
-  const abilities: SignatureAbility[] = [];
 
   for (const { tag, ranks } of talents.tags) {
     const eff = COMBAT_TAG_EFFECTS[tag];
@@ -213,9 +212,10 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
       lifesteal += (eff.lifesteal ?? 0) * ranks;
     }
     shieldMult += (SHIELD_TAGS[tag] ?? 0) * ranks;
-    const sig = SIGNATURE_ABILITIES[tag];
-    if (sig) abilities.push({ id: tag, ...sig });
   }
+
+  // Abilit kit = baseline (level) + capstone (talent) — jediný zdroj pravdy.
+  const abilities = resolveAbilities(klass, level, talents.tags);
 
   const attackPower = (4 + effPrimary * 0.9 + level * 0.8 + weaponPower) * damageMult;
   const maxHealth = Math.round(

@@ -72,13 +72,15 @@ describe('MIL flow: deklarativní rotace', () => {
     expect(rule).toMatchObject({ enabled: true, conditionType: 'always' });
   });
 
-  it('postava bez capstone nemá žádné ability', async () => {
+  it('postava na lvl 1 má baseline ability, ale ne capstone', async () => {
     const tokens = await auth.register('rotb', 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
     const char = await characters.create(accountId, { name: 'Anduin', race: 'human', class: 'warrior' });
     const view = await rotation.getRotation(accountId, char.id);
-    expect(view.abilities).toHaveLength(0);
-    expect(view.rules).toHaveLength(0);
+    const ids = view.abilities.map((a) => a.id);
+    expect(ids).toContain('warrior_heroic_strike'); // baseline lvl 1
+    expect(ids).not.toContain('warrior_overpower'); // baseline lvl 14
+    expect(ids).not.toContain('mortal_strike'); // capstone (talent)
   });
 
   it('uložení rotace přežije a očistí neznámé ability + clampne práh', async () => {
@@ -103,11 +105,11 @@ describe('MIL flow: deklarativní rotace', () => {
 
   it('rotationForCombat vrací undefined bez uložené rotace, jinak očištěnou', async () => {
     const { accountId, id } = await warriorWithMortalStrike('rotd', 'Tirion');
-    expect(await rotation.rotationForCombat(id, 'warrior')).toBeUndefined();
+    expect(await rotation.rotationForCombat(id, 'warrior', 60)).toBeUndefined();
     await rotation.setRotation(accountId, id, {
       rules: [{ abilityId: 'mortal_strike', enabled: false, conditionType: 'always' }],
     });
-    const forCombat = await rotation.rotationForCombat(id, 'warrior');
+    const forCombat = await rotation.rotationForCombat(id, 'warrior', 60);
     expect(forCombat?.rules.find((r) => r.abilityId === 'mortal_strike')?.enabled).toBe(false);
   });
 
