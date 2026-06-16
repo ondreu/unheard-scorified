@@ -80,3 +80,30 @@ export const ACTIVITY_EFFICIENCY = {
  * progrese (rozhodnutí PM). Slouží testům a dokumentaci (`progression.md`).
  */
 export const TARGET_HOURS_TO_CAP = 2200;
+
+/**
+ * Generický grind ("Gone Questing" v UI) — idle aktivita, kde si hráč zvolí jen
+ * DÉLKU běhu (místo výběru z konkrétních repeatable questů, rozhodnutí PM).
+ *
+ * - **Level flexuje s hráčem**: efektivní level = aktuální level postavy
+ *   (snapshot při startu) → odměna roste, jak postava roste. Zóna (loot bracket +
+ *   flavor nepřátelé) se auto-odvodí z levelu a frakce, hráč ji neřeší.
+ * - **Odměna podle času**: XP/zlato = referenční rychlost(level) × délka ×
+ *   `activityEfficiency` (ekvivalent dřívějších repeatable questů, jen volná délka).
+ * - **Loot**: jeden roll z bracketu na `lootRollSec` běhu (∝ času, jako kdyby
+ *   hráč udělal odpovídající počet krátkých questů). Overflow přes poštu.
+ *
+ * Vlastní (delší) délkové meze než `ACTIVITY_DURATION_BOUNDS`: questing je
+ * „set & forget přes noc" → strop až `maxSec`. Efektivita >3 h zůstává 0.8
+ * (křivka je clampnutá). Balanc se ladí ZDE.
+ */
+export const GRIND = {
+  /** Variance zlata (±) přes SeededRng. */
+  goldVariance: 0.3,
+  /** Délka běhu (s) na jeden loot roll z bracketu. */
+  lootRollSec: 1800,
+  /** Nejkratší questing běh (s) — 5 min. */
+  minSec: 300,
+  /** Nejdelší questing běh (s) — 12 h (idle přes noc, delší než 3h quest cap). */
+  maxSec: 43200,
+} as const;

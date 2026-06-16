@@ -276,6 +276,14 @@ export function startActivity(characterId: string, questId: string): Promise<Act
   });
 }
 
+/** Spustí generický „Gone Questing" (hráč volí jen délku; level flexuje s ním). */
+export function startQuesting(characterId: string, durationSec: number): Promise<ActivityView> {
+  return request<ActivityView>(`/characters/${characterId}/activity`, {
+    method: 'POST',
+    body: JSON.stringify({ activityType: 'grind', durationSec }),
+  });
+}
+
 export function claimActivity(characterId: string): Promise<ClaimResult> {
   return request<ClaimResult>(`/characters/${characterId}/activity/claim`, { method: 'POST' });
 }

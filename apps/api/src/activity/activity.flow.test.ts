@@ -38,7 +38,6 @@ describe('M2 flow: leveling & idle smyčka', () => {
   let activity: ActivityService;
 
   const KOBOLD = QUESTS.ns_kobold_culling!;
-  const WOLVES = QUESTS.ns_wolf_pelts!;
   const T0 = Date.UTC(2026, 5, 14, 12, 0, 0);
 
   beforeAll(async () => {
@@ -92,11 +91,10 @@ describe('M2 flow: leveling & idle smyčka', () => {
     return { accountId, id: char.id };
   }
 
-  it('dostupné questy na lvl 1: úvodní northshire questy, ne gated', async () => {
+  it('dostupné questy na lvl 1: úvodní northshire story quest, ne gated', async () => {
     const { accountId, id } = await newCharacter('m2a', 'Arugal');
     const ids = (await quests.listAvailable(accountId, id)).map((q) => q.id);
     expect(ids).toContain('ns_kobold_culling');
-    expect(ids).toContain('ns_wolf_pelts');
     expect(ids).not.toContain('ns_brotherhood_intel'); // chybí prerekvizita
     expect(ids).not.toContain('wf_defias_raid'); // moc nízký level
   });
@@ -113,8 +111,9 @@ describe('M2 flow: leveling & idle smyčka', () => {
     const current = await activity.getCurrent(accountId, id);
     expect(current?.questId).toBe(KOBOLD.id);
 
+    // I jiný typ aktivity (Gone Questing) je konflikt — jen jedna běžící aktivita.
     await expect(
-      activity.start(accountId, id, { activityType: 'quest', questId: WOLVES.id }),
+      activity.start(accountId, id, { activityType: 'grind', durationSec: 1800 }),
     ).rejects.toThrow();
   });
 
@@ -151,7 +150,6 @@ describe('M2 flow: leveling & idle smyčka', () => {
 
     const ids = (await quests.listAvailable(accountId, id)).map((q) => q.id);
     expect(ids).not.toContain('ns_kobold_culling');
-    expect(ids).toContain('ns_wolf_pelts'); // repeatable zůstává
   });
 
   it('postava povýší po dostatku XP', async () => {
@@ -162,13 +160,45 @@ describe('M2 flow: leveling & idle smyčka', () => {
     let r = await activity.claim(accountId, id);
     expect(r.character.sheet.level).toBe(1);
 
-    // wolf pelts (50 XP) → 149 XP > 120 → level 2 (poslední claim = level-up)
+    // Gone Questing 20 min (~197 XP) → 296 XP > 120 → level 2 (claim = level-up)
     const base = Date.now();
-    await activity.start(accountId, id, { activityType: 'quest', questId: WOLVES.id });
-    vi.setSystemTime(base + WOLVES.durationSec * 1000 + 1);
+    const GRIND_SEC = 1200;
+    await activity.start(accountId, id, { activityType: 'grind', durationSec: GRIND_SEC });
+    vi.setSystemTime(base + GRIND_SEC * 1000 + 1);
     r = await activity.claim(accountId, id);
     expect(r.leveledUp).toBe(true);
     expect(r.character.sheet.level).toBe(2);
+  });
+
+  it('Gone Questing: hráč volí délku, claim dá XP/zlato + flavor log', async () => {
+    const { accountId, id } = await newCharacter('m2gq', 'Vereesa');
+    const DUR = 3600;
+    const started = await activity.start(accountId, id, {
+      activityType: 'grind',
+      durationSec: DUR,
+    });
+    expect(started.activityType).toBe('grind');
+    expect(started.title).toContain('Gone Questing');
+    expect(started.durationSec).toBe(DUR);
+    expect(started.questId).toBeUndefined();
+
+    vi.setSystemTime(T0 + DUR * 1000 + 1);
+    const result = await activity.claim(accountId, id);
+    expect(result.reward.xp).toBeGreaterThan(0);
+    expect(result.reward.gold).toBeGreaterThan(0);
+    // Flavor log: úvod + auto-resolved souboje (nelze prohrát) + závěr.
+    expect(result.questLog).toBeDefined();
+    const combat = result.questLog!.filter((s) => s.kind === 'combat');
+    expect(combat.length).toBeGreaterThan(0);
+    expect(combat[0]!.events!.at(-1)!.type).toBe('enemy_defeated');
+    expect(await activity.getCurrent(accountId, id)).toBeNull();
+  });
+
+  it('Gone Questing: neplatná délka je odmítnuta', async () => {
+    const { accountId, id } = await newCharacter('m2gq2', 'Liadrin');
+    await expect(
+      activity.start(accountId, id, { activityType: 'grind', durationSec: 0 }),
+    ).rejects.toThrow();
   });
 
   it('frakce vidí jen své questy (Horde ≠ Alliance)', async () => {

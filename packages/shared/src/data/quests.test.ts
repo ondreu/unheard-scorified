@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { availableQuests, isQuestAvailable, QUESTS, QUEST_IDS } from './quests';
+import { availableQuests, isQuestAvailable, QUESTS, QUEST_IDS, type QuestDef } from './quests';
 import { ZONES, ZONE_IDS } from './zones';
 import { ZONE_TO_BRACKET, ZONE_LOOT_TABLES } from '../loot';
 import { questHasNarrative } from '../quest-run';
@@ -47,8 +47,22 @@ describe('isQuestAvailable', () => {
     );
   });
 
-  it('repeatable je dostupný i opakovaně', () => {
-    expect(isQuestAvailable(QUESTS.ns_wolf_pelts!, 1, ['ns_wolf_pelts'], 'alliance')).toBe(true);
+  it('repeatable je dostupný i opakovaně (engine, dormantní data)', () => {
+    // Repeatable questy nahradil generický grind (žádná repeatable data), ale
+    // logika `isQuestAvailable` pro `kind: 'repeatable'` zůstává — ověř syntetickým.
+    const rep: QuestDef = {
+      id: 'rep_synthetic',
+      name: 'Synthetic Repeatable',
+      description: 'x',
+      zoneId: 'northshire',
+      kind: 'repeatable',
+      requiredLevel: 1,
+      durationSec: 300,
+      baseXp: 10,
+      baseGold: 1,
+      goldVariance: 0,
+    };
+    expect(isQuestAvailable(rep, 1, ['rep_synthetic'], 'alliance')).toBe(true);
   });
 
   it('quest patří jen své frakci (kosmetické dělení)', () => {
@@ -60,18 +74,16 @@ describe('isQuestAvailable', () => {
 });
 
 describe('availableQuests', () => {
-  it('alliance lvl 1: jen northshire úvodní questy', () => {
+  it('alliance lvl 1: jen northshire úvodní story quest', () => {
     const ids = availableQuests(1, [], 'alliance').map((q) => q.id);
     expect(ids).toContain('ns_kobold_culling');
-    expect(ids).toContain('ns_wolf_pelts');
     expect(ids).not.toContain('ns_brotherhood_intel'); // chybí prerekvizita
     expect(ids).not.toContain('wf_defias_raid'); // moc nízký level
   });
 
-  it('horde lvl 1: jen durotar úvodní questy, žádné alliance', () => {
+  it('horde lvl 1: jen durotar úvodní story quest, žádné alliance', () => {
     const ids = availableQuests(1, [], 'horde').map((q) => q.id);
     expect(ids).toContain('dt_scorpid_sting');
-    expect(ids).toContain('dt_boar_hides');
     expect(ids.every((id) => !id.startsWith('ns_'))).toBe(true);
   });
 
@@ -137,8 +149,6 @@ describe('M12 — 40–60 frontier zóny (Eastern Plaguelands / Felwood)', () =>
       ['epl_argent_dawn', 'fw_cenarion_aid'],
       ['epl_scarlet_crusade', 'fw_shadow_council'],
       ['epl_scourge_necropolis', 'fw_deadwind_ritual'],
-      ['epl_cleansing_crystals', 'fw_felpine_cleanup'],
-      ['epl_plague_cauldrons', 'fw_demon_wardens'],
     ];
     for (const [a, b] of pairs) {
       const qa = QUESTS[a]!;
