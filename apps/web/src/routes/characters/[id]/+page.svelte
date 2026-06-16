@@ -16,7 +16,7 @@
   import { RACES, CLASSES, ITEMS } from '@game/shared';
   import { CLASS_COLOR, FACTION_COLOR, ROLE_META, factionLabel } from '$lib/cosmetics';
   import { openProfile } from '$lib/ui-stores';
-  import { NAV_SECTIONS, GROUP_LABELS, type NavSection } from '$lib/nav';
+  import { QUICK_ACTIONS } from '$lib/nav';
   import Avatar from '$lib/components/Avatar.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import HubCard from '$lib/components/HubCard.svelte';
@@ -65,7 +65,10 @@
   async function load(): Promise<void> {
     loading = true;
     try {
-      [character, activity] = await Promise.all([getCharacter(characterId), getActivity(characterId)]);
+      [character, activity] = await Promise.all([
+        getCharacter(characterId),
+        getActivity(characterId),
+      ]);
       try {
         group = await getGroup(characterId);
       } catch {
@@ -130,11 +133,6 @@
     { key: 'spirit', label: 'Spirit', short: 'SPI' },
   ];
 
-  const groups: NavSection['group'][] = ['play', 'progress', 'social', 'economy'];
-  function sectionsOf(g: NavSection['group']): NavSection[] {
-    return NAV_SECTIONS.filter((s) => s.group === g);
-  }
-
   const members = $derived(group?.group?.members ?? []);
 </script>
 
@@ -171,7 +169,11 @@
       <div class="mt-4">
         <div class="mb-1 flex justify-between text-xs text-[var(--text-dim)]">
           <span>XP</span>
-          <span>{c.sheet.xpIntoLevel}{c.sheet.xpForNext > 0 ? ` / ${c.sheet.xpForNext}` : ' (max)'}</span>
+          <span
+            >{c.sheet.xpIntoLevel}{c.sheet.xpForNext > 0
+              ? ` / ${c.sheet.xpForNext}`
+              : ' (max)'}</span
+          >
         </div>
         <div class="bar">
           <div
@@ -188,7 +190,9 @@
           <div class="font-semibold">{c.sheet.derived.health}</div>
         </div>
         <div class="rounded-lg bg-black/20 px-3 py-2">
-          <div class="text-xs capitalize text-[var(--text-faint)]">{c.sheet.derived.resource.type}</div>
+          <div class="text-xs capitalize text-[var(--text-faint)]">
+            {c.sheet.derived.resource.type}
+          </div>
           <div class="font-semibold">{c.sheet.derived.resource.max}</div>
         </div>
         {#each stats as s (s.key)}
@@ -211,20 +215,36 @@
 
       {#if claimResult}
         {@const r = claimResult}
-        <div class="mt-3 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 p-3 text-sm">
+        <div
+          class="mt-3 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 p-3 text-sm"
+        >
           {#if r.offlineDurationSec > 60}
-            <p class="mb-1 text-xs text-[var(--text-faint)]">🌙 {ui.offlineFor} {formatOffline(r.offlineDurationSec)}</p>
+            <p class="mb-1 text-xs text-[var(--text-faint)]">
+              🌙 {ui.offlineFor}
+              {formatOffline(r.offlineDurationSec)}
+            </p>
           {/if}
-          <p class="font-semibold text-[var(--success)]">{ui.gained}: +{r.reward.xp} XP, +{r.reward.gold} g</p>
+          <p class="font-semibold text-[var(--success)]">
+            {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold} g
+          </p>
           {#if r.items.length > 0}
-            <p class="mt-1 text-[var(--text-dim)]">🎁 {r.items.map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id).join(', ')}</p>
+            <p class="mt-1 text-[var(--text-dim)]">
+              🎁 {r.items.map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id).join(', ')}
+            </p>
           {/if}
-          {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">⭐ {ui.levelUp} {r.levelBefore} → {r.levelAfter}</p>{/if}
+          {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">
+              ⭐ {ui.levelUp}
+              {r.levelBefore} → {r.levelAfter}
+            </p>{/if}
         </div>
 
         {#if r.questLog && r.questLog.length > 0}
-          <div class="mt-3 space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-sm">
-            <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-faint)]">{ui.questStory}</p>
+          <div
+            class="mt-3 space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-sm"
+          >
+            <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-faint)]">
+              {ui.questStory}
+            </p>
             {#each r.questLog as step, i (i)}
               {#if step.kind === 'narrative'}
                 <p class="italic leading-relaxed text-[var(--text-dim)]">{step.text}</p>
@@ -232,13 +252,21 @@
                 <div class="rounded-md border border-[var(--border)]/60 bg-[var(--surface)]/50 p-2">
                   <p class="leading-relaxed text-[var(--text-dim)]">{step.text}</p>
                   <details class="mt-1">
-                    <summary class="cursor-pointer text-xs text-[var(--text-faint)] hover:text-[var(--gold)]">
+                    <summary
+                      class="cursor-pointer text-xs text-[var(--text-faint)] hover:text-[var(--gold)]"
+                    >
                       ⚔️ {step.enemyName}
-                      {#if step.playerHpPct !== undefined}<span class="ml-1 text-[var(--text-faint)]">· {ui.hpLeft} {step.playerHpPct}%</span>{/if}
+                      {#if step.playerHpPct !== undefined}<span
+                          class="ml-1 text-[var(--text-faint)]"
+                          >· {ui.hpLeft} {step.playerHpPct}%</span
+                        >{/if}
                     </summary>
                     <ul class="mt-1 space-y-0.5 font-mono text-xs text-[var(--text-faint)]">
                       {#each step.events ?? [] as ev (ev.t + ev.message)}
-                        <li class:text-[var(--success)]={ev.type === 'enemy_defeated'} class:text-[var(--gold-bright)]={ev.crit}>
+                        <li
+                          class:text-[var(--success)]={ev.type === 'enemy_defeated'}
+                          class:text-[var(--gold-bright)]={ev.crit}
+                        >
                           {ev.message}
                         </li>
                       {/each}
@@ -254,7 +282,8 @@
       {#if activity}
         {@const a = activity}
         <p class="mt-3 text-sm text-[var(--text-dim)]">
-          {isProfession ? ui.working : ui.onQuest}: <strong class="text-[var(--text)]">{a.title}</strong>
+          {isProfession ? ui.working : ui.onQuest}:
+          <strong class="text-[var(--text)]">{a.title}</strong>
         </p>
         <div class="bar mt-2">
           <div
@@ -263,18 +292,23 @@
           ></div>
         </div>
         {#if completed}
-          <p class="mt-3 font-medium text-[var(--success)]">{isProfession ? ui.activityDone : ui.completed}</p>
+          <p class="mt-3 font-medium text-[var(--success)]">
+            {isProfession ? ui.activityDone : ui.completed}
+          </p>
           <button class="btn btn-primary mt-2 w-full" onclick={claim} disabled={claiming}>
             {claiming ? ui.claiming : ui.claim}
           </button>
         {:else}
           <p class="mt-3 text-sm text-[var(--text-dim)]">
-            {ui.finishesIn}: <span class="font-mono text-[var(--gold-bright)]">{formatRemaining(remainingMs)}</span>
+            {ui.finishesIn}:
+            <span class="font-mono text-[var(--gold-bright)]">{formatRemaining(remainingMs)}</span>
           </p>
         {/if}
       {:else}
         <p class="mt-3 text-sm text-[var(--text-faint)]">{ui.idle}</p>
-        <a href={`/characters/${characterId}/quests`} class="btn btn-primary mt-3 w-full">{ui.goQuesting}</a>
+        <a href={`/characters/${characterId}/quests`} class="btn btn-primary mt-3 w-full"
+          >{ui.goQuesting}</a
+        >
       {/if}
     </section>
   </div>
@@ -283,7 +317,10 @@
   <section class="panel panel-pad mt-5">
     <div class="flex items-center justify-between">
       <h2 class="panel-title">{ui.group}</h2>
-      <a href={`/characters/${characterId}/group`} class="text-sm text-[var(--text-dim)] hover:text-[var(--gold)]">Manage →</a>
+      <a
+        href={`/characters/${characterId}/group`}
+        class="text-sm text-[var(--text-dim)] hover:text-[var(--gold)]">Manage →</a
+      >
     </div>
     {#if members.length > 0}
       <ul class="mt-3 grid gap-2 sm:grid-cols-2">
@@ -306,7 +343,11 @@
                   {#if m.status === 'invited'}· invited{/if}
                 </span>
               </span>
-              <span class="shrink-0 text-sm" style={`color:${ROLE_META[m.role].color}`} title={ROLE_META[m.role].label}>
+              <span
+                class="shrink-0 text-sm"
+                style={`color:${ROLE_META[m.role].color}`}
+                title={ROLE_META[m.role].label}
+              >
                 {ROLE_META[m.role].icon}
               </span>
             </button>
@@ -319,21 +360,20 @@
     {/if}
   </section>
 
-  <!-- Feature hub -->
-  {#each groups as g (g)}
-    <section class="mt-6">
-      <h2 class="panel-title mb-2 text-base">{GROUP_LABELS[g]}</h2>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {#each sectionsOf(g) as s (s.path)}
-          <HubCard
-            href={`/characters/${characterId}/${s.path}`}
-            icon={s.icon}
-            title={s.title}
-            sub={s.sub}
-            accent={s.accent}
-          />
-        {/each}
-      </div>
-    </section>
-  {/each}
+  <!-- Quick actions: the most common destinations, one tap from the dashboard.
+       Everything else lives under the category tabs in the top nav. -->
+  <section class="mt-6">
+    <h2 class="panel-title mb-2 text-base">Quick actions</h2>
+    <div class="grid gap-3 sm:grid-cols-3">
+      {#each QUICK_ACTIONS as s (s.path)}
+        <HubCard
+          href={`/characters/${characterId}/${s.path}`}
+          icon={s.icon}
+          title={s.title}
+          sub={s.sub}
+          accent={s.accent}
+        />
+      {/each}
+    </div>
+  </section>
 {/if}
