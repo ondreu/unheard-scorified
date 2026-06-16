@@ -138,10 +138,10 @@ describe('M12 — 40–60 frontier zóny (Eastern Plaguelands / Felwood)', () =>
   it('frontier story chain je gated předchozí zónou a levelem 40', () => {
     // Bez dokončené předchozí zóny ani na správném levelu nepustí.
     expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, [], 'alliance')).toBe(false);
-    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_morbent_fel'], 'alliance')).toBe(true);
-    expect(isQuestAvailable(QUESTS.fw_cenarion_aid!, 40, ['tn_galak_ogres'], 'horde')).toBe(true);
+    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_shadow_of_tyrol'], 'alliance')).toBe(true);
+    expect(isQuestAvailable(QUESTS.fw_cenarion_aid!, 40, ['tn_highperch_aerie'], 'horde')).toBe(true);
     // a patří jen své frakci
-    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_morbent_fel'], 'horde')).toBe(false);
+    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_shadow_of_tyrol'], 'horde')).toBe(false);
   });
 
   it('frontier zóny jsou paralelní (stejné levely/odměny napříč frakcemi)', () => {
