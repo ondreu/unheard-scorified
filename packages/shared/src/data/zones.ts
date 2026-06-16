@@ -14,10 +14,12 @@ export type ZoneId =
   | 'northshire'
   | 'westfall'
   | 'duskwood'
+  | 'eastern_plaguelands'
   // Horde
   | 'durotar'
   | 'barrens'
-  | 'thousand_needles';
+  | 'thousand_needles'
+  | 'felwood';
 
 export interface ZoneDef {
   id: ZoneId;
@@ -59,6 +61,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     minLevel: 25,
     maxLevel: 40,
   },
+  eastern_plaguelands: {
+    id: 'eastern_plaguelands',
+    name: 'Eastern Plaguelands',
+    description:
+      'Blighted heartlands of the fallen kingdom, where the Argent Dawn holds the line against the Scourge.',
+    faction: 'alliance',
+    minLevel: 40,
+    maxLevel: 60,
+  },
 
   // ── Horde ────────────────────────────────────────────────────────────────
   durotar: {
@@ -84,6 +95,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     faction: 'horde',
     minLevel: 25,
     maxLevel: 40,
+  },
+  felwood: {
+    id: 'felwood',
+    name: 'Felwood',
+    description:
+      'A once-emerald forest rotted by fel corruption, prowled by Shadow Council satyrs and tainted furbolgs.',
+    faction: 'horde',
+    minLevel: 40,
+    maxLevel: 60,
   },
 };
 

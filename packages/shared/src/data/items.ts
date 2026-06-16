@@ -401,6 +401,80 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     stats: { intellect: 7, spirit: 5, spell_power: 5 },
   },
 
+  // --- M12: 40–60 frontier gear (bracket_4, Eastern Plaguelands / Felwood) ---
+  // Vyplňuje díru mezi tier-3 quest gearem (ilvl 30–42) a raid gearem (ilvl 48+).
+  // Pokrývá všechny armor typy + zbraň/štít/plášť/šperky; jeden epic na vrcholu.
+  plaguebloom_circlet: {
+    id: 'plaguebloom_circlet', name: 'Plaguebloom Circlet', slot: 'head',
+    rarity: 'rare', itemLevel: 46, vendorGold: 48,
+    stats: { intellect: 16, spirit: 10, spell_power: 14 },
+  },
+  runecloth_robe: {
+    id: 'runecloth_robe', name: 'Runecloth Robe', slot: 'chest',
+    rarity: 'uncommon', itemLevel: 48, vendorGold: 40,
+    stats: { intellect: 14, spirit: 12, spell_power: 10 },
+  },
+  girdle_of_the_mendicant: {
+    id: 'girdle_of_the_mendicant', name: 'Girdle of the Mendicant', slot: 'waist',
+    rarity: 'uncommon', itemLevel: 45, vendorGold: 36,
+    stats: { intellect: 10, spirit: 8 },
+  },
+  wildheart_spaulders: {
+    id: 'wildheart_spaulders', name: 'Wildheart Spaulders', slot: 'shoulder',
+    rarity: 'rare', itemLevel: 47, vendorGold: 46,
+    stats: { agility: 14, stamina: 11, crit_rating: 6 },
+  },
+  feltracker_boots: {
+    id: 'feltracker_boots', name: 'Feltracker Boots', slot: 'feet',
+    rarity: 'uncommon', itemLevel: 45, vendorGold: 38,
+    stats: { agility: 12, stamina: 9 },
+  },
+  chromatic_chainmail: {
+    id: 'chromatic_chainmail', name: 'Chromatic Chainmail', slot: 'chest',
+    rarity: 'rare', itemLevel: 50, vendorGold: 52,
+    stats: { strength: 8, agility: 8, stamina: 12, armor: 70 },
+  },
+  plaguehound_leggings: {
+    id: 'plaguehound_leggings', name: 'Plaguehound Leggings', slot: 'legs',
+    rarity: 'rare', itemLevel: 49, vendorGold: 50,
+    stats: { strength: 10, agility: 8, stamina: 11, armor: 55 },
+  },
+  gauntlets_of_the_fallen: {
+    id: 'gauntlets_of_the_fallen', name: 'Gauntlets of the Fallen', slot: 'hands',
+    rarity: 'rare', itemLevel: 50, vendorGold: 50,
+    stats: { strength: 14, stamina: 12, armor: 60 },
+  },
+  bracers_of_undeath: {
+    id: 'bracers_of_undeath', name: 'Bracers of Undeath', slot: 'wrist',
+    rarity: 'uncommon', itemLevel: 47, vendorGold: 40,
+    stats: { strength: 9, stamina: 9, armor: 30 },
+  },
+  bonereaver_greatsword: {
+    id: 'bonereaver_greatsword', name: 'Bonereaver Greatsword', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 52, vendorGold: 60,
+    stats: { strength: 18, stamina: 12, attack_power: 24, crit_rating: 6 },
+  },
+  wardens_bulwark: {
+    id: 'wardens_bulwark', name: "Warden's Bulwark", slot: 'off_hand',
+    rarity: 'rare', itemLevel: 48, vendorGold: 48,
+    stats: { stamina: 16, strength: 8, armor: 90 },
+  },
+  corruptors_cloak: {
+    id: 'corruptors_cloak', name: "Corruptor's Cloak", slot: 'back',
+    rarity: 'rare', itemLevel: 49, vendorGold: 46,
+    stats: { agility: 10, stamina: 8, attack_power: 12 },
+  },
+  cenarion_signet: {
+    id: 'cenarion_signet', name: 'Cenarion Signet', slot: 'neck',
+    rarity: 'rare', itemLevel: 47, vendorGold: 44,
+    stats: { intellect: 10, spirit: 8, spell_power: 8 },
+  },
+  nightmare_band: {
+    id: 'nightmare_band', name: 'Band of the Nightmare', slot: 'finger',
+    rarity: 'epic', itemLevel: 56, vendorGold: 90,
+    stats: { intellect: 14, stamina: 12, spell_power: 14 },
+  },
+
   // --- Batohy (M10 limited inventory): vloží se do bag slotu a přidají sloty.
   // Žádné staty; vendor prodává malé, větší jsou cíl craftu (follow-up). ---
   small_pouch: {
@@ -468,19 +542,23 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'whitemane_chapeau', 'netherwind_crown',
     'acolyte_hood', 'apprentice_mantle', 'silk_girdle', 'woven_wristwraps',
     'enchanters_gloves', 'sandals_of_insight', 'mystic_leggings',
+    'plaguebloom_circlet', 'runecloth_robe', 'girdle_of_the_mendicant',
   ],
   leather: [
     'leather_cap', 'scout_vest', 'ranger_gloves', 'shadow_cowl',
     'shadow_vambraces', 'aged_core_leather_gloves', 'traveler_boots',
     'simple_bracers',
+    'wildheart_spaulders', 'feltracker_boots',
   ],
   mail: [
     'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',
+    'chromatic_chainmail', 'plaguehound_leggings',
   ],
   plate: [
     'soldier_helm', 'marauder_shoulders', 'crusader_belt', 'warlord_plate',
     'titan_boots', 'sentinel_legguards', 'herod_shoulder',
     'sabatons_of_the_flamewalker', 'drake_talon_pauldrons',
+    'gauntlets_of_the_fallen', 'bracers_of_undeath',
   ],
 };
 

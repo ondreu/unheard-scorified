@@ -41,9 +41,12 @@ finishesAt }`.
 
 ## Zóny & questy (`packages/shared/src/data/{zones,quests}.ts`)
 
-- **3 level brackety na frakci** (frakce kosmetická — paralelní obsah, stejný balanc):
-  - Alliance: Northshire Valley (1–10), Westfall (10–25), Duskwood (25–40).
-  - Horde: Durotar (1–10), The Barrens (10–25), Thousand Needles (25–40).
+- **4 level brackety na frakci** (frakce kosmetická — paralelní obsah, stejný balanc):
+  - Alliance: Northshire Valley (1–10), Westfall (10–25), Duskwood (25–40),
+    Eastern Plaguelands (40–60).
+  - Horde: Durotar (1–10), The Barrens (10–25), Thousand Needles (25–40),
+    Felwood (40–60).
+  - Loot per bracket: `bracket_1`…`bracket_4` (`loot.ts → ZONE_TO_BRACKET`).
 - Zóna má `faction`; frakce questu se odvozuje ze zóny (`questFaction` /
   `ZONES[zoneId].faction`). Postava vidí jen questy své frakce.
 - **Questy**: `story` (lineární chain přes `requiresQuest`, jednorázové) + `repeatable`
@@ -91,8 +94,12 @@ generovaný deterministicky při claimu. Detail rozhodnutí: `docs/adr/0024`.
   z combat enginu (žádná duplikace). Combat profil postavy (gear/talenty/rotace)
   bere `RotationService.buildCombatProfile` (sdílené s dungeon/raid/arena).
 - **Rozsah M9**: engine + bohatě napsané startovní zóny **Northshire** (Alliance)
-  a **Durotar** (Horde) + jejich repeatable s náhodnými událostmi. Ostatní zóny
-  zatím používají fallback (jednoduchý beat z `description`) — doplní se v dalším
+  a **Durotar** (Horde) + jejich repeatable s náhodnými událostmi.
+- **Rozsah M12.1**: nové **40–60 zóny** **Eastern Plaguelands** (Alliance) a
+  **Felwood** (Horde) s plným narativním questline (3 story lvl 40/48/55 + 2
+  repeatable na zónu) — otevírá tenké late-game pásmo. Mezizóny
+  (Westfall/Duskwood/Barrens/Thousand Needles) zatím používají fallback
+  (jednoduchý beat z `description`) — doplní se v dalším
   content passu (viz ROADMAP M10+ „Více a kvalitnějších questů").
 
 ## Dungeon attunement (M9)
