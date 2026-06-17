@@ -976,6 +976,306 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     stats: { strength: 14, stamina: 14, dodge_rating: 8 },
   },
 
+  // --- Healer parity (audit fix): plate/mail/leather healing sets.
+  // Všechny tři healing archetypy (holy paladin, resto/ele shaman, resto/balance
+  // druid) měly 0 kusů s int/spirit/spell_power ve svém tipu brnění. ---
+
+  // HOLY PALADIN — plate + int/spirit/spell_power (tier 2 ilvl 17–22, tier 3 ilvl 34–40, epic ilvl 52–56)
+  vambraces_of_light: {
+    id: 'vambraces_of_light', name: 'Vambraces of Light', slot: 'wrist',
+    rarity: 'uncommon', itemLevel: 17, vendorGold: 7,
+    stats: { intellect: 4, spirit: 3 },
+  },
+  boots_of_the_healer: {
+    id: 'boots_of_the_healer', name: 'Boots of the Healer', slot: 'feet',
+    rarity: 'uncommon', itemLevel: 19, vendorGold: 8,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  gauntlets_of_devotion: {
+    id: 'gauntlets_of_devotion', name: 'Gauntlets of Devotion', slot: 'hands',
+    rarity: 'uncommon', itemLevel: 19, vendorGold: 8,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  legplates_of_faith: {
+    id: 'legplates_of_faith', name: 'Legplates of Faith', slot: 'legs',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 6, spirit: 5 },
+  },
+  holy_crown_of_light: {
+    id: 'holy_crown_of_light', name: 'Holy Crown of Light', slot: 'head',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  belt_of_benediction: {
+    id: 'belt_of_benediction', name: 'Belt of Benediction', slot: 'waist',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  mantle_of_devotion: {
+    id: 'mantle_of_devotion', name: 'Mantle of Devotion', slot: 'shoulder',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  breastplate_of_devotion: {
+    id: 'breastplate_of_devotion', name: 'Breastplate of Devotion', slot: 'chest',
+    rarity: 'uncommon', itemLevel: 22, vendorGold: 11,
+    stats: { intellect: 7, spirit: 5 },
+  },
+  // Tier 3 plate healing (ilvl 34–40)
+  bracers_of_benediction: {
+    id: 'bracers_of_benediction', name: 'Bracers of Benediction', slot: 'wrist',
+    rarity: 'rare', itemLevel: 34, vendorGold: 26,
+    stats: { intellect: 8, spirit: 6, spell_power: 6 },
+  },
+  sabatons_of_benediction: {
+    id: 'sabatons_of_benediction', name: 'Sabatons of Benediction', slot: 'feet',
+    rarity: 'rare', itemLevel: 37, vendorGold: 30,
+    stats: { intellect: 10, spirit: 7, spell_power: 7 },
+  },
+  gauntlets_of_the_lightbringer: {
+    id: 'gauntlets_of_the_lightbringer', name: 'Gauntlets of the Lightbringer', slot: 'hands',
+    rarity: 'rare', itemLevel: 38, vendorGold: 32,
+    stats: { intellect: 10, spirit: 7, spell_power: 8 },
+  },
+  greaves_of_the_redeemer: {
+    id: 'greaves_of_the_redeemer', name: 'Greaves of the Redeemer', slot: 'legs',
+    rarity: 'rare', itemLevel: 38, vendorGold: 32,
+    stats: { intellect: 11, spirit: 8, spell_power: 10 },
+  },
+  sacred_visor: {
+    id: 'sacred_visor', name: 'Sacred Visor', slot: 'head',
+    rarity: 'rare', itemLevel: 36, vendorGold: 30,
+    stats: { intellect: 10, spirit: 7, spell_power: 8 },
+  },
+  girdle_of_the_holy: {
+    id: 'girdle_of_the_holy', name: 'Girdle of the Holy', slot: 'waist',
+    rarity: 'rare', itemLevel: 36, vendorGold: 28,
+    stats: { intellect: 9, spirit: 7, spell_power: 6 },
+  },
+  spaulders_of_the_lightbringer: {
+    id: 'spaulders_of_the_lightbringer', name: 'Spaulders of the Lightbringer', slot: 'shoulder',
+    rarity: 'rare', itemLevel: 38, vendorGold: 30,
+    stats: { intellect: 10, spirit: 7, spell_power: 8 },
+  },
+  blessed_breastplate: {
+    id: 'blessed_breastplate', name: 'Blessed Breastplate', slot: 'chest',
+    rarity: 'rare', itemLevel: 40, vendorGold: 36,
+    stats: { intellect: 13, spirit: 9, spell_power: 12 },
+  },
+  // Epic plate healing (ilvl 52–56)
+  crown_of_the_redeemer: {
+    id: 'crown_of_the_redeemer', name: 'Crown of the Redeemer', slot: 'head',
+    rarity: 'epic', itemLevel: 52, vendorGold: 80,
+    stats: { intellect: 18, spirit: 12, spell_power: 16 },
+  },
+  raiment_of_the_light: {
+    id: 'raiment_of_the_light', name: 'Raiment of the Light', slot: 'chest',
+    rarity: 'epic', itemLevel: 56, vendorGold: 92,
+    stats: { intellect: 22, spirit: 14, spell_power: 22 },
+  },
+
+  // RESTO / ELE SHAMAN — mail + int/spirit/spell_power (tier 2, tier 3, epic)
+  shamanic_wristbands: {
+    id: 'shamanic_wristbands', name: 'Shamanic Wristbands', slot: 'wrist',
+    rarity: 'uncommon', itemLevel: 17, vendorGold: 7,
+    stats: { intellect: 4, spirit: 3 },
+  },
+  shamanic_boots: {
+    id: 'shamanic_boots', name: 'Shamanic Boots', slot: 'feet',
+    rarity: 'uncommon', itemLevel: 19, vendorGold: 8,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  totemic_grips: {
+    id: 'totemic_grips', name: 'Totemic Grips', slot: 'hands',
+    rarity: 'uncommon', itemLevel: 19, vendorGold: 8,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  shamanic_leggings: {
+    id: 'shamanic_leggings', name: 'Shamanic Leggings', slot: 'legs',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 6, spirit: 5 },
+  },
+  stormcaller_coif: {
+    id: 'stormcaller_coif', name: 'Stormcaller Coif', slot: 'head',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  sash_of_the_elements: {
+    id: 'sash_of_the_elements', name: 'Sash of the Elements', slot: 'waist',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 3 },
+  },
+  earth_mantle: {
+    id: 'earth_mantle', name: 'Earth Mantle', slot: 'shoulder',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  totemic_hauberk: {
+    id: 'totemic_hauberk', name: 'Totemic Hauberk', slot: 'chest',
+    rarity: 'uncommon', itemLevel: 22, vendorGold: 11,
+    stats: { intellect: 7, spirit: 5 },
+  },
+  // Tier 3 mail healing (ilvl 34–40)
+  cuffs_of_the_elements: {
+    id: 'cuffs_of_the_elements', name: 'Cuffs of the Elements', slot: 'wrist',
+    rarity: 'rare', itemLevel: 34, vendorGold: 26,
+    stats: { intellect: 8, spirit: 6, spell_power: 5 },
+  },
+  treads_of_the_earthcaller: {
+    id: 'treads_of_the_earthcaller', name: 'Treads of the Earthcaller', slot: 'feet',
+    rarity: 'rare', itemLevel: 36, vendorGold: 28,
+    stats: { intellect: 10, spirit: 7, spell_power: 7 },
+  },
+  gauntlets_of_the_earthcaller: {
+    id: 'gauntlets_of_the_earthcaller', name: 'Gauntlets of the Earthcaller', slot: 'hands',
+    rarity: 'rare', itemLevel: 38, vendorGold: 30,
+    stats: { intellect: 10, spirit: 7, spell_power: 8 },
+  },
+  leggings_of_the_earthbinder: {
+    id: 'leggings_of_the_earthbinder', name: 'Leggings of the Earthbinder', slot: 'legs',
+    rarity: 'rare', itemLevel: 40, vendorGold: 34,
+    stats: { intellect: 11, spirit: 8, spell_power: 10 },
+  },
+  spiritcaller_helm: {
+    id: 'spiritcaller_helm', name: 'Spiritcaller Helm', slot: 'head',
+    rarity: 'rare', itemLevel: 38, vendorGold: 30,
+    stats: { intellect: 11, spirit: 8, spell_power: 9 },
+  },
+  totemic_girdle: {
+    id: 'totemic_girdle', name: 'Totemic Girdle', slot: 'waist',
+    rarity: 'rare', itemLevel: 36, vendorGold: 26,
+    stats: { intellect: 9, spirit: 7, spell_power: 6 },
+  },
+  shamanic_spaulders: {
+    id: 'shamanic_spaulders', name: 'Shamanic Spaulders', slot: 'shoulder',
+    rarity: 'rare', itemLevel: 36, vendorGold: 28,
+    stats: { intellect: 10, spirit: 7, spell_power: 7 },
+  },
+  chain_of_the_earthcaller: {
+    id: 'chain_of_the_earthcaller', name: 'Chain of the Earthcaller', slot: 'chest',
+    rarity: 'rare', itemLevel: 40, vendorGold: 34,
+    stats: { intellect: 13, spirit: 9, spell_power: 11 },
+  },
+  // Epic mail healing (ilvl 54)
+  crown_of_the_elements: {
+    id: 'crown_of_the_elements', name: 'Crown of the Elements', slot: 'head',
+    rarity: 'epic', itemLevel: 54, vendorGold: 85,
+    stats: { intellect: 18, spirit: 12, spell_power: 18 },
+  },
+
+  // RESTO DRUID / BALANCE — leather + int/spirit/spell_power (tier 2, tier 3, epic)
+  nature_wristbands: {
+    id: 'nature_wristbands', name: 'Nature Wristbands', slot: 'wrist',
+    rarity: 'uncommon', itemLevel: 16, vendorGold: 6,
+    stats: { intellect: 4, spirit: 3 },
+  },
+  naturalist_boots: {
+    id: 'naturalist_boots', name: 'Naturalist Boots', slot: 'feet',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  druid_handwraps: {
+    id: 'druid_handwraps', name: 'Druid Handwraps', slot: 'hands',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  druid_leggings: {
+    id: 'druid_leggings', name: 'Druid Leggings', slot: 'legs',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 6, spirit: 5 },
+  },
+  druid_headband: {
+    id: 'druid_headband', name: 'Druid Headband', slot: 'head',
+    rarity: 'uncommon', itemLevel: 16, vendorGold: 6,
+    stats: { intellect: 4, spirit: 4 },
+  },
+  cord_of_nature: {
+    id: 'cord_of_nature', name: 'Cord of Nature', slot: 'waist',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  nature_spaulders: {
+    id: 'nature_spaulders', name: 'Nature Spaulders', slot: 'shoulder',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 4 },
+  },
+  naturalist_vest: {
+    id: 'naturalist_vest', name: 'Naturalist Vest', slot: 'chest',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { intellect: 6, spirit: 5 },
+  },
+  // Tier 3 leather healing (ilvl 32–38)
+  bracers_of_the_grove: {
+    id: 'bracers_of_the_grove', name: 'Bracers of the Grove', slot: 'wrist',
+    rarity: 'rare', itemLevel: 32, vendorGold: 24,
+    stats: { intellect: 8, spirit: 6, spell_power: 5 },
+  },
+  boots_of_the_dreamgrove: {
+    id: 'boots_of_the_dreamgrove', name: 'Boots of the Dreamgrove', slot: 'feet',
+    rarity: 'rare', itemLevel: 36, vendorGold: 28,
+    stats: { intellect: 9, spirit: 7, spell_power: 6 },
+  },
+  handwraps_of_the_dreamgrove: {
+    id: 'handwraps_of_the_dreamgrove', name: 'Handwraps of the Dreamgrove', slot: 'hands',
+    rarity: 'rare', itemLevel: 36, vendorGold: 28,
+    stats: { intellect: 10, spirit: 7, spell_power: 7 },
+  },
+  leggings_of_the_dreamgrove: {
+    id: 'leggings_of_the_dreamgrove', name: 'Leggings of the Dreamgrove', slot: 'legs',
+    rarity: 'rare', itemLevel: 38, vendorGold: 30,
+    stats: { intellect: 11, spirit: 8, spell_power: 9 },
+  },
+  moonkin_headpiece: {
+    id: 'moonkin_headpiece', name: 'Moonkin Headpiece', slot: 'head',
+    rarity: 'rare', itemLevel: 34, vendorGold: 26,
+    stats: { intellect: 9, spirit: 7, spell_power: 7 },
+  },
+  dream_sash: {
+    id: 'dream_sash', name: 'Dream Sash', slot: 'waist',
+    rarity: 'rare', itemLevel: 36, vendorGold: 26,
+    stats: { intellect: 9, spirit: 7, spell_power: 6 },
+  },
+  mantle_of_the_dreamgrove: {
+    id: 'mantle_of_the_dreamgrove', name: 'Mantle of the Dreamgrove', slot: 'shoulder',
+    rarity: 'rare', itemLevel: 36, vendorGold: 28,
+    stats: { intellect: 10, spirit: 7, spell_power: 7 },
+  },
+  robes_of_the_dreamgrove: {
+    id: 'robes_of_the_dreamgrove', name: 'Robes of the Dreamgrove', slot: 'chest',
+    rarity: 'rare', itemLevel: 38, vendorGold: 32,
+    stats: { intellect: 12, spirit: 9, spell_power: 10 },
+  },
+  // Epic leather healing (ilvl 52)
+  cowl_of_the_dreamgrove: {
+    id: 'cowl_of_the_dreamgrove', name: 'Cowl of the Dreamgrove', slot: 'head',
+    rarity: 'epic', itemLevel: 52, vendorGold: 80,
+    stats: { intellect: 18, spirit: 12, spell_power: 16 },
+  },
+
+  // ROGUE parity: mid-bracket daggers (ilvl 26→58 byl 32-level skok)
+  venomtip_shiv: {
+    id: 'venomtip_shiv', name: 'Venomtip Shiv', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 34, vendorGold: 28,
+    stats: { agility: 10, stamina: 6, attack_power: 14, crit_rating: 4 },
+  },
+  shadowfang_dagger: {
+    id: 'shadowfang_dagger', name: 'Shadowfang Dagger', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 46, vendorGold: 46,
+    stats: { agility: 14, stamina: 8, attack_power: 18, crit_rating: 6 },
+  },
+
+  // PHYSICAL DPS off-hand (rogues/hunters měli jen caster orbs a tank štíty)
+  swiftblade_offhand: {
+    id: 'swiftblade_offhand', name: 'Swiftblade Off-Hand', slot: 'off_hand',
+    rarity: 'uncommon', itemLevel: 30, vendorGold: 16,
+    stats: { agility: 8, attack_power: 12 },
+  },
+  razor_edge_offhand: {
+    id: 'razor_edge_offhand', name: 'Razor Edge Offhand', slot: 'off_hand',
+    rarity: 'rare', itemLevel: 46, vendorGold: 44,
+    stats: { agility: 13, attack_power: 18, crit_rating: 6 },
+  },
+
   // --- Batohy (M10 limited inventory): vloží se do bag slotu a přidají sloty.
   // Žádné staty; vendor prodává malé, větší jsou cíl craftu (follow-up). ---
   small_pouch: {
@@ -1102,6 +1402,12 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'forest_warden_vest', 'ironbark_bracers',
     // Diverzita Round 2: leather shoulders, hybrid chest
     'sentinel_mantle', 'druidic_tunic',
+    // Healer parity: leather healing (resto druid / balance)
+    'nature_wristbands', 'naturalist_boots', 'druid_handwraps', 'druid_leggings',
+    'druid_headband', 'cord_of_nature', 'nature_spaulders', 'naturalist_vest',
+    'bracers_of_the_grove', 'boots_of_the_dreamgrove', 'handwraps_of_the_dreamgrove',
+    'leggings_of_the_dreamgrove', 'moonkin_headpiece', 'dream_sash',
+    'mantle_of_the_dreamgrove', 'robes_of_the_dreamgrove', 'cowl_of_the_dreamgrove',
   ],
   mail: [
     'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',
@@ -1115,6 +1421,12 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'swifthunter_boots', 'elementalist_gauntlets',
     // Diverzita Round 2: mail wrist, shoulder
     'chainmail_bracers', 'ironmail_spaulders',
+    // Healer parity: mail healing (resto/ele shaman)
+    'shamanic_wristbands', 'shamanic_boots', 'totemic_grips', 'shamanic_leggings',
+    'stormcaller_coif', 'sash_of_the_elements', 'earth_mantle', 'totemic_hauberk',
+    'cuffs_of_the_elements', 'treads_of_the_earthcaller', 'gauntlets_of_the_earthcaller',
+    'leggings_of_the_earthbinder', 'spiritcaller_helm', 'totemic_girdle',
+    'shamanic_spaulders', 'chain_of_the_earthcaller', 'crown_of_the_elements',
   ],
   plate: [
     'soldier_helm', 'marauder_shoulders', 'crusader_belt', 'warlord_plate',
@@ -1127,6 +1439,14 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'templar_legplates', 'warpath_sabatons',
     // Diverzita Round 2: plate chest tier-2, wrist
     'platemail_hauberk', 'ironplate_wristguards',
+    // Healer parity: plate healing (holy paladin)
+    'vambraces_of_light', 'boots_of_the_healer', 'gauntlets_of_devotion',
+    'legplates_of_faith', 'holy_crown_of_light', 'belt_of_benediction',
+    'mantle_of_devotion', 'breastplate_of_devotion',
+    'bracers_of_benediction', 'sabatons_of_benediction', 'gauntlets_of_the_lightbringer',
+    'greaves_of_the_redeemer', 'sacred_visor', 'girdle_of_the_holy',
+    'spaulders_of_the_lightbringer', 'blessed_breastplate',
+    'crown_of_the_redeemer', 'raiment_of_the_light',
   ],
 };
 
