@@ -17,6 +17,9 @@
     for (const n of $notifications) {
       if (seen.has(n.id)) continue;
       seen.add(n.id);
+      // Jen čerstvé pushe vyskočí jako toast — perzistované/restorované
+      // notifikace (starý `at`) se po reloadu/loginu už znovu nezobrazují.
+      if (Date.now() - n.at > 5000) continue;
       visible = [n, ...visible].slice(0, 4);
       setTimeout(() => {
         visible = visible.filter((v) => v.id !== n.id);
