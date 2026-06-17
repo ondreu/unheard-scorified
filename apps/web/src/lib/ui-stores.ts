@@ -25,9 +25,9 @@ function createNotifications() {
   // it resets when the tab is closed (new session = fresh start).
   const STORAGE_KEY = 'afk60:notif-seen';
   function loadKeys(): Set<string> {
-    if (typeof sessionStorage === 'undefined') return new Set();
+    if (typeof localStorage === 'undefined') return new Set();
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch {
       return new Set();
@@ -35,8 +35,8 @@ function createNotifications() {
   }
   const seenKeys = loadKeys();
   function saveKeys(): void {
-    if (typeof sessionStorage === 'undefined') return;
-    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...seenKeys])); } catch { /* quota / private */ }
+    if (typeof localStorage === 'undefined') return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...seenKeys])); } catch { /* quota / private */ }
   }
   return {
     subscribe,
