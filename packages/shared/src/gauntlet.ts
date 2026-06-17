@@ -41,7 +41,15 @@ export const GAUNTLET_ELITE_EVERY = 5;
 /** Strop počtu vln — po jeho dosažení se run automaticky uzavře jako dokončený. */
 export const GAUNTLET_MAX_WAVE = 50;
 /** Podíl max HP doplněný na začátku každé nové vlny (navrch k léčivým draftům). */
-export const GAUNTLET_WAVE_HEAL_FRACTION = 0.3;
+export const GAUNTLET_WAVE_HEAL_FRACTION = 0.2;
+/**
+ * Růst statů nepřítele za vlnu — **kompoundovaný** (exponenciální), aby obtížnost
+ * stoupala stále strměji a přerostla hráčův snowball z draftů. Mírný start
+ * (vlna 1 = base), prudký konec (každý run má tak přirozenou hranici = skóre).
+ * HP roste pomaleji než dmg → fighty se prodlužují a zároveň víc bolí.
+ */
+const GAUNTLET_HP_GROWTH = 1.18;
+const GAUNTLET_AP_GROWTH = 1.15;
 /** Heal-kind ability: násobek převádějící „healing %" na vyléčené HP z attack power. */
 const HEAL_POWER_FACTOR = 0.6;
 /** Strop crit šance (sdíleno s combat enginem). */
@@ -222,13 +230,14 @@ const ELITE_ENEMY_NAMES = [
  */
 export function buildGauntletEnemy(level: number, wave: number, rng: SeededRng): GauntletEnemyState {
   const isElite = wave % GAUNTLET_ELITE_EVERY === 0;
-  const eliteHp = isElite ? 2.2 : 1;
-  const eliteAp = isElite ? 1.5 : 1;
+  const eliteHp = isElite ? 2.4 : 1;
+  const eliteAp = isElite ? 1.7 : 1;
   const waveStep = wave - 1;
 
-  const maxHealth = Math.round((30 + level * 16) * (1 + waveStep * 0.33) * eliteHp);
-  const attackPower = Math.round((2 + level * 0.7) * (1 + waveStep * 0.1) * eliteAp);
-  const armor = Math.round(level * 2 + wave * 3);
+  // Kompoundovaný (exponenciální) růst → obtížnost stoupá stále strměji.
+  const maxHealth = Math.round((36 + level * 16) * GAUNTLET_HP_GROWTH ** waveStep * eliteHp);
+  const attackPower = Math.round((3 + level * 0.8) * GAUNTLET_AP_GROWTH ** waveStep * eliteAp);
+  const armor = Math.round(level * 2 + wave * 4);
 
   const pool = isElite ? ELITE_ENEMY_NAMES : NORMAL_ENEMY_NAMES;
   const name = pool[rng.int(0, pool.length - 1)]!;

@@ -115,6 +115,39 @@ describe('resolveGauntletTurn', () => {
     expect(s.wavesCleared).toBeGreaterThan(0);
   });
 
+  it('rostoucí obtížnost přeroste i silnou postavu → smrt před stropem vln', () => {
+    // Level 60 + gear, optimální draft (vždy první) → exponenciální ramp ji
+    // nakonec zabije dávno před GAUNTLET_MAX_WAVE (žádný triviální cap-out).
+    const base = deriveCombatProfile({
+      name: 'Veteran',
+      level: 60,
+      klass: 'warrior',
+      primary: baseStatsFor('orc', 'warrior', 60),
+      equipment: { strength: 120, stamina: 120, attack_power: 200, armor: 400, crit_rating: 40 },
+      talents: aggregateTalentEffects('warrior', {}),
+    });
+    let s = startGauntletRun(base, 60, 4242);
+    for (let i = 0; i < 20000 && (s.status === 'in_combat' || s.status === 'drafting'); i++) {
+      if (s.status === 'drafting' && s.draft) {
+        s = applyGauntletDraft(base, s, s.draft[0]!.id, 60);
+      } else if (s.status === 'drafting') {
+        s.draft = rollGauntletDraft(base, s, new SeededRng(s.wave));
+      } else {
+        s = resolveGauntletTurn(base, s, GAUNTLET_BASIC_ATTACK.id).state;
+      }
+    }
+    expect(s.status).toBe('dead');
+    expect(s.wavesCleared).toBeGreaterThan(2);
+    expect(s.wavesCleared).toBeLessThan(40);
+  });
+
+  it('staty nepřítele rostou exponenciálně (vlna 10 >> vlna 5)', () => {
+    const w5 = buildGauntletEnemy(30, 5, new SeededRng(1));
+    const w10 = buildGauntletEnemy(30, 10, new SeededRng(1));
+    expect(w10.attackPower).toBeGreaterThan(w5.attackPower * 1.5);
+    expect(w10.maxHealth).toBeGreaterThan(w5.maxHealth * 1.5);
+  });
+
   it('nevalidní/nedostupná ability nezmění stav', () => {
     const base = hero(20);
     const s = startGauntletRun(base, 20, 1);
