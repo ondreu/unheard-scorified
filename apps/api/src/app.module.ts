@@ -3,6 +3,7 @@ import { ActivityModule } from './activity/activity.module';
 import { ArenaModule } from './arena/arena.module';
 import { AuctionModule } from './auction/auction.module';
 import { AuthModule } from './auth/auth.module';
+import { BankModule } from './bank/bank.module';
 import { CharacterModule } from './character/character.module';
 import { ConsumableModule } from './consumable/consumable.module';
 import { DbModule } from './db/db.module';
@@ -60,6 +61,7 @@ const devModules =
     VendorModule,
     ConsumableModule,
     RotationModule,
+    BankModule,
     ...devModules,
   ],
 })

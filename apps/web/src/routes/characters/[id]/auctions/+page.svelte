@@ -41,6 +41,7 @@
     duration: 'Duration',
     none2: '—',
     deposit: 'Deposit',
+    merchant: 'Merchant',
   };
 
   type Tab = 'browse' | 'mine' | 'sell';
@@ -238,7 +239,12 @@
           <li class="rounded-lg border border-amber-900/40 bg-black/20 p-4">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <h2 class="font-semibold text-amber-200">{a.itemName} <span class="text-amber-100/50">x{a.quantity}</span></h2>
+                <h2 class="font-semibold text-amber-200">
+                  {a.itemName} <span class="text-amber-100/50">x{a.quantity}</span>
+                  {#if a.isNpc}
+                    <span class="ml-1 rounded bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-200">{ui.merchant}</span>
+                  {/if}
+                </h2>
                 <p class="text-xs text-amber-100/40">
                   {ui.seller}: {a.sellerName}
                   {#if a.status === 'active'}· {ui.timeLeft}: {fmtTime(a.timeLeftSec)}{:else}· {a.status}{/if}
@@ -263,6 +269,16 @@
                 {:else}
                   <p class="mt-2 text-xs text-sky-300">Bid in progress — cannot cancel.</p>
                 {/if}
+              {:else if a.isNpc}
+                <div class="mt-3">
+                  <button
+                    onclick={() => buy(a)}
+                    disabled={busy}
+                    class="rounded bg-red-700 px-3 py-1.5 text-sm font-medium text-amber-50 hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {ui.buyNow} ({a.buyout} g)
+                  </button>
+                </div>
               {:else}
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   <input

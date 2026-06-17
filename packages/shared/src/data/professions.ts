@@ -14,7 +14,13 @@
 import type { FactionId, RepTier } from './factions';
 import type { MaterialId } from './materials';
 
-export type ProfessionId = 'mining' | 'herbalism' | 'blacksmithing' | 'alchemy';
+export type ProfessionId =
+  | 'mining'
+  | 'herbalism'
+  | 'blacksmithing'
+  | 'alchemy'
+  | 'skinning'
+  | 'leatherworking';
 export type ProfessionKind = 'gathering' | 'crafting';
 
 /** Strop profession skillu pro MVP (3 tiery × 50). */
@@ -48,6 +54,14 @@ export const PROFESSIONS: Record<ProfessionId, ProfessionDef> = {
   alchemy: {
     id: 'alchemy', name: 'Alchemy', kind: 'crafting', factionId: 'herbalist_circle',
     description: 'Brew herbs into potions and elixirs.',
+  },
+  skinning: {
+    id: 'skinning', name: 'Skinning', kind: 'gathering', factionId: 'explorers_guild',
+    description: 'Skin leather and hides from beasts of the wild.',
+  },
+  leatherworking: {
+    id: 'leatherworking', name: 'Leatherworking', kind: 'crafting', factionId: 'explorers_guild',
+    description: 'Stitch leather into sturdy bags and packs.',
   },
 };
 
@@ -137,6 +151,33 @@ export const GATHERING_NODES: Record<string, GatheringNodeDef> = {
     yields: [
       { materialId: 'goldthorn', minQty: 2, maxQty: 3, chance: 1 },
       { materialId: 'swiftthistle', minQty: 1, maxQty: 1, chance: 0.12 },
+    ],
+  },
+  // --- Skinning ---
+  young_beasts: {
+    id: 'young_beasts', professionId: 'skinning', name: 'Young Beasts',
+    description: 'Skin light leather from young wildlife.',
+    requiredSkill: 1, skillUpTo: 50, durationSec: 600, baseXp: 40, repReward: 20,
+    yields: [
+      { materialId: 'light_leather', minQty: 2, maxQty: 4, chance: 1 },
+      { materialId: 'medium_leather', minQty: 1, maxQty: 1, chance: 0.05 },
+    ],
+  },
+  grown_beasts: {
+    id: 'grown_beasts', professionId: 'skinning', name: 'Grown Beasts',
+    description: 'Skin medium leather from grown wildlife.',
+    requiredSkill: 50, skillUpTo: 100, durationSec: 1200, baseXp: 90, repReward: 30,
+    yields: [
+      { materialId: 'medium_leather', minQty: 2, maxQty: 4, chance: 1 },
+      { materialId: 'heavy_leather', minQty: 1, maxQty: 1, chance: 0.08 },
+    ],
+  },
+  great_beasts: {
+    id: 'great_beasts', professionId: 'skinning', name: 'Great Beasts',
+    description: 'Skin heavy leather from the mightiest wildlife.',
+    requiredSkill: 100, skillUpTo: 150, durationSec: 2400, baseXp: 180, repReward: 45,
+    yields: [
+      { materialId: 'heavy_leather', minQty: 2, maxQty: 3, chance: 1 },
     ],
   },
 };
@@ -231,6 +272,31 @@ export const RECIPES: Record<string, RecipeDef> = {
     ],
     outputItemId: 'elixir_of_strength', outputQuantity: 1,
     requiredReputation: { factionId: 'herbalist_circle', tier: 'honored' },
+  },
+  // --- Leatherworking (craftovatelné batohy: vzácnější kůže = větší batoh) ---
+  craft_light_leather_satchel: {
+    id: 'craft_light_leather_satchel', professionId: 'leatherworking', name: 'Light Leather Satchel',
+    description: 'Stitch an 8-slot satchel from light leather.',
+    requiredSkill: 1, skillUpTo: 50, durationSec: 600, baseXp: 40, repReward: 25,
+    inputs: [{ materialId: 'light_leather', quantity: 6 }],
+    outputItemId: 'light_leather_satchel', outputQuantity: 1,
+  },
+  craft_medium_leather_pack: {
+    id: 'craft_medium_leather_pack', professionId: 'leatherworking', name: 'Medium Leather Pack',
+    description: 'Stitch a 12-slot pack from medium leather.',
+    requiredSkill: 60, skillUpTo: 110, durationSec: 1200, baseXp: 90, repReward: 40,
+    inputs: [{ materialId: 'medium_leather', quantity: 8 }],
+    outputItemId: 'medium_leather_pack', outputQuantity: 1,
+  },
+  craft_heavy_leather_bag: {
+    id: 'craft_heavy_leather_bag', professionId: 'leatherworking', name: 'Heavy Leather Bag',
+    description: 'Stitch a roomy 16-slot bag from heavy leather.',
+    requiredSkill: 120, skillUpTo: 150, durationSec: 1800, baseXp: 160, repReward: 60,
+    inputs: [
+      { materialId: 'heavy_leather', quantity: 10 },
+      { materialId: 'medium_leather', quantity: 4 },
+    ],
+    outputItemId: 'heavy_leather_bag', outputQuantity: 1,
   },
 };
 

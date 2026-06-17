@@ -14,6 +14,7 @@ import { makeGrant } from '../inventory/test-grant';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { AuctionRepository } from './auction.repository';
+import { NpcAuctionRepository } from './npc-auction.repository';
 import { AuctionService } from './auction.service';
 import { AuctionSettler } from './auction.settler';
 import { NoopAuctionScheduler } from './auction.scheduler';
@@ -57,6 +58,7 @@ describe('M8 flow: auction house', () => {
       invRepo,
       makeGrant(db, invRepo),
       new AuctionRepository(db),
+      new NpcAuctionRepository(db),
       settler,
       new NoopAuctionScheduler(),
     );
@@ -96,7 +98,7 @@ describe('M8 flow: auction house', () => {
     expect(await gold(s.id)).toBe(1000 - view.deposit);
 
     const buyer = await trader('ah_b1', 'Buyer');
-    const browse = await ah.browse(buyer.accountId, buyer.id);
+    const browse = (await ah.browse(buyer.accountId, buyer.id)).filter((b) => !b.isNpc);
     expect(browse).toHaveLength(1);
     expect(browse[0]!.quantity).toBe(10);
     expect(browse[0]!.minBid).toBe(100);
@@ -210,7 +212,7 @@ describe('M8 flow: auction house', () => {
 
     // Posuň čas za expiraci → lazy settle při čtení.
     vi.setSystemTime(T0 + 13 * 3600 * 1000);
-    const browse = await ah.browse(b.accountId, b.id);
+    const browse = (await ah.browse(b.accountId, b.id)).filter((x) => !x.isNpc);
     expect(browse).toHaveLength(0); // už není aktivní
     expect(await qty(b.id, 'goldthorn')).toBe(4);
     expect(await gold(s.id)).toBe(goldAfterList + (200 - 10) + a.deposit);
@@ -230,5 +232,46 @@ describe('M8 flow: auction house', () => {
     expect(mine.find((m) => m.id === a.id)?.status).toBe('expired');
     expect(await qty(s.id, 'briarthorn')).toBe(6);
     expect(await gold(s.id)).toBe(goldAfterList); // deposit propadl
+  });
+
+  // ── Živá aukce (NPC listingy) ─────────────────────────────────────────────
+
+  it('browse vrací seedované NPC listingy i bez hráčských aukcí', async () => {
+    const buyer = await trader('npc_b1', 'Browser', 100000);
+    const browse = await ah.browse(buyer.accountId, buyer.id);
+    const npc = browse.filter((b) => b.isNpc);
+    expect(npc.length).toBeGreaterThan(0);
+    // NPC listing = buyout-only (žádný bid), deterministicky stejný v rámci okna.
+    for (const l of npc) {
+      expect(l.buyout).not.toBeNull();
+      expect(l.currentBid).toBeNull();
+      expect(l.deposit).toBe(0);
+    }
+    const again = await ah.browse(buyer.accountId, buyer.id);
+    expect(again.filter((b) => b.isNpc).map((b) => b.id)).toEqual(npc.map((b) => b.id));
+  });
+
+  it('nákup NPC listingu strhne zlato, doručí item a zmizí z výpisu', async () => {
+    const buyer = await trader('npc_b2', 'NpcBuyer', 100000);
+    const before = await ah.browse(buyer.accountId, buyer.id);
+    const target = before.find((b) => b.isNpc)!;
+    const goldBefore = await gold(buyer.id);
+
+    const sold = await ah.buyout(buyer.accountId, buyer.id, target.id);
+    expect(sold.status).toBe('sold');
+    expect(await gold(buyer.id)).toBe(goldBefore - target.buyout!);
+    expect(await qty(buyer.id, target.itemId)).toBeGreaterThanOrEqual(target.quantity);
+
+    // Koupený listing se z výpisu té postavy skryje.
+    const after = await ah.browse(buyer.accountId, buyer.id);
+    expect(after.find((b) => b.id === target.id)).toBeUndefined();
+  });
+
+  it('tentýž NPC listing nelze koupit dvakrát; nelze na něj přihazovat', async () => {
+    const buyer = await trader('npc_b3', 'DoubleBuyer', 100000);
+    const target = (await ah.browse(buyer.accountId, buyer.id)).find((b) => b.isNpc)!;
+    await ah.buyout(buyer.accountId, buyer.id, target.id);
+    await expect(ah.buyout(buyer.accountId, buyer.id, target.id)).rejects.toThrow();
+    await expect(ah.bid(buyer.accountId, buyer.id, target.id, 999999)).rejects.toThrow(/buyout-only/i);
   });
 });

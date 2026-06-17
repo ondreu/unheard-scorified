@@ -5,6 +5,7 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { PushModule } from '../push/push.module';
 import { AuctionController } from './auction.controller';
 import { AuctionRepository } from './auction.repository';
+import { NpcAuctionRepository } from './npc-auction.repository';
 import { AUCTION_SCHEDULER, BullMqAuctionScheduler } from './auction.scheduler';
 import { AuctionService } from './auction.service';
 import { AuctionSettler } from './auction.settler';
@@ -21,6 +22,7 @@ import { AuctionSettler } from './auction.settler';
   providers: [
     AuctionService,
     AuctionRepository,
+    NpcAuctionRepository,
     AuctionSettler,
     { provide: AUCTION_SCHEDULER, useClass: BullMqAuctionScheduler },
   ],

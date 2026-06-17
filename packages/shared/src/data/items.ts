@@ -655,6 +655,21 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     id: 'enchanted_runecloth_bag', name: 'Enchanted Runecloth Bag', slot: 'bag',
     rarity: 'rare', itemLevel: 1, vendorGold: 120, stats: {}, bagSlots: 12,
   },
+
+  // --- Craftovatelné kožené batohy (Leatherworking): vzácnější kůže = větší
+  // batoh. Větší než vendorové (až 16 slotů). Obchodovatelné (ne BoP). ---
+  light_leather_satchel: {
+    id: 'light_leather_satchel', name: 'Light Leather Satchel', slot: 'bag',
+    rarity: 'common', itemLevel: 1, vendorGold: 20, stats: {}, bagSlots: 8,
+  },
+  medium_leather_pack: {
+    id: 'medium_leather_pack', name: 'Medium Leather Pack', slot: 'bag',
+    rarity: 'uncommon', itemLevel: 1, vendorGold: 60, stats: {}, bagSlots: 12,
+  },
+  heavy_leather_bag: {
+    id: 'heavy_leather_bag', name: 'Heavy Leather Bag', slot: 'bag',
+    rarity: 'rare', itemLevel: 1, vendorGold: 150, stats: {}, bagSlots: 16,
+  },
 };
 
 /**

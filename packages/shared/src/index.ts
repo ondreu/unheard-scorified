@@ -28,6 +28,8 @@ export * from './data/raids';
 export * from './group';
 export * from './lockout';
 export * from './auction';
+export * from './npc-auction';
+export * from './bank';
 export * from './vendor';
 export * from './social';
 export * from './guild';

@@ -108,7 +108,8 @@ describe('M6 flow: profese & reputace', () => {
     const c = await newCharacter('p1', 'Greenhorn');
     const panel = await professions.getPanel(c.accountId, c.id);
 
-    expect(panel.skills).toHaveLength(4);
+    // 2 gathering + 2 crafting (M6) + skinning/leatherworking (craftable bags).
+    expect(panel.skills).toHaveLength(6);
     expect(panel.skills.every((s) => s.skill === 1)).toBe(true);
     expect(panel.reputation.every((r) => r.tier === 'neutral')).toBe(true);
 

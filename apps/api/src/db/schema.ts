@@ -453,6 +453,30 @@ export const auctions = pgTable('auctions', {
 });
 
 /**
+ * Nákupy NPC listingů na Auction House (M10+ „živá aukce"). NPC nabídky se
+ * **negenerují do `auctions`** — počítají se deterministicky z časového okna
+ * (`@game/shared/npc-auction`). Tady evidujeme jen **provedené nákupy**, aby
+ * (a) hráč nekoupil tentýž listing dvakrát (unique), (b) zmizel mu z výpisu.
+ * Stará okna zůstanou jako neškodný historický záznam.
+ */
+export const npcAuctionPurchases = pgTable(
+  'npc_auction_purchases',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    /** `npc:<windowId>:<index>` — viz `@game/shared/npc-auction`. */
+    listingId: varchar('listing_id', { length: 48 }).notNull(),
+    itemId: varchar('item_id', { length: 64 }).notNull(),
+    quantity: integer('quantity').notNull(),
+    price: integer('price').notNull(),
+    boughtAt: timestamp('bought_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.characterId, t.listingId)],
+);
+
+/**
  * Týdenní lockout per postava (M8.6, ekonomika). Jeden řádek = postava je „saved"
  * pro daný obsah (`lockoutId`, např. `raid:molten_core`) v daném UTC týdnu
  * (`weekId`, `YYYY-MM-DD` pondělí). Řádek vzniká při **prvním vítězném** runu
@@ -854,6 +878,24 @@ export const characterBags = pgTable(
   (t) => [primaryKey({ columns: [t.characterId, t.slotIndex] })],
 );
 
+/**
+ * Banka (M10+ FEAT) — úložiště mimo batoh. Stejný tvar jako `character_inventory`
+ * (`itemId` + `quantity`), ale vlastní kapacita (`BASE_BANK_SLOTS`) → uložení
+ * uvolní sloty v batohu. Deposit/withdraw přesouvá itemy mezi inventářem a bankou.
+ */
+export const characterBank = pgTable(
+  'character_bank',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    itemId: varchar('item_id', { length: 64 }).notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    storedAt: timestamp('stored_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.itemId] })],
+);
+
 export const characterBagsRelations = relations(characterBags, ({ one }) => ({
   character: one(characters, {
     fields: [characterBags.characterId],
@@ -917,6 +959,8 @@ export type CharacterBuff = typeof characterBuffs.$inferSelect;
 export type NewCharacterBuff = typeof characterBuffs.$inferInsert;
 export type CharacterBag = typeof characterBags.$inferSelect;
 export type NewCharacterBag = typeof characterBags.$inferInsert;
+export type CharacterBankRow = typeof characterBank.$inferSelect;
+export type NewCharacterBankRow = typeof characterBank.$inferInsert;
 export type CharacterMount = typeof characterMounts.$inferSelect;
 export type NewCharacterMount = typeof characterMounts.$inferInsert;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;
@@ -937,6 +981,8 @@ export type RaidRunParticipant = typeof raidRunParticipants.$inferSelect;
 export type NewRaidRunParticipant = typeof raidRunParticipants.$inferInsert;
 export type Auction = typeof auctions.$inferSelect;
 export type NewAuction = typeof auctions.$inferInsert;
+export type NpcAuctionPurchase = typeof npcAuctionPurchases.$inferSelect;
+export type NewNpcAuctionPurchase = typeof npcAuctionPurchases.$inferInsert;
 export type CharacterLockout = typeof characterLockouts.$inferSelect;
 export type NewCharacterLockout = typeof characterLockouts.$inferInsert;
 export type Friendship = typeof friendships.$inferSelect;

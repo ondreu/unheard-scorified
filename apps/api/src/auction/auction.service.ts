@@ -9,19 +9,24 @@ import {
 import {
   AUCTION_DURATIONS,
   auctionDeposit,
+  findNpcListing,
+  generateNpcListings,
   isAuctionDurationId,
+  isNpcListingId,
   isSoulbound,
   isTradeableItem,
   itemDisplayName,
   minNextBid,
   type AuctionDurationId,
   type AuctionStatus,
+  type NpcListing,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import type { Auction } from '../db/schema';
 import { AuctionRepository } from './auction.repository';
+import { NpcAuctionRepository } from './npc-auction.repository';
 import { AuctionSettler } from './auction.settler';
 import { AUCTION_SCHEDULER, type AuctionScheduler } from './auction.scheduler';
 
@@ -48,6 +53,8 @@ export interface AuctionView {
   isMine: boolean;
   /** Postava je aktuální nejvyšší dražitel? */
   isMyBid: boolean;
+  /** Seedovaný NPC listing (živá aukce) — jen buyout, nelze přihazovat. */
+  isNpc: boolean;
 }
 
 export interface CreateListingInput {
@@ -71,17 +78,26 @@ export class AuctionService {
     private readonly inventory: InventoryRepository,
     private readonly grant: InventoryGrantService,
     private readonly repo: AuctionRepository,
+    private readonly npcRepo: NpcAuctionRepository,
     private readonly settler: AuctionSettler,
     @Inject(AUCTION_SCHEDULER) private readonly scheduler: AuctionScheduler,
   ) {}
 
-  /** Procházení aktivních výpisů (volitelně filtr na item). */
+  /**
+   * Procházení aktivních výpisů (volitelně filtr na item). Vrací reálné hráčské
+   * aukce + seedované **NPC listingy** (živá aukce), aby AH působil obydleně i
+   * při malém počtu hráčů. NPC listingy už koupené touto postavou se skryjí.
+   */
   async browse(accountId: string, characterId: string, itemId?: string): Promise<AuctionView[]> {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
     await this.settler.settleDue();
     const rows = await this.repo.listActive(BROWSE_LIMIT, itemId);
-    return this.toViews(rows, characterId);
+    const [real, npc] = await Promise.all([
+      this.toViews(rows, characterId),
+      this.npcViews(characterId, itemId),
+    ]);
+    return [...real, ...npc];
   }
 
   /** Výpisy postavy (prodej i nabídky), vč. již vypořádaných. */
@@ -165,6 +181,9 @@ export class AuctionService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
+    if (isNpcListingId(auctionId)) {
+      throw new BadRequestException('NPC listings are buyout-only — use Buy Now');
+    }
     await this.settler.settleAuction(auctionId);
     const auction = await this.repo.findById(auctionId);
     if (!auction) throw new NotFoundException('Auction not found');
@@ -191,10 +210,12 @@ export class AuctionService {
     return this.toView(updated, characterId);
   }
 
-  /** Okamžitý nákup za buyout cenu. */
+  /** Okamžitý nákup za buyout cenu (reálná aukce nebo NPC listing). */
   async buyout(accountId: string, characterId: string, auctionId: string): Promise<AuctionView> {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
+
+    if (isNpcListingId(auctionId)) return this.buyNpcListing(characterId, auctionId);
 
     await this.settler.settleAuction(auctionId);
     const auction = await this.repo.findById(auctionId);
@@ -246,6 +267,68 @@ export class AuctionService {
     return this.toView(updated!, characterId);
   }
 
+  // ── NPC listings (živá aukce) ──────────────────────────────────────────────
+
+  /** Aktuální NPC listingy (mimo už koupené touto postavou), volitelně filtr item. */
+  private async npcViews(characterId: string, itemId?: string): Promise<AuctionView[]> {
+    let listings = generateNpcListings(Date.now());
+    if (itemId) listings = listings.filter((l) => l.itemId === itemId);
+    const purchased = await this.npcRepo.purchasedFrom(
+      characterId,
+      listings.map((l) => l.id),
+    );
+    return listings.filter((l) => !purchased.has(l.id)).map((l) => this.npcToView(l));
+  }
+
+  /** Koupí NPC listing (čistý gold sink). Idempotentní proti dvojímu nákupu. */
+  private async buyNpcListing(characterId: string, listingId: string): Promise<AuctionView> {
+    const listing = findNpcListing(Date.now(), listingId);
+    if (!listing) throw new NotFoundException('Listing is no longer available');
+
+    const already = await this.npcRepo.purchasedFrom(characterId, [listingId]);
+    if (already.has(listingId)) throw new ConflictException('You already bought this listing');
+
+    if (!(await this.characters.spendGold(characterId, listing.buyout))) {
+      throw new BadRequestException('Not enough gold for buyout');
+    }
+    // Zaeviduj nákup atomicky; při souběhu (dvojklik) vrať zlato.
+    const recorded = await this.npcRepo.recordPurchase({
+      characterId,
+      listingId,
+      itemId: listing.itemId,
+      quantity: listing.quantity,
+      price: listing.buyout,
+    });
+    if (!recorded) {
+      await this.characters.addGold(characterId, listing.buyout);
+      throw new ConflictException('You already bought this listing');
+    }
+    await this.grant.grantOne(characterId, listing.itemId, listing.quantity);
+    return { ...this.npcToView(listing), status: 'sold' };
+  }
+
+  private npcToView(listing: NpcListing): AuctionView {
+    const timeLeftSec = Math.max(0, Math.floor((listing.endsAt - Date.now()) / 1000));
+    return {
+      id: listing.id,
+      itemId: listing.itemId,
+      itemName: listing.itemName,
+      quantity: listing.quantity,
+      sellerName: listing.sellerName,
+      startBid: listing.buyout,
+      buyout: listing.buyout,
+      currentBid: null,
+      minBid: listing.buyout,
+      deposit: 0,
+      status: 'active',
+      endsAt: new Date(listing.endsAt).toISOString(),
+      timeLeftSec,
+      isMine: false,
+      isMyBid: false,
+      isNpc: true,
+    };
+  }
+
   // ── Views ────────────────────────────────────────────────────────────────
 
   private async toViews(rows: Auction[], viewerId: string): Promise<AuctionView[]> {
@@ -273,6 +356,7 @@ export class AuctionService {
       timeLeftSec,
       isMine: auction.sellerCharacterId === viewerId,
       isMyBid: auction.bidderCharacterId === viewerId,
+      isNpc: false,
     };
   }
 }

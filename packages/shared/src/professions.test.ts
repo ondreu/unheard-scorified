@@ -7,8 +7,11 @@ import {
 import {
   GATHERING_NODES,
   MAX_PROFESSION_SKILL,
+  PROFESSIONS,
   RECIPES,
+  gatheringNodesFor,
   professionReputationGains,
+  recipesFor,
 } from './data/professions';
 import {
   MAX_REPUTATION,
@@ -17,6 +20,7 @@ import {
   reputationTier,
   repTierIndex,
 } from './data/factions';
+import { bagSlots, isBagId } from './data/items';
 import { computeCraftReward, computeGatherReward } from './activity';
 import { isMaterialId } from './data/materials';
 
@@ -104,5 +108,29 @@ describe('computeGatherReward / computeCraftReward', () => {
   it('neznámý node/recept = prázdná odměna', () => {
     expect(computeGatherReward({ nodeId: 'nope' }, 1).items).toEqual([]);
     expect(computeCraftReward({ recipeId: 'nope' }).items).toEqual([]);
+  });
+});
+
+describe('craftovatelné batohy (Skinning → Leatherworking)', () => {
+  it('skinning má gathering nody, leatherworking crafting recepty', () => {
+    expect(PROFESSIONS.skinning.kind).toBe('gathering');
+    expect(PROFESSIONS.leatherworking.kind).toBe('crafting');
+    expect(gatheringNodesFor('skinning').length).toBeGreaterThan(0);
+    expect(recipesFor('leatherworking').length).toBeGreaterThan(0);
+  });
+
+  it('každý leatherworking recept vyrábí platný batoh', () => {
+    for (const r of recipesFor('leatherworking')) {
+      expect(isBagId(r.outputItemId)).toBe(true);
+      expect(bagSlots(r.outputItemId)).toBeGreaterThan(0);
+    }
+  });
+
+  it('vzácnější kůže = větší batoh (skill bracket roste s velikostí)', () => {
+    const recipes = recipesFor('leatherworking'); // řazené dle requiredSkill
+    const sizes = recipes.map((r) => bagSlots(r.outputItemId));
+    const sorted = [...sizes].sort((a, b) => a - b);
+    expect(sizes).toEqual(sorted); // monotónně rostoucí
+    expect(Math.max(...sizes)).toBeGreaterThanOrEqual(16); // top je největší
   });
 });

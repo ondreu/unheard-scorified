@@ -211,6 +211,20 @@
       "when": 1781666132971,
       "tag": "0029_certain_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1781669270351,
+      "tag": "0030_chilly_puppet_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1781669889839,
+      "tag": "0031_old_lady_bullseye",
+      "breakpoints": true
     }
   ]
 }

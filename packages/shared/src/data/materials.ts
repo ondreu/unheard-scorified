@@ -17,9 +17,12 @@ export type MaterialId =
   | 'peacebloom'
   | 'briarthorn'
   | 'goldthorn'
-  | 'swiftthistle';
+  | 'swiftthistle'
+  | 'light_leather'
+  | 'medium_leather'
+  | 'heavy_leather';
 
-export type MaterialKind = 'ore' | 'herb';
+export type MaterialKind = 'ore' | 'herb' | 'leather';
 
 export interface MaterialDef {
   id: MaterialId;
@@ -43,6 +46,10 @@ export const MATERIALS: Record<MaterialId, MaterialDef> = {
   briarthorn: { id: 'briarthorn', name: 'Briarthorn', kind: 'herb', rarity: 'common', tier: 2, vendorGold: 3 },
   goldthorn: { id: 'goldthorn', name: 'Goldthorn', kind: 'herb', rarity: 'uncommon', tier: 3, vendorGold: 6 },
   swiftthistle: { id: 'swiftthistle', name: 'Swiftthistle', kind: 'herb', rarity: 'rare', tier: 3, vendorGold: 12 },
+  // --- Leather (skinning) ---
+  light_leather: { id: 'light_leather', name: 'Light Leather', kind: 'leather', rarity: 'common', tier: 1, vendorGold: 2 },
+  medium_leather: { id: 'medium_leather', name: 'Medium Leather', kind: 'leather', rarity: 'common', tier: 2, vendorGold: 4 },
+  heavy_leather: { id: 'heavy_leather', name: 'Heavy Leather', kind: 'leather', rarity: 'uncommon', tier: 3, vendorGold: 8 },
 };
 
 export type ConsumableId =

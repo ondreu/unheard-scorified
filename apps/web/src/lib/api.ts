@@ -687,6 +687,8 @@ export interface AuctionView {
   timeLeftSec: number;
   isMine: boolean;
   isMyBid: boolean;
+  /** Seedovaný NPC listing (živá aukce) — jen buyout, nelze přihazovat. */
+  isNpc: boolean;
 }
 
 export interface InventoryItemView {
@@ -697,6 +699,44 @@ export interface InventoryItemView {
 
 export function listInventory(characterId: string): Promise<InventoryItemView[]> {
   return request<InventoryItemView[]>(`/characters/${characterId}/inventory`);
+}
+
+export interface BankItemView {
+  itemId: string;
+  name: string;
+  quantity: number;
+}
+
+export interface BankView {
+  items: BankItemView[];
+  usedSlots: number;
+  capacity: number;
+}
+
+export function getBank(characterId: string): Promise<BankView> {
+  return request<BankView>(`/characters/${characterId}/bank`);
+}
+
+export function depositToBank(
+  characterId: string,
+  itemId: string,
+  quantity: number,
+): Promise<BankView> {
+  return request<BankView>(`/characters/${characterId}/bank/deposit`, {
+    method: 'POST',
+    body: JSON.stringify({ itemId, quantity }),
+  });
+}
+
+export function withdrawFromBank(
+  characterId: string,
+  itemId: string,
+  quantity: number,
+): Promise<BankView> {
+  return request<BankView>(`/characters/${characterId}/bank/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify({ itemId, quantity }),
+  });
 }
 
 export function browseAuctions(characterId: string, itemId?: string): Promise<AuctionView[]> {

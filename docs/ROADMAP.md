@@ -833,18 +833,29 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `MailRepository` vyčleněn do leaf `MailDataModule` (bez DI cyklu). Web:
       kapacita + bag sloty na `/inventory`. Testy: shared `inventory.test.ts` (+10)
       + API `bag.flow.test.ts` (+5). Detail: `docs/systems/inventory-bags.md`.
-  - [ ] **Craftovatelné batohy** (zbývá): tailoring/leatherworking + cloth/leather
-        materiály (vzácnější = větší batoh) — vyžaduje novou profesi. Batohy zatím
-        u vendora.
-  - [ ] **Banka** (úložiště mimo batoh) — follow-up.
-- [ ] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** Aukční dům doplnit
-      o NPC/bot listingy, aby působil obydleně (zvlášť při malém počtu hráčů).
-      Generovat **deterministicky přes `SeededRng`** (ne `Math.random()`) — rotace
-      nabídek dle UTC dne/hodiny, ceny v rozumném rozpětí kolem referenční hodnoty
-      itemu, omezené množství. Hráč může od NPC listingu koupit (gold sink); NPC
-      „nakupují" jen virtuálně (nezasahují do reálných hráčských aukcí). Vyžaduje
-      **aukční dům** jako systém (zatím není — kandidát na vlastní ADR; sdílí
-      ekonomiku s vendory/goldem).
+  - [x] **Craftovatelné batohy** ✅: nová dvojice profesí **Skinning** (gathering)
+        → **Leatherworking** (crafting). 3 tiery kůže (`light/medium/heavy_leather`,
+        vzácnější = větší batoh) → 3 kožené batohy (8/12/16 slotů, větší než
+        vendorové). Čistě data v `@game/shared` (PROFESSIONS/GATHERING_NODES/
+        RECIPES/MATERIALS/ITEMS) — profession panel je data-driven, žádná nová API
+        mechanika. Testy: shared `professions.test.ts` (+3).
+  - [x] **Banka** ✅ (úložiště mimo batoh): vlastní kapacita `BASE_BANK_SLOTS = 28`
+        (nezávislá na bag slotech) → uložení uvolní batoh. Deposit/withdraw přesouvá
+        itemy mezi inventářem a bankou (stack-aware přes `planGrant`/`usedSlots`);
+        withdraw při plném batohu blokuje (player-akce, žádný overflow do pošty).
+        Tabulka `character_bank` (migrace `0031`), `BankModule`, web
+        `/characters/[id]/bank`. Testy: API `bank.flow.test.ts` (+5). _Follow-up:
+        bankovní bag sloty (rozšíření kapacity)._
+- [x] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** ✅ Auction House (M8)
+      doplněn o **NPC listingy** generované **deterministicky přes `SeededRng`**
+      (ne `Math.random()`): rotace dle UTC okna (`NPC_AUCTION_WINDOW_HOURS = 6` h),
+      ceny v rozpětí `[3,7]×` vendor hodnoty itemu, omezené množství. Listingy se
+      **nepersistují** (počítají se z okna), jen **buyout** (NPC nesmlouvá) → nákup
+      = čistý gold sink; NPC nezasahují do reálných hráčských aukcí. Hráč koupí
+      listing jednou (`npc_auction_purchases`, migrace `0030`, dedup + skrytí).
+      `@game/shared/npc-auction.ts`, `NpcAuctionRepository`, browse vrací `isNpc`.
+      Web: „Merchant" badge + Buy now. Testy: shared `npc-auction.test.ts` (+5) +
+      API `auction.flow.test.ts` (+3). Detail: `docs/systems/auction-house.md`.
 - [x] 🤖 **Vendoři (NPC odkup/prodej) + „use" consumables/buffů** ✅ (zbytek z M6):
       `VendorModule` (pevné ceny `vendorBuyPrice`=value×5 sink / `vendorSellPrice`
       source; sortiment `VENDOR_STOCK` se startovním gearem napříč armor typy; BoP
