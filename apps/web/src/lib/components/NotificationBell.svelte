@@ -5,7 +5,6 @@
     title: 'Notifications',
     empty: 'Nothing new.',
     clear: 'Clear all',
-    dismiss: 'Dismiss',
   };
 
   let open = $state(false);
@@ -63,19 +62,13 @@
       </div>
       <ul class="max-h-80 overflow-y-auto">
         {#each list as n (n.id)}
-          <li class="group flex gap-2 border-b border-[var(--border)]/40 px-3 py-2 last:border-0">
+          <li class="flex gap-2 border-b border-[var(--border)]/40 px-3 py-2 last:border-0">
             <span aria-hidden="true">{ICON[n.kind]}</span>
             <div class="min-w-0 flex-1">
               <p class="text-sm text-[var(--text)]">{n.title}</p>
               {#if n.body}<p class="text-xs text-[var(--text-dim)]">{n.body}</p>{/if}
             </div>
             <span class="shrink-0 text-xs text-[var(--text-faint)]">{ago(n.at)}</span>
-            <button
-              class="shrink-0 text-sm text-[var(--text-faint)] hover:text-[var(--danger)]"
-              onclick={() => notifications.dismiss(n.id)}
-              aria-label={ui.dismiss}
-              title={ui.dismiss}>✕</button
-            >
           </li>
         {/each}
         {#if list.length === 0}

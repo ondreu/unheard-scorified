@@ -14,70 +14,37 @@ export interface AppNotification {
   body?: string;
   at: number;
   read: boolean;
-  /** Stabilní klíč podkladové serverové položky (mail/invite/history) pro dedup. */
-  key?: string;
 }
 
-const MAX_LIST = 30;
-const MAX_DISMISSED = 200;
-
 function createNotifications() {
-  const { subscribe, set } = writable<AppNotification[]>([]);
-
-  // Notifikace se chovají „normálně": perzistují per postava (přežijí reload i
-  // nový login), drží read/unread stav a jdou mazat jednotlivě. Podkladová
-  // serverová data (invites/mail/history) se při každém načtení layoutu
-  // re-fetchnou, takže pushe se deduplikují podle stabilního `key`:
-  //  - už je v seznamu (ať přečtená/nepřečtená) → nepřidávat znovu,
-  //  - byla ručně smazána (`dismissed`) → už nikdy znovu (i když serverová
-  //    položka stále existuje).
-  let scope = '';
-  let list: AppNotification[] = [];
-  let dismissed: string[] = [];
-
-  function key(s: string): string {
-    return `afk60:notif:${s || 'anon'}`;
-  }
-  function persist(): void {
-    if (typeof localStorage === 'undefined') return;
+  const { subscribe, update } = writable<AppNotification[]>([]);
+  // Pending server state (invites/mail/history) gets re-fetched every time the
+  // character layout mounts or the page is reloaded, so pushes for the same
+  // underlying item are deduplicated by a stable `key`. seenKeys is persisted
+  // in sessionStorage so it survives F5 reloads within the same browser tab;
+  // it resets when the tab is closed (new session = fresh start).
+  const STORAGE_KEY = 'afk60:notif-seen';
+  function loadKeys(): Set<string> {
+    if (typeof localStorage === 'undefined') return new Set();
     try {
-      localStorage.setItem(key(scope), JSON.stringify({ list, dismissed }));
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch {
-      /* quota / private mode */
+      return new Set();
     }
   }
-  function commit(): void {
-    list = list.slice(0, MAX_LIST);
-    set(list);
-    persist();
+  const seenKeys = loadKeys();
+  function saveKeys(): void {
+    if (typeof localStorage === 'undefined') return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...seenKeys])); } catch { /* quota / private */ }
   }
-
   return {
     subscribe,
-    /** Přepne kontext na danou postavu a načte její perzistovaný stav. */
-    setScope(characterId: string): void {
-      if (characterId === scope) return;
-      scope = characterId;
-      list = [];
-      dismissed = [];
-      if (typeof localStorage !== 'undefined') {
-        try {
-          const raw = localStorage.getItem(key(scope));
-          if (raw) {
-            const parsed = JSON.parse(raw) as { list?: AppNotification[]; dismissed?: string[] };
-            list = Array.isArray(parsed.list) ? parsed.list.slice(0, MAX_LIST) : [];
-            dismissed = Array.isArray(parsed.dismissed) ? parsed.dismissed : [];
-          }
-        } catch {
-          /* corrupt / private mode → prázdný start */
-        }
-      }
-      set(list);
-    },
-    push(kind: NotificationKind, title: string, body?: string, k?: string): void {
-      if (k) {
-        if (dismissed.includes(k)) return; // smazané už nikdy znovu
-        if (list.some((n) => n.key === k)) return; // už v seznamu → dedup
+    push(kind: NotificationKind, title: string, body?: string, key?: string): void {
+      if (key) {
+        if (seenKeys.has(key)) return;
+        seenKeys.add(key);
+        saveKeys();
       }
       const n: AppNotification = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -86,37 +53,14 @@ function createNotifications() {
         body,
         at: Date.now(),
         read: false,
-        key: k,
       };
-      list = [n, ...list];
-      commit();
+      update((list) => [n, ...list].slice(0, 30));
     },
     markAllRead(): void {
-      let changed = false;
-      list = list.map((n) => {
-        if (n.read) return n;
-        changed = true;
-        return { ...n, read: true };
-      });
-      if (changed) commit();
+      update((list) => list.map((n) => ({ ...n, read: true })));
     },
-    /** Smaže jednu notifikaci; keyed se zapamatuje jako „dismissed" (nevrátí se). */
-    dismiss(id: string): void {
-      const n = list.find((x) => x.id === id);
-      if (n?.key && !dismissed.includes(n.key)) {
-        dismissed = [n.key, ...dismissed].slice(0, MAX_DISMISSED);
-      }
-      list = list.filter((x) => x.id !== id);
-      commit();
-    },
-    /** Smaže vše; keyed položky se zapamatují jako „dismissed". */
     clear(): void {
-      for (const n of list) {
-        if (n.key && !dismissed.includes(n.key)) dismissed.unshift(n.key);
-      }
-      dismissed = dismissed.slice(0, MAX_DISMISSED);
-      list = [];
-      commit();
+      update(() => []);
     },
   };
 }

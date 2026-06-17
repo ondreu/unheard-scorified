@@ -80,7 +80,6 @@
     const id = characterId;
     if (!id || id === lastLoadedId) return;
     lastLoadedId = id;
-    notifications.setScope(id);
     void load(id);
     if (socket) {
       unsub?.();
