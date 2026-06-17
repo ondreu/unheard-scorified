@@ -12,6 +12,7 @@
   import { createCharacter } from '$lib/api';
   import { factionLabel } from '$lib/cosmetics';
   import Avatar from '$lib/components/Avatar.svelte';
+  import PixelEmblem from '$lib/components/PixelEmblem.svelte';
 
   let name = $state('');
   let race = $state<RaceId>('human');
@@ -49,7 +50,9 @@
   <a href="/characters" class="text-sm text-[var(--gold)] hover:underline">← Back to characters</a>
 
   <div class="mt-4 mb-6 text-center">
-    <div class="text-4xl" aria-hidden="true">🛡️</div>
+    <div class="flex justify-center" aria-hidden="true">
+      <PixelEmblem kind="faction" id={RACES[race].faction} size={48} dim={24} />
+    </div>
     <h1 class="mt-2 font-display text-3xl font-bold text-[var(--gold-bright)]">Create your hero</h1>
     <p class="mt-1 text-sm text-[var(--text-dim)]">Choose a race, a class and a name to begin.</p>
   </div>

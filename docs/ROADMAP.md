@@ -752,6 +752,60 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - **Zbývá rozhodnout (PM):** který koncept; jestli vůbec dává herní odměny (vs čistě
   zábava/kosmetika); rozsah MVP.
 
+### M14 — Procedurální pixel-art vrstva „všude" (deep) 🚧
+
+> 🧑‍💼 Zadání PM: **výrazně rozšířit pixel-art grafiku napříč celou hrou** — od
+> oživení karet, přes pozadí (celková i per-karta dle zóny), obrázky spellů,
+> class, ras, frakcí až po profilové portréty. Navazuje na M9 PixiJS scénky
+> (ADR 0024 zmiňuje „mezikrok"). **Přístup (rozhodnutí PM): plně procedurální,
+> deterministické** — žádné externí PNG, vše generované z dat přes `SeededRng`.
+> Architektura a rozhodnutí: **ADR 0027**.
+>
+> **Princip:** dvě vrstvy se sdíleným jádrem — (a) 2D-canvas sprite vrstva
+> (`apps/web/src/lib/pixelart/`) pro malé hojné statické prvky (avatary, emblémy,
+> ikony) — záměrně ne WebGL kvůli počtu prvků; (b) PixiJS (`PixiScene`) pro
+> velké/animované scénky. Vše kosmetické (odděleno od statů), deterministické,
+> data-driven (katalog vzhledu = jediný zdroj pravdy).
+>
+> Realizovat **inkrementálně** (po kategoriích), ne najednou.
+
+- [x] **Increment 1 — Avatary + emblémy** ✅ (ADR 0027): pixel-art jádro
+      (`pixelart/core.ts` — `Painter` + primitiva px/rect/sym/disc/ellipse/line/
+      triangle + helpery hex/shade/mix, deterministicky přes `SeededRng`).
+      **Procedurální portréty** (`pixelart/portrait.ts` + `PixelPortrait.svelte`):
+      katalogy `RACE_LOOK` (8 ras: kůže/vlasy/oči+glow/uši short|long/rohy/kly/
+      proporce/vousy) × `CLASS_LOOK` (9 class: barva brnění+lemu) × frakce (tón
+      pozadí), deterministicky dle jména. **Procedurální emblémy**
+      (`pixelart/emblems.ts` + `PixelEmblem.svelte`): 9 class crestů + 2 frakční
+      znaky + 3 role ikony (geometrické glyfy). Zapojeno: `Avatar.svelte`
+      (portrét + class crest badge; `src` override reálným artem má dál přednost),
+      `/characters/new` (frakční crest dle rasy). Avatar je napříč appkou → projeví
+      se všude (top bar, group strip, chat, inspect profil, výběr/tvorba postavy).
+- [ ] **Increment 2 — Spell / ability ikony**: procedurální ikony pro baseline +
+      signature abilities (`@game/shared/data/abilities.ts`) dle `kind`
+      (strike/dot/drain/heal/shield/mitigation) + živlu/barvy classy. Zapojit do
+      combat logu (`CombatLog.svelte`), talent stromů, `AbilityDetail.svelte`.
+- [ ] **Increment 3 — Pozadí karet dle zóny/instance**: rozšířit `scenes.ts`
+      téma i pod jednotlivé karty (dungeon/raid/quest), ne jen do top banneru —
+      jemné per-karta pozadí (`HubCard`/panely) laděné dle zóny/frakce. Zvážit
+      lehkou statickou variantu (sdílené jádro) kvůli výkonu při mnoha kartách.
+- [ ] **Increment 4 — Celková pozadí stránek**: jemné procedurální pozadí appky
+      (per-sekce nebo per-frakce), nízký kontrast, respektuje `prefers-reduced-motion`.
+- [ ] **Increment 5 — Animované oživení karet**: drobné PixiJS akcenty (částice/
+      blikání/hover) ve stylu současných banner scén; izolované, vypínatelné
+      reduced-motion, šetrné k výkonu.
+- [ ] **Increment 6 — Ikony itemů / slotů / rarity**: procedurální ikony dle
+      slotu + rarity (rámeček/glow), postupně i per-item; inventář, inspect, loot,
+      AH, vendor. (Navazuje na asset spec sekce 5–6.)
+- [ ] **Increment 7 — Profil & showcase**: bohatší portrét na character sheetu /
+      inspectu (větší kompozice), frakční/class/race emblémy v hlavičkách stránek,
+      mount/skin vizuální varianty (kosmetika oddělená — kompatibilní s monetizací).
+- **Výstup:** vizuálně bohatá, konzistentní hra s procedurálním pixel-artem
+  napříč všemi obrazovkami (portréty, emblémy, spelly, pozadí, itemy).
+- **Zbývá doladit:** výtvarné jemnosti portrétů (varianty účesů/výrazů), výkonový
+  rozpočet animovaných karet, případný pozdější přechod vybraných prvků na
+  malovaný art (`src` override je připravený).
+
 ---
 
 ## M10+ — Backlog & refinements (živý seznam)

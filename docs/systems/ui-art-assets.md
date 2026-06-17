@@ -113,8 +113,19 @@ Pro inventář, inspect a loot.
 
 ## Stav placeholderů (co je teď)
 
-- **Avatary:** gradient z rasy+classy + iniciála jména + emoji emblém classy.
-- **Emblémy/role/rarity/faction:** emoji + CSS barvy.
-- **Item/slot ikony:** zatím bez artu (text + barvy dle rarity).
+> **M14 (ADR 0027):** spuštěna **procedurální pixel-art vrstva** — místo emoji/
+> gradientů se generuje deterministický pixel art (2D-canvas pro malé prvky,
+> PixiJS pro scénky). Reálný malovaný art ji kdykoli nahradí přes `src` override.
+
+- **Avatary:** **procedurální pixel-art portrét** (`pixelart/portrait.ts` přes
+  `PixelPortrait.svelte` v `Avatar.svelte`) — silueta dle rasy (uši/rohy/kly/kůže/
+  oči), brnění dle classy, tón dle frakce, deterministicky dle jména. `src`
+  override (`SHOWCASE_PORTRAITS`) má přednost pro reálný art.
+- **Class / faction / role emblémy:** **procedurální glyfy** (`pixelart/emblems.ts`
+  přes `PixelEmblem.svelte`); class crest zapojený v avatar badge, frakční crest
+  na `/characters/new`. Emoji (`CLASS_EMBLEM`/`ROLE_META`) zůstává fallback pro
+  místa bez zapojeného `PixelEmblem` (postupně se nahradí — viz ROADMAP M14).
+- **Rarity:** CSS barvy (rámečky/glow = M14 increment 6).
+- **Item/slot ikony:** zatím bez artu (M14 increment 6).
 - **Zóna/dungeon/raid scénky:** **PixiJS procedurální pixel art** (deterministický,
   seedovaný) — viz sekce 7. Reálné malované bannery je nahradí později.

@@ -3,9 +3,12 @@
  * Oddělené od herní logiky; čistě vizuál. Jediný zdroj pravdy pro to, jak
  * vypadají rasy/classy/role/rarity napříč webem (avatary, chipy, rámečky).
  *
- * Profilové obrázky: dokud malířka nedodá art (viz docs/systems/ui-art-assets.md),
- * používáme funkční default — barevný gradient odvozený z rasy + classy + iniciála
- * a emblém classy. `SHOWCASE_PORTRAITS` je registr, kam se reálné portréty zapojí.
+ * Profilové obrázky: default je **procedurální pixel-art portrét** (M14,
+ * `$lib/pixelart/portrait` přes `PixelPortrait.svelte` v `Avatar.svelte`) —
+ * deterministický dle rasy/classy/jména. `SHOWCASE_PORTRAITS` zůstává registrem,
+ * kam lze kdykoli zapojit reálný malovaný art (má přednost před procedurálním).
+ * Emoji `CLASS_EMBLEM` / `ROLE_META.icon` jsou fallback pro místa, kde ještě není
+ * zapojený `PixelEmblem.svelte` (viz docs/systems/ui-art-assets.md).
  */
 import { CLASSES, RACES, type Role } from '@game/shared';
 
