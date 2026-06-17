@@ -146,7 +146,8 @@
   }
 
   function eventStyle(e: CombatEvent): string {
-    if (e.type === 'defeat' || e.type === 'player_defeated') return 'color:var(--danger);font-weight:600';
+    if (e.type === 'defeat' || e.type === 'player_defeated')
+      return 'color:var(--danger);font-weight:600';
     if (e.type === 'heal') return 'color:var(--success)';
     if (e.type === 'drain') return 'color:var(--success);opacity:0.9';
     if (e.type === 'dot') return 'color:var(--gold-bright)';

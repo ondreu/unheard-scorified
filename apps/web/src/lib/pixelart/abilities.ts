@@ -102,10 +102,7 @@ function drawFlame(p: Painter, cx: number, cy: number, c: RGB): void {
 }
 
 /** Vykreslí ikonu ability na Painter (dim×dim). */
-export function drawAbilityIcon(
-  p: Painter,
-  ability: { name: string; kind: AbilityKind },
-): void {
+export function drawAbilityIcon(p: Painter, ability: { name: string; kind: AbilityKind }): void {
   const D = p.dim;
   const m = D / 2;
   const c = abilityColor(ability.name, ability.kind);

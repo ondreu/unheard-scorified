@@ -14,10 +14,8 @@
   import { openAbility, openNpc, openProfile } from '$lib/ui-stores';
   import PixelAbilityIcon from './PixelAbilityIcon.svelte';
 
-  let {
-    events,
-    players = {},
-  }: { events: CombatEvent[]; players?: Record<string, string> } = $props();
+  let { events, players = {} }: { events: CombatEvent[]; players?: Record<string, string> } =
+    $props();
 
   type Seg =
     | { kind: 'text'; text: string }

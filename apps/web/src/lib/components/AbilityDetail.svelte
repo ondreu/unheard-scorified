@@ -56,7 +56,11 @@
       <div class="panel-pad">
         {#if ability}
           {@const a = ability}
-          {@const meta = KIND_META[a.kind] ?? { label: a.kind, color: 'var(--text-dim)', icon: '✨' }}
+          {@const meta = KIND_META[a.kind] ?? {
+            label: a.kind,
+            color: 'var(--text-dim)',
+            icon: '✨',
+          }}
           <div class="flex items-start justify-between gap-3">
             <div class="flex min-w-0 items-center gap-2">
               <PixelAbilityIcon name={a.name} kind={a.kind} size={32} dim={16} />
@@ -66,7 +70,9 @@
           </div>
 
           {#if a.description}
-            <p class="mt-2 text-sm italic leading-relaxed text-[var(--text-dim)]">{a.description}</p>
+            <p class="mt-2 text-sm italic leading-relaxed text-[var(--text-dim)]">
+              {a.description}
+            </p>
           {/if}
 
           <hr class="divider my-4" />

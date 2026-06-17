@@ -52,8 +52,7 @@
 body {
   background:
     radial-gradient(ellipse 120% 80% at 50% -10%, rgba(120, 80, 30, 0.18), transparent 60%),
-    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(40, 60, 90, 0.1), transparent 60%),
-    var(--bg);
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(40, 60, 90, 0.1), transparent 60%), var(--bg);
   background-attachment: fixed;
   color: var(--text);
   font-family: ui-sans-serif, system-ui, sans-serif;
@@ -74,9 +73,7 @@ h3,
 .panel {
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
-    var(--surface);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%), var(--surface);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
     0 10px 30px -12px rgba(0, 0, 0, 0.7);
@@ -85,6 +82,34 @@ h3,
 
 .panel-pad {
   padding: 1.25rem;
+}
+
+/*
+ * Pozadí karty laděné dle zóny/instance (M14 increment 3). Statická pixel-art
+ * miniatura (data-URL ve `--scene-bg`, viz $lib/pixelart/scene-bg) se vykreslí
+ * přes ::before vpravo, jemně a maskovaně zleva → text vlevo zůstává čitelný.
+ * Panelové pozadí zůstává nedotčené. Bez animace (respektuje reduced-motion).
+ */
+.scene-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.scene-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--scene-bg) center right / cover no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, transparent 28%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, transparent 28%, #000 100%);
+}
+.scene-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .panel-title {
@@ -103,9 +128,7 @@ h3,
   text-align: left;
   border: 1px solid var(--border);
   border-radius: 0.7rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 45%),
-    var(--surface);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 45%), var(--surface);
   padding: 0.9rem 1rem;
   transition:
     border-color 0.15s ease,

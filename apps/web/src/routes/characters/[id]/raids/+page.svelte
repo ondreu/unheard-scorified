@@ -14,7 +14,14 @@
     type RaidRole,
     type RaidRunSummary,
   } from '$lib/api';
+  import { browser } from '$app/environment';
   import SceneBanner from '$lib/components/SceneBanner.svelte';
+  import { sceneCardStyle } from '$lib/pixelart/scene-bg';
+
+  // Pozadí karty dle scény raidu (browser-only — vyžaduje canvas).
+  function cardStyle(id: string): string {
+    return browser ? sceneCardStyle(id) : '';
+  }
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -146,7 +153,10 @@
   {:else}
     <ul class="space-y-3">
       {#each raids as r (r.id)}
-        <li class="panel panel-pad {r.unlocked ? '' : 'opacity-60'}">
+        <li
+          class="panel panel-pad scene-card {r.unlocked ? '' : 'opacity-60'}"
+          style={cardStyle(r.id)}
+        >
           <div class="flex items-start justify-between gap-4">
             <div>
               <h2 class="panel-title flex items-center gap-2">
@@ -158,7 +168,8 @@
                 {/if}
               </h2>
               <p class="text-xs uppercase tracking-wide text-[var(--text-faint)]">
-                {ui.reqLevel} {r.requiredLevel} · {ui.bosses}: {r.bossNames.join(', ')}
+                {ui.reqLevel}
+                {r.requiredLevel} · {ui.bosses}: {r.bossNames.join(', ')}
               </p>
             </div>
             {#if !r.unlocked}

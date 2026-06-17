@@ -790,10 +790,14 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `PixelAbilityIcon.svelte` (lehký `<img>` z cache). Zapojeno do combat logu
       (`CombatLog.svelte`, malá ikona před názvem ability), talent stromů
       (capstone uzly), `AbilityDetail.svelte` (velká ikona) a editoru rotace.
-- [ ] **Increment 3 — Pozadí karet dle zóny/instance**: rozšířit `scenes.ts`
-      téma i pod jednotlivé karty (dungeon/raid/quest), ne jen do top banneru —
-      jemné per-karta pozadí (`HubCard`/panely) laděné dle zóny/frakce. Zvážit
-      lehkou statickou variantu (sdílené jádro) kvůli výkonu při mnoha kartách.
+- [x] **Increment 3 — Pozadí karet dle zóny/instance** ✅: lehká **statická**
+      varianta velkých PixiJS scén — `pixelart/scene-bg.ts` (`drawSceneThumb`
+      recykluje katalog témat `scenes.ts`) vykreslí miniaturu jednou, nacachuje
+      jako **data-URL** a sdílí ji přes CSS proměnnou `--scene-bg`. Třída
+      `.scene-card` (app.css) ji vykreslí přes `::before` jemně (16 %, maskováno
+      zleva → text čitelný), bez animace. Zapojeno na karty **dungeonů** (per
+      instance), **raidů** (per instance) a **questů** (per zóna). Žádné canvasy
+      per karta → škáluje i na desítky položek. Kosmetické, deterministické.
 - [ ] **Increment 4 — Celková pozadí stránek**: jemné procedurální pozadí appky
       (per-sekce nebo per-frakce), nízký kontrast, respektuje `prefers-reduced-motion`.
 - [ ] **Increment 5 — Animované oživení karet**: drobné PixiJS akcenty (částice/

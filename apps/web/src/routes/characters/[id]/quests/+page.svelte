@@ -9,13 +9,21 @@
     startQuesting,
     type QuestView,
   } from '$lib/api';
+  import { browser } from '$app/environment';
   import { ZONES } from '@game/shared';
   import SceneBanner from '$lib/components/SceneBanner.svelte';
+  import { sceneCardStyle } from '$lib/pixelart/scene-bg';
+
+  // Pozadí karty dle zóny questu (browser-only — vyžaduje canvas).
+  function cardStyle(zoneId: string): string {
+    return browser ? sceneCardStyle(zoneId) : '';
+  }
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Available Quests',
-    empty: 'No story quests available right now. Level up to unlock more — or just go questing below.',
+    empty:
+      'No story quests available right now. Level up to unlock more — or just go questing below.',
     send: 'Send',
     sending: 'Sending…',
     reward: 'Reward',
@@ -144,7 +152,7 @@
   {:else}
     <ul class="space-y-3">
       {#each quests as q (q.id)}
-        <li class="panel panel-pad">
+        <li class="panel panel-pad scene-card" style={cardStyle(q.zoneId)}>
           <div class="flex items-start justify-between gap-4">
             <div>
               <h2 class="panel-title">
