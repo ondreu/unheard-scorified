@@ -1093,11 +1093,6 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - [ ] 🧑‍💼 **Monetizace** (návrh připraven od M0 — kosmetika oddělená od statů):
       skiny, profilové obrázky, zrychlení, gold, volitelné reklamy.
 
-### CHORE
-
-- [ ] 🧑‍💼 Agresivní upozornění na nový update (verze klienta vs server → výzva
-      k reloadu; service worker už máme z M3).
-
 ### BALANCE
 
 - [x] 🧑‍💼 **Délka všech aktivit + rychlost progrese** ✅ (M9 balanc pass): XP křivka
