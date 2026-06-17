@@ -910,8 +910,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `MountModule`, tabulka `character_mounts` + `characters.active_mount_id`
       (migrace `0021`), web `/characters/[id]/mounts`. Testy: shared (+10) +
       API flow (+8). Detail: `docs/systems/mounts.md`, **ADR 0023**.
-- [ ] 🧑‍💼 **Admin panel**: u seznamu účtů rozkliknout jejich postavy (drill-down
-      account → characters → inspect). Rozšiřuje stávající `/dev/mod`.
+- [x] 🧑‍💼 **Admin panel — drill-down** ✅: v seznamu účtů (`/dev`) rozkliknout
+      jejich postavy (▸/▾ toggle) → klik na postavu otevře inspector. Endpoint
+      `GET /dev/mod/accounts/:accountId/characters` (`DevModule`). Rozšiřuje
+      stávající `/dev/mod`. (PR #48.)
 - [x] 🧑‍💼 **Armor typy** (cloth / leather / mail / plate) ✅: `ItemDef.armorClass`
       (naplněné z `ARMOR_CLASS_BY_ITEM`, jen armor sloty `ARMOR_SLOT_TYPES`) +
       `CLASS_ARMOR_PROFICIENCY` (vanilla-style: warrior/paladin=plate↓,
@@ -1108,7 +1110,9 @@ lobby) a M8.5-D (P2P trade) — staví se první.
   - [x] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje). Equip teď
         kus z inventáře spotřebuje (consume→equip), unequip/swap ho vrátí; tentýž
         kus nelze nasadit do dvou slotů. Testy v `inventory.flow.test.ts`.
-  - [ ] Equip přes **drag & drop**. (samostatné UX, zbývá)
+  - [x] Equip přes **drag & drop** ✅: tažení kusů mezi inventářem a equipment
+        sloty (`draggable`/`ondrop` na `/inventory`); tlačítka zůstávají jako
+        fallback. (commit `1941710`.)
 - [x] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
       Seznam dungeonů i raidů vystavuje `hasLockout`/`lockedOut`; web zobrazí
       „🔒 Saved this week" badge u instancí vyčištěných tento UTC týden.
