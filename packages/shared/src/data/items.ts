@@ -633,6 +633,163 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     stats: { intellect: 18, spirit: 11, spell_power: 16 },
   },
 
+  // --- Více gearu (gap fill): trinkets, mail armor, leather legs/waist, neck,
+  // caster off-hand, bracket-2 (ilvl 31–44) výplň. Pokrývá kriticko-chybějící sloty. ---
+
+  // Trinkets (kriticky nedostatečné — jen 3 kusy napříč všemi brackety)
+  adventurer_charm: {
+    id: 'adventurer_charm', name: "Adventurer's Charm", slot: 'trinket',
+    rarity: 'common', itemLevel: 10, vendorGold: 3,
+    stats: { strength: 3, agility: 3, stamina: 2 },
+  },
+  wolf_fang_talisman: {
+    id: 'wolf_fang_talisman', name: 'Wolf Fang Talisman', slot: 'trinket',
+    rarity: 'uncommon', itemLevel: 32, vendorGold: 22,
+    stats: { agility: 8, crit_rating: 6 },
+  },
+  lifeblood_stone: {
+    id: 'lifeblood_stone', name: 'Lifeblood Stone', slot: 'trinket',
+    rarity: 'rare', itemLevel: 42, vendorGold: 40,
+    stats: { stamina: 14, spirit: 8 },
+  },
+  brd_void_shard: {
+    id: 'brd_void_shard', name: 'Void-Etched Shard', slot: 'trinket',
+    rarity: 'rare', itemLevel: 55, vendorGold: 60,
+    stats: { intellect: 14, spell_power: 12, crit_rating: 8 },
+  },
+
+  // Mail armor — chybějící sloty (head, shoulder, feet, hands)
+  // Bracket 2 (ilvl 18–25)
+  riveted_chainmail_coif: {
+    id: 'riveted_chainmail_coif', name: 'Riveted Chainmail Coif', slot: 'head',
+    rarity: 'uncommon', itemLevel: 22, vendorGold: 10,
+    stats: { strength: 6, stamina: 5, armor: 18 },
+  },
+  riveted_chainmail_pauldrons: {
+    id: 'riveted_chainmail_pauldrons', name: 'Riveted Chainmail Pauldrons', slot: 'shoulder',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { strength: 5, stamina: 5, armor: 14 },
+  },
+  chain_link_boots: {
+    id: 'chain_link_boots', name: 'Chain-Link Boots', slot: 'feet',
+    rarity: 'uncommon', itemLevel: 22, vendorGold: 10,
+    stats: { agility: 6, stamina: 5, armor: 16 },
+  },
+  chain_link_gauntlets: {
+    id: 'chain_link_gauntlets', name: 'Chain-Link Gauntlets', slot: 'hands',
+    rarity: 'uncommon', itemLevel: 20, vendorGold: 9,
+    stats: { strength: 5, stamina: 5, armor: 14 },
+  },
+  // Bracket 4 (ilvl 43–45)
+  beastmaster_helm: {
+    id: 'beastmaster_helm', name: "Beastmaster's Helm", slot: 'head',
+    rarity: 'rare', itemLevel: 44, vendorGold: 44,
+    stats: { agility: 13, stamina: 11, crit_rating: 5, armor: 40 },
+  },
+  predators_pauldrons: {
+    id: 'predators_pauldrons', name: "Predator's Pauldrons", slot: 'shoulder',
+    rarity: 'rare', itemLevel: 43, vendorGold: 42,
+    stats: { agility: 12, stamina: 10, armor: 35 },
+  },
+  swifthunter_boots: {
+    id: 'swifthunter_boots', name: 'Swifthunter Boots', slot: 'feet',
+    rarity: 'rare', itemLevel: 45, vendorGold: 44,
+    stats: { agility: 12, stamina: 10, armor: 36 },
+  },
+  elementalist_gauntlets: {
+    id: 'elementalist_gauntlets', name: 'Elementalist Gauntlets', slot: 'hands',
+    rarity: 'rare', itemLevel: 44, vendorGold: 42,
+    stats: { strength: 8, agility: 8, stamina: 10, armor: 38 },
+  },
+
+  // Leather legs a waist (kriticky chybějící — 0 kusů v obou slotech)
+  pantherskin_leggings: {
+    id: 'pantherskin_leggings', name: 'Pantherskin Leggings', slot: 'legs',
+    rarity: 'uncommon', itemLevel: 28, vendorGold: 14,
+    stats: { agility: 7, stamina: 6 },
+  },
+  rogue_sash: {
+    id: 'rogue_sash', name: "Rogue's Sash", slot: 'waist',
+    rarity: 'uncommon', itemLevel: 22, vendorGold: 9,
+    stats: { agility: 6, stamina: 4 },
+  },
+  savage_leather_leggings: {
+    id: 'savage_leather_leggings', name: 'Savage Leather Leggings', slot: 'legs',
+    rarity: 'rare', itemLevel: 44, vendorGold: 42,
+    stats: { agility: 13, stamina: 11, crit_rating: 5 },
+  },
+  stalker_cord: {
+    id: 'stalker_cord', name: "Stalker's Cord", slot: 'waist',
+    rarity: 'uncommon', itemLevel: 38, vendorGold: 26,
+    stats: { agility: 9, stamina: 7 },
+  },
+
+  // Neck (chybí fyzický DPS + tank; jen 4 kusy celkem)
+  iron_pendant_of_valor: {
+    id: 'iron_pendant_of_valor', name: 'Iron Pendant of Valor', slot: 'neck',
+    rarity: 'uncommon', itemLevel: 30, vendorGold: 16,
+    stats: { strength: 7, stamina: 6 },
+  },
+  hawks_eye_amulet: {
+    id: 'hawks_eye_amulet', name: "Hawk's Eye Amulet", slot: 'neck',
+    rarity: 'rare', itemLevel: 40, vendorGold: 34,
+    stats: { agility: 10, crit_rating: 7 },
+  },
+  bloodforged_choker: {
+    id: 'bloodforged_choker', name: 'Bloodforged Choker', slot: 'neck',
+    rarity: 'rare', itemLevel: 52, vendorGold: 52,
+    stats: { strength: 13, stamina: 13 },
+  },
+
+  // Caster off-hand (chybí — jen štíty/plátová věc; žádný orb/tome)
+  arcane_focus: {
+    id: 'arcane_focus', name: 'Arcane Focus Orb', slot: 'off_hand',
+    rarity: 'uncommon', itemLevel: 28, vendorGold: 14,
+    stats: { intellect: 7, spirit: 5, spell_power: 8 },
+  },
+  spirit_orb_of_elune: {
+    id: 'spirit_orb_of_elune', name: 'Spirit Orb of Elune', slot: 'off_hand',
+    rarity: 'rare', itemLevel: 45, vendorGold: 44,
+    stats: { intellect: 14, spirit: 9, spell_power: 14 },
+  },
+
+  // Bracket 2 výplň (ilvl 31–44 — mezera mezi tier-3 a frontier gearem)
+  forest_warden_vest: {
+    id: 'forest_warden_vest', name: 'Forest Warden Vest', slot: 'chest',
+    rarity: 'uncommon', itemLevel: 32, vendorGold: 22,
+    stats: { agility: 8, stamina: 8 },
+  },
+  spellcaster_shoulderguards: {
+    id: 'spellcaster_shoulderguards', name: 'Spellcaster Shoulderguards', slot: 'shoulder',
+    rarity: 'uncommon', itemLevel: 32, vendorGold: 20,
+    stats: { intellect: 8, spirit: 6, spell_power: 4 },
+  },
+  templar_legplates: {
+    id: 'templar_legplates', name: 'Templar Legplates', slot: 'legs',
+    rarity: 'rare', itemLevel: 40, vendorGold: 36,
+    stats: { strength: 10, stamina: 12, armor: 52 },
+  },
+  ironbark_bracers: {
+    id: 'ironbark_bracers', name: 'Ironbark Bracers', slot: 'wrist',
+    rarity: 'rare', itemLevel: 38, vendorGold: 28,
+    stats: { agility: 9, stamina: 8 },
+  },
+  warpath_sabatons: {
+    id: 'warpath_sabatons', name: 'Warpath Sabatons', slot: 'feet',
+    rarity: 'uncommon', itemLevel: 38, vendorGold: 28,
+    stats: { strength: 9, stamina: 8, armor: 32 },
+  },
+  sundered_battleaxe: {
+    id: 'sundered_battleaxe', name: 'Sundered Battleaxe', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 40, vendorGold: 36,
+    stats: { strength: 13, stamina: 8, attack_power: 18 },
+  },
+  wanderer_band: {
+    id: 'wanderer_band', name: "Wanderer's Band", slot: 'finger',
+    rarity: 'uncommon', itemLevel: 35, vendorGold: 22,
+    stats: { agility: 8, crit_rating: 5 },
+  },
+
   // --- Batohy (M10 limited inventory): vloží se do bag slotu a přidají sloty.
   // Žádné staty; vendor prodává malé, větší jsou cíl craftu (follow-up). ---
   small_pouch: {
@@ -701,6 +858,8 @@ const BIND_ON_PICKUP: ItemId[] = [
   // M12 nízkoúrovňové dungeon loot
   'wc_serpentine_band', 'wc_deviate_hide_pauldrons',
   'bfd_rod_of_the_sleeper', 'bfd_gaze_dreamer_robes',
+  // Více gearu: BRD dungeon trinket (BoP)
+  'brd_void_shard',
 ];
 
 /**
@@ -733,6 +892,8 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'zg_jindo_mantle', 'aq_gloves_of_the_immortal',
     'brd_flameweave_cuffs', 'strat_skul_cap',
     'bfd_gaze_dreamer_robes',
+    // Více gearu
+    'spellcaster_shoulderguards',
   ],
   leather: [
     'leather_cap', 'scout_vest', 'ranger_gloves', 'shadow_cowl',
@@ -742,12 +903,21 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'zg_overlord_helmet',
     'zf_sandstalker_ankleguards',
     'wc_deviate_hide_pauldrons',
+    // Více gearu: chybějící leather legs + waist + bracket-2 fills
+    'pantherskin_leggings', 'rogue_sash',
+    'savage_leather_leggings', 'stalker_cord',
+    'forest_warden_vest', 'ironbark_bracers',
   ],
   mail: [
     'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',
     'chromatic_chainmail', 'plaguehound_leggings',
     'zg_primalist_belt', 'aq_qiraji_bindings',
     'mar_elemental_girdle',
+    // Více gearu: chybějící mail head/shoulder/feet/hands
+    'riveted_chainmail_coif', 'riveted_chainmail_pauldrons',
+    'chain_link_boots', 'chain_link_gauntlets',
+    'beastmaster_helm', 'predators_pauldrons',
+    'swifthunter_boots', 'elementalist_gauntlets',
   ],
   plate: [
     'soldier_helm', 'marauder_shoulders', 'crusader_belt', 'warlord_plate',
@@ -756,6 +926,8 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'gauntlets_of_the_fallen', 'bracers_of_undeath',
     'zg_bloodlords_chestplate', 'aq_silithid_carapace',
     'zf_bloodmail_gauntlets', 'strat_deathbone_legguards',
+    // Více gearu: bracket-2 plate fills
+    'templar_legplates', 'warpath_sabatons',
   ],
 };
 
