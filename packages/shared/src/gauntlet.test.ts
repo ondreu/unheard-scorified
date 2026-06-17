@@ -10,6 +10,7 @@ import {
   gauntletDailyGoldCap,
   gauntletDailyXpCap,
   gauntletRunReward,
+  healFalloff,
   resolveGauntletTurn,
   rollGauntletDraft,
   startGauntletRun,
@@ -178,6 +179,53 @@ describe('draft', () => {
       { kind: 'buff', id: 'might', label: "Berserker's Might", attackMult: 1.15 },
     ]);
     expect(buffed.attackPower).toBeGreaterThan(base.attackPower);
+  });
+
+  it('heal fall-off: opakované léčení je čím dál slabší', () => {
+    expect(healFalloff(0)).toBe(1);
+    expect(healFalloff(1)).toBeLessThan(1);
+    expect(healFalloff(2)).toBeLessThan(healFalloff(1));
+
+    const base = hero(40);
+    // Postav drafting stav s nízkým HP a vlož heal kartu ručně.
+    let s = clearWave(base, startGauntletRun(base, 40, 11));
+    s.player.currentHealth = 1;
+    const healCard = {
+      id: 'buff:field_dressing',
+      kind: 'buff' as const,
+      name: 'Field Dressing',
+      description: 'Heal 30%.',
+      pick: { kind: 'buff' as const, id: 'field_dressing', label: 'Field Dressing', healPct: 0.3 },
+    };
+    s.draft = [healCard];
+    const hpBefore1 = 1;
+    s = applyGauntletDraft(base, s, healCard.id, 40);
+    const firstHeal = s.player.currentHealth - hpBefore1;
+    expect(s.healsUsed).toBe(1);
+
+    // Druhý heal hned (znovu drafting, nízké HP) → menší přírůstek než první.
+    s.status = 'drafting';
+    s.player.currentHealth = 1;
+    s.draft = [healCard];
+    s = applyGauntletDraft(base, s, healCard.id, 40);
+    const secondHeal = s.player.currentHealth - 1;
+    expect(secondHeal).toBeLessThan(firstHeal);
+    expect(s.healsUsed).toBe(2);
+  });
+
+  it('mezi vlnami se HP NEregeneruje automaticky (léčí jen draft)', () => {
+    const base = hero(40);
+    let s = clearWave(base, startGauntletRun(base, 40, 21));
+    s.player.currentHealth = 5;
+    // Vyber ne-léčivý draft (gear/ability/non-heal buff).
+    s.draft = rollGauntletDraft(base, s, new SeededRng(77));
+    const nonHeal = s.draft.find((o) => !/Heal/.test(o.description)) ?? s.draft[0]!;
+    const hpBefore = s.player.currentHealth;
+    s = applyGauntletDraft(base, s, nonHeal.id, 40);
+    // Bez navýšení max HP zůstane current stejné (žádný auto-heal mezi vlnami).
+    if ((nonHeal.pick.bonusMaxHealth ?? 0) === 0 && (nonHeal.pick.maxHealthMult ?? 1) === 1) {
+      expect(s.player.currentHealth).toBe(hpBefore);
+    }
   });
 
   it('ability draft přidá nový spell do kitu pro run', () => {

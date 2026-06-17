@@ -34,7 +34,14 @@ Dvě klíčová rozhodnutí PM:
 - Tah = (1) DoT tiky na nepříteli, (2) hráčova zvolená ability, (3) protiúder
   nepřítele, (4) údržba cooldownů/mitigace. Cooldowny v **tazích**
   (`cooldownSec / GAUNTLET_TURN_SEC`).
-- Nepřátelé se škálují vlnou i levelem; každá 5. vlna je **elite**.
+- Nepřátelé se škálují vlnou i levelem **kompoundovaně** (exponenciálně:
+  HP ^1.18, dmg ^1.15 / vlna); každá 5. vlna je **elite**. Obtížnost tak vždy
+  přeroste hráčův snowball → run má přirozenou hranici = skóre.
+- **Léčení**: HP se mezi vlnami neregeneruje; léčit jde jen heal *spellem* a
+  každé léčení v runu má **fall-off** (`healFalloff(healsUsed) = 0.65 ** n`,
+  sdílený čítač). Tím **nejde spamovat heal** ani „heal+DoT" stall (nalep DoT a
+  léč se donekonečna). Lifesteal/drain (vázané na dmg) fall-offu nepodléhají.
+  Heal draft karty zatím nejsou (engine je podporuje pro pozdější přidání).
 - **Draft picks jsou run-scoped** (drží se v `picks[]`, aplikují se na snapshot →
   efektivní `CombatActor`), nikdy se nepersistují na postavu → **žádný
   power-creep**, čistý anti-cheat. Buff = násobiče, gear = ploché staty (combat

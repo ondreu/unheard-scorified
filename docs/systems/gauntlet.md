@@ -19,11 +19,26 @@ stropu vln. Idle hra zůstává „set & forget"; tohle je bonus.
    Server vyhodnotí: DoT tiky → tvá ability → protiúder nepřítele. Cooldowny běží
    v tazích.
 3. **Vyčištění vlny** → **draft**: 3 nabídky (buff / kus gearu s porovnáním vůči
-   vybavení / nový spell). Výběr platí **jen pro tenhle run** (roguelite).
-4. Další vlna je silnější (každá 5. je **elite**). Opakuj, dokud nepadneš nebo
-   nedosáhneš stropu vln.
+   vybavení / nový spell). Výběr platí **jen pro tenhle run** (roguelite). HP se
+   mezi vlnami **nedoplňuje** — léčit jde jen heal spellem (viz fall-off níže).
+4. Další vlna je silnější (každá 5. je **elite**), staty nepřátel rostou
+   **exponenciálně**. Opakuj, dokud nepadneš nebo nedosáhneš stropu vln.
 5. **Konec** (smrt / retire / strop) → odměna škálovaná počtem vyčištěných vln,
    omezená **denním stropem**.
+
+## Léčení & fall-off (anti heal+DoT spam)
+
+- **HP se mezi vlnami NEregeneruje automaticky** — co utržíš, to si neseš dál.
+- **Léčit jde jen heal *spelly*** (heal-kind ability, např. Holy Light). Heal
+  draft karty zatím nejsou (rozhodnutí PM; engine je podporuje pro pozdější přidání).
+- **Globální fall-off léčení**: každé použité léčení v runu zlevní další
+  (`healFalloff(healsUsed) = 0.65 ** healsUsed` — 1. plné, pak ~65 %, ~42 %, …).
+  Sdílený čítač `healsUsed` přes celý run → **nejde spamovat heal**, čímž padá i
+  „nalep DoT a léč se donekonečna" stall strategie. Heal je na kritické momenty,
+  ne na přežívání.
+- Sustain bez heal spellu: **lifesteal** (talenty, `Vampiric Aura` draft) a
+  **drain** ability (heal z uděleného poškození) — tyto fall-offu nepodléhají
+  (jsou vázané na dealnutí dmg, samoregulační).
 
 ## Determinismus & anti-cheat
 
