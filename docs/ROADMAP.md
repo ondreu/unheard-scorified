@@ -1083,8 +1083,11 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ### CHORE
 
-- [ ] 🧑‍💼 Agresivní upozornění na nový update (verze klienta vs server → výzva
-      k reloadu; service worker už máme z M3).
+- [x] 🧑‍💼 **Agresivní upozornění na nový update** ✅: SvelteKit verzování
+      (`kit.version.name` = build-time timestamp + `pollInterval` 60 s →
+      `version.json`), `UpdateBanner.svelte` v root layoutu sleduje `$updated`
+      a při novém nasazení (Watchtower) zobrazí výzvu k reloadu (+ kontrola při
+      návratu na záložku). Service worker (M3) si nový build precachuje.
 
 ### BALANCE
 
