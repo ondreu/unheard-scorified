@@ -23,6 +23,11 @@ export class SocialEventsRelay {
   /** Globální chat room. */
   static readonly CHAT_GLOBAL = 'chat:global';
 
+  /** Guild chat room (M9 chat overhaul) — fan-out jen členům dané guildy. */
+  static guildChatRoom(guildId: string): string {
+    return `chat:guild:${guildId}`;
+  }
+
   setServer(server: Server): void {
     this.server = server;
   }
@@ -40,6 +45,22 @@ export class SocialEventsRelay {
   /** Rozešle chatovou zprávu do globálního kanálu. */
   chatMessage(message: unknown): void {
     this.emit(SocialEventsRelay.CHAT_GLOBAL, 'chat:message', message);
+  }
+
+  /** Rozešle chatovou zprávu členům dané guildy (guild kanál). */
+  guildChatMessage(guildId: string, message: unknown): void {
+    this.emit(SocialEventsRelay.guildChatRoom(guildId), 'chat:message', message);
+  }
+
+  /**
+   * Oznámí přátelům změnu online stavu postavy (M9 chat overhaul). Emituje
+   * `social:presence` do room každého přítele (best-effort, REST/getSocial je
+   * autoritativní při načtení panelu).
+   */
+  presence(friendCharacterIds: string[], characterId: string, online: boolean): void {
+    for (const friendId of friendCharacterIds) {
+      this.emit(SocialEventsRelay.room(friendId), 'social:presence', { characterId, online });
+    }
   }
 
   /** Oznámí postavě pozvánku do guildy. */

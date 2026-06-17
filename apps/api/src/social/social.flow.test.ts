@@ -9,6 +9,7 @@ import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
+import { InMemoryPresenceStore } from './presence.store';
 import { SocialEventsRelay } from './social.events';
 import { SocialRepository } from './social.repository';
 import { SocialService } from './social.service';
@@ -21,6 +22,7 @@ describe('M9 flow: friends', () => {
   let auth: AuthService;
   let characters: CharacterService;
   let social: SocialService;
+  let presence: InMemoryPresenceStore;
   let seq = 0;
 
   beforeAll(async () => {
@@ -31,7 +33,8 @@ describe('M9 flow: friends', () => {
     const charRepo = new CharacterRepository(db);
     auth = new AuthService(db, new JwtService());
     characters = new CharacterService(charRepo);
-    social = new SocialService(charRepo, new SocialRepository(db), new SocialEventsRelay());
+    presence = new InMemoryPresenceStore();
+    social = new SocialService(charRepo, new SocialRepository(db), new SocialEventsRelay(), presence);
   });
 
   beforeEach(() => {
@@ -127,6 +130,45 @@ describe('M9 flow: friends', () => {
     const after = await social.removeFriend(a.accountId, a.id, b.id);
     expect(after.friends).toHaveLength(0);
     expect((await social.getSocial(b.accountId, b.id)).friends).toHaveLength(0);
+  });
+
+  it('online stav přátel se promítne do přehledu a online jdou první', async () => {
+    const a = await player('Watcher');
+    const b = await player('Onliner');
+    const c = await player('Offliner');
+    // A se spřátelí s B i C.
+    await social.sendRequest(a.accountId, a.id, b.name);
+    await social.respond(
+      b.accountId,
+      b.id,
+      (await social.getSocial(b.accountId, b.id)).incoming[0]!.requestId,
+      true,
+    );
+    await social.sendRequest(a.accountId, a.id, c.name);
+    await social.respond(
+      c.accountId,
+      c.id,
+      (await social.getSocial(c.accountId, c.id)).incoming[0]!.requestId,
+      true,
+    );
+
+    // Bez presence: oba offline.
+    let view = await social.getSocial(a.accountId, a.id);
+    expect(view.friends.every((f) => !f.online)).toBe(true);
+
+    // C přijde online → je první a má online=true.
+    await presence.join(c.id);
+    view = await social.getSocial(a.accountId, a.id);
+    expect(view.friends[0]!.name).toBe('Offliner');
+    expect(view.friends[0]!.online).toBe(true);
+    expect(view.friends.find((f) => f.name === 'Onliner')!.online).toBe(false);
+
+    // Refcount: dvě spojení, jeden leave → stále online.
+    await presence.join(c.id);
+    await presence.leave(c.id);
+    expect(await presence.isOnline(c.id)).toBe(true);
+    await presence.leave(c.id);
+    expect(await presence.isOnline(c.id)).toBe(false);
   });
 
   it('cizí účet nemůže číst sociální přehled postavy', async () => {
