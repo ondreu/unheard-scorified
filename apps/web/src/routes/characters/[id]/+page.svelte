@@ -505,6 +505,15 @@
                   ⭐ {ui.levelUp}
                   {r.levelBefore} → {r.levelAfter}
                 </p>{/if}
+              {#if r.reputation && r.reputation.length > 0}
+                {#each r.reputation as rep, ri (ri)}
+                  <p class="mt-1 text-[var(--text-dim)]">
+                    🏅 <span class="text-[var(--gold)]">{rep.name}</span>
+                    +{rep.gained}
+                    <span class="text-[var(--text-faint)]">· {rep.tierName}</span>
+                  </p>
+                {/each}
+              {/if}
             </div>
           {/if}
 

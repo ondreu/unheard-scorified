@@ -56,9 +56,15 @@ Gathering/crafting běh = idle aktivita (ADR 0006), typy **`gather`** /
 ## Reputace
 
 - 3 frakce: **Miners' League** (mining+blacksmithing), **Herbalist Circle**
-  (herbalism+alchemy), **Explorers' Guild** (poloviční podíl z každého běhu).
+  (herbalism+alchemy), **Explorers' Guild** (poloviční podíl z každého běhu +
+  retrofit z questů/dungeonů, viz níže).
 - Tiery: Neutral (0) → Friendly (500) → Honored (1500) → Revered (3000) → Exalted (6000).
   Tier se **odvozuje z `standing`** (neukládá se).
+- **Retrofit z běžného hraní (M9):** dokončený **quest** i **Gone Questing**
+  (`ActivityService.claim`) a **vyčištěný dungeon** (`DungeonService`) dávají standing
+  **Explorers' Guild** (`GENERALIST_FACTION`). Škálovací vzorce `questReputationGain(level)`
+  (10 + level·0.5) a `dungeonReputationGain(level)` (25 + dungeon level) v `data/factions.ts`.
+  Jen při úspěchu — combat-objective prohra ani propadlý weekly lockout nic nedají.
 - **Rep-gated recepty**: `requiredReputation: { factionId, tier }`. MVP gated
   recepty (Honored): **Masterwork Blade** (Miners' League), **Elixir of Strength**
   (Herbalist Circle).
@@ -92,5 +98,5 @@ Gathering/crafting běh = idle aktivita (ADR 0006), typy **`gather`** /
 
 - „Use" mechanika consumables (buffy) — M9 (buff systém).
 - Prodej materiálů/itemů (vendor/AH) — M8.
-- Reputace i z questů/dungeonů (retrofit do jejich claimu).
+- ~~Reputace i z questů/dungeonů (retrofit do jejich claimu).~~ ✅ hotovo (M9, viz výše).
 - Balanc (skill XP, yield, rep prahy, durations) — M9.

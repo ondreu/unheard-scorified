@@ -140,6 +140,10 @@ export interface DungeonRunView {
   myRole: RaidRole | null;
   /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
   myLockedOut: boolean;
+  /** Reputace získaná za clear (M9 retrofit); 0 pokud žádná. */
+  repGain: number;
+  /** Frakce reputace (Explorers' Guild), nebo null když repGain = 0. */
+  repFactionName: string | null;
 }
 
 export interface DungeonRunSummary {

@@ -4,6 +4,7 @@ import { CharacterModule } from '../character/character.module';
 import { HistoryModule } from '../history/history.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { LockoutModule } from '../lockout/lockout.module';
+import { ProfessionDataModule } from '../profession/profession-data.module';
 import { TalentModule } from '../talent/talent.module';
 import { PushModule } from '../push/push.module';
 import { QuestModule } from '../quest/quest.module';
@@ -30,6 +31,7 @@ import { DungeonService } from './dungeon.service';
     LockoutModule,
     RotationModule,
     QuestModule,
+    ProfessionDataModule,
   ],
   controllers: [DungeonController],
   providers: [DungeonService],

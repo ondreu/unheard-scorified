@@ -28,7 +28,8 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
   explorers_guild: {
     id: 'explorers_guild',
     name: "The Explorers' Guild",
-    description: 'Generalists who reward all honest labor. Every profession run earns a little standing.',
+    description:
+      'Generalists who reward all honest labor — every quest, dungeon and profession run earns a little standing.',
   },
 };
 
@@ -93,4 +94,31 @@ export function reputationProgress(standing: number): {
 
 export function isFactionId(value: string): value is FactionId {
   return value in FACTIONS;
+}
+
+/**
+ * Generalistická frakce odměňující veškerou „poctivou práci": profese (M6) i
+ * běžné hraní — questy a vyčištěné dungeony (retrofit). Jediná frakce, u které
+ * standing stoupá i mimo profese (questy/dungeony tečou sem, ne k odborným
+ * guildám Miners'/Herbalist).
+ */
+export const GENERALIST_FACTION: FactionId = 'explorers_guild';
+
+/**
+ * Reputace u Explorers' Guild za jeden dokončený quest (story i Gone Questing).
+ * Mírně roste s levelem — drobný, ale stabilní příjem standingu z běžného hraní
+ * (řádově srovnatelný s profession během, viz `repReward` 20–80).
+ */
+export function questReputationGain(level: number): number {
+  const lvl = Math.max(1, Math.min(60, Math.floor(level)));
+  return Math.round(10 + lvl * 0.5);
+}
+
+/**
+ * Reputace u Explorers' Guild za vyčištěný dungeon. Roste s úrovní dungeonu;
+ * víc než quest (dungeon = větší závazek). Uděluje se jen při clearu (ne wipe).
+ */
+export function dungeonReputationGain(level: number): number {
+  const lvl = Math.max(1, Math.min(60, Math.floor(level)));
+  return Math.round(25 + lvl);
 }

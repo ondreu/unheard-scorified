@@ -12,8 +12,11 @@ import {
   deriveCombatProfile,
   deriveRaidActor,
   dungeonAttunementQuests,
+  dungeonReputationGain,
   DUNGEON_SIZES,
   DUNGEONS,
+  FACTIONS,
+  GENERALIST_FACTION,
   groupComposition,
   groupEncounters,
   isDungeonId,
@@ -41,6 +44,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { LockoutRepository } from '../lockout/lockout.repository';
+import { ReputationRepository } from '../profession/profession.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { PushService } from '../push/push.service';
@@ -117,6 +121,10 @@ export interface DungeonRunView {
   myRole: RaidRole | null;
   /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
   myLockedOut: boolean;
+  /** Reputace získaná za clear (M9 retrofit); 0 pokud žádná (wipe/lockout/běží). */
+  repGain: number;
+  /** Frakce reputace (Explorers' Guild), nebo null když repGain = 0. */
+  repFactionName: string | null;
 }
 
 export interface DungeonRunSummary {
@@ -147,6 +155,7 @@ export class DungeonService {
     private readonly push: PushService,
     private readonly repo: RaidRepository,
     private readonly lockouts: LockoutRepository,
+    private readonly reputation: ReputationRepository,
     private readonly rotation: RotationService,
     private readonly completed: CompletedQuestRepository,
     private readonly history: HistoryRepository,
@@ -423,12 +432,16 @@ export class DungeonService {
 
     // Weekly lockout (M8.6): jen vyšší dungeony (lockoutId != null). První vítězný
     // run v týdnu zamkne; další clear v témže UTC týdnu odměnu nedá.
+    let lockedOut = false;
     if (victory) {
       const lockoutId = lockoutIdForContent('dungeon', dungeonId);
       if (lockoutId) {
         const weekId = weeklyLockoutId(Date.now());
         const acquired = await this.lockouts.acquire(character.id, lockoutId, weekId);
-        if (!acquired) reward = { xp: 0, gold: 0, items: [] };
+        if (!acquired) {
+          reward = { xp: 0, gold: 0, items: [] };
+          lockedOut = true;
+        }
       }
     }
 
@@ -446,6 +459,20 @@ export class DungeonService {
       rewardGold: reward.gold,
       rewardItems: reward.items,
     });
+
+    // Reputace z běžného hraní (M9 retrofit): vyčištěný dungeon → Explorers' Guild
+    // standing (škáluje s úrovní dungeonu, ne postavy). Jen při clearu a ne při
+    // propadlém weekly lockoutu.
+    if (victory && !lockedOut) {
+      const dungeon = DUNGEONS[dungeonId];
+      if (dungeon) {
+        await this.reputation.addStanding(
+          character.id,
+          GENERALIST_FACTION,
+          dungeonReputationGain(dungeon.recommendedLevel),
+        );
+      }
+    }
 
     // Persistentní historie (best-effort).
     const itemNote =
@@ -524,6 +551,13 @@ export class DungeonService {
     const myLockedOut =
       hasLockout && run.victory === 1 && myReward !== null && myReward.xp === 0;
 
+    // Reputace za clear (M9 retrofit): deterministicky z úrovně dungeonu, jen pro
+    // vítězný a ne-lockoutovaný run účastníka (stateless reveal po dokončení).
+    const repGain =
+      completed && run.victory === 1 && myReward !== null && !myLockedOut && dungeon
+        ? dungeonReputationGain(dungeon.recommendedLevel)
+        : 0;
+
     return {
       runId: run.id,
       dungeonId: run.raidId,
@@ -550,6 +584,8 @@ export class DungeonService {
       myReward: myReward ? { xp: myReward.xp, gold: myReward.gold, items: myReward.items } : null,
       myRole,
       myLockedOut,
+      repGain,
+      repFactionName: repGain > 0 ? FACTIONS[GENERALIST_FACTION].name : null,
     };
   }
 }

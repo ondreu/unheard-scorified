@@ -970,7 +970,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       bojového profilu přes `getEquipmentStats`). Web `/vendor` + `/consumables`.
       Testy: shared `vendor.test.ts` (+7) + API `vendor.flow` (+5) / `consumable.flow`
       (+4). Detail: `docs/systems/vendor-consumables.md`.
-- [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid.
+- [x] 🤖 **Reputace i z questů/dungeonů (retrofit)** ✅: dosud rep tekla jen z profesí
+      (M6). Nově dokončený **quest** i **Gone Questing** (`ActivityService.claim`) a
+      **vyčištěný dungeon** (`DungeonService`) dávají standing **Explorers' Guild**
+      (generalisté „odměňující veškerou poctivou práci"). Sdílené škálovací vzorce
+      `questReputationGain(level)` / `dungeonReputationGain(level)` v `@game/shared`
+      (`data/factions.ts`), `GENERALIST_FACTION` sjednoceno z `professions.ts`. Jen při
+      úspěchu (combat-objective prohra ani propadlý weekly lockout nic nedají). Surface:
+      claim banner (quest) + dungeon run view (`repGain`/`repFactionName`). Testy: shared
+      `data/factions.test.ts` (+5) + API asserce v `activity.flow`/`dungeon.flow`.
+- [ ] 🤖 40-player raid.
 - [x] 🤖 **2v2 aréna bracket** ✅: skupina o 2 → 2v2 (`arenaBracketForSize`,
       `TEAM_BRACKETS`); engine/Elo/watch generické. Testy: shared + team-arena flow.
 

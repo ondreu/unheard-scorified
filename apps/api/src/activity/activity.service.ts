@@ -17,7 +17,9 @@ import {
   GRIND,
   isQuestAvailable,
   isQuestId,
+  GENERALIST_FACTION,
   levelFromXp,
+  questReputationGain,
   mountSpeedBonus,
   professionReputationGains,
   professionSkillUp,
@@ -113,7 +115,7 @@ export interface ClaimResult {
   items: string[];
   /** Profession skill-up (jen u gather/craft). */
   profession?: ProfessionGainView;
-  /** Reputační zisky (jen u gather/craft). */
+  /** Reputační zisky (profese u gather/craft + Explorers' Guild u quest/grind). */
   reputation?: ReputationGainView[];
   /**
    * Příběhový log questu (M9): narativní beaty + auto-resolved combaty, generované
@@ -307,6 +309,14 @@ export class ActivityService {
     // Profese (M6): skill-up + reputace u gather/craft běhů.
     const professionRewards = await this.applyProfessionRewards(row);
 
+    // Reputace z běžného hraní (M9 retrofit): dokončený quest i Gone Questing
+    // dávají standing Explorers' Guild (generalisté „odměňují veškerou poctivou
+    // práci"). Jen při úspěšném claimu — combat-objective prohra nedává nic.
+    const reputation: ReputationGainView[] = [...(professionRewards.reputation ?? [])];
+    if ((row.activityType === 'quest' || row.activityType === 'grind') && !questFailed) {
+      reputation.push(await this.grantAdventuringReputation(characterId, levelBefore));
+    }
+
     // Persistentní historie (best-effort — selhání zápisu nesmí shodit claim).
     const itemNote =
       grantedItems.length > 0
@@ -340,7 +350,29 @@ export class ActivityService {
       items: grantedItems,
       questLog,
       ...(questFailed ? { questFailed: true } : {}),
-      ...professionRewards,
+      ...(professionRewards.profession ? { profession: professionRewards.profession } : {}),
+      ...(reputation.length > 0 ? { reputation } : {}),
+    };
+  }
+
+  /**
+   * Připíše standing Explorers' Guild za dokončený quest/grind (M9 retrofit).
+   * Vrací view pro claim banner (stejný tvar jako profession reputace).
+   */
+  private async grantAdventuringReputation(
+    characterId: string,
+    level: number,
+  ): Promise<ReputationGainView> {
+    const gained = questReputationGain(level);
+    const standing = await this.reputationRepo.addStanding(characterId, GENERALIST_FACTION, gained);
+    const prog = reputationProgress(standing);
+    return {
+      factionId: GENERALIST_FACTION,
+      name: FACTIONS[GENERALIST_FACTION].name,
+      gained,
+      standing,
+      tier: prog.tier,
+      tierName: prog.tierName,
     };
   }
 
