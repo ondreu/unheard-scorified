@@ -813,9 +813,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `prefers-reduced-motion`**; SSR-safe (dynamický import Pixi). Pozn.: efekty
       jsou hover-triggered (desktop) — na dotyku zůstává statické pozadí z
       incrementu 3 (vědomě, kvůli výkonu/baterii na phone-first). Kosmetické.
-- [ ] **Increment 6 — Ikony itemů / slotů / rarity**: procedurální ikony dle
-      slotu + rarity (rámeček/glow), postupně i per-item; inventář, inspect, loot,
-      AH, vendor. (Navazuje na asset spec sekce 5–6.)
+- [x] **Increment 6 — Ikony itemů / slotů / rarity** ✅: procedurální ikony dle
+      **slotu** (helm/chest/zbraň/štít/prsten/amulet/batoh…) obarvené dle **typu
+      brnění** (cloth/leather/mail/plate) resp. materiálu slotu, v **rámečku barvy
+      rarity** (common→legendary) s glow/jiskrami u epic/legendary. Jádro
+      `pixelart/items.ts` (`drawItemIcon` + cachovaný `itemIconDataUrl` +
+      `itemIconMetaById` lookup z `ITEMS` pro místa s pouhým `itemId`) +
+      `PixelItemIcon.svelte` (lehký `<img>` z cache). Zapojeno do: **inventáře**
+      (vybavené sloty + seznam), **inspect** (PlayerProfile), **lootu** (claim na
+      overview), **Auction House** i **vendora** (ne-equip položky bez slotu ikonu
+      nemají). Kosmetické, deterministické.
 - [ ] **Increment 7 — Profil & showcase**: bohatší portrét na character sheetu /
       inspectu (větší kompozice), frakční/class/race emblémy v hlavičkách stránek,
       mount/skin vizuální varianty (kosmetika oddělená — kompatibilní s monetizací).
