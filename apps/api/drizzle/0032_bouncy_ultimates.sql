@@ -1,0 +1,1 @@
+ALTER TABLE "character_event_log" ADD COLUMN "seq" bigserial NOT NULL;
