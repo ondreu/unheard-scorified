@@ -40,8 +40,6 @@ export const GAUNTLET_TURN_SEC = 3;
 export const GAUNTLET_ELITE_EVERY = 5;
 /** Strop počtu vln — po jeho dosažení se run automaticky uzavře jako dokončený. */
 export const GAUNTLET_MAX_WAVE = 50;
-/** Podíl max HP doplněný na začátku každé nové vlny (navrch k léčivým draftům). */
-export const GAUNTLET_WAVE_HEAL_FRACTION = 0.2;
 /**
  * Růst statů nepřítele za vlnu — **kompoundovaný** (exponenciální), aby obtížnost
  * stoupala stále strměji a přerostla hráčův snowball z draftů. Mírný start
@@ -50,6 +48,17 @@ export const GAUNTLET_WAVE_HEAL_FRACTION = 0.2;
  */
 const GAUNTLET_HP_GROWTH = 1.18;
 const GAUNTLET_AP_GROWTH = 1.15;
+/**
+ * Klesající účinnost léčení — každé použité léčení v runu zlevní další
+ * (`HEAL_FALLOFF ** healsUsed`). 1. heal plný, pak ~65 %, ~42 %, … → spamovat
+ * heal se nevyplatí, musíš ho šetřit na kritické momenty.
+ */
+const HEAL_FALLOFF = 0.65;
+
+/** Násobič účinnosti léčení podle počtu už použitých healů v runu (0..1]. */
+export function healFalloff(healsUsed: number): number {
+  return HEAL_FALLOFF ** Math.max(0, healsUsed);
+}
 /** Heal-kind ability: násobek převádějící „healing %" na vyléčené HP z attack power. */
 const HEAL_POWER_FACTOR = 0.6;
 /** Strop crit šance (sdíleno s combat enginem). */
@@ -131,6 +140,8 @@ export interface GauntletPick {
   ability?: SignatureAbility;
   /** Okamžité vyléčení na plno při výběru. */
   healFull?: boolean;
+  /** Okamžité vyléčení o podíl max HP (0..1) při výběru — léčení už není automatické. */
+  healPct?: number;
 }
 
 /** Jeden řádek porovnání staty (gear draft) — current vs nabízené. */
@@ -169,6 +180,8 @@ export interface GauntletRunState {
   log: CombatEvent[];
   /** Počet plně vyčištěných vln (= dosažené skóre). */
   wavesCleared: number;
+  /** Počet použitých léčivých draftů (řídí klesající účinnost healu). */
+  healsUsed: number;
 }
 
 // ── Odvození efektivního bojového profilu (base + draft picks) ──────────────
@@ -280,6 +293,7 @@ export function startGauntletRun(base: CombatActor, level: number, seed: number)
     draft: null,
     log: [],
     wavesCleared: 0,
+    healsUsed: 0,
   };
   spawnWave(state, level);
   return state;
@@ -365,12 +379,17 @@ export function resolveGauntletTurn(
   // (2) Hráčova ability.
   const enemyAsActor = enemyActor(enemy);
   if (ability.kind === 'heal') {
-    const heal = Math.round(player.attackPower * ability.damageMult * HEAL_POWER_FACTOR);
+    // Fall-off platí i na heal spelly (ne jen draft karty) → sdílený čítač
+    // `healsUsed`. Spamovat léčení se nevyplatí: každý další heal je slabší.
+    const falloff = healFalloff(state.healsUsed);
+    const heal = Math.round(player.attackPower * ability.damageMult * HEAL_POWER_FACTOR * falloff);
     state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + heal);
+    state.healsUsed += 1;
+    const dim = falloff < 1 ? ' (diminished)' : '';
     pushEvent({
       t,
       type: 'heal',
-      message: `✨ ${player.name} casts ${ability.name}, healing for ${heal}. Self: ${state.player.currentHealth} HP`,
+      message: `✨ ${player.name} casts ${ability.name}, healing for ${heal}${dim}. Self: ${state.player.currentHealth} HP`,
       source: player.name,
       target: player.name,
       amount: heal,
@@ -532,20 +551,40 @@ const GAUNTLET_BUFFS: BuffSpec[] = [
   { id: 'precision', name: 'Deadly Precision', description: '+8% critical strike chance.', pick: { bonusCritChance: 0.08 } },
   { id: 'vampirism', name: 'Vampiric Aura', description: '+6% life leech on your attacks.', pick: { bonusLifesteal: 0.06 } },
   { id: 'ironhide', name: 'Iron Hide', description: '+120 armor, reducing incoming damage.', pick: { bonusArmor: 120 } },
-  { id: 'second_wind', name: 'Second Wind', description: 'Fully heal and gain +10% attack power.', pick: { attackMult: 1.1, healFull: true } },
 ];
+// POZN.: Léčivé draft karty (healPct/healFull) zatím záměrně NEJSOU v poolu
+// (rozhodnutí PM) — léčit jde jen heal *spelly*, a ty mají fall-off (sdílený
+// čítač `healsUsed`), aby nešlo spamovat heal+DoT. Engine healPct/healFull
+// podporuje, takže karty lze později přidat bez změny mechaniky.
 
 /** Sestaví jednu buff nabídku (vyhne se už nabídnutým id v tomto draftu). */
-function rollBuffOption(rng: SeededRng, used: Set<string>): GauntletDraftOption | null {
+function rollBuffOption(
+  rng: SeededRng,
+  used: Set<string>,
+  healsUsed: number,
+): GauntletDraftOption | null {
   const pool = GAUNTLET_BUFFS.filter((b) => !used.has(b.id));
   if (pool.length === 0) return null;
   const spec = pool[rng.int(0, pool.length - 1)]!;
   used.add(spec.id);
+
+  // Léčivé karty ukážou *aktuální* efektivní % (po fall-offu z předchozích healů).
+  let description = spec.description;
+  const basePct = spec.pick.healFull ? 1 : (spec.pick.healPct ?? 0);
+  if (basePct > 0) {
+    const effPct = Math.round(basePct * healFalloff(healsUsed) * 100);
+    const note = healsUsed > 0 ? ' (reduced — you have used heals already)' : '';
+    const atk = spec.pick.attackMult
+      ? ` and gain +${Math.round((spec.pick.attackMult - 1) * 100)}% attack power`
+      : '';
+    description = `Heal ${effPct}% of your maximum health${atk}.${note}`;
+  }
+
   return {
     id: `buff:${spec.id}`,
     kind: 'buff',
     name: spec.name,
-    description: spec.description,
+    description,
     pick: { kind: 'buff', id: spec.id, label: spec.name, ...spec.pick },
   };
 }
@@ -588,14 +627,14 @@ export function rollGauntletDraft(
   const usedBuffs = new Set<string>();
   if (gearOption) options.push(gearOption);
 
-  const buff = rollBuffOption(rng, usedBuffs);
+  const buff = rollBuffOption(rng, usedBuffs, state.healsUsed);
   if (buff) options.push(buff);
 
   const ability = rollAbilityOption(rng, base, state.picks);
   if (ability) options.push(ability);
 
   while (options.length < 3) {
-    const extra = rollBuffOption(rng, usedBuffs);
+    const extra = rollBuffOption(rng, usedBuffs, state.healsUsed);
     if (!extra) break;
     options.push(extra);
   }
@@ -620,16 +659,19 @@ export function applyGauntletDraft(
   state.picks.push(option.pick);
   state.draft = null;
 
-  // Přepočti max HP (drafty mohou zvýšit) a doplň HP.
+  // Přepočti max HP (drafty mohou zvýšit) — navýšení max HP přidá i current.
+  // POZN.: mezi vlnami se HP NEregeneruje automaticky; léčení dává jen draft
+  // karta (`healPct`/`healFull`) → přežití je vědomá volba (ofenziva vs. heal).
   const eff = effectivePlayerActor(base, state.picks);
   const delta = eff.maxHealth - state.player.maxHealth;
   state.player.maxHealth = eff.maxHealth;
   if (delta > 0) state.player.currentHealth += delta;
-  if (option.pick.healFull) {
-    state.player.currentHealth = eff.maxHealth;
-  } else {
-    const heal = Math.round(eff.maxHealth * GAUNTLET_WAVE_HEAL_FRACTION);
+  const basePct = option.pick.healFull ? 1 : (option.pick.healPct ?? 0);
+  if (basePct > 0) {
+    const effPct = basePct * healFalloff(state.healsUsed);
+    const heal = Math.round(eff.maxHealth * effPct);
     state.player.currentHealth = Math.min(eff.maxHealth, state.player.currentHealth + heal);
+    state.healsUsed += 1;
   }
 
   state.wave += 1;
