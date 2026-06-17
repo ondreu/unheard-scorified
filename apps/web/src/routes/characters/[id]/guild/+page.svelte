@@ -14,16 +14,19 @@
     leaveGuild,
     respondGuildCharterSign,
     respondGuildInvite,
+    setGuildMotd,
     setGuildRank,
     startGuildCharter,
     type GuildState,
   } from '$lib/api';
   import {
+    canEditMotd,
     canInvite,
     canManageMember,
     GUILD_CHARTER_COST,
     GUILD_CHARTER_MIN_SIGNER_LEVEL,
     GUILD_CHARTER_SIGNATURES_REQUIRED,
+    GUILD_MOTD_MAX_LENGTH,
     type GuildRank,
   } from '@game/shared';
   import { CLASS_COLOR, className } from '$lib/cosmetics';
@@ -39,6 +42,12 @@
     members: 'Members',
     invitePlaceholder: 'Character name…',
     invite: 'Invite',
+    motd: 'Message of the day',
+    noMotd: 'No message of the day set.',
+    motdPlaceholder: 'Welcome, set a message for your guild…',
+    saveMotd: 'Save',
+    editMotd: 'Edit',
+    clearMotd: 'Clear',
     leave: 'Leave guild',
     disband: 'Disband',
     kick: 'Kick',
@@ -70,6 +79,8 @@
   let nameInput = $state('');
   let inviteInput = $state('');
   let signInput = $state('');
+  let motdInput = $state('');
+  let editingMotd = $state(false);
 
   const characterId = $derived($page.params.id ?? '');
   const myRank = $derived<GuildRank | null>(gs?.guild?.myRank ?? null);
@@ -133,6 +144,19 @@
       return s;
     });
   }
+
+  function beginEditMotd(): void {
+    motdInput = gs?.guild?.motd ?? '';
+    editingMotd = true;
+  }
+
+  function saveMotd(motd: string): void {
+    void run(async () => {
+      const s = await setGuildMotd(characterId, motd);
+      editingMotd = false;
+      return s;
+    });
+  }
 </script>
 
 <div class="space-y-6">
@@ -165,6 +189,45 @@
               {ui.invite}
             </button>
           </form>
+        {/if}
+      </section>
+
+      <!-- Message of the day -->
+      <section class="panel panel-pad">
+        <div class="flex items-center justify-between">
+          <h3 class="panel-title">📜 {ui.motd}</h3>
+          {#if canEditMotd(myRank ?? 'member') && !editingMotd}
+            <button onclick={beginEditMotd} disabled={busy} class="btn btn-sm">
+              {g.motd ? ui.editMotd : ui.saveMotd}
+            </button>
+          {/if}
+        </div>
+        {#if editingMotd}
+          <form
+            class="mt-3 space-y-2"
+            onsubmit={(e) => {
+              e.preventDefault();
+              saveMotd(motdInput);
+            }}
+          >
+            <textarea
+              bind:value={motdInput}
+              maxlength={GUILD_MOTD_MAX_LENGTH}
+              rows="2"
+              placeholder={ui.motdPlaceholder}
+              class="input w-full"
+            ></textarea>
+            <div class="flex items-center gap-2">
+              <button type="submit" disabled={busy} class="btn btn-primary btn-sm">{ui.saveMotd}</button>
+              <button type="button" onclick={() => saveMotd('')} disabled={busy} class="btn btn-sm">{ui.clearMotd}</button>
+              <button type="button" onclick={() => (editingMotd = false)} disabled={busy} class="btn btn-sm">{ui.decline}</button>
+              <span class="ml-auto text-xs text-[var(--text-faint)]">{motdInput.length}/{GUILD_MOTD_MAX_LENGTH}</span>
+            </div>
+          </form>
+        {:else if g.motd}
+          <p class="mt-3 italic leading-relaxed text-[var(--text-dim)]">“{g.motd}”</p>
+        {:else}
+          <p class="mt-3 text-sm text-[var(--text-faint)]">{ui.noMotd}</p>
         {/if}
       </section>
 

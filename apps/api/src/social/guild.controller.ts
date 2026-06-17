@@ -7,6 +7,7 @@ import {
   InviteToGuildDto,
   RespondCharterSignDto,
   RespondGuildInviteDto,
+  SetGuildMotdDto,
   SetGuildRankDto,
   StartGuildCharterDto,
 } from './dto/social.dto';
@@ -146,5 +147,15 @@ export class GuildController {
     @Body() dto: SetGuildRankDto,
   ): Promise<GuildState> {
     return this.guild.setRank(user.accountId, characterId, targetCharacterId, dto.rank);
+  }
+
+  /** Nastaví zprávu dne (MOTD) guildy (officer+; prázdný text ji zruší). */
+  @Post('motd')
+  setMotd(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Body() dto: SetGuildMotdDto,
+  ): Promise<GuildState> {
+    return this.guild.setMotd(user.accountId, characterId, dto.motd);
   }
 }

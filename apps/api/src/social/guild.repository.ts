@@ -91,6 +91,14 @@ export class GuildRepository {
       .where(eq(guilds.id, guildId));
   }
 
+  /** Nastaví MOTD (prázdný řetězec → NULL = žádná zpráva dne). */
+  async setMotd(guildId: string, motd: string): Promise<void> {
+    await this.db
+      .update(guilds)
+      .set({ motd: motd.length > 0 ? motd : null })
+      .where(eq(guilds.id, guildId));
+  }
+
   async deleteGuild(id: string): Promise<void> {
     await this.db.delete(guilds).where(eq(guilds.id, id));
   }

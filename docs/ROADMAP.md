@@ -148,7 +148,10 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Lokálně ověřeno:** `pnpm build` / `test` (8) / `lint` / `typecheck` zelené; API naběhne, `/health` vrací `MAX_LEVEL` ze `@game/shared`.
 - **Zbývá doladit (drobnosti):**
   - [ ] `docker compose up` ověřit s běžícím Docker daemonem (v tomto prostředí daemon neběžel).
-  - [ ] PWA ikony 192/512 do `static/` pro plnou instalovatelnost.
+  - [x] PWA ikony 192/512 do `static/` pro plnou instalovatelnost — procedurální
+        pixel-art „60" (gold na tmavém podkladu) generované `scripts/generate-pwa-icons.mjs`
+        (čistý Node + `zlib`, bez závislostí; any + maskable + apple-touch + favicon),
+        zapojené do manifestu (`vite.config.ts`).
   - [ ] První Drizzle migrace (`pnpm db:generate`) proti běžícímu Postgresu.
   - [ ] (Volitelně) SessionStart hook pro web sezení — vyžaduje souhlas PM se zápisem do `.claude/settings.json`.
 
@@ -857,7 +860,7 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (`PresenceStore`: Redis + in-memory, refcount, multi-instance). Recykluje WS
       Redis pub/sub z M7. Testy: shared `social.test.ts` (+2: guild/scoped kanál) +
       API `chat.flow` (guild scope/oprávnění) + `social.flow` (presence v přehledu).
-      Detail: `docs/systems/social.md`. _Follow-up: guild MOTD/perky, whisper
+      Detail: `docs/systems/social.md`. _Follow-up: guild ~~MOTD~~ ✅/perky, whisper
       historie napříč sezeními._
 - [ ] 🧑‍💼 **Late-game obsah 40–60 (priorita po M9 balanc passu).** Progresní
       křivka klade **64 % cesty** do pásma 40–60 (viz `docs/systems/progression.md`),
@@ -967,7 +970,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       bojového profilu přes `getEquipmentStats`). Web `/vendor` + `/consumables`.
       Testy: shared `vendor.test.ts` (+7) + API `vendor.flow` (+5) / `consumable.flow`
       (+4). Detail: `docs/systems/vendor-consumables.md`.
-- [ ] 🤖 Reputace i z questů/dungeonů (retrofit), 40-player raid.
+- [x] 🤖 **Reputace i z questů/dungeonů (retrofit)** ✅: dosud rep tekla jen z profesí
+      (M6). Nově dokončený **quest** i **Gone Questing** (`ActivityService.claim`) a
+      **vyčištěný dungeon** (`DungeonService`) dávají standing **Explorers' Guild**
+      (generalisté „odměňující veškerou poctivou práci"). Sdílené škálovací vzorce
+      `questReputationGain(level)` / `dungeonReputationGain(level)` v `@game/shared`
+      (`data/factions.ts`), `GENERALIST_FACTION` sjednoceno z `professions.ts`. Jen při
+      úspěchu (combat-objective prohra ani propadlý weekly lockout nic nedají). Surface:
+      claim banner (quest) + dungeon run view (`repGain`/`repFactionName`). Testy: shared
+      `data/factions.test.ts` (+5) + API asserce v `activity.flow`/`dungeon.flow`.
+- [ ] 🤖 40-player raid.
 - [x] 🤖 **2v2 aréna bracket** ✅: skupina o 2 → 2v2 (`arenaBracketForSize`,
       `TEAM_BRACKETS`); engine/Elo/watch generické. Testy: shared + team-arena flow.
 
@@ -1081,11 +1093,6 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - [ ] 🧑‍💼 **Monetizace** (návrh připraven od M0 — kosmetika oddělená od statů):
       skiny, profilové obrázky, zrychlení, gold, volitelné reklamy.
 
-### CHORE
-
-- [ ] 🧑‍💼 Agresivní upozornění na nový update (verze klienta vs server → výzva
-      k reloadu; service worker už máme z M3).
-
 ### BALANCE
 
 - [x] 🧑‍💼 **Délka všech aktivit + rychlost progrese** ✅ (M9 balanc pass): XP křivka
@@ -1140,9 +1147,12 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       lobby pozvánky (recyklovat Redis pub/sub vrstvu z M7).
 - [ ] **Trade-window pro BoP loot** (výměna mezi účastníky téhož runu v okně) +
       **BoE equip-bind tracking** (M8.6 follow-up).
-- [ ] Guild chat kanál + MOTD + (později) banka/perky.
-- [ ] PWA ikony 192/512, per-postavová push granularita, `docker compose up`
-      ověřit s běžícím daemonem.
+- [x] ~~Guild chat kanál~~ ✅ (ADR 0026) + ~~MOTD~~ ✅ (officer+ nastaví zprávu dne,
+      sloupec `guilds.motd`, migrace `0033`, sdílené `canEditMotd`/`sanitizeGuildMotd`
+      v `@game/shared/guild`, endpoint `POST /guild/motd`, web panel na guild page) +
+      (později) banka/perky.
+- [ ] Per-postavová push granularita, `docker compose up` ověřit s běžícím daemonem.
+      (PWA ikony 192/512 ✅ — viz M0.)
 - [ ] (Nepovinné) konvergence `RaidService`/`DungeonService` → `GroupRunService`.
 
 ---

@@ -140,6 +140,10 @@ export interface DungeonRunView {
   myRole: RaidRole | null;
   /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
   myLockedOut: boolean;
+  /** Reputace získaná za clear (M9 retrofit); 0 pokud žádná. */
+  repGain: number;
+  /** Frakce reputace (Explorers' Guild), nebo null když repGain = 0. */
+  repFactionName: string | null;
 }
 
 export interface DungeonRunSummary {
@@ -997,6 +1001,8 @@ export interface GuildView {
   leaderCharacterId: string;
   memberCount: number;
   myRank: GuildRankName;
+  /** Zpráva dne (MOTD), nebo null. */
+  motd: string | null;
   members: GuildMemberView[];
 }
 
@@ -1127,6 +1133,14 @@ export function setGuildRank(
     `/characters/${characterId}/guild/members/${targetCharacterId}/rank`,
     { method: 'POST', body: JSON.stringify({ rank }) },
   );
+}
+
+/** Nastaví zprávu dne (MOTD) guildy (officer+; prázdný text ji zruší). */
+export function setGuildMotd(characterId: string, motd: string): Promise<GuildState> {
+  return request<GuildState>(`/characters/${characterId}/guild/motd`, {
+    method: 'POST',
+    body: JSON.stringify({ motd }),
+  });
 }
 
 // Persistent group / party (M9, ADR 0022) — one formation system for dungeon/raid/arena

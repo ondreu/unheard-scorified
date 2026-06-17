@@ -21,8 +21,23 @@ export default defineConfig({
         theme_color: '#1a1410',
         background_color: '#1a1410',
         display: 'standalone',
-        // TODO(M0): doplnit reálné ikony 192/512 do static/ pro plnou instalovatelnost.
-        icons: [],
+        // Procedurální pixel-art ikony (generované scripts/generate-pwa-icons.mjs).
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          {
+            src: '/icon-192-maskable.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: '/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
       },
     }),
   ] as PluginOption[],

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  canEditMotd,
   canFoundGuild,
   canInvite,
   canManageMember,
@@ -14,6 +15,7 @@ import {
   isValidGuildName,
   levelFromXp,
   MAX_GUILD_MEMBERS,
+  sanitizeGuildMotd,
   type ClassId,
   type Faction,
   type GuildRank,
@@ -41,6 +43,8 @@ export interface GuildView {
   leaderCharacterId: string;
   memberCount: number;
   myRank: GuildRank;
+  /** Zpráva dne (MOTD), nebo null když není nastavená. */
+  motd: string | null;
   members: GuildMemberView[];
 }
 
@@ -214,6 +218,7 @@ export class GuildService {
       leaderCharacterId: guild.leaderCharacterId,
       memberCount: members.length,
       myRank: membership.rank,
+      motd: guild.motd ?? null,
       members,
     };
   }
@@ -472,6 +477,15 @@ export class GuildService {
       throw new NotFoundException('Member not found');
     }
     await this.guilds.setRank(membership.guildId, targetCharacterId, rank);
+    return this.stateFor(characterId);
+  }
+
+  /** Nastaví zprávu dne (MOTD) guildy (officer+). Prázdný text ji zruší. */
+  async setMotd(accountId: string, characterId: string, rawMotd: string): Promise<GuildState> {
+    await this.own(accountId, characterId);
+    const membership = await this.requireMembership(characterId);
+    if (!canEditMotd(membership.rank)) throw new ForbiddenException('Insufficient guild rank');
+    await this.guilds.setMotd(membership.guildId, sanitizeGuildMotd(rawMotd));
     return this.stateFor(characterId);
   }
 

@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node build/index.js",
+    "gen:icons": "node scripts/generate-pwa-icons.mjs",
     "lint": "eslint .",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },

@@ -11,7 +11,7 @@
  *
  * Jediný zdroj pravdy pro API i web.
  */
-import type { FactionId, RepTier } from './factions';
+import { GENERALIST_FACTION, type FactionId, type RepTier } from './factions';
 import type { MaterialId } from './materials';
 
 export type ProfessionId =
@@ -25,9 +25,6 @@ export type ProfessionKind = 'gathering' | 'crafting';
 
 /** Strop profession skillu pro MVP (3 tiery × 50). */
 export const MAX_PROFESSION_SKILL = 150;
-
-/** Frakce, která dostává „přidružený" podíl reputace z každého profession běhu. */
-export const GENERALIST_FACTION: FactionId = 'explorers_guild';
 
 export interface ProfessionDef {
   id: ProfessionId;

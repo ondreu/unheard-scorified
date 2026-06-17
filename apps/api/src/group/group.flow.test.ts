@@ -21,6 +21,7 @@ import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
+import { ReputationRepository } from '../profession/profession.repository';
 import { SocialRepository } from '../social/social.repository';
 import { GuildRepository } from '../social/guild.repository';
 import { RaidRepository } from '../raid/raid.repository';
@@ -69,6 +70,7 @@ describe('M9 flow: groups (party)', () => {
     const push = new PushService(new PushRepository(db));
     const raidRepo = new RaidRepository(db);
     const lockouts = new LockoutRepository(db);
+    const reputation = new ReputationRepository(db);
     const queue = new InMemoryRaidQueue();
     const arenaRepo = new ArenaRepository(db);
     const rotation = new RotationService(charRepo, talents, new RotationRepository(db), invService);
@@ -79,7 +81,7 @@ describe('M9 flow: groups (party)', () => {
       new RaidEventsRelay(), lockouts, rotation, history, queue,
     );
     const dungeons = new DungeonService(
-      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, rotation, completed, history, queue,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, reputation, rotation, completed, history, queue,
     );
     const arena = new ArenaService(
       charRepo, invService, talents, arenaRepo, push,

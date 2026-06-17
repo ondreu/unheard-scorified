@@ -211,4 +211,36 @@ describe('M9 flow: guild', () => {
     const signerState = await guild.getState(signers[0]!.accountId, signers[0]!.id);
     expect(signerState.guild?.name).toBe('High Overlords');
   });
+
+  it('MOTD: officer nastaví, member ne; prázdný text zruší', async () => {
+    const a = await player('Muradin');
+    const b = await player('Falstad');
+    const c = await player('Brann');
+    await guild.create(a.accountId, a.id, 'Bronzebeard');
+    await joinViaInvite(a, b);
+    await joinViaInvite(a, c);
+
+    // Default: žádná MOTD.
+    const initial = await guild.getState(a.accountId, a.id);
+    expect(initial.guild?.motd).toBeNull();
+
+    // Member (c) nesmí měnit MOTD.
+    await expect(guild.setMotd(c.accountId, c.id, 'hi')).rejects.toThrow();
+
+    // Leader nastaví, sanitizace sloučí bílé znaky.
+    const set = await guild.setMotd(a.accountId, a.id, '  Raid   Friday  8pm  ');
+    expect(set.guild?.motd).toBe('Raid Friday 8pm');
+    // Promítne se i ostatním členům.
+    const seenByC = await guild.getState(c.accountId, c.id);
+    expect(seenByC.guild?.motd).toBe('Raid Friday 8pm');
+
+    // Officer smí měnit MOTD.
+    await guild.setRank(a.accountId, a.id, b.id, 'officer');
+    const byOfficer = await guild.setMotd(b.accountId, b.id, 'New plan');
+    expect(byOfficer.guild?.motd).toBe('New plan');
+
+    // Prázdný text → MOTD se zruší.
+    const cleared = await guild.setMotd(a.accountId, a.id, '   ');
+    expect(cleared.guild?.motd).toBeNull();
+  });
 });

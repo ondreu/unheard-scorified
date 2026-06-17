@@ -16,6 +16,7 @@ import { CompletedQuestRepository } from '../quest/quest.repository';
 import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
+import { ReputationRepository } from '../profession/profession.repository';
 import { TalentRepository } from '../talent/talent.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
@@ -68,6 +69,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       new PushService(new PushRepository(db)),
       new RaidRepository(db),
       new LockoutRepository(db),
+      new ReputationRepository(db),
       new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
       completedRepo,
       new HistoryRepository(db),
@@ -141,6 +143,12 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     expect(done.progress.completed).toBe(true);
     expect(done.victory).toBe(true);
     expect(done.events.at(-1)?.type).toBe('victory');
+
+    // M9 retrofit: clear dá standing Explorers' Guild (deterministicky z úrovně dungeonu).
+    expect(done.repGain).toBeGreaterThan(0);
+    expect(done.repFactionName).toBeTruthy();
+    const standings = await new ReputationRepository(db).listStandings(c.id);
+    expect(standings.find((s) => s.factionId === 'explorers_guild')?.standing).toBe(done.repGain);
   });
 
   it('SP clear udělí personal loot + plné XP rovnou (žádný separátní claim)', async () => {

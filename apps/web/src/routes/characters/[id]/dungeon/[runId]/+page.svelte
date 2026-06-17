@@ -132,6 +132,11 @@
               🎁 {ui.loot}: {r.myReward.items.map(itemName).join(', ')}
             </p>
           {/if}
+          {#if r.repGain > 0 && r.repFactionName}
+            <p class="mt-1 text-sm text-[var(--text-dim)]">
+              🏅 <span class="text-[var(--gold)]">{r.repFactionName}</span> +{r.repGain}
+            </p>
+          {/if}
         </section>
       {/if}
     {:else}

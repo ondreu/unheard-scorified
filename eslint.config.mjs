@@ -23,4 +23,11 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Node build/util skripty (mimo bundle) — povol Node globály.
+    files: ['**/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { Buffer: 'readonly', console: 'readonly', process: 'readonly' },
+    },
+  },
 );

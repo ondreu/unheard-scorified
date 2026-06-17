@@ -142,6 +142,13 @@ describe('M2 flow: leveling & idle smyčka', () => {
     expect(combat[0]!.enemyName).toBeTruthy();
     expect(combat[0]!.events!.at(-1)!.type).toBe('enemy_defeated');
 
+    // M9 retrofit: dokončený quest dá standing Explorers' Guild (generalisté).
+    const repGain = result.reputation?.find((r) => r.factionId === 'explorers_guild');
+    expect(repGain).toBeDefined();
+    expect(repGain!.gained).toBeGreaterThan(0);
+    const standings = await new ReputationRepository(db).listStandings(id);
+    expect(standings.find((s) => s.factionId === 'explorers_guild')?.standing).toBe(repGain!.standing);
+
     // Aktivita je pryč → lze poslat na další.
     expect(await activity.getCurrent(accountId, id)).toBeNull();
   });
