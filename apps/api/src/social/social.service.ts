@@ -13,8 +13,10 @@ import {
   type Faction,
   type RaceId,
 } from '@game/shared';
+import { Inject } from '@nestjs/common';
 import { CharacterRepository } from '../character/character.repository';
 import type { Character, Friendship } from '../db/schema';
+import { PRESENCE_STORE, type PresenceStore } from './presence.store';
 import { SocialEventsRelay } from './social.events';
 import { SocialRepository } from './social.repository';
 
@@ -26,6 +28,8 @@ export interface FriendView {
   race: RaceId;
   class: ClassId;
   faction: Faction;
+  /** Je přítel právě online (otevřená appka / aktivní WS)? */
+  online: boolean;
   /** Kdy přátelství vzniklo (ISO). */
   since: string;
 }
@@ -66,6 +70,7 @@ export class SocialService {
     private readonly characters: CharacterRepository,
     private readonly social: SocialRepository,
     private readonly relay: SocialEventsRelay,
+    @Inject(PRESENCE_STORE) private readonly presence: PresenceStore,
   ) {}
 
   /** Ověří vlastnictví postavy účtem. */
@@ -109,10 +114,15 @@ export class SocialService {
         race: other.race,
         class: other.class,
         faction: other.faction,
+        online: false,
         since: (f.respondedAt ?? f.createdAt).toISOString(),
       });
     }
-    friends.sort((a, b) => a.name.localeCompare(b.name));
+    // Online stav přátel jedním dotazem (presence vrstva); offline → false.
+    const onlineIds = await this.presence.filterOnline(friends.map((f) => f.characterId));
+    for (const f of friends) f.online = onlineIds.has(f.characterId);
+    // Online přátelé první, pak abecedně (vanilla-WoW friends list).
+    friends.sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
 
     const toRequest = (f: Friendship): FriendRequestView | null => {
       const otherId = friendCounterpart(

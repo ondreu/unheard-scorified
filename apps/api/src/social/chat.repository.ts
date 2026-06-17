@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { ChatChannel } from '@game/shared';
 import { DB, type Database } from '../db/db.module';
 import { chatMessages, type ChatMessage, type NewChatMessage } from '../db/schema';
@@ -7,6 +7,9 @@ import { chatMessages, type ChatMessage, type NewChatMessage } from '../db/schem
 /**
  * Přístup k `chat_messages` (M9 social). Durable historie chatu; realtime
  * fan-out řeší gateway/relay. Stateless.
+ *
+ * Scope (M9 chat overhaul): `scopeId` odděluje historii scoped kanálů (guild =
+ * guildId). Pro `global` je `scopeId = null`.
  */
 @Injectable()
 export class ChatRepository {
@@ -17,12 +20,21 @@ export class ChatRepository {
     return row!;
   }
 
-  /** Posledních `limit` zpráv kanálu, vrácené chronologicky (nejstarší první). */
-  async listRecent(channel: ChatChannel, limit: number): Promise<ChatMessage[]> {
+  /**
+   * Posledních `limit` zpráv kanálu (a daného scope), vrácené chronologicky
+   * (nejstarší první). `scopeId = null` → globální historie (přesný match na NULL).
+   */
+  async listRecent(
+    channel: ChatChannel,
+    scopeId: string | null,
+    limit: number,
+  ): Promise<ChatMessage[]> {
+    const scopeFilter =
+      scopeId === null ? isNull(chatMessages.scopeId) : eq(chatMessages.scopeId, scopeId);
     const rows = await this.db
       .select()
       .from(chatMessages)
-      .where(eq(chatMessages.channel, channel))
+      .where(and(eq(chatMessages.channel, channel), scopeFilter))
       .orderBy(desc(chatMessages.createdAt))
       .limit(limit);
     return rows.reverse();

@@ -830,6 +830,7 @@ export interface FriendView {
   race: string;
   class: string;
   faction: string;
+  online: boolean;
   since: string;
 }
 
@@ -886,20 +887,31 @@ export function removeFriend(characterId: string, otherCharacterId: string): Pro
 export interface ChatMessageView {
   id: string;
   channel: string;
+  scopeId: string | null;
   characterId: string | null;
   name: string;
   body: string;
   at: string;
 }
 
-export function getChatHistory(characterId: string): Promise<ChatMessageView[]> {
-  return request<ChatMessageView[]>(`/characters/${characterId}/chat`);
+/** REST fallback k WS chatu (historie kanálu). `channel` default `global`. */
+export function getChatHistory(
+  characterId: string,
+  channel: 'global' | 'guild' = 'global',
+): Promise<ChatMessageView[]> {
+  return request<ChatMessageView[]>(
+    `/characters/${characterId}/chat?channel=${encodeURIComponent(channel)}`,
+  );
 }
 
-export function sendChatMessage(characterId: string, body: string): Promise<ChatMessageView> {
+export function sendChatMessage(
+  characterId: string,
+  body: string,
+  channel: 'global' | 'guild' = 'global',
+): Promise<ChatMessageView> {
   return request<ChatMessageView>(`/characters/${characterId}/chat`, {
     method: 'POST',
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, channel }),
   });
 }
 

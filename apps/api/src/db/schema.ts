@@ -7,6 +7,7 @@ import { relations } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -507,16 +508,24 @@ export const friendships = pgTable(
  * (`senderCharacterId` → set null). Realtime fan-out přes Redis pub/sub adaptér
  * (M7); tato tabulka je durable historie. Viz ADR 0016.
  */
-export const chatMessages = pgTable('chat_messages', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  channel: varchar('channel', { length: 16 }).$type<ChatChannel>().notNull(),
-  senderCharacterId: uuid('sender_character_id').references(() => characters.id, {
-    onDelete: 'set null',
-  }),
-  senderName: varchar('sender_name', { length: 16 }).notNull(),
-  body: varchar('body', { length: 256 }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const chatMessages = pgTable(
+  'chat_messages',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    channel: varchar('channel', { length: 16 }).$type<ChatChannel>().notNull(),
+    // Scope kanálu (M9 chat overhaul): guildId pro `guild` kanál, NULL pro `global`.
+    // Drží historii guild chatu oddělenou per guilda. Bez FK reference (úmyslně
+    // generický scope — kanál je datový atribut, snadno přidat další scoped kanály).
+    scopeId: uuid('scope_id'),
+    senderCharacterId: uuid('sender_character_id').references(() => characters.id, {
+      onDelete: 'set null',
+    }),
+    senderName: varchar('sender_name', { length: 16 }).notNull(),
+    body: varchar('body', { length: 256 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('chat_messages_channel_scope_idx').on(t.channel, t.scopeId, t.createdAt)],
+);
 
 /**
  * Guilda (M9 social). Per-postava (jako friends). Jméno globálně unikátní.

@@ -41,8 +41,16 @@ export interface WhisperEvent {
   body: string;
   at: string;
 }
+/** Změna online stavu přítele (M9 chat overhaul). */
+export interface PresenceEvent {
+  characterId: string;
+  online: boolean;
+}
 
-/** Přihlásí postavu k realtime notifikacím (přátelství + guild + whisper). */
+/** Persistované chat kanály na klientu (mirror `@game/shared` CHAT_CHANNELS). */
+export type ChatChannel = 'global' | 'guild';
+
+/** Přihlásí postavu k realtime notifikacím (přátelství + guild + whisper + presence). */
 export function subscribeSocial(
   socket: Socket,
   characterId: string,
@@ -52,6 +60,7 @@ export function subscribeSocial(
     onGuildInvite?: (e: GuildInviteEvent) => void;
     onGuildCharterInvite?: (e: GuildCharterInviteEvent) => void;
     onWhisper?: (e: WhisperEvent) => void;
+    onPresence?: (e: PresenceEvent) => void;
   },
 ): () => void {
   const join = (): void => {
@@ -64,6 +73,7 @@ export function subscribeSocial(
   if (handlers.onGuildInvite) socket.on('guild:invite', handlers.onGuildInvite);
   if (handlers.onGuildCharterInvite) socket.on('guild:charter_invite', handlers.onGuildCharterInvite);
   if (handlers.onWhisper) socket.on('whisper:message', handlers.onWhisper);
+  if (handlers.onPresence) socket.on('social:presence', handlers.onPresence);
   return () => {
     socket.off('connect', join);
     if (handlers.onFriendRequest) socket.off('social:friend_request', handlers.onFriendRequest);
@@ -71,34 +81,42 @@ export function subscribeSocial(
     if (handlers.onGuildInvite) socket.off('guild:invite', handlers.onGuildInvite);
     if (handlers.onGuildCharterInvite) socket.off('guild:charter_invite', handlers.onGuildCharterInvite);
     if (handlers.onWhisper) socket.off('whisper:message', handlers.onWhisper);
+    if (handlers.onPresence) socket.off('social:presence', handlers.onPresence);
   };
 }
 
 /**
- * Připojí se k globálnímu chatu: nahraje historii (ack) a poslouchá nové zprávy.
+ * Připojí se k chat kanálu (`global` / `guild`): nahraje historii (ack) a
+ * poslouchá nové zprávy. Server fan-outuje `chat:message` jen do room daného
+ * kanálu/scope, takže příjemce filtruje podle `channel`/`scopeId` zprávy.
  * Vrací odhlašovací funkci.
  */
 export function joinChat(
   socket: Socket,
   characterId: string,
+  channel: ChatChannel,
   onMessage: (m: ChatMessageView) => void,
   onHistory?: (history: ChatMessageView[]) => void,
 ): () => void {
   const join = (): void => {
     socket.emit(
       'chat:join',
-      { characterId, channel: 'global' },
+      { characterId, channel },
       (res: { ok: boolean; history?: ChatMessageView[] }) => {
         if (res?.ok && res.history && onHistory) onHistory(res.history);
       },
     );
   };
+  // Filtruj zprávy na zvolený kanál (jeden socket může být v global i guild room).
+  const handle = (m: ChatMessageView): void => {
+    if ((m.channel ?? 'global') === channel) onMessage(m);
+  };
   socket.on('connect', join);
   if (socket.connected) join();
-  socket.on('chat:message', onMessage);
+  socket.on('chat:message', handle);
   return () => {
     socket.off('connect', join);
-    socket.off('chat:message', onMessage);
+    socket.off('chat:message', handle);
   };
 }
 
@@ -124,12 +142,17 @@ export function sendWhisper(
   });
 }
 
-/** Odešle chatovou zprávu po WS (ack vrací ok/chybu). */
-export function sendChat(socket: Socket, characterId: string, body: string): Promise<void> {
+/** Odešle chatovou zprávu po WS do daného kanálu (ack vrací ok/chybu). */
+export function sendChat(
+  socket: Socket,
+  characterId: string,
+  body: string,
+  channel: ChatChannel = 'global',
+): Promise<void> {
   return new Promise((resolve, reject) => {
     socket.emit(
       'chat:send',
-      { characterId, body, channel: 'global' },
+      { characterId, body, channel },
       (res: { ok: boolean; error?: string }) => {
         if (res?.ok) resolve();
         else reject(new Error(res?.error ?? 'Failed to send'));

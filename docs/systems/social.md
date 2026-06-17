@@ -30,13 +30,43 @@ autoritativní — UI funguje i bez socketu.
 
 ## Chat
 
-> Přidáno samostatným přírůstkem (stejný `SocialModule`).
+> Přidáno samostatným přírůstkem (stejný `SocialModule`). Kanály + guild chat +
+> presence viz **ADR 0026** (chat overhaul).
 
-Jednoduchý **globální kanál** (`global`). Zprávy se persistují (posledních
-`CHAT_HISTORY_LIMIT` = 50 do historie) a rozesílají realtime přes socket.io +
-Redis pub/sub adaptér z M7 (multi-instance). Normalizace (`sanitizeChatMessage`:
-trim + sjednocení bílých znaků + ořez na `MAX_CHAT_MESSAGE_LENGTH` = 256) je
-sdílená čistá funkce v `@game/shared`.
+**Kanály** (`CHAT_CHANNELS`): `global` (všichni) a `guild` (jen členové).
+Whisper **není kanál** — je 1:1, neperzistovaný (online-only, viz níže).
+Zprávy se persistují (posledních `CHAT_HISTORY_LIMIT` = 50 do historie) a
+rozesílají realtime přes socket.io + Redis pub/sub adaptér z M7 (multi-instance).
+Normalizace (`sanitizeChatMessage`: trim + sjednocení bílých znaků + ořez na
+`MAX_CHAT_MESSAGE_LENGTH` = 256) je sdílená čistá funkce v `@game/shared`.
+
+### Guild chat (scoped)
+
+Guild kanál je **vázaný na guildu** (`isScopedChannel('guild') === true`).
+`chat_messages.scope_id` = guildId pro `guild`, `NULL` pro `global` (migrace
+`0029`). `ChatService` při guild kanálu ověří členství (`GuildRepository.
+membershipOf`) — non-member → `Forbidden`. Realtime fan-out jen do room dané
+guildy (`SocialEventsRelay.guildChatRoom(guildId)`), takže cizí guildy guild
+chat nevidí. Historie i odeslání mají REST fallback (`GET/POST .../chat?channel=guild`).
+
+### Whisper (online-only 1:1)
+
+Soukromá zpráva přes WS (`whisper:send`), doručená **jen pokud je příjemce
+online** (`fetchSockets` napříč instancemi přes Redis adaptér). Bez perzistence;
+offline doručení řeší **Mail**. Ack vrací `delivered`.
+
+## Presence (online stav)
+
+Online stav postav (otevřená appka = aktivní WS) drží `PresenceStore`
+(`presence.store.ts`) — abstrakce `RedisPresenceStore` (produkce, multi-instance)
++ `InMemoryPresenceStore` (testy), stejný vzor jako `MatchmakingQueue`.
+
+- **Refcount** `presence:char:<id>`: `join`/`leave` (na `social:subscribe` /
+  disconnect) inkrementují/dekrementují; online = čítač > 0. Vrací přechod
+  (0→1 / 1→0) → broadcast přátelům `social:presence` jen při reálné změně.
+- TTL pojistka (12 h, obnovovaná při `join`) proti leaknutí po pádu instance.
+- `GET .../social` doplňuje `online` per přítel (jeden `filterOnline` dotaz) a
+  řadí online první.
 
 ## Guild
 
@@ -84,6 +114,12 @@ service↔gateway. Vše stateless (Postgres/Redis).
 
 ## Web
 
-`/characters/[id]/social` — přidat přítele dle jména, příchozí žádosti
-(accept/decline), seznam přátel (remove), odeslané žádosti (cancel). Odkaz
-„Friends" na character page.
+`/characters/[id]/social` (design system) — přidat přítele dle jména, příchozí
+žádosti (accept/decline), seznam přátel s **online tečkou** (živě přes
+`social:presence`, online první) + whisper/inspect/remove, odeslané žádosti
+(cancel), globální chat panel. Odkaz „Friends" na character page.
+
+**Chat bublina** (`ChatBubble.svelte`, perzistentní shell) — záložky
+**Global / Guild / Whispers** (guild jen pro člena), nepřečtené per-záložka +
+souhrnný odznak; Whispers = seznam konverzací s reply oknem (offline → nabídne
+Mail).

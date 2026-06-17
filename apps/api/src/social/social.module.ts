@@ -7,6 +7,7 @@ import { ChatService } from './chat.service';
 import { GuildController } from './guild.controller';
 import { GuildRepository } from './guild.repository';
 import { GuildService } from './guild.service';
+import { PRESENCE_STORE, RedisPresenceStore } from './presence.store';
 import { SocialController } from './social.controller';
 import { SocialEventsRelay } from './social.events';
 import { SocialGateway } from './social.gateway';
@@ -31,6 +32,8 @@ import { SocialService } from './social.service';
     GuildRepository,
     SocialEventsRelay,
     SocialGateway,
+    // Online presence (M9 chat overhaul): Redis impl pro multi-instance.
+    { provide: PRESENCE_STORE, useClass: RedisPresenceStore },
   ],
   // GuildRepository + SocialRepository sdílené týmovými arénami (M8.5-C gate).
   exports: [SocialEventsRelay, SocialRepository, GuildRepository],

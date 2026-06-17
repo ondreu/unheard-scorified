@@ -12,6 +12,7 @@ import type { Database } from '../db/db.module';
 import * as schema from '../db/schema';
 import { ChatRepository } from './chat.repository';
 import { ChatService } from './chat.service';
+import { GuildRepository } from './guild.repository';
 import { SocialEventsRelay } from './social.events';
 
 /**
@@ -23,6 +24,7 @@ describe('M9 flow: chat', () => {
   let auth: AuthService;
   let characters: CharacterService;
   let chat: ChatService;
+  let guilds: GuildRepository;
   let seq = 0;
 
   beforeAll(async () => {
@@ -33,7 +35,8 @@ describe('M9 flow: chat', () => {
     const charRepo = new CharacterRepository(db);
     auth = new AuthService(db, new JwtService());
     characters = new CharacterService(charRepo);
-    chat = new ChatService(charRepo, new ChatRepository(db), new SocialEventsRelay());
+    guilds = new GuildRepository(db);
+    chat = new ChatService(charRepo, new ChatRepository(db), guilds, new SocialEventsRelay());
   });
 
   beforeEach(() => {
@@ -87,5 +90,39 @@ describe('M9 flow: chat', () => {
     const intruder = await player('Snoopus');
     await expect(chat.send(intruder.accountId, a.id, 'spoof')).rejects.toThrow();
     await expect(chat.history(intruder.accountId, a.id)).rejects.toThrow();
+  });
+
+  it('guild kanál: člen píše/čte, scope je oddělený a global se nemíchá', async () => {
+    const leaderA = await player('GuildLeadA');
+    const memberA = await player('GuildMateA');
+    const leaderB = await player('GuildLeadB');
+
+    const guildA = await guilds.createGuild(`Aces_${seq}`, leaderA.id);
+    await guilds.addMember(guildA.id, memberA.id, 'member');
+    // leaderB má vlastní guildu (B) → jeho guild kanál je oddělený scope.
+    await guilds.createGuild(`Bravos_${seq}`, leaderB.id);
+
+    // Člen guildy A pošle do guild kanálu.
+    const msg = await chat.send(leaderA.accountId, leaderA.id, 'For the guild!', 'guild');
+    expect(msg.channel).toBe('guild');
+    expect(msg.scopeId).toBe(guildA.id);
+
+    // Druhý člen guildy A to vidí.
+    const aHistory = await chat.history(memberA.accountId, memberA.id, 'guild');
+    expect(aHistory.at(-1)?.body).toBe('For the guild!');
+
+    // Guilda B guild chat A nevidí (scope isolation).
+    const bHistory = await chat.history(leaderB.accountId, leaderB.id, 'guild');
+    expect(bHistory.map((m) => m.body)).not.toContain('For the guild!');
+
+    // Global kanál guild zprávu taky neobsahuje.
+    const globalHistory = await chat.history(leaderA.accountId, leaderA.id, 'global');
+    expect(globalHistory.map((m) => m.body)).not.toContain('For the guild!');
+  });
+
+  it('guild kanál: postava bez guildy je odmítnuta', async () => {
+    const loner = await player('Loner');
+    await expect(chat.send(loner.accountId, loner.id, 'hello?', 'guild')).rejects.toThrow();
+    await expect(chat.history(loner.accountId, loner.id, 'guild')).rejects.toThrow();
   });
 });

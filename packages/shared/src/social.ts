@@ -37,14 +37,29 @@ export function canBefriend(selfId: string, targetId: string): boolean {
 // ── Chat ──────────────────────────────────────────────────────────────────
 
 /**
- * Chat kanály (M9). Zatím jen globální; frakční/guild kanály lze přidat později
- * bez refaktoru (kanál je datový atribut).
+ * Persistované chat kanály.
+ *  - `global` — všichni hráči, jeden sdílený proud.
+ *  - `guild` — jen členové guildy (M9 chat overhaul); zprávy jsou „scoped" na
+ *    konkrétní guildu (viz `isScopedChannel` + `scope_id` v DB).
+ *
+ * Whisper je 1:1 a **neperzistovaný** (online-only, doručení přes WS; offline
+ * fallback = Mail) → záměrně NENÍ kanál (v UI je to jen samostatná záložka).
+ * Další kanály (frakční, party) lze přidat bez refaktoru (kanál = datový atribut).
  */
-export const CHAT_CHANNELS = ['global'] as const;
+export const CHAT_CHANNELS = ['global', 'guild'] as const;
 export type ChatChannel = (typeof CHAT_CHANNELS)[number];
 
 export function isChatChannel(value: string): value is ChatChannel {
   return (CHAT_CHANNELS as readonly string[]).includes(value);
+}
+
+/**
+ * Kanály vázané na konkrétní entitu (potřebují `scope_id`): guild chat patří
+ * dané guildě, takže historie i fan-out se filtrují podle `scopeId` (guildId).
+ * Globální kanál scope nemá (`scopeId = null`).
+ */
+export function isScopedChannel(channel: ChatChannel): boolean {
+  return channel === 'guild';
 }
 
 /** Maximální délka jedné zprávy (po normalizaci). */

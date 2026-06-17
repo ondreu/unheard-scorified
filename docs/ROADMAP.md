@@ -760,12 +760,17 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ### FEAT — obsah & systémy
 
-- [ ] 🧑‍💼 **Overhaul chatovací karty (Friends & chat).** Stávající chat bublina +
-      `/social` panel přepracovat do použitelnější komunikační vrstvy: přehlednější
-      UI (kanály global/whisper/guild, historie, nepřečtené, online stav přátel),
-      lepší práce s whispery a notifikacemi, plynulejší realtime (recyklovat WS
-      Redis pub/sub z M7). Funkčně staví na hotovém social/chat/whisper/guild (M9);
-      jde primárně o UX/redesign, případně guild chat kanál (viz follow-up níže).
+- [x] 🧑‍💼 **Overhaul chatovací karty (Friends & chat)** ✅ (ADR 0026): chat bublina
+      přepsaná na **záložky Global / Guild / Whispers** (nepřečtené per-záložka,
+      whisper konverzace s reply + offline→Mail), `/social` převedená na design
+      system s **online tečkami přátel** (živě přes `social:presence`, online
+      první). Nový **guild chat kanál** (scoped na guildId, `chat_messages.scope_id`,
+      migrace `0029`, fan-out jen členům) + **online presence** vrstva
+      (`PresenceStore`: Redis + in-memory, refcount, multi-instance). Recykluje WS
+      Redis pub/sub z M7. Testy: shared `social.test.ts` (+2: guild/scoped kanál) +
+      API `chat.flow` (guild scope/oprávnění) + `social.flow` (presence v přehledu).
+      Detail: `docs/systems/social.md`. _Follow-up: guild MOTD/perky, whisper
+      historie napříč sezeními._
 - [ ] 🧑‍💼 **Late-game obsah 40–60 (priorita po M9 balanc passu).** Progresní
       křivka klade **64 % cesty** do pásma 40–60 (viz `docs/systems/progression.md`),
       kde je dnes tenký obsah (dungeony končí Scarlet Monastery lvl 30–38, pak jen

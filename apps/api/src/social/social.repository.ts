@@ -38,6 +38,17 @@ export class SocialRepository {
     return row;
   }
 
+  /**
+   * Id všech přátel (protistran přijatých vztahů) dané postavy. Slouží k
+   * realtime broadcastu online/offline (presence) jejím přátelům.
+   */
+  async listFriendIds(characterId: string): Promise<string[]> {
+    const rows = await this.listAccepted(characterId);
+    return rows.map((f) =>
+      f.requesterCharacterId === characterId ? f.addresseeCharacterId : f.requesterCharacterId,
+    );
+  }
+
   /** Přijatá přátelství dané postavy (obě strany vztahu). */
   listAccepted(characterId: string): Promise<Friendship[]> {
     return this.db

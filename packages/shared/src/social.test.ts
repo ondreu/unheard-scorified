@@ -4,6 +4,7 @@ import {
   CHAT_CHANNELS,
   friendCounterpart,
   isChatChannel,
+  isScopedChannel,
   isValidChatMessage,
   MAX_CHAT_MESSAGE_LENGTH,
   sanitizeChatMessage,
@@ -27,10 +28,17 @@ describe('social: friends', () => {
 });
 
 describe('social: chat', () => {
-  it('global je platný kanál', () => {
+  it('global i guild jsou platné kanály, whisper není (neperzistovaný)', () => {
     expect(isChatChannel('global')).toBe(true);
+    expect(isChatChannel('guild')).toBe(true);
     expect(isChatChannel('whisper')).toBe(false);
     expect(CHAT_CHANNELS).toContain('global');
+    expect(CHAT_CHANNELS).toContain('guild');
+  });
+
+  it('guild je scoped kanál (vázaný na guildId), global ne', () => {
+    expect(isScopedChannel('guild')).toBe(true);
+    expect(isScopedChannel('global')).toBe(false);
   });
 
   it('sanitizeChatMessage ořeže a sjednotí bílé znaky', () => {
