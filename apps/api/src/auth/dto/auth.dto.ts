@@ -26,6 +26,8 @@ export class LoginDto {
 }
 
 export class RefreshDto {
+  /** Refresh token z těla (fallback pro API klienty bez cookies). */
+  @IsOptional()
   @IsString()
-  refreshToken!: string;
+  refreshToken?: string;
 }

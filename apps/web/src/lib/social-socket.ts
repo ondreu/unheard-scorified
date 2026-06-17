@@ -7,12 +7,12 @@
  * UI strings drženy odděleně od logiky (i18n-ready).
  */
 import { io, type Socket } from 'socket.io-client';
-import { currentTokens } from './auth';
+import { currentSession } from './auth';
 import type { ChatMessageView } from './api';
 
 /** Naváže autentizovaný socket (JWT v handshake). */
 export function connectSocial(): Socket {
-  const token = currentTokens()?.accessToken;
+  const token = currentSession()?.accessToken;
   return io({
     path: '/api/socket.io',
     transports: ['websocket'],

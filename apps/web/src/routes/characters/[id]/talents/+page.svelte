@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import { SIGNATURE_ABILITIES, type AbilityKind } from '@game/shared';
   import { ApiError } from '$lib/api';
-  import { currentTokens } from '$lib/auth';
+  import { currentSession } from '$lib/auth';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -75,7 +75,7 @@
   }
 
   function authHeaders(): Record<string, string> {
-    const token = currentTokens()?.accessToken;
+    const token = currentSession()?.accessToken;
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
