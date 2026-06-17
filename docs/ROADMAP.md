@@ -860,7 +860,7 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (`PresenceStore`: Redis + in-memory, refcount, multi-instance). Recykluje WS
       Redis pub/sub z M7. Testy: shared `social.test.ts` (+2: guild/scoped kanál) +
       API `chat.flow` (guild scope/oprávnění) + `social.flow` (presence v přehledu).
-      Detail: `docs/systems/social.md`. _Follow-up: guild MOTD/perky, whisper
+      Detail: `docs/systems/social.md`. _Follow-up: guild ~~MOTD~~ ✅/perky, whisper
       historie napříč sezeními._
 - [ ] 🧑‍💼 **Late-game obsah 40–60 (priorita po M9 balanc passu).** Progresní
       křivka klade **64 % cesty** do pásma 40–60 (viz `docs/systems/progression.md`),
@@ -1152,7 +1152,10 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       lobby pozvánky (recyklovat Redis pub/sub vrstvu z M7).
 - [ ] **Trade-window pro BoP loot** (výměna mezi účastníky téhož runu v okně) +
       **BoE equip-bind tracking** (M8.6 follow-up).
-- [ ] Guild chat kanál + MOTD + (později) banka/perky.
+- [x] ~~Guild chat kanál~~ ✅ (ADR 0026) + ~~MOTD~~ ✅ (officer+ nastaví zprávu dne,
+      sloupec `guilds.motd`, migrace `0033`, sdílené `canEditMotd`/`sanitizeGuildMotd`
+      v `@game/shared/guild`, endpoint `POST /guild/motd`, web panel na guild page) +
+      (později) banka/perky.
 - [ ] Per-postavová push granularita, `docker compose up` ověřit s běžícím daemonem.
       (PWA ikony 192/512 ✅ — viz M0.)
 - [ ] (Nepovinné) konvergence `RaidService`/`DungeonService` → `GroupRunService`.

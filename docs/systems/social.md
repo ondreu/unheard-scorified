@@ -89,6 +89,11 @@ je **per-postava unikátní** → postava je nejvýše v jedné guildě. Ranky
 5. **Odchod** — `POST .../guild/leave`. Odchod vůdce **předá vedení** nejstaršímu
    zbývajícímu členovi (nejvyšší rank, pak nejdříve vstoupivší); poslední člen →
    guilda se rozpustí. `DELETE .../guild` rozpustí guildu (jen vůdce).
+6. **MOTD (zpráva dne)** — `POST .../guild/motd` `{ motd }` (officer+,
+   `canEditMotd`). Text se očistí (`sanitizeGuildMotd`: trim, sloučení bílých
+   znaků, max `GUILD_MOTD_MAX_LENGTH` = 200), prázdný text MOTD zruší. Uloženo
+   ve sloupci `guilds.motd` (migrace `0033`), vystaveno v `GuildView.motd`,
+   zobrazeno všem členům na guild page.
 
 ### Realtime
 

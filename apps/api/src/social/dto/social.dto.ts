@@ -54,6 +54,12 @@ export class SetGuildRankDto {
   rank!: 'member' | 'officer';
 }
 
+export class SetGuildMotdDto {
+  @IsString()
+  @MaxLength(200)
+  motd!: string;
+}
+
 export class StartGuildCharterDto {
   @IsString()
   @MinLength(3)

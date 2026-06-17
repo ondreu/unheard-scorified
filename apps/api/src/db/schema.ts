@@ -563,6 +563,8 @@ export const guilds = pgTable('guilds', {
   leaderCharacterId: uuid('leader_character_id')
     .notNull()
     .references(() => characters.id, { onDelete: 'cascade' }),
+  // Zpráva dne (MOTD, M9 social follow-up) — nastavuje officer+; NULL = žádná.
+  motd: varchar('motd', { length: 200 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

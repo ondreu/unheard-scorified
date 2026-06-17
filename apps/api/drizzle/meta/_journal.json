@@ -232,6 +232,13 @@
       "when": 1781675731087,
       "tag": "0032_bouncy_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1781699098149,
+      "tag": "0033_bored_gorgon",
+      "breakpoints": true
     }
   ]
 }

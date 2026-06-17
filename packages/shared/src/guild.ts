@@ -32,7 +32,28 @@ export function canInvite(actor: GuildRank): boolean {
   return rankAtLeast(actor, 'officer');
 }
 
+/** Smí `actor` měnit zprávu dne (MOTD)? (officer+, stejně jako zvaní). */
+export function canEditMotd(actor: GuildRank): boolean {
+  return rankAtLeast(actor, 'officer');
+}
+
 export const MAX_GUILD_MEMBERS = 50;
+
+/** Maximální délka zprávy dne (MOTD). */
+export const GUILD_MOTD_MAX_LENGTH = 200;
+
+/**
+ * Očistí MOTD: zahodí řídicí znaky, sloučí bílé znaky a ořízne na max délku.
+ * Prázdný výsledek = MOTD se zruší (žádná zpráva dne).
+ */
+export function sanitizeGuildMotd(raw: string): string {
+  return raw
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, GUILD_MOTD_MAX_LENGTH);
+}
 
 /** Pravidla pro jméno guildy: 3–24 znaků, písmena + jednoduché mezery uvnitř. */
 export const GUILD_NAME = {
