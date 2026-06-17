@@ -148,7 +148,10 @@ Fáze jdou inkrementálně; každá končí spustitelným, hratelným přírůst
 - **Lokálně ověřeno:** `pnpm build` / `test` (8) / `lint` / `typecheck` zelené; API naběhne, `/health` vrací `MAX_LEVEL` ze `@game/shared`.
 - **Zbývá doladit (drobnosti):**
   - [ ] `docker compose up` ověřit s běžícím Docker daemonem (v tomto prostředí daemon neběžel).
-  - [ ] PWA ikony 192/512 do `static/` pro plnou instalovatelnost.
+  - [x] PWA ikony 192/512 do `static/` pro plnou instalovatelnost — procedurální
+        pixel-art „60" (gold na tmavém podkladu) generované `scripts/generate-pwa-icons.mjs`
+        (čistý Node + `zlib`, bez závislostí; any + maskable + apple-touch + favicon),
+        zapojené do manifestu (`vite.config.ts`).
   - [ ] První Drizzle migrace (`pnpm db:generate`) proti běžícímu Postgresu.
   - [ ] (Volitelně) SessionStart hook pro web sezení — vyžaduje souhlas PM se zápisem do `.claude/settings.json`.
 
@@ -1141,8 +1144,8 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - [ ] **Trade-window pro BoP loot** (výměna mezi účastníky téhož runu v okně) +
       **BoE equip-bind tracking** (M8.6 follow-up).
 - [ ] Guild chat kanál + MOTD + (později) banka/perky.
-- [ ] PWA ikony 192/512, per-postavová push granularita, `docker compose up`
-      ověřit s běžícím daemonem.
+- [ ] Per-postavová push granularita, `docker compose up` ověřit s běžícím daemonem.
+      (PWA ikony 192/512 ✅ — viz M0.)
 - [ ] (Nepovinné) konvergence `RaidService`/`DungeonService` → `GroupRunService`.
 
 ---
