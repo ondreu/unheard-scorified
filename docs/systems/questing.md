@@ -91,6 +91,16 @@ generovaný deterministicky při claimu. Detail rozhodnutí: `docs/adr/0024`.
   boj (vyšší zbylé HP v logu), slabší = víc utržených ran, ale quest se vždy
   dokončí (clamp na 1 HP). Log je **flavor vrstva nad odměnami** —
   `computeQuestReward` se nemění → balanc netknutý.
+  - **Výjimka — combat-objective questy (M12):** opt-in `QuestDef.combatObjective`
+    přepne boj na **reálný** (engine bez no-fail clampu, `simulateQuestEncounter
+    (..., allowDefeat=true)`). Slabá postava může **prohrát** (padne, nebo nestihne
+    nepřítele dorazit v `QUEST_ENCOUNTER_MAX_SEC`) → `QuestRunResult.success=false`,
+    příběh se utne na prohraném souboji. **Reward gating** v `ActivityService.claim`:
+    prohra ⇒ XP/zlato/loot = 0, quest se **nedokončí** (lze opakovat se silnějším
+    buildem), `ClaimResult.questFailed=true`. Idle zachováno (jeden běh, determinismus
+    přes seed). Odměny kalibrované jako u ostatních questů (riziko odměňuje loot +
+    jednorázové dokončení). Ukázky: `ns_padfoot_bounty`/`dt_skull_rock` (~lvl 8) a
+    `epl_araj_reckoning`/`fw_jadefire_lord` (~lvl 55).
 - **Datový model** (`data/quests.ts`): `QuestDef.steps?: QuestStep[]` (ručně
   psané story questy = narativní + combat kroky) a `events?: QuestEventDef[]` +
   `eventCount?` (repeatable: z poolu se deterministicky vybere podmnožina →

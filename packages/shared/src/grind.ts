@@ -110,5 +110,5 @@ export function simulateGrindRun(
     kind: 'narrative',
     text: `With the light fading over ${zone.name}, ${player.name} gathers up the spoils and heads back.`,
   });
-  return { steps };
+  return { steps, success: true };
 }

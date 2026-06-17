@@ -73,6 +73,11 @@ export interface QuestEncounterOutcome {
   endT: number;
   /** Zbylé HP postavy v % (0..100) — flavor „jak čistý byl boj". */
   playerHpPct: number;
+  /**
+   * Jen `allowDefeat` (combat-objective questy): postava boj prohrála (padla,
+   * nebo nestihla nepřítele dorazit v čase). U no-fail flavor combatu vždy `false`.
+   */
+  playerDefeated: boolean;
 }
 
 /** Útočné ability postavy použitelné v questovém combatu (heal/shield/mitigation se přeskakuje). */
@@ -83,15 +88,21 @@ function offensiveAbilities(player: CombatActor) {
 }
 
 /**
- * Auto-resolved souboj postava-vs-nepřítel (sólo, NELZE prohrát). Recykluje
- * `computeHit`/`applyAbsorb` z combat enginu (žádná duplikace per-hit vzorců).
- * Postava nikdy neklesne pod 1 HP (clamp) → quest se vždy dokončí.
+ * Auto-resolved souboj postava-vs-nepřítel (sólo). Recykluje `computeHit`/
+ * `applyAbsorb` z combat enginu (žádná duplikace per-hit vzorců).
+ *
+ * - `allowDefeat = false` (default, flavor combat): postava nikdy neklesne pod
+ *   1 HP (clamp) → quest se vždy dokončí, boj je čistě flavor.
+ * - `allowDefeat = true` (combat-objective questy): boj se vyhodnotí doopravdy —
+ *   slabá postava může **prohrát** (padne, nebo nestihne nepřítele dorazit v
+ *   `QUEST_ENCOUNTER_MAX_SEC`) → `playerDefeated = true`. Reward gating řeší volající.
  */
 export function simulateQuestEncounter(
   player: CombatActor,
   foeStats: EnemyStats,
   rng: SeededRng,
   startT: number,
+  allowDefeat = false,
 ): QuestEncounterOutcome {
   const enemy = buildEnemyActor(foeStats);
   const events: CombatEvent[] = [];
@@ -117,6 +128,7 @@ export function simulateQuestEncounter(
   });
 
   const hardStop = startT + QUEST_ENCOUNTER_MAX_SEC;
+  let playerDown = false;
   while (enemyHp > 0 && t < hardStop) {
     if (pNext <= eNext) {
       t = pNext;
@@ -160,7 +172,8 @@ export function simulateQuestEncounter(
       const hit = computeHit(enemy, player, rng, 1, false);
       const absorb = applyAbsorb(hit.amount, playerShield);
       playerShield = absorb.shieldRemaining;
-      playerHp = Math.max(1, playerHp - absorb.netDamage); // no-fail clamp
+      // No-fail clamp (flavor combat) vs. reálný výsledek (combat-objective questy).
+      playerHp = allowDefeat ? playerHp - absorb.netDamage : Math.max(1, playerHp - absorb.netDamage);
       events.push({
         t: round1(t),
         type: 'attack',
@@ -171,27 +184,47 @@ export function simulateQuestEncounter(
         source: enemy.name,
         target: player.name,
         amount: hit.amount,
-        targetHealthRemaining: playerHp,
+        targetHealthRemaining: Math.max(0, playerHp),
       });
+      if (allowDefeat && playerHp <= 0) {
+        playerDown = true;
+        break;
+      }
     }
   }
 
-  events.push({
-    t: round1(t),
-    type: 'enemy_defeated',
-    message:
-      enemyHp > 0
-        ? `After a grueling struggle, ${player.name} finally brings down ${enemy.name}.`
-        : `${enemy.name} is defeated.`,
-    source: player.name,
-    target: enemy.name,
-    targetHealthRemaining: 0,
-  });
+  // Combat-objective prohra = postava padla, nebo nestihla nepřítele dorazit v čase.
+  const defeated = allowDefeat && (playerDown || enemyHp > 0);
+  if (defeated) {
+    events.push({
+      t: round1(t),
+      type: 'player_defeated',
+      message: playerDown
+        ? `${enemy.name} cuts ${player.name} down. The objective slips away.`
+        : `${player.name} cannot bring down ${enemy.name} in time and is forced to retreat.`,
+      source: enemy.name,
+      target: player.name,
+      targetHealthRemaining: 0,
+    });
+  } else {
+    events.push({
+      t: round1(t),
+      type: 'enemy_defeated',
+      message:
+        enemyHp > 0
+          ? `After a grueling struggle, ${player.name} finally brings down ${enemy.name}.`
+          : `${enemy.name} is defeated.`,
+      source: player.name,
+      target: enemy.name,
+      targetHealthRemaining: 0,
+    });
+  }
 
   return {
     events,
     endT: t,
-    playerHpPct: Math.round((playerHp / Math.max(1, player.maxHealth)) * 100),
+    playerHpPct: Math.max(0, Math.round((playerHp / Math.max(1, player.maxHealth)) * 100)),
+    playerDefeated: defeated,
   };
 }
 
@@ -206,10 +239,18 @@ export interface QuestStepResult {
   events?: CombatEvent[];
   /** Jen combat: zbylé HP postavy v % (flavor). */
   playerHpPct?: number;
+  /** Jen combat-objective questy: tenhle souboj postava prohrála. */
+  defeated?: boolean;
 }
 
 export interface QuestRunResult {
   steps: QuestStepResult[];
+  /**
+   * Splnil hráč cíl questu? U flavor questů i grindu vždy `true` (nelze prohrát).
+   * U combat-objective questů `false`, pokud prohrál některý souboj → volající
+   * nepřipíše odměnu a quest nedokončí (lze opakovat). Viz `QuestDef.combatObjective`.
+   */
+  success: boolean;
 }
 
 /**
@@ -258,6 +299,9 @@ export function simulateQuestRun(
   seed: number,
 ): QuestRunResult {
   const rng = new SeededRng(seed);
+  // Combat-objective questy (rozhodnutí PM): souboj se vyhodnotí doopravdy a lze
+  // prohrát → odměna gatovaná vítězstvím. Default flavor combat (nelze prohrát).
+  const allowDefeat = quest.combatObjective === true;
   const steps: QuestStep[] = quest.steps
     ? quest.steps
     : quest.events
@@ -266,12 +310,19 @@ export function simulateQuestRun(
 
   const result: QuestStepResult[] = [];
   let t = 0;
+  let success = true;
   for (const step of steps) {
     if (step.kind === 'narrative') {
       result.push({ kind: 'narrative', text: step.text });
       continue;
     }
-    const enc = simulateQuestEncounter(player, questFoeStats(step.foe, quest.requiredLevel), rng, t);
+    const enc = simulateQuestEncounter(
+      player,
+      questFoeStats(step.foe, quest.requiredLevel),
+      rng,
+      t,
+      allowDefeat,
+    );
     t = enc.endT + STEP_GAP_SEC;
     result.push({
       kind: 'combat',
@@ -279,9 +330,15 @@ export function simulateQuestRun(
       enemyName: step.foe.name,
       events: enc.events,
       playerHpPct: enc.playerHpPct,
+      defeated: enc.playerDefeated || undefined,
     });
+    // Prohra ukončí příběh tady — co se nepovedlo, to hráč zopakuje.
+    if (enc.playerDefeated) {
+      success = false;
+      break;
+    }
   }
-  return { steps: result };
+  return { steps: result, success };
 }
 
 /** Má quest vícekrokový příběh (story kroky nebo náhodné události)? */

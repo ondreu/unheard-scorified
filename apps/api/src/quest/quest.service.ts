@@ -15,6 +15,8 @@ export interface QuestView {
   baseXp: number;
   /** Efektivní zlato (střed; rolluje se ještě s variancí při claimu). */
   baseGold: number;
+  /** Combat-objective quest (M12): souboj lze prohrát → odměna gatovaná vítězstvím. */
+  combatObjective?: boolean;
 }
 
 @Injectable()
@@ -47,5 +49,6 @@ function toView(q: QuestDef): QuestView {
     durationSec: q.durationSec,
     baseXp: Math.round(q.baseXp * eff),
     baseGold: Math.round(q.baseGold * eff),
+    ...(q.combatObjective ? { combatObjective: true } : {}),
   };
 }

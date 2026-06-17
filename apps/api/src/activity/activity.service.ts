@@ -120,6 +120,12 @@ export interface ClaimResult {
    * deterministicky ze seedu aktivity. Jen u `quest` aktivit; flavor nad odměnami.
    */
   questLog?: QuestStepResult[];
+  /**
+   * Combat-objective quest (M12) prohrán: postava padla v souboji → žádná odměna
+   * (reward = 0), quest se nedokončil a lze ho opakovat. `false`/nedefinováno =
+   * běžný úspěšný claim. Viz `QuestDef.combatObjective`.
+   */
+  questFailed?: boolean;
 }
 
 export interface StartActivityInput {
@@ -249,32 +255,37 @@ export class ActivityService {
 
     const claimAt = Date.now();
     const state = toActivityState(row);
-    const reward = computeActivityReward(state, claimAt);
+    let reward = computeActivityReward(state, claimAt);
     if (!reward) throw new BadRequestException('Activity has not finished yet');
 
     const finishesAt = state.startAt + state.durationSec * 1000;
     const offlineDurationSec = Math.max(0, Math.floor((claimAt - finishesAt) / 1000));
 
-    const gain = applyXpGain(character.totalXp, reward.xp);
-    const updated = await this.characters.addRewards(character.id, reward.xp, reward.gold);
-
     // Quest narrative log (M9): deterministicky ze seedu aktivity. Combat kroky
-    // používají snapshot bojového profilu (gear/talenty/rotace) → silnější
-    // postava = čistší boj. Flavor vrstva — odměny (výše) tím nejsou dotčené.
+    // používají snapshot bojového profilu (gear/talenty/rotace) → silnější postava
+    // = čistší boj. Vyhodnotí se PŘED připsáním odměn, protože combat-objective
+    // questy (M12) lze prohrát → reward gating (žádné XP/zlato/loot, quest nedokončen).
+    const levelBefore = levelFromXp(character.totalXp);
     let questLog: QuestStepResult[] | undefined;
+    let questFailed = false;
     if (row.activityType === 'quest') {
       const questId = (row.params as QuestActivityParams).questId;
       const quest = QUESTS[questId];
       if (quest) {
-        const profile = await this.rotation.buildCombatProfile(character, gain.levelBefore);
-        questLog = simulateQuestRun(quest, profile, state.seed).steps;
-        if (quest.kind === 'story') {
+        const profile = await this.rotation.buildCombatProfile(character, levelBefore);
+        const run = simulateQuestRun(quest, profile, state.seed);
+        questLog = run.steps;
+        if (quest.combatObjective && !run.success) {
+          // Prohra: nulová odměna, quest se nedokončí (lze opakovat se silnějším buildem).
+          questFailed = true;
+          reward = { xp: 0, gold: 0, items: [] };
+        } else if (quest.kind === 'story') {
           await this.completed.markCompleted(characterId, questId);
         }
       }
     } else if (row.activityType === 'grind') {
       // Gone Questing: generický flavor log (úvod + auto-resolved souboje + závěr).
-      const profile = await this.rotation.buildCombatProfile(character, gain.levelBefore);
+      const profile = await this.rotation.buildCombatProfile(character, levelBefore);
       questLog = simulateGrindRun(
         row.params as GrindActivityParams,
         profile,
@@ -282,6 +293,9 @@ export class ActivityService {
         state.seed,
       ).steps;
     }
+
+    const gain = applyXpGain(character.totalXp, reward.xp);
+    const updated = await this.characters.addRewards(character.id, reward.xp, reward.gold);
 
     // Přidá loot/materiály/output do inventáře (přebytek nad kapacitu → pošta).
     const grantedItems: string[] = [...reward.items];
@@ -303,8 +317,10 @@ export class ActivityService {
         characterId,
         kind: row.activityType,
         title: this.toActivityView(row, claimAt).title,
-        detail: `+${reward.xp} XP, +${reward.gold}g${itemNote}${gain.leveledUp ? ` · Level ${gain.levelAfter}!` : ''}`,
-        outcome: null,
+        detail: questFailed
+          ? 'Defeated — no reward earned'
+          : `+${reward.xp} XP, +${reward.gold}g${itemNote}${gain.leveledUp ? ` · Level ${gain.levelAfter}!` : ''}`,
+        outcome: questFailed ? 'defeat' : null,
       });
     } catch {
       /* best-effort */
@@ -323,6 +339,7 @@ export class ActivityService {
       offlineDurationSec,
       items: grantedItems,
       questLog,
+      ...(questFailed ? { questFailed: true } : {}),
       ...professionRewards,
     };
   }

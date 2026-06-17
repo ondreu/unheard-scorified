@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deriveCombatProfile, type CombatActor } from './combat';
-import { QUESTS, type QuestDef } from './data/quests';
+import { QUESTS, type QuestDef, type QuestEnemyTier } from './data/quests';
 import {
   questFoeStats,
   questHasNarrative,
@@ -140,5 +140,97 @@ describe('simulateQuestRun', () => {
     expect(run.steps[0]!.kind).toBe('narrative');
     expect(run.steps[0]!.text).toBe('Do the thing.');
     expect(questHasNarrative(bare)).toBe(false);
+  });
+
+  it('flavor (non combat-objective) quests always succeed', () => {
+    const run = simulateQuestRun(QUESTS.ns_kobold_culling!, makeProfile(1), 1);
+    expect(run.success).toBe(true);
+  });
+});
+
+// ── Combat-objective questy (M12): souboj se vyhodnotí doopravdy, lze prohrát ──
+function challengeQuest(foeLevel: number, tier: QuestEnemyTier): QuestDef {
+  return {
+    id: 'chal_synthetic',
+    name: 'Prove Yourself',
+    description: 'A real fight.',
+    zoneId: 'northshire',
+    kind: 'story',
+    requiredLevel: foeLevel,
+    durationSec: 600,
+    baseXp: 100,
+    baseGold: 10,
+    goldVariance: 0,
+    combatObjective: true,
+    steps: [
+      { kind: 'narrative', text: 'You set out to prove yourself.' },
+      { kind: 'combat', intro: 'The foe attacks!', foe: { name: 'Dread Champion', tier } },
+      { kind: 'narrative', text: 'Victorious, you return home.' },
+    ],
+  };
+}
+
+describe('simulateQuestEncounter (combat objective, allowDefeat)', () => {
+  it('lets a hopelessly outmatched character be defeated', () => {
+    const weak = makeProfile(1);
+    const foe = questFoeStats({ name: 'Dread Champion', tier: 'boss' }, 60);
+    const out = simulateQuestEncounter(weak, foe, new SeededRng(1), 0, true);
+    expect(out.playerDefeated).toBe(true);
+    expect(out.events.at(-1)!.type).toBe('player_defeated');
+    expect(out.playerHpPct).toBe(0);
+  });
+
+  it('still resolves a win when the character is strong enough', () => {
+    const strong = makeProfile(60);
+    const foe = questFoeStats({ name: 'Whelp', tier: 'minion' }, 3);
+    const out = simulateQuestEncounter(strong, foe, new SeededRng(1), 0, true);
+    expect(out.playerDefeated).toBe(false);
+    expect(out.events.at(-1)!.type).toBe('enemy_defeated');
+  });
+
+  it('without allowDefeat keeps the no-fail clamp even against an impossible foe', () => {
+    const weak = makeProfile(1);
+    const foe = questFoeStats({ name: 'Dread Champion', tier: 'boss' }, 60);
+    const out = simulateQuestEncounter(weak, foe, new SeededRng(1), 0);
+    expect(out.playerDefeated).toBe(false);
+    expect(out.events.at(-1)!.type).toBe('enemy_defeated');
+  });
+});
+
+describe('simulateQuestRun (combat objective)', () => {
+  it('fails (success=false) and truncates the story at the lost fight', () => {
+    const run = simulateQuestRun(challengeQuest(60, 'boss'), makeProfile(1), 1);
+    expect(run.success).toBe(false);
+    // příběh se utne na prohraném souboji → závěrečný narativní beat chybí
+    expect(run.steps.at(-1)!.kind).toBe('combat');
+    expect(run.steps.at(-1)!.defeated).toBe(true);
+    expect(run.steps.some((s) => s.kind === 'narrative' && s.text.startsWith('Victorious'))).toBe(
+      false,
+    );
+  });
+
+  it('succeeds (success=true) and renders the whole story for a strong character', () => {
+    const quest = challengeQuest(3, 'minion');
+    const run = simulateQuestRun(quest, makeProfile(60), 1);
+    expect(run.success).toBe(true);
+    expect(run.steps.length).toBe(quest.steps!.length);
+    expect(run.steps.some((s) => s.defeated)).toBe(false);
+  });
+
+  it('is deterministic for the same seed', () => {
+    const quest = challengeQuest(60, 'boss');
+    const a = simulateQuestRun(quest, makeProfile(5), 77);
+    const b = simulateQuestRun(quest, makeProfile(5), 77);
+    expect(a.success).toBe(b.success);
+    expect(a.steps.map((s) => s.defeated ?? false)).toEqual(
+      b.steps.map((s) => s.defeated ?? false),
+    );
+  });
+
+  it('ships real combat-objective quests in the catalog', () => {
+    expect(QUESTS.ns_padfoot_bounty!.combatObjective).toBe(true);
+    expect(QUESTS.dt_skull_rock!.combatObjective).toBe(true);
+    expect(QUESTS.epl_araj_reckoning!.combatObjective).toBe(true);
+    expect(QUESTS.fw_jadefire_lord!.combatObjective).toBe(true);
   });
 });

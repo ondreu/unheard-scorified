@@ -667,7 +667,9 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 > 40–60 instance ✅**; 5. inkrement: **+2 nízké dungeony (Wailing Caverns 17,
 > Blackfathom Deeps 24) + attunement pro VŠECHNY dungeony ✅** (každý dungeon i raid
 > má teď vlastní questline); 6. inkrement: **fallback zóny dopsány ✅** (Westfall/
-> Duskwood/Barrens/Thousand Needles — viz níže).
+> Duskwood/Barrens/Thousand Needles — viz níže); 7. inkrement: **questy s reálným
+> combat cílem ✅** (M12.8 — opt-in `combatObjective`, souboj lze prohrát → odměna
+> gatovaná vítězstvím; 4 challenge questy, viz „Lore rozdělený po zónách" níže).
 
 - [x] **Velké množství story questů napříč úrovněmi** ✅ (M12.7): vícekrokové
       (narativní beaty + auto-resolved combaty), ve stylu Northshire/Durotar z M9.
@@ -794,8 +796,21 @@ lobby) a M8.5-D (P2P trade) — staví se první.
   - [x] **Dopsat steps/lore pro zbylé zóny** (Westfall/Duskwood/Barrens/Thousand
         Needles) — engine hotový, jde o obsah. Raid-attunement questy řešeny
         samostatně (viz M12.4/M12.5 výše).
-  - [ ] Questy s **reálným combat cílem** (kill/clear řešený enginem s rizikem, ne
-        jen flavor uvnitř idle questu).
+  - [x] **Questy s reálným combat cílem** ✅ (M12.8): nový opt-in příznak
+        `QuestDef.combatObjective` — souboje uvnitř questu se při claimu vyhodnotí
+        **doopravdy** (engine bez no-fail clampu), takže slabá postava může
+        **prohrát**. Prohra ⇒ žádná odměna (XP/zlato/loot = 0), quest se nedokončí
+        a lze ho **opakovat** se silnějším gearem/levelem. Idle zachováno (jeden běh,
+        žádná nová interakce, determinismus přes seed); default `false` ⇒ stávající
+        flavor combat beze změny. Reward gating v `ActivityService.claim`
+        (`ClaimResult.questFailed`); web: „⚔️ Combat objective" badge + varování +
+        defeat výsledek v claim modalu. 4 ukázkové standalone challenge questy
+        (paralelní Alliance/Horde): Northshire/Durotar (~lvl 8) + Eastern
+        Plaguelands/Felwood (~lvl 55), odměny kalibrované jako ostatní questy.
+        Testy: shared `quest-run.test.ts` (fail/win/determinismus + katalog) + API
+        `activity.flow.test.ts` (prohra negranuje odměnu/dokončení, výhra ano).
+        _Follow-up (PM): případný XP/gold premium za riziko (zatím kalibrováno
+        rovně); víc challenge questů napříč brackety._
   - [x] **Dungeon attunement questline** (M9 + M12.4 + M12.5): **každý dungeon** má
         teď vlastní attunement questline. 40–60 dungeony 1-questový gate; nízkoúrovňové
         (Deadmines/Wailing Caverns/SFK/Blackfathom Deeps/Scarlet Monastery) 2-questový
