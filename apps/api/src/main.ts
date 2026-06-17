@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import fastifyCookie from '@fastify/cookie';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -20,6 +21,10 @@ async function bootstrap(): Promise<void> {
   }
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+
+  // Cookies pro httpOnly refresh token (M-auth hardening).
+  await app.register(fastifyCookie);
+
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );

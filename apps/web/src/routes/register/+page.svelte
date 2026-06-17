@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { register } from '$lib/api';
-  import { setTokens } from '$lib/auth';
+  import { setSession } from '$lib/auth';
 
   let username = $state('');
   let password = $state('');
@@ -14,7 +14,7 @@
     error = null;
     busy = true;
     try {
-      setTokens(await register(username, password, email));
+      setSession(await register(username, password, email));
       await goto('/characters');
     } catch (err) {
       error = (err as Error).message;

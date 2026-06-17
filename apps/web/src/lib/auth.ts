@@ -1,36 +1,25 @@
-import { browser } from '$app/environment';
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
-export interface Tokens {
+export interface Session {
   accessToken: string;
-  refreshToken: string;
+  user: { accountId: string; username: string };
 }
 
-const STORAGE_KEY = 'idlerpg.tokens';
+/**
+ * Reaktivní auth stav — jen v paměti (žádný localStorage).
+ * Refresh token je httpOnly cookie (neviditelná pro JS).
+ * Po reloadu stránky se access token obnoví prvním API voláním (401 → /auth/refresh → cookie).
+ */
+export const session = writable<Session | null>(null);
 
-function load(): Tokens | null {
-  if (!browser) return null;
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? (JSON.parse(raw) as Tokens) : null;
+export function setSession(value: Session): void {
+  session.set(value);
 }
 
-/** Reaktivní stav přihlášení. Tokeny zatím v localStorage (zpevnění na cookie = follow-up, viz ADR 0005). */
-export const tokens = writable<Tokens | null>(load());
-
-tokens.subscribe((value) => {
-  if (!browser) return;
-  if (value) localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  else localStorage.removeItem(STORAGE_KEY);
-});
-
-export function setTokens(value: Tokens): void {
-  tokens.set(value);
+export function clearSession(): void {
+  session.set(null);
 }
 
-export function clearTokens(): void {
-  tokens.set(null);
-}
-
-export function currentTokens(): Tokens | null {
-  return load();
+export function currentSession(): Session | null {
+  return get(session);
 }

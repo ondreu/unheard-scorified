@@ -1,8 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { ApiError, deleteCharacter, listCharacters, type CharacterView } from '$lib/api';
-  import { clearTokens } from '$lib/auth';
+  import { ApiError, deleteCharacter, listCharacters, logout, type CharacterView } from '$lib/api';
   import { RACES, CLASSES } from '@game/shared';
   import { CLASS_COLOR, FACTION_COLOR, factionLabel } from '$lib/cosmetics';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -26,8 +25,8 @@
     }
   });
 
-  async function logout(): Promise<void> {
-    clearTokens();
+  async function handleLogout(): Promise<void> {
+    await logout();
     await goto('/login');
   }
 
@@ -43,7 +42,7 @@
     <h1 class="font-display text-3xl font-bold text-[var(--gold-bright)]">Choose your hero</h1>
     <div class="flex gap-2">
       <a href="/characters/new" class="btn btn-primary">+ New character</a>
-      <button class="btn" onclick={logout} title="Log out">Log out</button>
+      <button class="btn" onclick={handleLogout} title="Log out">Log out</button>
     </div>
   </div>
 

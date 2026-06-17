@@ -17,6 +17,8 @@ export interface AppConfig {
   vapidPrivateKey: string;
   /** Mailto pro VAPID „sub" claim (RFC 8292). */
   vapidEmail: string;
+  /** Nastavit Secure flag na auth cookies (true v produkci s HTTPS). */
+  cookieSecure: boolean;
 }
 
 export function loadConfig(): AppConfig {
@@ -37,6 +39,7 @@ export function loadConfig(): AppConfig {
     vapidPrivateKey:
       process.env.VAPID_PRIVATE_KEY ?? '-d1-ZqhlXcILCrZnCAqgEueXramSBMgo8MdVU2v3bOQ',
     vapidEmail: process.env.VAPID_EMAIL ?? 'mailto:admin@afkto60.local',
+    cookieSecure: (process.env.NODE_ENV ?? 'development') === 'production',
   };
 }
 

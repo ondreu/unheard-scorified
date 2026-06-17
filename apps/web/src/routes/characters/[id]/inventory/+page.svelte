@@ -9,7 +9,7 @@
     unequipBag as apiUnequipBag,
     type BagsView,
   } from '$lib/api';
-  import { currentTokens } from '$lib/auth';
+  import { currentSession } from '$lib/auth';
   import { RARITY_COLOR } from '$lib/cosmetics';
   import PixelItemIcon from '$lib/components/PixelItemIcon.svelte';
   import type { ItemDef, EquipmentSlot } from '@game/shared';
@@ -183,8 +183,7 @@
   }
 
   function authHeaders(): Record<string, string> {
-    // Single source of truth for tokens (see $lib/auth).
-    const token = currentTokens()?.accessToken;
+    const token = currentSession()?.accessToken;
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 

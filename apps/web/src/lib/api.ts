@@ -1,5 +1,5 @@
 import type { CharacterSheet } from '@game/shared';
-import { clearTokens, currentTokens, setTokens, type Tokens } from './auth';
+import { clearSession, currentSession, setSession, type Session } from './auth';
 
 export interface CharacterView {
   id: string;
@@ -174,6 +174,8 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
   const doFetch = (token?: string): Promise<Response> =>
     fetch(`/api${path}`, {
       ...init,
+      // Potřebné pro httpOnly refresh_token cookie (posílá se automaticky).
+      credentials: 'include',
       headers: {
         // Content-Type jen s tělem — Fastify odmítá prázdné tělo s JSON content-type.
         ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -182,17 +184,18 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
       },
     });
 
-  const tokens = currentTokens();
-  let res = await doFetch(auth ? tokens?.accessToken : undefined);
+  const sess = currentSession();
+  let res = await doFetch(auth ? sess?.accessToken : undefined);
 
   // Jednorázový pokus o refresh při vypršení access tokenu.
-  if (res.status === 401 && auth && tokens?.refreshToken) {
+  // Cookie se pošle automaticky (credentials: 'include') — nepotřebujeme refresh token v JS.
+  if (res.status === 401 && auth) {
     try {
-      const refreshed = await refresh(tokens.refreshToken);
-      setTokens(refreshed);
+      const refreshed = await refreshSession();
+      setSession(refreshed);
       res = await doFetch(refreshed.accessToken);
     } catch {
-      clearTokens();
+      clearSession();
     }
   }
 
@@ -205,28 +208,34 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
   return body as T;
 }
 
-export function register(username: string, password: string, email?: string): Promise<Tokens> {
-  return request<Tokens>(
+export function register(username: string, password: string, email?: string): Promise<Session> {
+  return request<Session>(
     '/auth/register',
     { method: 'POST', body: JSON.stringify({ username, password, email: email || undefined }) },
     false,
   );
 }
 
-export function login(username: string, password: string): Promise<Tokens> {
-  return request<Tokens>(
+export function login(username: string, password: string): Promise<Session> {
+  return request<Session>(
     '/auth/login',
     { method: 'POST', body: JSON.stringify({ username, password }) },
     false,
   );
 }
 
-export function refresh(refreshToken: string): Promise<Tokens> {
-  return request<Tokens>(
-    '/auth/refresh',
-    { method: 'POST', body: JSON.stringify({ refreshToken }) },
-    false,
-  );
+/** Obnoví session přes httpOnly cookie (nevyžaduje refresh token v JS). */
+function refreshSession(): Promise<Session> {
+  return request<Session>('/auth/refresh', { method: 'POST', body: JSON.stringify({}) }, false);
+}
+
+/** Odhlásí uživatele: revokuje refresh token na serveru + maže cookie. */
+export async function logout(): Promise<void> {
+  try {
+    await request('/auth/logout', { method: 'POST', body: JSON.stringify({}) }, false);
+  } finally {
+    clearSession();
+  }
 }
 
 export function listCharacters(): Promise<CharacterView[]> {
