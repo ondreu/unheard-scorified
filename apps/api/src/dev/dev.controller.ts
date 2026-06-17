@@ -1,7 +1,17 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { DevGuard } from './dev.guard';
 import { DevService } from './dev.service';
-import { AddGoldDto, AddItemDto, SetLevelDto, SetProfessionDto, TimeWarpDto } from './dto/dev.dto';
+import {
+  AddGoldDto,
+  AddItemDto,
+  ChatHistoryQueryDto,
+  CompleteQuestDto,
+  SetArenaRatingDto,
+  SetLevelDto,
+  SetProfessionDto,
+  SetReputationDto,
+  TimeWarpDto,
+} from './dto/dev.dto';
 
 /** Auth check — verifikuje heslo, nevrací token (secret se posílá jako header). */
 @Controller('dev/auth')
@@ -38,6 +48,11 @@ export class DevController {
     return this.dev.listProfessions();
   }
 
+  @Get('quests')
+  listQuests() {
+    return this.dev.listQuests();
+  }
+
   @Post('set-level')
   setLevel(@Param('characterId') characterId: string, @Body() body: SetLevelDto) {
     return this.dev.setLevel(characterId, body.level);
@@ -71,6 +86,26 @@ export class DevController {
   @Post('set-profession')
   setProfession(@Param('characterId') characterId: string, @Body() body: SetProfessionDto) {
     return this.dev.setProfession(characterId, body.professionId, body.skill);
+  }
+
+  @Post('set-arena-rating')
+  setArenaRating(@Param('characterId') characterId: string, @Body() body: SetArenaRatingDto) {
+    return this.dev.setArenaRating(characterId, body.bracket, body.rating);
+  }
+
+  @Post('set-reputation')
+  setReputation(@Param('characterId') characterId: string, @Body() body: SetReputationDto) {
+    return this.dev.setReputation(characterId, body.factionId, body.standing);
+  }
+
+  @Post('clear-lockouts')
+  clearLockouts(@Param('characterId') characterId: string) {
+    return this.dev.clearLockouts(characterId);
+  }
+
+  @Post('complete-quest')
+  completeQuest(@Param('characterId') characterId: string, @Body() body: CompleteQuestDto) {
+    return this.dev.completeQuest(characterId, body.questId);
   }
 
   @Post('reset')
@@ -124,5 +159,21 @@ export class DevModController {
   @Delete('characters/:characterId')
   deleteCharacter(@Param('characterId') characterId: string) {
     return this.dev.deleteCharacter(characterId);
+  }
+
+  @Get('chat')
+  listChat(@Query() query: ChatHistoryQueryDto) {
+    return this.dev.listChatMessages({
+      channel: query.channel,
+      search: query.search,
+      senderId: query.senderId,
+      before: query.before,
+      limit: query.limit,
+    });
+  }
+
+  @Delete('chat/:messageId')
+  deleteChatMessage(@Param('messageId') messageId: string) {
+    return this.dev.deleteChatMessage(messageId);
   }
 }

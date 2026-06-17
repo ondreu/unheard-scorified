@@ -1619,6 +1619,13 @@ export interface DevAccountView {
   characterCount: number;
 }
 
+export interface DevQuestDef {
+  id: string;
+  name: string;
+  zone: string;
+  faction: string;
+}
+
 export interface DevCharacterInspect {
   id: string;
   name: string;
@@ -1633,6 +1640,11 @@ export interface DevCharacterInspect {
   inventory: { itemId: string; name: string; quantity: number }[];
   equipment: { slot: string; itemId: string; name: string }[];
   professions: { professionId: string; skill: number }[];
+  reputation: { factionId: string; factionName: string; standing: number; tier: string }[];
+  arenaRatings: { bracket: string; seasonId: string; rating: number; wins: number; losses: number }[];
+  guild: { id: string; name: string; rank: string } | null;
+  lockouts: { lockoutId: string; weekId: string }[];
+  achievements: { id: string; name: string; earnedAt: string }[];
 }
 
 export interface DevCharacterSearchResult {
@@ -1701,6 +1713,50 @@ export function devResetCharacter(characterId: string): Promise<{ reset: boolean
   return devRequest(`/dev/characters/${characterId}/reset`, { method: 'POST' });
 }
 
+export function devGrantMounts(characterId: string): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/grant-mounts`, { method: 'POST' });
+}
+
+export function devListQuests(characterId: string): Promise<DevQuestDef[]> {
+  return devRequest(`/dev/characters/${characterId}/quests`);
+}
+
+export function devSetArenaRating(
+  characterId: string,
+  bracket: string,
+  rating: number,
+): Promise<{ bracket: string; seasonId: string; rating: number }> {
+  return devRequest(`/dev/characters/${characterId}/set-arena-rating`, {
+    method: 'POST',
+    body: JSON.stringify({ bracket, rating }),
+  });
+}
+
+export function devSetReputation(
+  characterId: string,
+  factionId: string,
+  standing: number,
+): Promise<{ factionId: string; standing: number }> {
+  return devRequest(`/dev/characters/${characterId}/set-reputation`, {
+    method: 'POST',
+    body: JSON.stringify({ factionId, standing }),
+  });
+}
+
+export function devClearLockouts(characterId: string): Promise<{ cleared: number }> {
+  return devRequest(`/dev/characters/${characterId}/clear-lockouts`, { method: 'POST' });
+}
+
+export function devCompleteQuest(
+  characterId: string,
+  questId: string,
+): Promise<{ questId: string; alreadyDone: boolean }> {
+  return devRequest(`/dev/characters/${characterId}/complete-quest`, {
+    method: 'POST',
+    body: JSON.stringify({ questId }),
+  });
+}
+
 // Moderation
 export function devListAccounts(): Promise<DevAccountView[]> {
   return devRequest('/dev/mod/accounts');
@@ -1732,4 +1788,38 @@ export function devInspectCharacter(characterId: string): Promise<DevCharacterIn
 
 export function devDeleteCharacter(characterId: string): Promise<{ deleted: boolean }> {
   return devRequest(`/dev/mod/characters/${characterId}`, { method: 'DELETE' });
+}
+
+export interface DevChatMessage {
+  id: string;
+  channel: string;
+  senderId: string | null;
+  senderName: string;
+  body: string;
+  at: string;
+}
+
+export interface DevChatHistoryResult {
+  messages: DevChatMessage[];
+  hasMore: boolean;
+}
+
+export function devListChat(opts: {
+  channel?: string;
+  search?: string;
+  senderId?: string;
+  before?: string;
+  limit?: number;
+}): Promise<DevChatHistoryResult> {
+  const params = new URLSearchParams();
+  if (opts.channel) params.set('channel', opts.channel);
+  if (opts.search) params.set('search', opts.search);
+  if (opts.senderId) params.set('senderId', opts.senderId);
+  if (opts.before) params.set('before', opts.before);
+  if (opts.limit != null) params.set('limit', String(opts.limit));
+  return devRequest(`/dev/mod/chat?${params.toString()}`);
+}
+
+export function devDeleteChatMessage(messageId: string): Promise<{ deleted: boolean }> {
+  return devRequest(`/dev/mod/chat/${messageId}`, { method: 'DELETE' });
 }
