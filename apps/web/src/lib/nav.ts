@@ -94,6 +94,14 @@ export const NAV_SECTIONS: NavSection[] = [
     accent: '#e0925a',
     group: 'play',
   },
+  {
+    path: 'gauntlet',
+    icon: '🔥',
+    title: 'The Gauntlet',
+    sub: 'Active survival arena',
+    accent: 'var(--danger)',
+    group: 'play',
+  },
 
   {
     path: 'inventory',

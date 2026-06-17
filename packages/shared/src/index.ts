@@ -25,6 +25,7 @@ export * from './data/arenas';
 export * from './pvp';
 export * from './raid';
 export * from './data/raids';
+export * from './gauntlet';
 export * from './group';
 export * from './lockout';
 export * from './auction';

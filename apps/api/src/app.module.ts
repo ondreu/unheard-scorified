@@ -9,6 +9,7 @@ import { ConsumableModule } from './consumable/consumable.module';
 import { DbModule } from './db/db.module';
 import { DevModule } from './dev/dev.module';
 import { DungeonModule } from './dungeon/dungeon.module';
+import { GauntletModule } from './gauntlet/gauntlet.module';
 import { GroupModule } from './group/group.module';
 import { HealthModule } from './health/health.module';
 import { HistoryModule } from './history/history.module';
@@ -62,6 +63,7 @@ const devModules =
     ConsumableModule,
     RotationModule,
     BankModule,
+    GauntletModule,
     ...devModules,
   ],
 })
