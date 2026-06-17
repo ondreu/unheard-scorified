@@ -19,16 +19,32 @@ export interface AppNotification {
 function createNotifications() {
   const { subscribe, update } = writable<AppNotification[]>([]);
   // Pending server state (invites/mail/history) gets re-fetched every time the
-  // character layout mounts (e.g. navigating back from the character list), so
-  // pushes for the same underlying item are deduplicated by a stable `key` —
-  // otherwise the same invite/mail/history entry re-notifies on every visit.
-  const seenKeys = new Set<string>();
+  // character layout mounts or the page is reloaded, so pushes for the same
+  // underlying item are deduplicated by a stable `key`. seenKeys is persisted
+  // in sessionStorage so it survives F5 reloads within the same browser tab;
+  // it resets when the tab is closed (new session = fresh start).
+  const STORAGE_KEY = 'afk60:notif-seen';
+  function loadKeys(): Set<string> {
+    if (typeof sessionStorage === 'undefined') return new Set();
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  }
+  const seenKeys = loadKeys();
+  function saveKeys(): void {
+    if (typeof sessionStorage === 'undefined') return;
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...seenKeys])); } catch { /* quota / private */ }
+  }
   return {
     subscribe,
     push(kind: NotificationKind, title: string, body?: string, key?: string): void {
       if (key) {
         if (seenKeys.has(key)) return;
         seenKeys.add(key);
+        saveKeys();
       }
       const n: AppNotification = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
