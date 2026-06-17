@@ -142,12 +142,15 @@
     } catch {
       // best-effort; guild panel still reachable from nav
     }
-    // Unread mail badge (offline messages arrived). Keyed by count so a newly
-    // arrived mail (count change) still notifies, but revisiting doesn't repeat it.
+    // Unread mail — keyed by the newest unread mail ID. Only shows again when
+    // a genuinely new (unseen) mail arrives; never repeats for already-shown mail.
     try {
       const box = await getMailbox(id);
-      if (box.unread > 0)
-        notifications.push('info', ui.mailUnread(box.unread), undefined, `mail-unread:${box.unread}`);
+      const unread = box.mail.filter((m) => !m.read);
+      if (unread.length > 0) {
+        const newestId = [...unread].sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0]!.id;
+        notifications.push('info', ui.mailUnread(unread.length), undefined, `mail-unread:${newestId}`);
+      }
     } catch {
       // best-effort
     }
