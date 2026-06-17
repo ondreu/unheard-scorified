@@ -225,6 +225,13 @@
       "when": 1781669889839,
       "tag": "0031_old_lady_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1781675731087,
+      "tag": "0032_bouncy_ultimates",
+      "breakpoints": true
     }
   ]
 }

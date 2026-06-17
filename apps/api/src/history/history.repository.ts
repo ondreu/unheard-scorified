@@ -29,7 +29,9 @@ export class HistoryRepository {
       .select()
       .from(characterEventLog)
       .where(where)
-      .orderBy(desc(characterEventLog.createdAt))
+      // `seq` jako deterministický tie-break: dva eventy se stejným `created_at`
+      // se jinak vrátí v nedefinovaném pořadí (flaky „nejnovější první").
+      .orderBy(desc(characterEventLog.createdAt), desc(characterEventLog.seq))
       .limit(limit);
   }
 }

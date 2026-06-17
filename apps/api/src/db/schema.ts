@@ -6,6 +6,7 @@
 import { relations } from 'drizzle-orm';
 import {
   bigint,
+  bigserial,
   boolean,
   index,
   integer,
@@ -1034,6 +1035,9 @@ export const characterEventLog = pgTable('character_event_log', {
   detail: varchar('detail', { length: 240 }).notNull().default(''),
   outcome: varchar('outcome', { length: 16 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  // Monotónní pořadí zápisu → deterministický tie-break, když dva eventy spadnou
+  // do stejného `created_at` (jinak je „nejnovější první" nedefinované).
+  seq: bigserial('seq', { mode: 'number' }).notNull(),
 });
 
 export type CharacterEventLog = typeof characterEventLog.$inferSelect;
