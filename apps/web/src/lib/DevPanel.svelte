@@ -3,17 +3,24 @@
   import {
     devAddGold,
     devAddItem,
+    devClearLockouts,
     devCompleteActivity,
+    devCompleteQuest,
     devGetState,
+    devGrantMounts,
     devListItems,
     devListProfessions,
+    devListQuests,
     devResetCharacter,
+    devSetArenaRating,
     devSetLevel,
     devSetProfession,
+    devSetReputation,
     devTimeWarp,
     type DevCharacterState,
     type DevItemDef,
     type DevProfessionDef,
+    type DevQuestDef,
   } from './api';
 
   let { characterId }: { characterId: string } = $props();
@@ -22,6 +29,7 @@
   let charState: DevCharacterState | null = $state(null);
   let items: DevItemDef[] = $state([]);
   let professions: DevProfessionDef[] = $state([]);
+  let quests: DevQuestDef[] = $state([]);
   let feedback: string | null = $state(null);
   let busy: boolean = $state(false);
 
@@ -33,19 +41,27 @@
   let warpHours: number = $state(1);
   let selectedProfession: string = $state('');
   let profSkill: number = $state(150);
+  let arenaBracket: string = $state('1v1');
+  let arenaRating: number = $state(1500);
+  let selectedFaction: string = $state('miners_league');
+  let repStanding: number = $state(3000);
+  let selectedQuest: string = $state('');
 
   onMount(async () => {
-    const [s, i, p] = await Promise.all([
+    const [s, i, p, q] = await Promise.all([
       devGetState(characterId),
       devListItems(characterId),
       devListProfessions(characterId),
+      devListQuests(characterId),
     ]);
     charState = s;
     items = i.sort((a, b) => a.itemLevel - b.itemLevel);
     professions = p;
+    quests = q;
     levelInput = s.level;
     if (i[0]) selectedItem = i[0].id;
     if (p[0]) selectedProfession = p[0].id;
+    if (q[0]) selectedQuest = q[0].id;
   });
 
   async function run<T>(fn: () => Promise<T>, msg: (r: T) => string) {
@@ -184,6 +200,88 @@
               onclick={() => run(() => devSetProfession(characterId, selectedProfession, profSkill), (r) => `${r.professionId} skill → ${r.skill}`)}
             >
               Set
+            </button>
+          </div>
+        </section>
+
+        <!-- Arena Rating -->
+        <section class="dev-section">
+          <h3>Arena Rating</h3>
+          <div class="dev-row">
+            <select bind:value={arenaBracket} class="dev-select dev-select--sm">
+              <option value="1v1">1v1</option>
+              <option value="3v3">3v3</option>
+              <option value="5v5">5v5</option>
+            </select>
+            <input type="number" min="0" max="3500" bind:value={arenaRating} class="dev-input dev-input--sm" />
+            <button
+              class="dev-btn"
+              disabled={busy}
+              onclick={() => run(() => devSetArenaRating(characterId, arenaBracket, arenaRating), (r) => `${r.bracket} rating → ${r.rating} (${r.seasonId})`)}
+            >
+              Set
+            </button>
+          </div>
+        </section>
+
+        <!-- Reputation -->
+        <section class="dev-section">
+          <h3>Reputation</h3>
+          <div class="dev-row">
+            <select bind:value={selectedFaction} class="dev-select dev-select--sm">
+              <option value="miners_league">Miners' League</option>
+              <option value="herbalist_circle">Herbalist Circle</option>
+              <option value="explorers_guild">Explorers' Guild</option>
+            </select>
+            <input type="number" min="0" max="6000" bind:value={repStanding} class="dev-input dev-input--sm" />
+            <button
+              class="dev-btn"
+              disabled={busy}
+              onclick={() => run(() => devSetReputation(characterId, selectedFaction, repStanding), (r) => `${r.factionId} → ${r.standing}`)}
+            >
+              Set
+            </button>
+          </div>
+        </section>
+
+        <!-- Complete Quest -->
+        <section class="dev-section">
+          <h3>Complete Quest</h3>
+          <div class="dev-row">
+            <select bind:value={selectedQuest} class="dev-select">
+              {#each quests as q}
+                <option value={q.id}>[{q.faction}/{q.zone}] {q.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="dev-row">
+            <button
+              class="dev-btn"
+              disabled={busy || !selectedQuest}
+              onclick={() => run(() => devCompleteQuest(characterId, selectedQuest), (r) => r.alreadyDone ? `${r.questId} already done` : `Quest completed: ${r.questId}`)}
+            >
+              Complete
+            </button>
+          </div>
+        </section>
+
+        <!-- Mounts & Lockouts -->
+        <section class="dev-section">
+          <h3>Mounts & Lockouts</h3>
+          <div class="dev-row">
+            <button
+              class="dev-btn"
+              disabled={busy}
+              onclick={() => run(() => devGrantMounts(characterId), () => 'All mounts granted')}
+            >
+              Grant All Mounts
+            </button>
+            <button
+              class="dev-btn"
+              disabled={busy}
+              onclick={() => run(() => devClearLockouts(characterId), (r) => `Cleared ${r.cleared} lockout(s)`)}
+            >
+              Clear Lockouts
             </button>
           </div>
         </section>

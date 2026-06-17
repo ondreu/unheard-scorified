@@ -1619,6 +1619,13 @@ export interface DevAccountView {
   characterCount: number;
 }
 
+export interface DevQuestDef {
+  id: string;
+  name: string;
+  zone: string;
+  faction: string;
+}
+
 export interface DevCharacterInspect {
   id: string;
   name: string;
@@ -1633,6 +1640,11 @@ export interface DevCharacterInspect {
   inventory: { itemId: string; name: string; quantity: number }[];
   equipment: { slot: string; itemId: string; name: string }[];
   professions: { professionId: string; skill: number }[];
+  reputation: { factionId: string; factionName: string; standing: number; tier: string }[];
+  arenaRatings: { bracket: string; seasonId: string; rating: number; wins: number; losses: number }[];
+  guild: { id: string; name: string; rank: string } | null;
+  lockouts: { lockoutId: string; weekId: string }[];
+  achievements: { id: string; name: string; earnedAt: string }[];
 }
 
 export interface DevCharacterSearchResult {
@@ -1699,6 +1711,50 @@ export function devSetProfession(characterId: string, professionId: string, skil
 
 export function devResetCharacter(characterId: string): Promise<{ reset: boolean }> {
   return devRequest(`/dev/characters/${characterId}/reset`, { method: 'POST' });
+}
+
+export function devGrantMounts(characterId: string): Promise<DevCharacterState> {
+  return devRequest(`/dev/characters/${characterId}/grant-mounts`, { method: 'POST' });
+}
+
+export function devListQuests(characterId: string): Promise<DevQuestDef[]> {
+  return devRequest(`/dev/characters/${characterId}/quests`);
+}
+
+export function devSetArenaRating(
+  characterId: string,
+  bracket: string,
+  rating: number,
+): Promise<{ bracket: string; seasonId: string; rating: number }> {
+  return devRequest(`/dev/characters/${characterId}/set-arena-rating`, {
+    method: 'POST',
+    body: JSON.stringify({ bracket, rating }),
+  });
+}
+
+export function devSetReputation(
+  characterId: string,
+  factionId: string,
+  standing: number,
+): Promise<{ factionId: string; standing: number }> {
+  return devRequest(`/dev/characters/${characterId}/set-reputation`, {
+    method: 'POST',
+    body: JSON.stringify({ factionId, standing }),
+  });
+}
+
+export function devClearLockouts(characterId: string): Promise<{ cleared: number }> {
+  return devRequest(`/dev/characters/${characterId}/clear-lockouts`, { method: 'POST' });
+}
+
+export function devCompleteQuest(
+  characterId: string,
+  questId: string,
+): Promise<{ questId: string; alreadyDone: boolean }> {
+  return devRequest(`/dev/characters/${characterId}/complete-quest`, {
+    method: 'POST',
+    body: JSON.stringify({ questId }),
+  });
 }
 
 // Moderation

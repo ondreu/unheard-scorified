@@ -1,25 +1,41 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, ilike, sql } from 'drizzle-orm';
+import { and, eq, ilike, sql } from 'drizzle-orm';
 import {
+  activeSeasonAt,
+  ARENA_BRACKETS,
   buildCharacterSheet,
+  FACTIONS,
+  isFactionId,
+  isItemId,
+  isProfessionId,
+  isQuestId,
   ITEMS,
   MOUNT_LIST,
   PROFESSIONS,
-  isItemId,
-  isProfessionId,
+  QUESTS,
+  questFaction,
+  reputationTier,
   totalXpForLevel,
   MAX_LEVEL,
+  type ArenaBracket,
 } from '@game/shared';
 import { DB, type Database } from '../db/db.module';
 import {
   accounts,
-  characters,
+  arenaRatings,
+  characterAchievements,
   characterActivities,
-  characterInventory,
   characterEquipment,
-  characterTalents,
-  characterProfessions,
+  characterInventory,
+  characterLockouts,
   characterMounts,
+  characterProfessions,
+  characterReputation,
+  characterTalents,
+  characters,
+  completedQuests,
+  guildMembers,
+  guilds,
 } from '../db/schema';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
@@ -57,6 +73,11 @@ export interface DevCharacterInspect {
   inventory: { itemId: string; name: string; quantity: number }[];
   equipment: { slot: string; itemId: string; name: string }[];
   professions: { professionId: string; skill: number }[];
+  reputation: { factionId: string; factionName: string; standing: number; tier: string }[];
+  arenaRatings: { bracket: string; seasonId: string; rating: number; wins: number; losses: number }[];
+  guild: { id: string; name: string; rank: string } | null;
+  lockouts: { lockoutId: string; weekId: string }[];
+  achievements: { id: string; name: string; earnedAt: Date }[];
 }
 
 @Injectable()
@@ -177,6 +198,70 @@ export class DevService {
     return Object.values(PROFESSIONS).map((p) => ({ id: p.id, name: p.name }));
   }
 
+  listQuests(): { id: string; name: string; zone: string; faction: string }[] {
+    return Object.values(QUESTS).map((q) => ({
+      id: q.id,
+      name: q.name,
+      zone: q.zoneId,
+      faction: questFaction(q),
+    }));
+  }
+
+  async setArenaRating(characterId: string, bracket: string, rating: number): Promise<{ bracket: string; seasonId: string; rating: number }> {
+    const char = await this.charactersRepo.findById(characterId);
+    if (!char) throw new NotFoundException('Character not found');
+    if (!(ARENA_BRACKETS as readonly string[]).includes(bracket)) {
+      throw new BadRequestException(`Invalid bracket: ${bracket}`);
+    }
+    const seasonId = activeSeasonAt(Date.now()).id;
+    await this.db
+      .insert(arenaRatings)
+      .values({ characterId, bracket: bracket as ArenaBracket, seasonId, rating, wins: 0, losses: 0 })
+      .onConflictDoUpdate({
+        target: [arenaRatings.characterId, arenaRatings.bracket, arenaRatings.seasonId],
+        set: { rating, updatedAt: new Date() },
+      });
+    return { bracket, seasonId, rating };
+  }
+
+  async setReputation(characterId: string, factionId: string, standing: number): Promise<{ factionId: string; standing: number }> {
+    const char = await this.charactersRepo.findById(characterId);
+    if (!char) throw new NotFoundException('Character not found');
+    if (!isFactionId(factionId)) throw new BadRequestException(`Unknown faction: ${factionId}`);
+    await this.db
+      .insert(characterReputation)
+      .values({ characterId, factionId, standing })
+      .onConflictDoUpdate({
+        target: [characterReputation.characterId, characterReputation.factionId],
+        set: { standing },
+      });
+    return { factionId, standing };
+  }
+
+  async clearLockouts(characterId: string): Promise<{ cleared: number }> {
+    const char = await this.charactersRepo.findById(characterId);
+    if (!char) throw new NotFoundException('Character not found');
+    const rows = await this.db
+      .delete(characterLockouts)
+      .where(eq(characterLockouts.characterId, characterId))
+      .returning();
+    return { cleared: rows.length };
+  }
+
+  async completeQuest(characterId: string, questId: string): Promise<{ questId: string; alreadyDone: boolean }> {
+    const char = await this.charactersRepo.findById(characterId);
+    if (!char) throw new NotFoundException('Character not found');
+    if (!isQuestId(questId)) throw new BadRequestException(`Unknown quest: ${questId}`);
+    const existing = await this.db
+      .select({ questId: completedQuests.questId })
+      .from(completedQuests)
+      .where(and(eq(completedQuests.characterId, characterId), eq(completedQuests.questId, questId)))
+      .limit(1);
+    if (existing.length) return { questId, alreadyDone: true };
+    await this.db.insert(completedQuests).values({ characterId, questId });
+    return { questId, alreadyDone: false };
+  }
+
   // ── Moderation ─────────────────────────────────────────────────────────────
 
   async listAccounts(): Promise<DevAccountView[]> {
@@ -246,12 +331,23 @@ export class DevService {
 
     const sheet = buildCharacterSheet(char.race, char.class, char.totalXp);
 
-    const [activity, invRows, equipRows, profRows] = await Promise.all([
-      this.activities.findByCharacter(characterId),
-      this.inventory.listInventory(characterId),
-      this.inventory.listEquipment(characterId),
-      this.db.select().from(characterProfessions).where(eq(characterProfessions.characterId, characterId)),
-    ]);
+    const [activity, invRows, equipRows, profRows, repRows, ratingRows, guildRow, lockoutRows, achievRows] =
+      await Promise.all([
+        this.activities.findByCharacter(characterId),
+        this.inventory.listInventory(characterId),
+        this.inventory.listEquipment(characterId),
+        this.db.select().from(characterProfessions).where(eq(characterProfessions.characterId, characterId)),
+        this.db.select().from(characterReputation).where(eq(characterReputation.characterId, characterId)),
+        this.db.select().from(arenaRatings).where(eq(arenaRatings.characterId, characterId)),
+        this.db
+          .select({ guildId: guildMembers.guildId, rank: guildMembers.rank, guildName: guilds.name })
+          .from(guildMembers)
+          .innerJoin(guilds, eq(guilds.id, guildMembers.guildId))
+          .where(eq(guildMembers.characterId, characterId))
+          .limit(1),
+        this.db.select().from(characterLockouts).where(eq(characterLockouts.characterId, characterId)),
+        this.db.select().from(characterAchievements).where(eq(characterAchievements.characterId, characterId)),
+      ]);
 
     return {
       id: char.id,
@@ -277,6 +373,22 @@ export class DevService {
         name: ITEMS[r.itemId]?.name ?? r.itemId,
       })),
       professions: profRows.map((r) => ({ professionId: r.professionId, skill: r.skill })),
+      reputation: repRows.map((r) => ({
+        factionId: r.factionId,
+        factionName: FACTIONS[r.factionId]?.name ?? r.factionId,
+        standing: r.standing,
+        tier: reputationTier(r.standing),
+      })),
+      arenaRatings: ratingRows.map((r) => ({
+        bracket: r.bracket,
+        seasonId: r.seasonId,
+        rating: r.rating,
+        wins: r.wins,
+        losses: r.losses,
+      })),
+      guild: guildRow[0] ? { id: guildRow[0].guildId, name: guildRow[0].guildName, rank: guildRow[0].rank } : null,
+      lockouts: lockoutRows.map((r) => ({ lockoutId: r.lockoutId, weekId: r.weekId })),
+      achievements: achievRows.map((r) => ({ id: r.achievementId, name: r.achievementId, earnedAt: r.claimedAt })),
     };
   }
 

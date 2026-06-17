@@ -1,5 +1,5 @@
 import { IsInt, IsString, Min, Max, IsOptional } from 'class-validator';
-import { MAX_LEVEL, MAX_PROFESSION_SKILL } from '@game/shared';
+import { MAX_LEVEL, MAX_PROFESSION_SKILL, MAX_REPUTATION } from '@game/shared';
 
 export class SetLevelDto {
   @IsInt()
@@ -41,4 +41,29 @@ export class TimeWarpDto {
   @Min(1)
   @Max(720)
   hours!: number;
+}
+
+export class SetArenaRatingDto {
+  @IsString()
+  bracket!: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(3500)
+  rating!: number;
+}
+
+export class SetReputationDto {
+  @IsString()
+  factionId!: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(MAX_REPUTATION)
+  standing!: number;
+}
+
+export class CompleteQuestDto {
+  @IsString()
+  questId!: string;
 }

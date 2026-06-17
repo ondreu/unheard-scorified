@@ -13,6 +13,7 @@
     devDeleteCharacter,
     devListItems,
     devListProfessions,
+    devListQuests,
     devGetState,
     devSetLevel,
     devAddGold,
@@ -21,11 +22,17 @@
     devTimeWarp,
     devSetProfession,
     devResetCharacter,
+    devGrantMounts,
+    devSetArenaRating,
+    devSetReputation,
+    devClearLockouts,
+    devCompleteQuest,
     type DevAccountView,
     type DevCharacterInspect,
     type DevCharacterState,
     type DevItemDef,
     type DevProfessionDef,
+    type DevQuestDef,
     type DevCharacterSearchResult,
   } from '$lib/api';
 
@@ -98,6 +105,8 @@
   let items: DevItemDef[] = $state([]);
   let professions: DevProfessionDef[] = $state([]);
 
+  let quests: DevQuestDef[] = $state([]);
+
   let levelInput: number = $state(1);
   let goldInput: number = $state(1000);
   let selectedItem: string = $state('');
@@ -105,16 +114,24 @@
   let warpHours: number = $state(1);
   let selectedProf: string = $state('');
   let profSkill: number = $state(150);
+  let arenaBracket: string = $state('1v1');
+  let arenaRating: number = $state(1500);
+  let selectedFaction: string = $state('miners_league');
+  let repStanding: number = $state(3000);
+  let selectedQuest: string = $state('');
 
   async function loadAll() {
-    const [i, p] = await Promise.all([
-      devListItems('_'),   // characterId is irrelevant for catalog endpoints
+    const [i, p, q] = await Promise.all([
+      devListItems('_'),
       devListProfessions('_'),
+      devListQuests('_'),
     ]);
     items = i.sort((a, b) => a.itemLevel - b.itemLevel);
     professions = p;
+    quests = q;
     if (items[0]) selectedItem = items[0].id;
     if (professions[0]) selectedProf = professions[0].id;
+    if (quests[0]) selectedQuest = quests[0].id;
   }
 
   async function searchChars() {
@@ -300,6 +317,56 @@
             </div>
           </section>
 
+          <!-- Arena Rating -->
+          <section class="card">
+            <h2>Arena Rating</h2>
+            <div class="row">
+              <select bind:value={arenaBracket} class="field field--sm">
+                <option value="1v1">1v1</option>
+                <option value="3v3">3v3</option>
+                <option value="5v5">5v5</option>
+              </select>
+              <input type="number" min="0" max="3500" bind:value={arenaRating} class="field field--xs" />
+              <button class="btn" disabled={busy} onclick={() => charAct((id) => devSetArenaRating(id, arenaBracket, arenaRating), (r) => `${r.bracket} → ${r.rating} (${r.seasonId})`)}>Set</button>
+            </div>
+          </section>
+
+          <!-- Reputation -->
+          <section class="card">
+            <h2>Reputation</h2>
+            <div class="row">
+              <select bind:value={selectedFaction} class="field field--sm">
+                <option value="miners_league">Miners' League</option>
+                <option value="herbalist_circle">Herbalist Circle</option>
+                <option value="explorers_guild">Explorers' Guild</option>
+              </select>
+              <input type="number" min="0" max="6000" bind:value={repStanding} class="field field--xs" />
+              <button class="btn" disabled={busy} onclick={() => charAct((id) => devSetReputation(id, selectedFaction, repStanding), (r) => `${r.factionId} → ${r.standing}`)}>Set</button>
+            </div>
+          </section>
+
+          <!-- Complete Quest -->
+          <section class="card card--wide">
+            <h2>Complete Quest</h2>
+            <div class="row">
+              <select bind:value={selectedQuest} class="field">
+                {#each quests as q}
+                  <option value={q.id}>[{q.faction}/{q.zone}] {q.name}</option>
+                {/each}
+              </select>
+              <button class="btn" disabled={busy || !selectedQuest} onclick={() => charAct((id) => devCompleteQuest(id, selectedQuest), (r) => r.alreadyDone ? `${r.questId} already done` : `Completed: ${r.questId}`)}>Complete</button>
+            </div>
+          </section>
+
+          <!-- Mounts & Lockouts -->
+          <section class="card">
+            <h2>Mounts & Lockouts</h2>
+            <div class="col">
+              <button class="btn" disabled={busy} onclick={() => charAct((id) => devGrantMounts(id), () => 'All mounts granted')}>Grant All Mounts</button>
+              <button class="btn" disabled={busy} onclick={() => charAct((id) => devClearLockouts(id), (r) => `Cleared ${r.cleared} lockout(s)`)}>Clear Lockouts</button>
+            </div>
+          </section>
+
           <!-- Reset -->
           <section class="card card--danger">
             <h2>Danger Zone</h2>
@@ -428,6 +495,54 @@
                   <div class="item-list">
                     {#each inspected.professions as p}
                       <span class="item-tag">{p.professionId} {p.skill}</span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+              {#if inspected.reputation?.length}
+                <div class="inspect-section">
+                  <h4>Reputation</h4>
+                  <div class="item-list">
+                    {#each inspected.reputation as r}
+                      <span class="item-tag">{r.factionName} {r.standing} ({r.tier})</span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+              {#if inspected.arenaRatings?.length}
+                <div class="inspect-section">
+                  <h4>Arena Ratings</h4>
+                  <div class="item-list">
+                    {#each inspected.arenaRatings as r}
+                      <span class="item-tag">{r.bracket} {r.rating} ({r.wins}W/{r.losses}L) [{r.seasonId}]</span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+              {#if inspected.guild}
+                <div class="inspect-section">
+                  <h4>Guild</h4>
+                  <div class="item-list">
+                    <span class="item-tag">{inspected.guild.name} ({inspected.guild.rank})</span>
+                  </div>
+                </div>
+              {/if}
+              {#if inspected.lockouts?.length}
+                <div class="inspect-section">
+                  <h4>Lockouts ({inspected.lockouts.length})</h4>
+                  <div class="item-list">
+                    {#each inspected.lockouts as l}
+                      <span class="item-tag">{l.lockoutId} [{l.weekId}]</span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+              {#if inspected.achievements?.length}
+                <div class="inspect-section">
+                  <h4>Achievements ({inspected.achievements.length})</h4>
+                  <div class="item-list">
+                    {#each inspected.achievements as a}
+                      <span class="item-tag">{a.id}</span>
                     {/each}
                   </div>
                 </div>
