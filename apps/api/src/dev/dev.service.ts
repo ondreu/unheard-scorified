@@ -217,6 +217,17 @@ export class DevService {
     return { deleted: true };
   }
 
+  /** Postavy patřící danému účtu — drill-down z accounts listu (admin panel). */
+  async listCharactersByAccount(
+    accountId: string,
+  ): Promise<{ id: string; name: string; race: string; class: string; level: number; accountId: string }[]> {
+    const rows = await this.charactersRepo.listByAccount(accountId);
+    return rows.map((c) => {
+      const sheet = buildCharacterSheet(c.race, c.class, c.totalXp);
+      return { id: c.id, name: c.name, race: c.race, class: c.class, level: sheet.level, accountId: c.accountId };
+    });
+  }
+
   async searchCharacters(name: string): Promise<{ id: string; name: string; race: string; class: string; level: number; accountId: string }[]> {
     const rows = await this.db
       .select()

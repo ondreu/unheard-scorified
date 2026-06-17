@@ -18,9 +18,18 @@ export interface AppNotification {
 
 function createNotifications() {
   const { subscribe, update } = writable<AppNotification[]>([]);
+  // Pending server state (invites/mail/history) gets re-fetched every time the
+  // character layout mounts (e.g. navigating back from the character list), so
+  // pushes for the same underlying item are deduplicated by a stable `key` —
+  // otherwise the same invite/mail/history entry re-notifies on every visit.
+  const seenKeys = new Set<string>();
   return {
     subscribe,
-    push(kind: NotificationKind, title: string, body?: string): void {
+    push(kind: NotificationKind, title: string, body?: string, key?: string): void {
+      if (key) {
+        if (seenKeys.has(key)) return;
+        seenKeys.add(key);
+      }
       const n: AppNotification = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         kind,

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { ApiError, listCharacters, type CharacterView } from '$lib/api';
+  import { ApiError, deleteCharacter, listCharacters, type CharacterView } from '$lib/api';
   import { clearTokens } from '$lib/auth';
   import { RACES, CLASSES } from '@game/shared';
   import { CLASS_COLOR, FACTION_COLOR, factionLabel } from '$lib/cosmetics';
@@ -30,6 +30,12 @@
     clearTokens();
     await goto('/login');
   }
+
+  async function remove(c: CharacterView): Promise<void> {
+    if (!confirm(`Permanently delete ${c.name}? This cannot be undone.`)) return;
+    await deleteCharacter(c.id);
+    characters = characters.filter((x) => x.id !== c.id);
+  }
 </script>
 
 <main class="mx-auto max-w-2xl px-6 py-12">
@@ -54,7 +60,7 @@
   {:else}
     <ul class="mt-8 grid gap-3 sm:grid-cols-2">
       {#each characters as c (c.id)}
-        <li>
+        <li class="relative">
           <a href={`/characters/${c.id}`} class="card !p-3">
             <Avatar name={c.name} race={c.race} klass={c.class} size={56} />
             <span class="min-w-0 flex-1">
@@ -74,6 +80,13 @@
               </span>
             </span>
           </a>
+          <button
+            class="btn btn-sm btn-danger absolute right-3 top-3"
+            title={`Delete ${c.name}`}
+            onclick={() => remove(c)}
+          >
+            🗑
+          </button>
         </li>
       {/each}
     </ul>
