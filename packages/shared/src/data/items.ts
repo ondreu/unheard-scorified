@@ -790,6 +790,192 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     stats: { agility: 8, crit_rating: 5 },
   },
 
+  // --- Diverzita Round 2: back, wrist, finger, chest, trinket, off-hand,
+  // zbraně, shoulders, neck, cloth chybějící sloty, dungeon BoP ---
+
+  // Back — chybí mid-game (ilvl 24–52); jen 4 kusy celkem
+  spellweave_cloak: {
+    id: 'spellweave_cloak', name: 'Spellweave Cloak', slot: 'back',
+    rarity: 'uncommon', itemLevel: 24, vendorGold: 11,
+    stats: { intellect: 6, spirit: 5 },
+  },
+  ironweave_cloak: {
+    id: 'ironweave_cloak', name: 'Ironweave Cloak', slot: 'back',
+    rarity: 'uncommon', itemLevel: 30, vendorGold: 16,
+    stats: { stamina: 8, armor: 22, dodge_rating: 4 },
+  },
+  shadowstep_cloak: {
+    id: 'shadowstep_cloak', name: 'Shadowstep Cloak', slot: 'back',
+    rarity: 'rare', itemLevel: 42, vendorGold: 38,
+    stats: { agility: 11, stamina: 7, attack_power: 14 },
+  },
+  runed_cloak_of_power: {
+    id: 'runed_cloak_of_power', name: 'Runed Cloak of Power', slot: 'back',
+    rarity: 'rare', itemLevel: 52, vendorGold: 52,
+    stats: { intellect: 13, spirit: 8, spell_power: 12 },
+  },
+
+  // Wrist — chybí mid-game cloth/mail/plate (ilvl 28–42)
+  silk_cuffs: {
+    id: 'silk_cuffs', name: 'Silk Cuffs', slot: 'wrist',
+    rarity: 'uncommon', itemLevel: 28, vendorGold: 13,
+    stats: { intellect: 7, spirit: 5, spell_power: 4 },
+  },
+  chainmail_bracers: {
+    id: 'chainmail_bracers', name: 'Chainmail Bracers', slot: 'wrist',
+    rarity: 'uncommon', itemLevel: 30, vendorGold: 14,
+    stats: { agility: 7, stamina: 6, armor: 12 },
+  },
+  ironplate_wristguards: {
+    id: 'ironplate_wristguards', name: 'Ironplate Wristguards', slot: 'wrist',
+    rarity: 'uncommon', itemLevel: 36, vendorGold: 22,
+    stats: { strength: 8, stamina: 8, armor: 22 },
+  },
+  arcane_wristwraps: {
+    id: 'arcane_wristwraps', name: 'Arcane Wristwraps', slot: 'wrist',
+    rarity: 'rare', itemLevel: 44, vendorGold: 38,
+    stats: { intellect: 11, spell_power: 10, crit_rating: 4 },
+  },
+
+  // Finger — physical DPS a tank rings chybějí v mid-game
+  signet_of_strength: {
+    id: 'signet_of_strength', name: 'Signet of Strength', slot: 'finger',
+    rarity: 'uncommon', itemLevel: 14, vendorGold: 5,
+    stats: { strength: 4, attack_power: 6 },
+  },
+  swiftblade_ring: {
+    id: 'swiftblade_ring', name: 'Swiftblade Ring', slot: 'finger',
+    rarity: 'rare', itemLevel: 38, vendorGold: 30,
+    stats: { agility: 10, crit_rating: 6, attack_power: 12 },
+  },
+  guardian_signet: {
+    id: 'guardian_signet', name: 'Guardian Signet', slot: 'finger',
+    rarity: 'rare', itemLevel: 46, vendorGold: 42,
+    stats: { stamina: 14, armor: 30, dodge_rating: 8 },
+  },
+  enchanters_band: {
+    id: 'enchanters_band', name: "Enchanter's Band", slot: 'finger',
+    rarity: 'uncommon', itemLevel: 18, vendorGold: 7,
+    stats: { intellect: 5, spirit: 4, spell_power: 4 },
+  },
+
+  // Chest — plate tier 2 chybí; leather mid hybridní
+  platemail_hauberk: {
+    id: 'platemail_hauberk', name: 'Platemail Hauberk', slot: 'chest',
+    rarity: 'uncommon', itemLevel: 25, vendorGold: 14,
+    stats: { strength: 7, stamina: 8, armor: 35 },
+  },
+  druidic_tunic: {
+    id: 'druidic_tunic', name: 'Druidic Tunic', slot: 'chest',
+    rarity: 'rare', itemLevel: 36, vendorGold: 32,
+    stats: { agility: 9, intellect: 6, stamina: 8 },
+  },
+
+  // Trinkets — fyzický DPS + low-level caster
+  shard_of_the_void: {
+    id: 'shard_of_the_void', name: 'Shard of the Void', slot: 'trinket',
+    rarity: 'uncommon', itemLevel: 22, vendorGold: 10,
+    stats: { intellect: 6, spell_power: 8 },
+  },
+  warriors_bloodstone: {
+    id: 'warriors_bloodstone', name: "Warrior's Bloodstone", slot: 'trinket',
+    rarity: 'rare', itemLevel: 46, vendorGold: 44,
+    stats: { strength: 14, attack_power: 18 },
+  },
+
+  // Off-hand — tank shield low tier + mid-tier
+  battered_heater: {
+    id: 'battered_heater', name: 'Battered Heater', slot: 'off_hand',
+    rarity: 'common', itemLevel: 14, vendorGold: 3,
+    stats: { stamina: 5, armor: 28 },
+  },
+  tower_shield_of_endurance: {
+    id: 'tower_shield_of_endurance', name: 'Tower Shield of Endurance', slot: 'off_hand',
+    rarity: 'rare', itemLevel: 40, vendorGold: 36,
+    stats: { stamina: 14, armor: 75, dodge_rating: 10 },
+  },
+  tome_of_forbidden_rites: {
+    id: 'tome_of_forbidden_rites', name: 'Tome of Forbidden Rites', slot: 'off_hand',
+    rarity: 'rare', itemLevel: 56, vendorGold: 60,
+    stats: { intellect: 16, spirit: 10, spell_power: 18 },
+  },
+
+  // Weapons — starter wand, executioner axe, fast rogue dagger
+  oak_wand: {
+    id: 'oak_wand', name: 'Oak Wand', slot: 'main_hand',
+    rarity: 'common', itemLevel: 14, vendorGold: 3,
+    stats: { intellect: 4, spirit: 3 },
+  },
+  executioner_axe: {
+    id: 'executioner_axe', name: 'Executioner Axe', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 48, vendorGold: 50,
+    stats: { strength: 17, stamina: 10, attack_power: 22, crit_rating: 6 },
+  },
+  dirge_blade: {
+    id: 'dirge_blade', name: 'Dirge', slot: 'main_hand',
+    rarity: 'epic', itemLevel: 58, vendorGold: 100,
+    stats: { agility: 22, stamina: 12, attack_power: 28, crit_rating: 10 },
+  },
+
+  // Shoulders — leather mid + mail mid (still underserved)
+  sentinel_mantle: {
+    id: 'sentinel_mantle', name: 'Sentinel Mantle', slot: 'shoulder',
+    rarity: 'uncommon', itemLevel: 36, vendorGold: 24,
+    stats: { agility: 9, stamina: 8 },
+  },
+  ironmail_spaulders: {
+    id: 'ironmail_spaulders', name: 'Ironmail Spaulders', slot: 'shoulder',
+    rarity: 'rare', itemLevel: 38, vendorGold: 28,
+    stats: { strength: 9, stamina: 9, armor: 30 },
+  },
+
+  // Neck — healer archetype chybí; high-end phys
+  healers_pendant: {
+    id: 'healers_pendant', name: "Healer's Pendant", slot: 'neck',
+    rarity: 'uncommon', itemLevel: 26, vendorGold: 12,
+    stats: { intellect: 7, spirit: 6, spell_power: 5 },
+  },
+  necklace_of_the_warchief: {
+    id: 'necklace_of_the_warchief', name: 'Necklace of the Warchief', slot: 'neck',
+    rarity: 'epic', itemLevel: 60, vendorGold: 90,
+    stats: { strength: 20, stamina: 16, attack_power: 22 },
+  },
+
+  // Cloth — chybí waist a nové wrist ve vyšším bracketu
+  mystic_sash: {
+    id: 'mystic_sash', name: 'Mystic Sash', slot: 'waist',
+    rarity: 'uncommon', itemLevel: 38, vendorGold: 24,
+    stats: { intellect: 10, spirit: 7, spell_power: 6 },
+  },
+  council_robes: {
+    id: 'council_robes', name: 'Council Robes', slot: 'chest',
+    rarity: 'uncommon', itemLevel: 44, vendorGold: 36,
+    stats: { intellect: 13, spirit: 9, spell_power: 10 },
+  },
+
+  // Dungeon BoP — Dire Maul (~lvl 52–58)
+  dm_gordok_ring: {
+    id: 'dm_gordok_ring', name: "Gordok's Seal", slot: 'finger',
+    rarity: 'rare', itemLevel: 52, vendorGold: 54,
+    stats: { agility: 14, stamina: 12, crit_rating: 8 },
+  },
+  dm_mark_of_the_wild: {
+    id: 'dm_mark_of_the_wild', name: 'Mark of the Wild Staff', slot: 'main_hand',
+    rarity: 'rare', itemLevel: 54, vendorGold: 58,
+    stats: { agility: 12, intellect: 12, spirit: 10, spell_power: 12 },
+  },
+  // Scholomance (~lvl 57–60)
+  sch_death_whisper_leggings: {
+    id: 'sch_death_whisper_leggings', name: 'Death Whisper Leggings', slot: 'legs',
+    rarity: 'epic', itemLevel: 57, vendorGold: 95,
+    stats: { intellect: 20, spirit: 13, spell_power: 20 },
+  },
+  sch_bone_ring_of_command: {
+    id: 'sch_bone_ring_of_command', name: 'Bone Ring of Command', slot: 'finger',
+    rarity: 'rare', itemLevel: 56, vendorGold: 60,
+    stats: { strength: 14, stamina: 14, dodge_rating: 8 },
+  },
+
   // --- Batohy (M10 limited inventory): vloží se do bag slotu a přidají sloty.
   // Žádné staty; vendor prodává malé, větší jsou cíl craftu (follow-up). ---
   small_pouch: {
@@ -860,6 +1046,9 @@ const BIND_ON_PICKUP: ItemId[] = [
   'bfd_rod_of_the_sleeper', 'bfd_gaze_dreamer_robes',
   // Více gearu: BRD dungeon trinket (BoP)
   'brd_void_shard',
+  // Diverzita Round 2: Dire Maul + Scholomance dungeon loot
+  'dm_gordok_ring', 'dm_mark_of_the_wild',
+  'sch_death_whisper_leggings', 'sch_bone_ring_of_command',
 ];
 
 /**
@@ -894,6 +1083,10 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'bfd_gaze_dreamer_robes',
     // Více gearu
     'spellcaster_shoulderguards',
+    // Diverzita Round 2: cloth wrist/waist/chest
+    'silk_cuffs', 'arcane_wristwraps', 'mystic_sash', 'council_robes',
+    // Scholomance cloth legs
+    'sch_death_whisper_leggings',
   ],
   leather: [
     'leather_cap', 'scout_vest', 'ranger_gloves', 'shadow_cowl',
@@ -907,6 +1100,8 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'pantherskin_leggings', 'rogue_sash',
     'savage_leather_leggings', 'stalker_cord',
     'forest_warden_vest', 'ironbark_bracers',
+    // Diverzita Round 2: leather shoulders, hybrid chest
+    'sentinel_mantle', 'druidic_tunic',
   ],
   mail: [
     'chain_leggings', 'dragonscale_belt', 'mithril_breastplate',
@@ -918,6 +1113,8 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'chain_link_boots', 'chain_link_gauntlets',
     'beastmaster_helm', 'predators_pauldrons',
     'swifthunter_boots', 'elementalist_gauntlets',
+    // Diverzita Round 2: mail wrist, shoulder
+    'chainmail_bracers', 'ironmail_spaulders',
   ],
   plate: [
     'soldier_helm', 'marauder_shoulders', 'crusader_belt', 'warlord_plate',
@@ -928,6 +1125,8 @@ const ARMOR_CLASS_BY_ITEM: Record<ArmorClass, ItemId[]> = {
     'zf_bloodmail_gauntlets', 'strat_deathbone_legguards',
     // Více gearu: bracket-2 plate fills
     'templar_legplates', 'warpath_sabatons',
+    // Diverzita Round 2: plate chest tier-2, wrist
+    'platemail_hauberk', 'ironplate_wristguards',
   ],
 };
 
