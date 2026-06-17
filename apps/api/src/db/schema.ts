@@ -42,6 +42,8 @@ import type {
   RotationRule,
   TradeSide,
   TradeStatus,
+  GauntletRunState,
+  GauntletStatus,
 } from '@game/shared';
 
 export const healthLog = pgTable('health_log', {
@@ -926,6 +928,58 @@ export const characterRotationsRelations = relations(characterRotations, ({ one 
   }),
 }));
 
+/**
+ * The Gauntlet (M13) — aktivní tahová minihra. Na rozdíl od idle auto-resolve
+ * obsahu je run **stateful**: `state` (JSON) drží kompletní mutabilní průběh
+ * (vlna, HP, cooldowny, vybrané drafty, log). `playerSnapshot` = neměnný bojový
+ * profil ze vstupu (deterministicky se z něj + draftů odvozuje efektivní actor).
+ * Odměna se uděluje až při ukončení runu (smrt/retire/dokončení) — denní strop
+ * řeší `gauntlet_daily`.
+ */
+export const gauntletRuns = pgTable('gauntlet_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  /** Bojový profil postavy při vstupu (snapshot — anti-cheat/determinismus). */
+  playerSnapshot: jsonb('player_snapshot').$type<CombatActor>().notNull(),
+  level: integer('level').notNull(),
+  /** Kompletní mutabilní stav runu (engine `GauntletRunState`). */
+  state: jsonb('state').$type<GauntletRunState>().notNull(),
+  status: varchar('status', { length: 16 }).$type<GauntletStatus>().notNull(),
+  wavesCleared: integer('waves_cleared').notNull().default(0),
+  rewardXp: integer('reward_xp').notNull().default(0),
+  rewardGold: integer('reward_gold').notNull().default(0),
+  rewardItems: jsonb('reward_items').$type<string[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+});
+
+export const gauntletRunsRelations = relations(gauntletRuns, ({ one }) => ({
+  character: one(characters, {
+    fields: [gauntletRuns.characterId],
+    references: [characters.id],
+  }),
+}));
+
+/**
+ * Denní (UTC) souhrn odměn získaných z Gauntletu — pro denní strop (anti-grind).
+ * `dayId` = `YYYY-MM-DD` (UTC). Jeden řádek na postavu a den.
+ */
+export const gauntletDaily = pgTable(
+  'gauntlet_daily',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    dayId: varchar('day_id', { length: 10 }).notNull(),
+    xpEarned: integer('xp_earned').notNull().default(0),
+    goldEarned: integer('gold_earned').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.dayId] })],
+);
+
 export const characterProfessionsRelations = relations(characterProfessions, ({ one }) => ({
   character: one(characters, {
     fields: [characterProfessions.characterId],
@@ -1018,6 +1072,10 @@ export type Mail = typeof mail.$inferSelect;
 export type NewMail = typeof mail.$inferInsert;
 export type MailItem = typeof mailItems.$inferSelect;
 export type NewMailItem = typeof mailItems.$inferInsert;
+export type GauntletRun = typeof gauntletRuns.$inferSelect;
+export type NewGauntletRun = typeof gauntletRuns.$inferInsert;
+export type GauntletDaily = typeof gauntletDaily.$inferSelect;
+export type NewGauntletDaily = typeof gauntletDaily.$inferInsert;
 
 /**
  * Persistentní historie dokončených aktivit: výsledky questů, profesí, dungeonů,

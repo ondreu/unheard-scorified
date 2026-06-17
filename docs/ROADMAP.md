@@ -733,27 +733,40 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - **Zbývá rozhodnout (PM):** kolik zón/questů na bracket; témata nových zón 40–60;
   konkrétní dungeony/raidy (vanilla-inspirace) a jejich úrovně; rozsah loot tabulek.
 
-### M13 — Aktivní hráč: minihra / time-killer 🧑‍💼
+### M13 — Aktivní hráč: minihra / time-killer („The Gauntlet") — ✅ MVP hotovo
 
 > **Nesouvisí** s idle jádrem — samostatná aktivita pro chvíle, kdy hráč CHCE
 > aktivně hrát (čekárna u doktora, MHD, fronta). Idle hra zůstává „set & forget";
-> tohle je volitelná vrstva navrch, která zabaví a ideálně se napojí na progresi
-> (drobné odměny: gold/XP/materiály), ale nesmí být povinná ani pay-to-win.
+> tohle je volitelná vrstva navrch, která zabaví a napojuje se na progresi
+> (drobné odměny: gold/XP/materiály), není povinná ani pay-to-win.
+>
+> **Koncept (PM):** mix aktivního combatu + roguelite draftu — **The Gauntlet**,
+> tahová survival aréna. Detail + rozhodnutí: **ADR 0028**, `docs/systems/gauntlet.md`.
 
-- [ ] **Navrhnout koncept minihry** (vybere PM z návrhů): krátká sezení (1–5 min),
-      ovladatelná jednou rukou na telefonu, offline-friendly (PWA). Kandidáti k rozpracování:
-  - aktivní **combat režim** (ruční řízení rotace/abilit v reálném čase proti vlně
-    nepřátel — „arcade" verze jinak idle combatu);
-  - **karetní / deck** minihra postavená na talentech/abilitách postavy;
-  - **dungeon-crawl / roguelite** běh (krátký, náhodný, seedovaný);
-  - **puzzle / match** s herním motivem (crafting/gathering reskin).
-- [ ] **Napojení na ekonomiku** — drobné, „nice-to-have" odměny (denní strop, aby
-      to nebyl povinný grind); čistě kosmetické odměny jako alternativa (monetizace later).
-- [ ] **Determinismus & anti-cheat** — pokud dává herní odměny, výsledek validovat
-      serverem (seed/score), ne slepě věřit klientu. Sezení nezávislé na idle stavu.
-- **Výstup:** hráč má „co dělat rukama" pár minut, aniž by to narušilo idle balanc.
-- **Zbývá rozhodnout (PM):** který koncept; jestli vůbec dává herní odměny (vs čistě
-  zábava/kosmetika); rozsah MVP.
+- [x] **Koncept minihry** ✅: hráč vejde se svou reálnou postavou (gear/talenty/
+      spelly), kolo po kole **volí jakou ability použít** proti vlnám nepřátel, a po
+      každé vyčištěné vlně si vybere **1 ze 3 odměn** (buff / kus gearu s porovnáním /
+      nový spell), platné jen pro tenhle run (roguelite). Run končí smrtí nebo stropem
+      vln. **Boj tahový** (rozhodnutí PM) — sedí na server-authoritative determinismus.
+- [x] **Napojení na ekonomiku** ✅ (rozhodnutí PM: drobné herní odměny): XP + zlato +
+      materiály škálované počtem vyčištěných vln a levelem, s **denním stropem**
+      (`gauntlet_daily`, UTC den) → anti-grind. Žádný BoP gear (nenahrazuje dungeony/
+      raidy); draft odměny jsou run-scoped → bez power-creepu. Monetizace-friendly
+      (později kosmetické tituly/skiny za milníky vln).
+- [x] **Determinismus & anti-cheat** ✅: stateful run uložen server-side
+      (`gauntlet_runs.state`), klient posílá jen volbu (ability/draft), server validuje
+      a dopočítá tah; náhoda jen přes `SeededRng` se **seedem per tah**. Recykluje
+      bojový engine (`computeHit`/`abilityDamageMult`/`applyAbsorb`) → žádná duplikace.
+- [x] **Shared engine** `@game/shared/gauntlet.ts` + **API modul**
+      `apps/api/src/gauntlet/` (controller/service/repository, recykluje
+      `RotationService.buildCombatProfile` + `InventoryGrantService`) + **web**
+      `/characters/[id]/gauntlet` (+ `/run/[runId]`). Migrace `0034`. Testy: shared
+      `gauntlet.test.ts` + API `gauntlet.flow.test.ts`. Build/test/lint/typecheck zelené
+      (321 shared + 193 API).
+- **Výstup:** hráč má „co dělat rukama" pár minut, aniž by to narušilo idle balanc. ✅
+- **Zbývá doladit:** balanc obtížnosti vln a odměn/stropu (M9-ish); bohatší chování
+  nepřátel (vlastní ability, víc nepřátel na vlnu); kosmetické odměny za milníky vln;
+  případný realtime „arcade" režim jako varianta.
 
 ### M14 — Procedurální pixel-art vrstva „všude" (deep) ✅
 

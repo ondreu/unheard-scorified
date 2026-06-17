@@ -1846,3 +1846,115 @@ export function devListChat(opts: {
 export function devDeleteChatMessage(messageId: string): Promise<{ deleted: boolean }> {
   return devRequest(`/dev/mod/chat/${messageId}`, { method: 'DELETE' });
 }
+
+// ── The Gauntlet (M13) — aktivní tahová survival aréna ──────────────────────
+
+export interface GauntletAbilityView {
+  id: string;
+  name: string;
+  description: string;
+  kind: string;
+  cooldownSec: number;
+  cooldownRemaining: number;
+  ready: boolean;
+}
+
+export interface GauntletDailyView {
+  xpEarned: number;
+  xpCap: number;
+  goldEarned: number;
+  goldCap: number;
+}
+
+export interface GauntletStatComparison {
+  label: string;
+  current: number;
+  offered: number;
+}
+
+export interface GauntletDraftOption {
+  id: string;
+  kind: 'buff' | 'gear' | 'ability';
+  name: string;
+  description: string;
+  comparison?: GauntletStatComparison[];
+}
+
+export interface GauntletRunView {
+  runId: string;
+  status: 'in_combat' | 'drafting' | 'dead' | 'retired';
+  wave: number;
+  wavesCleared: number;
+  player: {
+    name: string;
+    maxHealth: number;
+    currentHealth: number;
+    absorb: number;
+    mitigationTurns: number;
+  };
+  enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
+  abilities: GauntletAbilityView[];
+  events: CombatEvent[];
+  draft: GauntletDraftOption[] | null;
+  reward: { xp: number; gold: number; items: string[] } | null;
+  daily: GauntletDailyView;
+}
+
+export interface GauntletStatusView {
+  level: number;
+  activeRunId: string | null;
+  bestWave: number;
+  daily: GauntletDailyView;
+}
+
+export interface GauntletRunSummary {
+  runId: string;
+  wavesCleared: number;
+  status: string;
+  reward: { xp: number; gold: number; items: string[] };
+  createdAt: string;
+}
+
+export function getGauntletStatus(characterId: string): Promise<GauntletStatusView> {
+  return request<GauntletStatusView>(`/characters/${characterId}/gauntlet`);
+}
+
+export function recentGauntletRuns(characterId: string): Promise<GauntletRunSummary[]> {
+  return request<GauntletRunSummary[]>(`/characters/${characterId}/gauntlet/runs`);
+}
+
+export function getGauntletRun(characterId: string, runId: string): Promise<GauntletRunView> {
+  return request<GauntletRunView>(`/characters/${characterId}/gauntlet/run/${runId}`);
+}
+
+export function enterGauntlet(characterId: string): Promise<GauntletRunView> {
+  return request<GauntletRunView>(`/characters/${characterId}/gauntlet/enter`, { method: 'POST' });
+}
+
+export function gauntletAct(
+  characterId: string,
+  runId: string,
+  abilityId: string,
+): Promise<GauntletRunView> {
+  return request<GauntletRunView>(`/characters/${characterId}/gauntlet/run/${runId}/act`, {
+    method: 'POST',
+    body: JSON.stringify({ abilityId }),
+  });
+}
+
+export function gauntletDraft(
+  characterId: string,
+  runId: string,
+  optionId: string,
+): Promise<GauntletRunView> {
+  return request<GauntletRunView>(`/characters/${characterId}/gauntlet/run/${runId}/draft`, {
+    method: 'POST',
+    body: JSON.stringify({ optionId }),
+  });
+}
+
+export function gauntletRetire(characterId: string, runId: string): Promise<GauntletRunView> {
+  return request<GauntletRunView>(`/characters/${characterId}/gauntlet/run/${runId}/retire`, {
+    method: 'POST',
+  });
+}
