@@ -5,12 +5,17 @@
   import { browser } from '$app/environment';
   import { ApiError, enterDungeon, listDungeons, type DungeonListItem } from '$lib/api';
   import SceneBanner from '$lib/components/SceneBanner.svelte';
+  import CardAccent from '$lib/components/CardAccent.svelte';
   import { sceneCardStyle } from '$lib/pixelart/scene-bg';
+  import { sceneAccentColor } from '$lib/scenes';
 
   // Pozadí karty dle scény instance (browser-only — vyžaduje canvas).
   function cardStyle(id: string): string {
     return browser ? sceneCardStyle(id) : '';
   }
+
+  // Karta pod kurzorem → mountne animovaný PixiJS akcent (jen jeden naživu).
+  let hoverId = $state<string | null>(null);
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -98,7 +103,13 @@
         <li
           class="panel panel-pad scene-card {d.unlocked ? '' : 'opacity-60'}"
           style={cardStyle(d.id)}
+          onmouseenter={() => (hoverId = d.id)}
+          onmouseleave={() => hoverId === d.id && (hoverId = null)}
+          role="presentation"
         >
+          {#if hoverId === d.id}
+            <CardAccent color={sceneAccentColor(d.id)} seed={d.id} />
+          {/if}
           <div class="flex items-start justify-between gap-4">
             <div>
               <h2 class="panel-title flex items-center gap-2">

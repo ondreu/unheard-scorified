@@ -128,6 +128,41 @@ h3,
   position: relative;
   z-index: 1;
 }
+/* Jemný shimmer při hoveru (M14 increment 5). Vypnutý pod reduced-motion. */
+.scene-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 35%,
+    color-mix(in srgb, var(--gold-bright) 28%, transparent) 50%,
+    transparent 65%
+  );
+  background-size: 220% 100%;
+  background-position: 200% 0;
+  opacity: 0;
+}
+.scene-card:hover::after {
+  opacity: 0.6;
+  animation: scene-shimmer 1.5s ease-in-out;
+}
+@keyframes scene-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-card:hover::after {
+    animation: none;
+    opacity: 0;
+  }
+}
 
 .panel-title {
   font-family: var(--font-display);

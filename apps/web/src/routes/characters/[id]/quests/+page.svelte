@@ -12,12 +12,17 @@
   import { browser } from '$app/environment';
   import { ZONES } from '@game/shared';
   import SceneBanner from '$lib/components/SceneBanner.svelte';
+  import CardAccent from '$lib/components/CardAccent.svelte';
   import { sceneCardStyle } from '$lib/pixelart/scene-bg';
+  import { sceneAccentColor } from '$lib/scenes';
 
   // Pozadí karty dle zóny questu (browser-only — vyžaduje canvas).
   function cardStyle(zoneId: string): string {
     return browser ? sceneCardStyle(zoneId) : '';
   }
+
+  // Karta pod kurzorem → mountne animovaný PixiJS akcent (jen jeden naživu).
+  let hoverId = $state<string | null>(null);
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -152,7 +157,16 @@
   {:else}
     <ul class="space-y-3">
       {#each quests as q (q.id)}
-        <li class="panel panel-pad scene-card" style={cardStyle(q.zoneId)}>
+        <li
+          class="panel panel-pad scene-card"
+          style={cardStyle(q.zoneId)}
+          onmouseenter={() => (hoverId = q.id)}
+          onmouseleave={() => hoverId === q.id && (hoverId = null)}
+          role="presentation"
+        >
+          {#if hoverId === q.id}
+            <CardAccent color={sceneAccentColor(q.zoneId)} seed={q.zoneId} />
+          {/if}
           <div class="flex items-start justify-between gap-4">
             <div>
               <h2 class="panel-title">

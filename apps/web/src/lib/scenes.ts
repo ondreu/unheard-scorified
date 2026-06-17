@@ -423,9 +423,21 @@ const FALLBACK: Record<Faction, SceneTheme> = {
  * Vrátí téma scény pro dané id (zóna/dungeon/raid). Neznámé id → fallback dle
  * frakce (default alliance). Frakce je jen kosmetická volba fallbacku.
  */
-export function themeForScene(id: string | null | undefined, faction: Faction = 'alliance'): SceneTheme {
+export function themeForScene(
+  id: string | null | undefined,
+  faction: Faction = 'alliance',
+): SceneTheme {
   if (id && SCENE_THEMES[id]) return SCENE_THEMES[id] as SceneTheme;
   return FALLBACK[faction] ?? (SCENE_THEMES.northshire as SceneTheme);
+}
+
+/** Akcentová barva scény (glow → nebeské těleso → zlatá) pro hover efekty. */
+export function sceneAccentColor(
+  id: string | null | undefined,
+  faction: Faction = 'alliance',
+): number {
+  const t = themeForScene(id, faction);
+  return t.glow ?? (t.celestial !== 'none' ? t.celestialColor : 0xf0c870);
 }
 
 /** CSS gradient z palety scény (SSR/fallback placeholder pod canvasem). */

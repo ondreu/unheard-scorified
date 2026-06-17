@@ -804,9 +804,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       `.app-backdrop` (fixed, `z-index:-1`, nízký kontrast) zapojená v character
       shellu (`characters/[id]/+layout.svelte`), tint dle rasy→frakce. Statické
       (bez animace). Kosmetické, deterministické.
-- [ ] **Increment 5 — Animované oživení karet**: drobné PixiJS akcenty (částice/
-      blikání/hover) ve stylu současných banner scén; izolované, vypínatelné
-      reduced-motion, šetrné k výkonu.
+- [x] **Increment 5 — Animované oživení karet** ✅: drobné PixiJS akcenty +
+      CSS shimmer na scene-kartách (dungeon/raid/quest). `CardAccent.svelte`
+      (izolovaný PixiJS overlay, pár stoupajících jisker v barvě scény přes
+      `sceneAccentColor`) se mountuje **jen nad kartou pod kurzorem** (`{#if}` na
+      hoveru) → naživu nanejvýš jeden WebGL kontext (šetrné k výkonu, ctí limit
+      kontextů). CSS `::after` shimmer sweep při hoveru. Obojí **vypnuté pod
+      `prefers-reduced-motion`**; SSR-safe (dynamický import Pixi). Pozn.: efekty
+      jsou hover-triggered (desktop) — na dotyku zůstává statické pozadí z
+      incrementu 3 (vědomě, kvůli výkonu/baterii na phone-first). Kosmetické.
 - [ ] **Increment 6 — Ikony itemů / slotů / rarity**: procedurální ikony dle
       slotu + rarity (rámeček/glow), postupně i per-item; inventář, inspect, loot,
       AH, vendor. (Navazuje na asset spec sekce 5–6.)
