@@ -37,11 +37,29 @@ Atomicky: `CharacterRepository.spendGold` (`WHERE gold >= amount`), `addGold`.
 `AuctionSettler` je sdílený provider (service + scheduler → žádný DI cyklus).
 Idempotence: `repo.settle` atomicky `WHERE status='active'`.
 
+## „Živá" aukce — seedované NPC nabídky (M10+ FEAT)
+
+Aby AH působil obydleně i při malém počtu hráčů, browse vrací vedle reálných aukcí
+i **NPC listingy** (`@game/shared/npc-auction.ts`):
+
+- **Negenerují se do DB** — počítají se deterministicky z **časového okna** (rotace
+  á `NPC_AUCTION_WINDOW_HOURS = 6` h, UTC) přes `SeededRng` (anti-cheat,
+  reprodukovatelné). `generateNpcListings(now)` = stabilní sada per okno; `id` =
+  `npc:<windowStart>:<index>`.
+- Sortiment = obchodní zboží (`NPC_AUCTION_POOL`: rudy/byliny/spotřebáky/batohy),
+  vše `isAuctionable` (ne soulbound). Cena = vendor hodnota × `[3,7]` (pevný
+  **buyout**, NPC nesmlouvá) → nákup je **čistý gold sink**.
+- NPC listingy jsou **buyout-only** (`bid` je odmítne). Po koupi se eviduje nákup
+  (`npc_auction_purchases`, unique `(characterId, listingId)`) → hráč nekoupí tentýž
+  listing dvakrát a zmizí mu z výpisu. Idempotentní proti dvojkliku (refund při
+  konfliktu). NPC „prodeje" nezasahují do reálných hráčských aukcí.
+
 ## API (`characters/:characterId/auctions`)
 
-- `GET /` (browse, `?itemId=`), `GET /mine`
+- `GET /` (browse, `?itemId=`) — reálné aukce + NPC listingy (`isNpc: true`), `GET /mine`
 - `POST /` `{ itemId, quantity, startBid, buyout?, duration }`
 - `POST /:auctionId/bid` `{ amount }`, `POST /:auctionId/buyout`, `POST /:auctionId/cancel`
+  (buyout na `npc:`-id koupí NPC listing)
 
 Limit `MAX_ACTIVE_LISTINGS` aktivních výpisů per postava. Prodejce nemůže přihazovat
 ani kupovat vlastní aukci; cancel jen bez nabídek.
@@ -50,12 +68,14 @@ ani kupovat vlastní aukci; cancel jen bez nabídek.
 
 Tabulka `auctions` (migrace 0007): seller, item+quantity, startBid, buyout?,
 currentBid+bidder, deposit, duration, endsAt, status (`active→sold|expired|cancelled`),
-winner, finalPrice. Escrow itemu je implicitní (není v inventáři).
+winner, finalPrice. Escrow itemu je implicitní (není v inventáři). Tabulka
+`npc_auction_purchases` (migrace 0030): evidence nákupů NPC listingů (dedup + skrytí).
 
 ## Web
 
 `/characters/[id]/auctions` — taby **Browse / My auctions / Sell** (výpis z inventáře,
-bid/buyout/cancel). Texty anglicky, oddělené od logiky.
+bid/buyout/cancel). NPC listingy mají „Merchant" badge a jen tlačítko **Buy now**.
+Texty anglicky, oddělené od logiky.
 
 ## Zbývá doladit (M9)
 

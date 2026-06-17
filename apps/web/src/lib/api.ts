@@ -687,6 +687,8 @@ export interface AuctionView {
   timeLeftSec: number;
   isMine: boolean;
   isMyBid: boolean;
+  /** Seedovaný NPC listing (živá aukce) — jen buyout, nelze přihazovat. */
+  isNpc: boolean;
 }
 
 export interface InventoryItemView {

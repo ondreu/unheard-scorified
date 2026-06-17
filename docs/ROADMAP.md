@@ -837,14 +837,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
         materiály (vzácnější = větší batoh) — vyžaduje novou profesi. Batohy zatím
         u vendora.
   - [ ] **Banka** (úložiště mimo batoh) — follow-up.
-- [ ] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** Aukční dům doplnit
-      o NPC/bot listingy, aby působil obydleně (zvlášť při malém počtu hráčů).
-      Generovat **deterministicky přes `SeededRng`** (ne `Math.random()`) — rotace
-      nabídek dle UTC dne/hodiny, ceny v rozumném rozpětí kolem referenční hodnoty
-      itemu, omezené množství. Hráč může od NPC listingu koupit (gold sink); NPC
-      „nakupují" jen virtuálně (nezasahují do reálných hráčských aukcí). Vyžaduje
-      **aukční dům** jako systém (zatím není — kandidát na vlastní ADR; sdílí
-      ekonomiku s vendory/goldem).
+- [x] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** ✅ Auction House (M8)
+      doplněn o **NPC listingy** generované **deterministicky přes `SeededRng`**
+      (ne `Math.random()`): rotace dle UTC okna (`NPC_AUCTION_WINDOW_HOURS = 6` h),
+      ceny v rozpětí `[3,7]×` vendor hodnoty itemu, omezené množství. Listingy se
+      **nepersistují** (počítají se z okna), jen **buyout** (NPC nesmlouvá) → nákup
+      = čistý gold sink; NPC nezasahují do reálných hráčských aukcí. Hráč koupí
+      listing jednou (`npc_auction_purchases`, migrace `0030`, dedup + skrytí).
+      `@game/shared/npc-auction.ts`, `NpcAuctionRepository`, browse vrací `isNpc`.
+      Web: „Merchant" badge + Buy now. Testy: shared `npc-auction.test.ts` (+5) +
+      API `auction.flow.test.ts` (+3). Detail: `docs/systems/auction-house.md`.
 - [x] 🤖 **Vendoři (NPC odkup/prodej) + „use" consumables/buffů** ✅ (zbytek z M6):
       `VendorModule` (pevné ceny `vendorBuyPrice`=value×5 sink / `vendorSellPrice`
       source; sortiment `VENDOR_STOCK` se startovním gearem napříč armor typy; BoP
