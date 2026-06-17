@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { activityEfficiency, QUESTS } from '@game/shared';
+import { activityEfficiency, QUESTS, xpForLevel } from '@game/shared';
 import { AuthService } from '../auth/auth.service';
 import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
@@ -39,6 +39,8 @@ describe('M2 flow: leveling & idle smyčka', () => {
   let activity: ActivityService;
 
   const KOBOLD = QUESTS.ns_kobold_culling!;
+  // M12: combat-objective quest (souboj lze prohrát), Alliance/Northshire, req lvl 8.
+  const CHALLENGE = QUESTS.ns_padfoot_bounty!;
   const T0 = Date.UTC(2026, 5, 14, 12, 0, 0);
 
   beforeAll(async () => {
@@ -201,6 +203,50 @@ describe('M2 flow: leveling & idle smyčka', () => {
     await expect(
       activity.start(accountId, id, { activityType: 'grind', durationSec: 0 }),
     ).rejects.toThrow();
+  });
+
+  it('combat-objective quest: prohra → žádná odměna, quest se nedokončí (lze opakovat)', async () => {
+    const { accountId, id } = await newCharacter('m12fail', 'Tirion');
+    // Postava přesně na požadovaném levelu, bez gearu → slabá → souboj prohraje.
+    await charRepo.addRewards(id, xpForLevel(CHALLENGE.requiredLevel), 0);
+
+    await activity.start(accountId, id, { activityType: 'quest', questId: CHALLENGE.id });
+    vi.setSystemTime(T0 + CHALLENGE.durationSec * 1000 + 1);
+    const result = await activity.claim(accountId, id);
+
+    expect(result.questFailed).toBe(true);
+    expect(result.reward.xp).toBe(0);
+    expect(result.reward.gold).toBe(0);
+    expect(result.items).toHaveLength(0);
+    expect(result.character.gold).toBe(0); // žádné zlato nepřibylo
+    // Příběh se utne na prohraném souboji.
+    expect(result.questLog!.at(-1)!.defeated).toBe(true);
+
+    // Quest se NEdokončil → je pořád v nabídce (lze opakovat se silnějším buildem).
+    const ids = (await quests.listAvailable(accountId, id)).map((q) => q.id);
+    expect(ids).toContain(CHALLENGE.id);
+    // Aktivita je pryč → lze zkusit znovu.
+    expect(await activity.getCurrent(accountId, id)).toBeNull();
+  });
+
+  it('combat-objective quest: výhra → odměna + jednorázové dokončení', async () => {
+    const { accountId, id } = await newCharacter('m12win', 'Uther');
+    // Silná postava (vysoký level) → vyhraje s velkou rezervou.
+    await charRepo.addRewards(id, xpForLevel(60), 0);
+
+    await activity.start(accountId, id, { activityType: 'quest', questId: CHALLENGE.id });
+    vi.setSystemTime(T0 + CHALLENGE.durationSec * 1000 + 1);
+    const result = await activity.claim(accountId, id);
+
+    expect(result.questFailed).toBeUndefined();
+    expect(result.reward.xp).toBe(
+      Math.round(CHALLENGE.baseXp * activityEfficiency(CHALLENGE.durationSec)),
+    );
+    expect(result.questLog!.some((s) => s.defeated)).toBe(false);
+
+    // Dokončený jednorázový quest → už se nenabízí.
+    const ids = (await quests.listAvailable(accountId, id)).map((q) => q.id);
+    expect(ids).not.toContain(CHALLENGE.id);
   });
 
   it('frakce vidí jen své questy (Horde ≠ Alliance)', async () => {

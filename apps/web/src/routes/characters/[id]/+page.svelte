@@ -47,6 +47,8 @@
     formGroup: 'Form a group →',
     questStory: 'What happened',
     hpLeft: 'HP left',
+    defeated: 'Defeated',
+    defeatedMsg: 'You were defeated and earned no reward. Grow stronger and try this challenge again.',
     ongoing: 'In progress elsewhere',
     inDungeon: '⚔️ Dungeon',
     inRaid: '🐉 Raid',
@@ -431,7 +433,9 @@
         <div class="panel-pad">
           <div class="flex items-center justify-between">
             <h2 class="panel-title">
-              {claimResult.leveledUp ? `⭐ ${ui.levelUp}` : ui.activityDone}
+              {#if r.questFailed}❌ {ui.defeated}{:else}{claimResult.leveledUp
+                  ? `⭐ ${ui.levelUp}`
+                  : ui.activityDone}{/if}
             </h2>
             <button
               class="text-[var(--text-faint)] hover:text-[var(--text)]"
@@ -440,28 +444,37 @@
             >
           </div>
 
-          <div
-            class="mt-3 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 p-3 text-sm"
-          >
-            {#if r.offlineDurationSec > 60}
-              <p class="mb-1 text-xs text-[var(--text-faint)]">
-                🌙 {ui.offlineFor}
-                {formatOffline(r.offlineDurationSec)}
+          {#if r.questFailed}
+            <div
+              class="mt-3 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/10 p-3 text-sm"
+            >
+              <p class="font-semibold text-[var(--danger)]">❌ {ui.defeated}</p>
+              <p class="mt-1 text-[var(--text-dim)]">{ui.defeatedMsg}</p>
+            </div>
+          {:else}
+            <div
+              class="mt-3 rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 p-3 text-sm"
+            >
+              {#if r.offlineDurationSec > 60}
+                <p class="mb-1 text-xs text-[var(--text-faint)]">
+                  🌙 {ui.offlineFor}
+                  {formatOffline(r.offlineDurationSec)}
+                </p>
+              {/if}
+              <p class="font-semibold text-[var(--success)]">
+                {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold} g
               </p>
-            {/if}
-            <p class="font-semibold text-[var(--success)]">
-              {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold} g
-            </p>
-            {#if r.items.length > 0}
-              <p class="mt-1 text-[var(--text-dim)]">
-                🎁 {r.items.map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id).join(', ')}
-              </p>
-            {/if}
-            {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">
-                ⭐ {ui.levelUp}
-                {r.levelBefore} → {r.levelAfter}
-              </p>{/if}
-          </div>
+              {#if r.items.length > 0}
+                <p class="mt-1 text-[var(--text-dim)]">
+                  🎁 {r.items.map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id).join(', ')}
+                </p>
+              {/if}
+              {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">
+                  ⭐ {ui.levelUp}
+                  {r.levelBefore} → {r.levelAfter}
+                </p>{/if}
+            </div>
+          {/if}
 
           {#if r.questLog && r.questLog.length > 0}
             <div
@@ -480,18 +493,23 @@
                     <p class="leading-relaxed text-[var(--text-dim)]">{step.text}</p>
                     <details class="mt-1">
                       <summary
-                        class="cursor-pointer text-xs text-[var(--text-faint)] hover:text-[var(--gold)]"
+                        class="cursor-pointer text-xs hover:text-[var(--gold)]"
+                        class:text-[var(--danger)]={step.defeated}
+                        class:text-[var(--text-faint)]={!step.defeated}
                       >
-                        ⚔️ {step.enemyName}
-                        {#if step.playerHpPct !== undefined}<span
-                            class="ml-1 text-[var(--text-faint)]"
-                            >· {ui.hpLeft} {step.playerHpPct}%</span
+                        {step.defeated ? '💀' : '⚔️'}
+                        {step.enemyName}
+                        {#if step.defeated}<span class="ml-1 text-[var(--danger)]"
+                            >· {ui.defeated}</span
+                          >{:else if step.playerHpPct !== undefined}<span
+                            class="ml-1 text-[var(--text-faint)]">· {ui.hpLeft} {step.playerHpPct}%</span
                           >{/if}
                       </summary>
                       <ul class="mt-1 space-y-0.5 font-mono text-xs text-[var(--text-faint)]">
                         {#each step.events ?? [] as ev (ev.t + ev.message)}
                           <li
                             class:text-[var(--success)]={ev.type === 'enemy_defeated'}
+                            class:text-[var(--danger)]={ev.type === 'player_defeated'}
                             class:text-[var(--gold-bright)]={ev.crit}
                           >
                             {ev.message}

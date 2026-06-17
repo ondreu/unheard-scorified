@@ -21,6 +21,8 @@ export interface QuestView {
   durationSec: number;
   baseXp: number;
   baseGold: number;
+  /** Combat-objective quest (M12): souboj lze prohrát → odměna gatovaná vítězstvím. */
+  combatObjective?: boolean;
 }
 
 export interface ActivityProgress {
@@ -75,6 +77,8 @@ export interface ClaimResult {
   reputation?: ReputationGainView[];
   /** Příběhový log questu (M9): narativní beaty + auto-resolved combaty. */
   questLog?: QuestStepResult[];
+  /** Combat-objective quest (M12) prohrán → žádná odměna, quest se nedokončil. */
+  questFailed?: boolean;
 }
 
 /** Krok vygenerovaného příběhového logu questu (M9). */
@@ -84,6 +88,8 @@ export interface QuestStepResult {
   enemyName?: string;
   events?: CombatEvent[];
   playerHpPct?: number;
+  /** Combat-objective quest (M12): tenhle souboj postava prohrála. */
+  defeated?: boolean;
 }
 
 export interface DungeonListItem {

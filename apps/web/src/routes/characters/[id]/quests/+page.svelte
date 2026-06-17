@@ -25,6 +25,9 @@
     questingBlurb:
       'No fixed objective — just head out and quest for as long as you like. Rewards scale with the time you commit and your level.',
     go: 'Go questing',
+    combatObjective: 'Combat objective',
+    combatWarning:
+      'This fight is real — a weak character can be defeated. On defeat you earn nothing and can try again once you are stronger.',
   };
 
   // Preset délky pro Gone Questing (v mezích GRIND.minSec..maxSec na serveru).
@@ -144,7 +147,16 @@
         <li class="panel panel-pad">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="panel-title">{q.name}</h2>
+              <h2 class="panel-title">
+                {q.name}
+                {#if q.combatObjective}
+                  <span
+                    class="ml-1 rounded bg-[var(--danger)]/15 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-[var(--danger)]"
+                  >
+                    ⚔️ {ui.combatObjective}
+                  </span>
+                {/if}
+              </h2>
               <p class="text-xs uppercase tracking-wide text-[var(--text-faint)]">
                 {zoneName(q.zoneId)} · {q.kind} · {ui.level}
                 {q.requiredLevel}
@@ -159,6 +171,9 @@
             </button>
           </div>
           <p class="mt-2 text-sm text-[var(--text-dim)]">{q.description}</p>
+          {#if q.combatObjective}
+            <p class="mt-2 text-xs font-medium text-[var(--danger)]">⚠️ {ui.combatWarning}</p>
+          {/if}
           <p class="mt-2 text-xs text-[var(--text-faint)]">
             {ui.duration}: {formatDuration(q.durationSec)} · {ui.reward}: {q.baseXp} XP, ~{q.baseGold}
             gold

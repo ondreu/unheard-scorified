@@ -98,6 +98,14 @@ export interface QuestDef {
   events?: QuestEventDef[];
   /** Kolik událostí z `events` se vygeneruje za běh (default 3, clamp na velikost poolu). */
   eventCount?: number;
+  /**
+   * Combat-objective quest (rozhodnutí PM, M12): souboje uvnitř se při claimu
+   * vyhodnotí **doopravdy** — slabá postava může **prohrát**. Prohra ⇒ žádná
+   * odměna a quest se nedokončí (lze opakovat se silnějším gearem/levelem).
+   * Idle zachováno (jeden běh, žádná nová interakce); jen výsledek nese riziko.
+   * Default/`false` ⇒ stávající no-fail flavor combat (odměna jistá).
+   */
+  combatObjective?: boolean;
 }
 
 // Pomocné buildery kroků/událostí (drží data čitelná, vynucují typy).
@@ -2239,6 +2247,96 @@ export const QUESTS: Record<string, QuestDef> = {
       n('The signets are kept by the inquisition\'s interrogators — cold men who wring confessions from the frightened. The Forsaken agent marks one who patrols the library cloister alone.'),
       c('A Scarlet interrogator turns from his grim work, signet glinting on his glove. "Another heretic delivered to my hands. How convenient."', 'Scarlet Interrogator', 'elite'),
       n('You take the signet from his still hand. The cloister gates unlock to its sigil one by one — library, armory, cathedral. The Scarlet Monastery is open to you.'),
+    ],
+  },
+
+  // ══ Combat-objective challenges (M12) — souboj se vyhodnotí doopravdy ═══════
+  // `combatObjective: true`: slabá postava může PROHRÁT → bez odměny, quest se
+  // nedokončí (lze opakovat se silnějším gearem/levelem). Standalone (gate jen
+  // levelem), jednorázové, paralelní Alliance/Horde. Odměny kalibrované stejně
+  // jako ostatní questy (`600·√L`/`40·√L` × h) — riziko odměňuje loot + dokončení.
+  // ── Northshire (Alliance) — early-game proving fight ──
+  ns_padfoot_bounty: {
+    id: 'ns_padfoot_bounty',
+    name: "A Bandit's Bounty",
+    description: 'Claim the bounty on Garrick Padfoot — but the Defias enforcer will not fall to a novice.',
+    zoneId: 'northshire',
+    kind: 'story',
+    requiredLevel: 8,
+    durationSec: 1800,
+    baseXp: 849,
+    baseGold: 57,
+    goldVariance: 0.25,
+    combatObjective: true,
+    steps: [
+      n('A bounty notice flutters on the Abbey board: Garrick Padfoot, a Defias enforcer with a string of murders behind him, has been seen camped in the eastern vineyards. Brother Sammuel is blunt — "He is no common cutthroat, and he keeps a brute at his side. Do not take this on if your arm is not ready. The Brotherhood will not give you a second chance."'),
+      c('A scar-faced thug guards the camp track, cracking his knuckles. "Lost, little hero? Let me help ye find the ground."', 'Padfoot Bruiser', 'elite'),
+      n('You leave the bruiser groaning in the brush and push into the vineyard hollow. Garrick Padfoot rises from his fire, two daggers drawn, eyes flat as a snake\'s.'),
+      c('"You\'re the one they sent? Stormwind must be desperate." Garrick lunges, blades a blur.', 'Garrick Padfoot', 'boss'),
+      n('Padfoot drops at last, the bounty as good as earned. You collect the brand from his cloak and carry word back to the Abbey — one less knife in the dark.'),
+    ],
+  },
+  // ── Durotar (Horde) — early-game proving fight ──
+  dt_skull_rock: {
+    id: 'dt_skull_rock',
+    name: 'The Binder of Skull Rock',
+    description: 'Break the Burning Blade warlock Yarrog Baneshadow before he binds a demon to the cave — a fight for the blooded only.',
+    zoneId: 'durotar',
+    kind: 'story',
+    requiredLevel: 8,
+    durationSec: 1800,
+    baseXp: 849,
+    baseGold: 57,
+    goldVariance: 0.25,
+    combatObjective: true,
+    steps: [
+      n('Green fire flickers from the mouth of Skull Rock by night. The elder Dohgar names the source: Yarrog Baneshadow, a Burning Blade warlock bent on binding a demon to the cave\'s heart. "He is guarded, and he is strong," Dohgar warns. "Go in weak and you will feed his fire. Make certain your blade is ready, young one."'),
+      c('A fel-touched cultist guards the cave mouth, eyes burning green. "The Blade will feast on your soul, outsider!"', 'Burning Blade Adept', 'elite'),
+      n('You step over the smoldering adept into the inner cavern, where Yarrog stands within a ring of carved obsidian, an imp coiling at his feet.'),
+      c('"You are too late, whelp — the master comes!" Yarrog flings a bolt of writhing shadow.', 'Yarrog Baneshadow', 'boss'),
+      n('The warlock falls and the ritual circle goes dark, the half-summoned demon banished back to the Twisting Nether. You shatter the obsidian ring and bring the warlock\'s sigil-stone back to Dohgar.'),
+    ],
+  },
+  // ── Eastern Plaguelands (Alliance) — late-game proving fight ──
+  epl_araj_reckoning: {
+    id: 'epl_araj_reckoning',
+    name: "The Summoner's Reckoning",
+    description: 'Put down the lich Araj the Summoner at Andorhal — a deadly fight that will end you if you come unprepared.',
+    zoneId: 'eastern_plaguelands',
+    kind: 'story',
+    requiredLevel: 55,
+    durationSec: 7200,
+    baseXp: 8899,
+    baseGold: 593,
+    goldVariance: 0.2,
+    combatObjective: true,
+    steps: [
+      n('At ruined Andorhal the Scourge raise the dead faster than the Argent Dawn can burn them, and the reason is one creature: Araj the Summoner, a lich who tears souls from the air to swell his ranks. The Argent commander does not soften it. "Araj has unmade champions stronger than you. Go to him weak and you will simply join his dead. Be certain."'),
+      c('A towering abomination of stitched corpses lurches between the ruins, hooks dragging.', 'Stitched Horror', 'elite'),
+      n('You hack the abomination apart and climb the shattered steps to the town square, where Araj hovers above a cairn of bones, robes streaming with cold blue fire.'),
+      c('"Another morsel walks willingly to my table. Good. The dead are always hungry." Araj raises his skeletal hands and the air freezes.', 'Araj the Summoner', 'boss'),
+      n('Araj\'s phylactery cracks and his form unravels into drifting ash. The risen dead around Andorhal collapse where they stand. You carry his shattered focus back to Light\'s Hope as proof the summoner walks no more.'),
+    ],
+  },
+  // ── Felwood (Horde) — late-game proving fight ──
+  fw_jadefire_lord: {
+    id: 'fw_jadefire_lord',
+    name: 'The Jadefire Lord',
+    description: 'Slay the satyr lord Xavaric before his Jadefire cult corrupts Felwood beyond saving — a fight that demands real strength.',
+    zoneId: 'felwood',
+    kind: 'story',
+    requiredLevel: 55,
+    durationSec: 7200,
+    baseXp: 8899,
+    baseGold: 593,
+    goldVariance: 0.2,
+    combatObjective: true,
+    steps: [
+      n('The Cenarion wardens of Felwood speak one name with dread: Xavaric, a satyr lord whose Jadefire cult spreads the forest\'s corruption like a wound that will not close. The warden is grave. "Xavaric has flayed druids who came against him half-ready. If your strength is not equal to his, the forest will swallow your bones with the rest. Go certain, or do not go."'),
+      c('A Jadefire trickster shimmers out of the warped trees, claws wreathed in shadow. "Lost in our wood, little thing?"', 'Jadefire Betrayer', 'elite'),
+      n('You run the trickster through and follow the trail of corrupted soil to a grove where the very bark weeps black sap. Xavaric uncoils from his throne of thorns, hooves smoking.'),
+      c('"You smell of the Cenarion fools. I will wear your hide as they wore my brothers\'." Xavaric strikes with a blade of green fel-fire.', 'Xavaric', 'boss'),
+      n('The satyr lord collapses into smoldering ichor and the grove\'s black sap slows to a trickle. You cut a sigil-horn from his brow and bring it to the wardens — proof the Jadefire\'s head has fallen.'),
     ],
   },
 };
