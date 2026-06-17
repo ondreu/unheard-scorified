@@ -10,6 +10,7 @@ import {
   CONSUMABLES,
   FACTIONS,
   GATHERING_NODES,
+  itemDisplayName,
   mountSpeedBonus,
   MATERIALS,
   MAX_PROFESSION_SKILL,
@@ -111,11 +112,9 @@ export interface ProfessionPanel {
   recipes: RecipeView[];
 }
 
-/** Lidský název itemu (equipment / material / consumable). */
+/** Lidský název itemu (equipment / bag / material / consumable). */
 function outputName(itemId: string): string {
-  return MATERIALS[itemId as keyof typeof MATERIALS]?.name
-    ?? CONSUMABLES[itemId as keyof typeof CONSUMABLES]?.name
-    ?? itemId;
+  return itemDisplayName(itemId);
 }
 
 @Injectable()

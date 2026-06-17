@@ -32,10 +32,27 @@ bag slotu samostatnými endpointy.
 | Reinforced Pack | 8 | vendor |
 | Woven Satchel | 10 | vendor |
 | Enchanted Runecloth Bag | 12 | vendor |
+| Light Leather Satchel | 8 | craft (Leatherworking) |
+| Medium Leather Pack | 12 | craft (Leatherworking) |
+| Heavy Leather Bag | 16 | craft (Leatherworking) |
 
-> **Craftovatelné batohy** (tailoring/leatherworking, vzácnější materiál = větší
-> batoh) jsou follow-up — vyžadují novou profesi/materiály. Zatím se batohy
-> kupují u vendora.
+> **Craftovatelné batohy** ✅: dvojice profesí **Skinning** (gathering kůže) →
+> **Leatherworking** (craft batohů), vzácnější kůže = větší batoh (až 16 slotů,
+> více než vendorové). Čistě data v `@game/shared` (viz `professions-reputation.md`).
+
+## Banka (úložiště mimo batoh)
+
+Banka má **vlastní kapacitu** (`BASE_BANK_SLOTS = 28`) nezávislou na bag slotech —
+uložení itemu tedy uvolní místo v batohu. Stejný stack-aware model jako inventář
+(`planGrant`/`usedSlots`). Deposit přesune item z inventáře do banky, withdraw zpět;
+withdraw je **player-akce** → při plném batohu se zablokuje (žádný overflow do pošty).
+`BankModule` + tabulka `character_bank` (migrace 0031). Web `/characters/[id]/bank`.
+
+```
+GET  /characters/:id/bank            — obsah banky + kapacita (used/total)
+POST /characters/:id/bank/deposit    — { itemId, quantity } inventář → banka
+POST /characters/:id/bank/withdraw   — { itemId, quantity } banka → inventář
+```
 
 Vyjmutí batohu se zablokuje, pokud by se jeho obsah/sám batoh po snížení kapacity
 nevešel („empty it first").

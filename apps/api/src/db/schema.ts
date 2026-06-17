@@ -878,6 +878,24 @@ export const characterBags = pgTable(
   (t) => [primaryKey({ columns: [t.characterId, t.slotIndex] })],
 );
 
+/**
+ * Banka (M10+ FEAT) — úložiště mimo batoh. Stejný tvar jako `character_inventory`
+ * (`itemId` + `quantity`), ale vlastní kapacita (`BASE_BANK_SLOTS`) → uložení
+ * uvolní sloty v batohu. Deposit/withdraw přesouvá itemy mezi inventářem a bankou.
+ */
+export const characterBank = pgTable(
+  'character_bank',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    itemId: varchar('item_id', { length: 64 }).notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    storedAt: timestamp('stored_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.itemId] })],
+);
+
 export const characterBagsRelations = relations(characterBags, ({ one }) => ({
   character: one(characters, {
     fields: [characterBags.characterId],
@@ -941,6 +959,8 @@ export type CharacterBuff = typeof characterBuffs.$inferSelect;
 export type NewCharacterBuff = typeof characterBuffs.$inferInsert;
 export type CharacterBag = typeof characterBags.$inferSelect;
 export type NewCharacterBag = typeof characterBags.$inferInsert;
+export type CharacterBankRow = typeof characterBank.$inferSelect;
+export type NewCharacterBankRow = typeof characterBank.$inferInsert;
 export type CharacterMount = typeof characterMounts.$inferSelect;
 export type NewCharacterMount = typeof characterMounts.$inferInsert;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;

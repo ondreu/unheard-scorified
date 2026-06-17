@@ -3,14 +3,19 @@
 Dlouhodobé filler aktivity vedle questování/dungeonů. Viz ADR
 `docs/adr/0009-professions-and-reputation.md`.
 
-## Profese (MVP: 2 gathering + 2 crafting)
+## Profese (3 gathering + 3 crafting)
 
-| Profese       | Druh      | Frakce            | Výstup                          |
-| ------------- | --------- | ----------------- | ------------------------------- |
-| Mining        | gathering | Miners' League    | ore (copper/iron/mithril/silver)|
-| Herbalism     | gathering | Herbalist Circle  | herbs (peacebloom/briarthorn/…) |
-| Blacksmithing | crafting  | Miners' League    | equipment (gear)                |
-| Alchemy       | crafting  | Herbalist Circle  | consumables (potions/elixirs)   |
+| Profese        | Druh      | Frakce            | Výstup                          |
+| -------------- | --------- | ----------------- | ------------------------------- |
+| Mining         | gathering | Miners' League    | ore (copper/iron/mithril/silver)|
+| Herbalism      | gathering | Herbalist Circle  | herbs (peacebloom/briarthorn/…) |
+| Skinning       | gathering | Explorers' Guild  | leather (light/medium/heavy)    |
+| Blacksmithing  | crafting  | Miners' League    | equipment (gear)                |
+| Alchemy        | crafting  | Herbalist Circle  | consumables (potions/elixirs)   |
+| Leatherworking | crafting  | Explorers' Guild  | bags (8/12/16 slotů)            |
+
+> **Skinning → Leatherworking** (craftovatelné batohy): vzácnější kůže = větší
+> batoh. Mirror dvojice k Mining→Blacksmithing; čistě data (žádná nová mechanika).
 
 - **Skill** 1..`MAX_PROFESSION_SKILL` (150). Default 1 — postava umí všechny profese
   od startu (žádný learning krok). Skill-up: +1 za běh, dokud je node/recept

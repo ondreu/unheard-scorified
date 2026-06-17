@@ -159,6 +159,14 @@ export const NAV_SECTIONS: NavSection[] = [
     accent: 'var(--r-rare)',
     group: 'character',
   },
+  {
+    path: 'bank',
+    icon: '🏦',
+    title: 'Bank',
+    sub: 'Store items off your bags',
+    accent: 'var(--gold)',
+    group: 'character',
+  },
 
   {
     path: 'group',
