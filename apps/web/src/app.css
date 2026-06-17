@@ -68,6 +68,23 @@ h3,
   letter-spacing: 0.01em;
 }
 
+/*
+ * Celkové procedurální pozadí appky (M14 increment 4). Jemná dlaždicová textura
+ * (data-URL ve `--backdrop`, viz $lib/pixelart/backdrop) laděná dle frakce,
+ * fixovaná za obsahem. Nízký kontrast; statická (bez animace).
+ */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--backdrop);
+  background-repeat: repeat;
+  background-size: 128px 128px;
+  image-rendering: pixelated;
+  opacity: 0.6;
+}
+
 /* ── Panels & cards ─────────────────────────────────────────────────────── */
 
 .panel {

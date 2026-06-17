@@ -798,8 +798,12 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       zleva → text čitelný), bez animace. Zapojeno na karty **dungeonů** (per
       instance), **raidů** (per instance) a **questů** (per zóna). Žádné canvasy
       per karta → škáluje i na desítky položek. Kosmetické, deterministické.
-- [ ] **Increment 4 — Celková pozadí stránek**: jemné procedurální pozadí appky
-      (per-sekce nebo per-frakce), nízký kontrast, respektuje `prefers-reduced-motion`.
+- [x] **Increment 4 — Celková pozadí stránek** ✅: jemné dlaždicovatelné
+      procedurální pozadí appky laděné **per-frakce** (`pixelart/backdrop.ts` —
+      rozptýlené tečky + drobné jiskry, seamless tiling, data-URL cache). Třída
+      `.app-backdrop` (fixed, `z-index:-1`, nízký kontrast) zapojená v character
+      shellu (`characters/[id]/+layout.svelte`), tint dle rasy→frakce. Statické
+      (bez animace). Kosmetické, deterministické.
 - [ ] **Increment 5 — Animované oživení karet**: drobné PixiJS akcenty (částice/
       blikání/hover) ve stylu současných banner scén; izolované, vypínatelné
       reduced-motion, šetrné k výkonu.

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
   import type { Socket } from 'socket.io-client';
@@ -15,6 +16,8 @@
     type GroupState,
   } from '$lib/api';
   import { connectSocial, subscribeSocial } from '$lib/social-socket';
+  import { backdropStyle } from '$lib/pixelart/backdrop';
+  import type { Faction } from '@game/shared';
   import { getPushState, isPushSupported, subscribePush, unsubscribePush } from '$lib/push';
   import { RACES, CLASSES } from '@game/shared';
   import { CLASS_COLOR, ROLE_META } from '$lib/cosmetics';
@@ -106,13 +109,23 @@
       group = await getGroup(id);
       const invites = group?.invites ?? [];
       for (const inv of invites)
-        notifications.push('social', ui.inviteGroup(inv.leaderName), undefined, `group-invite:${inv.groupId}`);
+        notifications.push(
+          'social',
+          ui.inviteGroup(inv.leaderName),
+          undefined,
+          `group-invite:${inv.groupId}`,
+        );
       // As group leader, surface pending join requests that arrived while offline
       // (they otherwise only appear on the group card).
       if (group?.group?.iAmLeader) {
         for (const m of group.group.members) {
           if (m.status === 'requested')
-            notifications.push('social', ui.groupJoinReq(m.name), undefined, `group-join-req:${m.characterId}`);
+            notifications.push(
+              'social',
+              ui.groupJoinReq(m.name),
+              undefined,
+              `group-join-req:${m.characterId}`,
+            );
         }
       }
     } catch {
@@ -123,7 +136,12 @@
     try {
       const social = await getSocial(id);
       for (const req of social.incoming)
-        notifications.push('social', ui.inviteFriendReq(req.name), undefined, `friend-req:${req.requestId}`);
+        notifications.push(
+          'social',
+          ui.inviteFriendReq(req.name),
+          undefined,
+          `friend-req:${req.requestId}`,
+        );
     } catch {
       // best-effort; social panel still reachable from nav
     }
@@ -131,7 +149,12 @@
     try {
       const g = await getGuild(id);
       for (const inv of g.invites)
-        notifications.push('social', ui.inviteGuildShort(inv.guildName), undefined, `guild-invite:${inv.inviteId}`);
+        notifications.push(
+          'social',
+          ui.inviteGuildShort(inv.guildName),
+          undefined,
+          `guild-invite:${inv.inviteId}`,
+        );
       for (const req of g.charterInvites)
         notifications.push(
           'social',
@@ -149,7 +172,12 @@
       const unread = box.mail.filter((m) => !m.read);
       if (unread.length > 0) {
         const newestId = [...unread].sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0]!.id;
-        notifications.push('info', ui.mailUnread(unread.length), undefined, `mail-unread:${newestId}`);
+        notifications.push(
+          'info',
+          ui.mailUnread(unread.length),
+          undefined,
+          `mail-unread:${newestId}`,
+        );
       }
     } catch {
       // best-effort
@@ -193,7 +221,15 @@
 
   const c = $derived(character);
   const members = $derived((group?.group?.members ?? []).filter((m) => m.status === 'joined'));
+
+  // Procedurální pozadí appky laděné dle frakce postavy (browser-only).
+  const faction = $derived(
+    (RACES[(c?.race ?? '') as keyof typeof RACES]?.faction ?? 'alliance') as Faction,
+  );
+  const backdrop = $derived(browser ? backdropStyle(faction) : '');
 </script>
+
+<div class="app-backdrop" style={backdrop}></div>
 
 <div class="min-h-dvh">
   <!-- Top bar: identity + gold + alerts -->
