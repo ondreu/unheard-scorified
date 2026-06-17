@@ -12,7 +12,9 @@
     type RotationConditionType,
     type RotationRule,
   } from '$lib/api';
+  import type { AbilityKind } from '@game/shared';
   import CombatMeters from '$lib/components/CombatMeters.svelte';
+  import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -174,6 +176,12 @@
       {#each rules as rule, i (rule.abilityId)}
         <li class="panel panel-pad flex flex-wrap items-center gap-3">
           <span class="text-[var(--text-faint)] w-6 text-right">{i + 1}.</span>
+          <PixelAbilityIcon
+            name={abilityName(rule.abilityId)}
+            kind={abilityMeta(rule.abilityId)?.kind as AbilityKind | undefined}
+            size={28}
+            dim={16}
+          />
           <div class="min-w-48 flex-1">
             <div class="font-semibold text-[var(--text)]">{abilityName(rule.abilityId)}</div>
             <div class="text-xs text-[var(--text-faint)]">

@@ -2,8 +2,10 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
+  import { SIGNATURE_ABILITIES, type AbilityKind } from '@game/shared';
   import { ApiError } from '$lib/api';
   import { currentTokens } from '$lib/auth';
+  import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -149,6 +151,15 @@
   }
 
   const TREE_COLORS = ['var(--gold-bright)', 'var(--info)', 'var(--success)'];
+
+  /** Capstone uzel odemyká signature ability → vrať její název+druh pro ikonu. */
+  function capstoneAbility(node: TalentNodeView): { name: string; kind: AbilityKind } | null {
+    for (const tag of node.effect.combatTags ?? []) {
+      const spec = SIGNATURE_ABILITIES[tag];
+      if (spec) return { name: spec.name, kind: spec.kind };
+    }
+    return null;
+  }
 </script>
 
 <div class="space-y-6">
@@ -188,13 +199,18 @@
               {@const locked = tree.pointsSpent < node.tierRequirement}
               {@const maxed = node.allocatedPoints >= node.maxRanks}
               {@const canAlloc = canAllocate(node, tree, t.availablePoints)}
+              {@const capstone = capstoneAbility(node)}
 
               <div
                 class="rounded-lg border bg-[var(--surface-2)] p-3 transition-colors
                   {locked ? 'border-[var(--border)] opacity-50' : maxed ? 'border-[var(--border-strong)]' : 'border-[var(--border)]'}"
               >
                 <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
+                  <div class="flex min-w-0 items-start gap-2">
+                    {#if capstone}
+                      <PixelAbilityIcon name={capstone.name} kind={capstone.kind} size={24} dim={16} />
+                    {/if}
+                    <div class="min-w-0">
                     <p class="text-sm font-semibold {locked ? 'text-[var(--text-faint)]' : maxed ? 'text-[var(--gold-bright)]' : 'text-[var(--text)]'}">
                       {node.name}
                       {#if maxed}<span class="ml-1 text-xs text-[var(--gold)]">[{ui.maxRank}]</span>{/if}
@@ -202,6 +218,7 @@
                     <p class="mt-0.5 text-xs text-[var(--text-dim)]">
                       Rank {node.allocatedPoints} / {node.maxRanks}
                     </p>
+                    </div>
                   </div>
                   <button
                     onclick={() => allocate(node.id)}

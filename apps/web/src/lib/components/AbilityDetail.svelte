@@ -6,6 +6,7 @@
   import { findAbilityByName } from '@game/shared';
   import { inspectAbility } from '$lib/ui-stores';
   import Badge from './Badge.svelte';
+  import PixelAbilityIcon from './PixelAbilityIcon.svelte';
 
   const KIND_META: Record<string, { label: string; color: string; icon: string }> = {
     strike: { label: 'Strike', color: 'var(--info)', icon: '⚔️' },
@@ -57,7 +58,10 @@
           {@const a = ability}
           {@const meta = KIND_META[a.kind] ?? { label: a.kind, color: 'var(--text-dim)', icon: '✨' }}
           <div class="flex items-start justify-between gap-3">
-            <h2 class="truncate text-xl font-bold text-[var(--gold-bright)]">{a.name}</h2>
+            <div class="flex min-w-0 items-center gap-2">
+              <PixelAbilityIcon name={a.name} kind={a.kind} size={32} dim={16} />
+              <h2 class="truncate text-xl font-bold text-[var(--gold-bright)]">{a.name}</h2>
+            </div>
             <Badge color={meta.color} icon={meta.icon}>{meta.label}</Badge>
           </div>
 

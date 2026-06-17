@@ -781,10 +781,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (portrét + class crest badge; `src` override reálným artem má dál přednost),
       `/characters/new` (frakční crest dle rasy). Avatar je napříč appkou → projeví
       se všude (top bar, group strip, chat, inspect profil, výběr/tvorba postavy).
-- [ ] **Increment 2 — Spell / ability ikony**: procedurální ikony pro baseline +
+- [x] **Increment 2 — Spell / ability ikony** ✅: procedurální ikony pro baseline +
       signature abilities (`@game/shared/data/abilities.ts`) dle `kind`
-      (strike/dot/drain/heal/shield/mitigation) + živlu/barvy classy. Zapojit do
-      combat logu (`CombatLog.svelte`), talent stromů, `AbilityDetail.svelte`.
+      (strike/dot/drain/heal/shield/mitigation) + **živlu** odvozeného z názvu
+      (fire/frost/shadow/holy/nature/arcane/lightning/blood…, fallback na barvu
+      druhu). Jádro `pixelart/abilities.ts` (`drawAbilityIcon` na sdíleném
+      `Painter` + cachovaný `abilityIconDataUrl` pro hojné výskyty) +
+      `PixelAbilityIcon.svelte` (lehký `<img>` z cache). Zapojeno do combat logu
+      (`CombatLog.svelte`, malá ikona před názvem ability), talent stromů
+      (capstone uzly), `AbilityDetail.svelte` (velká ikona) a editoru rotace.
 - [ ] **Increment 3 — Pozadí karet dle zóny/instance**: rozšířit `scenes.ts`
       téma i pod jednotlivé karty (dungeon/raid/quest), ne jen do top banneru —
       jemné per-karta pozadí (`HubCard`/panely) laděné dle zóny/frakce. Zvážit
