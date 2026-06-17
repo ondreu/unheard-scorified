@@ -18,7 +18,7 @@
     type ClaimResult,
     type GroupState,
   } from '$lib/api';
-  import { RACES, CLASSES, ITEMS } from '@game/shared';
+  import { RACES, CLASSES, ITEMS, type Faction } from '@game/shared';
   import {
     CLASS_COLOR,
     FACTION_COLOR,
@@ -29,6 +29,7 @@
   import { openProfile } from '$lib/ui-stores';
   import { QUICK_ACTIONS } from '$lib/nav';
   import Avatar from '$lib/components/Avatar.svelte';
+  import PortraitShowcase from '$lib/components/PortraitShowcase.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import HubCard from '$lib/components/HubCard.svelte';
   import PixelItemIcon from '$lib/components/PixelItemIcon.svelte';
@@ -216,7 +217,13 @@
     <!-- Character panel -->
     <section class="panel panel-pad lg:col-span-2">
       <div class="flex items-start gap-4">
-        <Avatar name={c.name} race={c.race} klass={c.class} size={84} />
+        <PortraitShowcase
+          name={c.name}
+          race={c.race}
+          klass={c.class}
+          faction={(c.faction === 'horde' ? 'horde' : 'alliance') as Faction}
+          size={96}
+        />
         <div class="min-w-0 flex-1">
           <h1 class="truncate text-2xl font-bold text-[var(--gold-bright)]">{c.name}</h1>
           <p class="mt-0.5 text-sm text-[var(--text-dim)]">

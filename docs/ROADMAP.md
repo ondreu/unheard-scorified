@@ -752,7 +752,7 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - **Zbývá rozhodnout (PM):** který koncept; jestli vůbec dává herní odměny (vs čistě
   zábava/kosmetika); rozsah MVP.
 
-### M14 — Procedurální pixel-art vrstva „všude" (deep) 🚧
+### M14 — Procedurální pixel-art vrstva „všude" (deep) ✅
 
 > 🧑‍💼 Zadání PM: **výrazně rozšířit pixel-art grafiku napříč celou hrou** — od
 > oživení karet, přes pozadí (celková i per-karta dle zóny), obrázky spellů,
@@ -823,9 +823,15 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (vybavené sloty + seznam), **inspect** (PlayerProfile), **lootu** (claim na
       overview), **Auction House** i **vendora** (ne-equip položky bez slotu ikonu
       nemají). Kosmetické, deterministické.
-- [ ] **Increment 7 — Profil & showcase**: bohatší portrét na character sheetu /
-      inspectu (větší kompozice), frakční/class/race emblémy v hlavičkách stránek,
-      mount/skin vizuální varianty (kosmetika oddělená — kompatibilní s monetizací).
+- [x] **Increment 7 — Profil & showcase** ✅: `PortraitShowcase.svelte` — větší
+      procedurální portrét (`dim 48`) v ozdobném rámečku s **frakční pečetí**
+      (roh) + **class crestem** (`PixelEmblem`); zapojeno do character sheetu
+      (overview header) i **inspect** modalu. **Mount/skin vizuální varianty**:
+      `pixelart/mounts.ts` (`drawMount` — side-profil silueta dle druhu
+      horse/wolf/cat/gryphon z id, seedovaný odstín = různé skiny téhož druhu,
+      rámeček dle tieru: epic = zlatý + jiskry) + `PixelMount.svelte`, zapojeno do
+      `/mounts`. Demonstruje princip „skin oddělený od power" (kompatibilní s
+      monetizací). Kosmetické, deterministické. **M14 kompletní.**
 - **Výstup:** vizuálně bohatá, konzistentní hra s procedurálním pixel-artem
   napříč všemi obrazovkami (portréty, emblémy, spelly, pozadí, itemy).
 - **Zbývá doladit:** výtvarné jemnosti portrétů (varianty účesů/výrazů), výkonový
