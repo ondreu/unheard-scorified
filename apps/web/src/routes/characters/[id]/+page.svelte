@@ -18,13 +18,22 @@
     type ClaimResult,
     type GroupState,
   } from '$lib/api';
-  import { RACES, CLASSES, ITEMS } from '@game/shared';
-  import { CLASS_COLOR, FACTION_COLOR, ROLE_META, factionLabel } from '$lib/cosmetics';
+  import { RACES, CLASSES, ITEMS, type Faction } from '@game/shared';
+  import {
+    CLASS_COLOR,
+    FACTION_COLOR,
+    ROLE_META,
+    RARITY_COLOR,
+    factionLabel,
+  } from '$lib/cosmetics';
   import { openProfile } from '$lib/ui-stores';
   import { QUICK_ACTIONS } from '$lib/nav';
   import Avatar from '$lib/components/Avatar.svelte';
+  import PortraitShowcase from '$lib/components/PortraitShowcase.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import HubCard from '$lib/components/HubCard.svelte';
+  import PixelItemIcon from '$lib/components/PixelItemIcon.svelte';
+  import { itemIconMetaById } from '$lib/pixelart/items';
 
   // Game-facing UI strings (English; separate from logic for future i18n).
   const ui = {
@@ -48,7 +57,8 @@
     questStory: 'What happened',
     hpLeft: 'HP left',
     defeated: 'Defeated',
-    defeatedMsg: 'You were defeated and earned no reward. Grow stronger and try this challenge again.',
+    defeatedMsg:
+      'You were defeated and earned no reward. Grow stronger and try this challenge again.',
     ongoing: 'In progress elsewhere',
     inDungeon: '⚔️ Dungeon',
     inRaid: '🐉 Raid',
@@ -155,9 +165,7 @@
       const newest = rRuns[0];
       if (newest) {
         const view = await getRaidRun(characterId, newest.runId);
-        ongoingRaid = view.progress.completed
-          ? null
-          : { runId: newest.runId, name: view.raidName };
+        ongoingRaid = view.progress.completed ? null : { runId: newest.runId, name: view.raidName };
       }
     } catch {
       /* best-effort */
@@ -209,7 +217,13 @@
     <!-- Character panel -->
     <section class="panel panel-pad lg:col-span-2">
       <div class="flex items-start gap-4">
-        <Avatar name={c.name} race={c.race} klass={c.class} size={84} />
+        <PortraitShowcase
+          name={c.name}
+          race={c.race}
+          klass={c.class}
+          faction={(c.faction === 'horde' ? 'horde' : 'alliance') as Faction}
+          size={96}
+        />
         <div class="min-w-0 flex-1">
           <h1 class="truncate text-2xl font-bold text-[var(--gold-bright)]">{c.name}</h1>
           <p class="mt-0.5 text-sm text-[var(--text-dim)]">
@@ -465,9 +479,27 @@
                 {ui.gained}: +{r.reward.xp} XP, +{r.reward.gold} g
               </p>
               {#if r.items.length > 0}
-                <p class="mt-1 text-[var(--text-dim)]">
-                  🎁 {r.items.map((id) => ITEMS[id as keyof typeof ITEMS]?.name ?? id).join(', ')}
-                </p>
+                <div class="mt-1 flex flex-wrap items-center gap-2 text-[var(--text-dim)]">
+                  <span>🎁</span>
+                  {#each r.items as id, ii (ii)}
+                    {@const meta = itemIconMetaById(id)}
+                    {@const def = ITEMS[id as keyof typeof ITEMS]}
+                    <span class="inline-flex items-center gap-1">
+                      {#if meta}
+                        <PixelItemIcon
+                          slot={meta.slot}
+                          rarity={meta.rarity}
+                          armorClass={meta.armorClass}
+                          size={20}
+                        />
+                      {/if}
+                      <span
+                        style={`color:${def ? (RARITY_COLOR[def.rarity] ?? 'inherit') : 'inherit'}`}
+                        >{def?.name ?? id}</span
+                      >
+                    </span>
+                  {/each}
+                </div>
               {/if}
               {#if r.leveledUp}<p class="mt-1 text-[var(--gold-bright)]">
                   ⭐ {ui.levelUp}
@@ -502,7 +534,8 @@
                         {#if step.defeated}<span class="ml-1 text-[var(--danger)]"
                             >· {ui.defeated}</span
                           >{:else if step.playerHpPct !== undefined}<span
-                            class="ml-1 text-[var(--text-faint)]">· {ui.hpLeft} {step.playerHpPct}%</span
+                            class="ml-1 text-[var(--text-faint)]"
+                            >· {ui.hpLeft} {step.playerHpPct}%</span
                           >{/if}
                       </summary>
                       <ul class="mt-1 space-y-0.5 font-mono text-xs text-[var(--text-faint)]">

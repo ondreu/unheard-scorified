@@ -15,6 +15,8 @@
     type InventoryItemView,
   } from '$lib/api';
   import { isAuctionable, itemDisplayName } from '@game/shared';
+  import PixelItemIcon from '$lib/components/PixelItemIcon.svelte';
+  import { itemIconMetaById } from '$lib/pixelart/items';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -192,7 +194,10 @@
       <section class="mt-6 space-y-3 rounded-lg border border-amber-900/40 bg-black/20 p-5">
         <label class="block text-sm text-amber-100/70">
           {ui.item}
-          <select bind:value={sellItemId} class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100">
+          <select
+            bind:value={sellItemId}
+            class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100"
+          >
             {#each sellable as inv (inv.itemId)}
               <option value={inv.itemId}>{itemName(inv.itemId)} (x{inv.quantity})</option>
             {/each}
@@ -201,11 +206,19 @@
         <div class="grid grid-cols-2 gap-3">
           <label class="block text-sm text-amber-100/70">
             {ui.qty}
-            <input type="number" min="1" bind:value={sellQty} class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100" />
+            <input
+              type="number"
+              min="1"
+              bind:value={sellQty}
+              class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100"
+            />
           </label>
           <label class="block text-sm text-amber-100/70">
             {ui.duration}
-            <select bind:value={sellDuration} class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100">
+            <select
+              bind:value={sellDuration}
+              class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100"
+            >
               <option value="short">12h</option>
               <option value="medium">24h</option>
               <option value="long">48h</option>
@@ -213,11 +226,22 @@
           </label>
           <label class="block text-sm text-amber-100/70">
             {ui.startBid}
-            <input type="number" min="1" bind:value={sellStart} class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100" />
+            <input
+              type="number"
+              min="1"
+              bind:value={sellStart}
+              class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100"
+            />
           </label>
           <label class="block text-sm text-amber-100/70">
             {ui.buyout}
-            <input type="number" min="0" bind:value={sellBuyout} placeholder="optional" class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100" />
+            <input
+              type="number"
+              min="0"
+              bind:value={sellBuyout}
+              placeholder="optional"
+              class="mt-1 w-full rounded border border-amber-900/40 bg-black/40 px-2 py-1.5 text-amber-100"
+            />
           </label>
         </div>
         <button
@@ -236,23 +260,39 @@
     {:else}
       <ul class="mt-6 space-y-3">
         {#each rows as a (a.id)}
+          {@const meta = itemIconMetaById(a.itemId)}
           <li class="rounded-lg border border-amber-900/40 bg-black/20 p-4">
             <div class="flex items-start justify-between gap-4">
-              <div>
-                <h2 class="font-semibold text-amber-200">
-                  {a.itemName} <span class="text-amber-100/50">x{a.quantity}</span>
-                  {#if a.isNpc}
-                    <span class="ml-1 rounded bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-200">{ui.merchant}</span>
-                  {/if}
-                </h2>
-                <p class="text-xs text-amber-100/40">
-                  {ui.seller}: {a.sellerName}
-                  {#if a.status === 'active'}· {ui.timeLeft}: {fmtTime(a.timeLeftSec)}{:else}· {a.status}{/if}
-                </p>
-                <p class="mt-1 text-sm text-amber-100/70">
-                  {a.currentBid !== null ? `${ui.current}: ${a.currentBid}` : `${ui.start}: ${a.startBid}`} g
-                  {#if a.buyout !== null}· {ui.buyout}: {a.buyout} g{/if}
-                </p>
+              <div class="flex items-start gap-3">
+                {#if meta}
+                  <PixelItemIcon
+                    slot={meta.slot}
+                    rarity={meta.rarity}
+                    armorClass={meta.armorClass}
+                    size={34}
+                  />
+                {/if}
+                <div>
+                  <h2 class="font-semibold text-amber-200">
+                    {a.itemName} <span class="text-amber-100/50">x{a.quantity}</span>
+                    {#if a.isNpc}
+                      <span
+                        class="ml-1 rounded bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-200"
+                        >{ui.merchant}</span
+                      >
+                    {/if}
+                  </h2>
+                  <p class="text-xs text-amber-100/40">
+                    {ui.seller}: {a.sellerName}
+                    {#if a.status === 'active'}· {ui.timeLeft}: {fmtTime(a.timeLeftSec)}{:else}· {a.status}{/if}
+                  </p>
+                  <p class="mt-1 text-sm text-amber-100/70">
+                    {a.currentBid !== null
+                      ? `${ui.current}: ${a.currentBid}`
+                      : `${ui.start}: ${a.startBid}`} g
+                    {#if a.buyout !== null}· {ui.buyout}: {a.buyout} g{/if}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -285,7 +325,8 @@
                     type="number"
                     min={a.minBid}
                     value={a.minBid}
-                    oninput={(e) => (bidAmount[a.id] = Number((e.target as HTMLInputElement).value))}
+                    oninput={(e) =>
+                      (bidAmount[a.id] = Number((e.target as HTMLInputElement).value))}
                     class="w-24 rounded border border-amber-900/40 bg-black/40 px-2 py-1 text-sm text-amber-100"
                   />
                   <button

@@ -752,7 +752,7 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 - **Zbývá rozhodnout (PM):** který koncept; jestli vůbec dává herní odměny (vs čistě
   zábava/kosmetika); rozsah MVP.
 
-### M14 — Procedurální pixel-art vrstva „všude" (deep) 🚧
+### M14 — Procedurální pixel-art vrstva „všude" (deep) ✅
 
 > 🧑‍💼 Zadání PM: **výrazně rozšířit pixel-art grafiku napříč celou hrou** — od
 > oživení karet, přes pozadí (celková i per-karta dle zóny), obrázky spellů,
@@ -781,25 +781,57 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       (portrét + class crest badge; `src` override reálným artem má dál přednost),
       `/characters/new` (frakční crest dle rasy). Avatar je napříč appkou → projeví
       se všude (top bar, group strip, chat, inspect profil, výběr/tvorba postavy).
-- [ ] **Increment 2 — Spell / ability ikony**: procedurální ikony pro baseline +
+- [x] **Increment 2 — Spell / ability ikony** ✅: procedurální ikony pro baseline +
       signature abilities (`@game/shared/data/abilities.ts`) dle `kind`
-      (strike/dot/drain/heal/shield/mitigation) + živlu/barvy classy. Zapojit do
-      combat logu (`CombatLog.svelte`), talent stromů, `AbilityDetail.svelte`.
-- [ ] **Increment 3 — Pozadí karet dle zóny/instance**: rozšířit `scenes.ts`
-      téma i pod jednotlivé karty (dungeon/raid/quest), ne jen do top banneru —
-      jemné per-karta pozadí (`HubCard`/panely) laděné dle zóny/frakce. Zvážit
-      lehkou statickou variantu (sdílené jádro) kvůli výkonu při mnoha kartách.
-- [ ] **Increment 4 — Celková pozadí stránek**: jemné procedurální pozadí appky
-      (per-sekce nebo per-frakce), nízký kontrast, respektuje `prefers-reduced-motion`.
-- [ ] **Increment 5 — Animované oživení karet**: drobné PixiJS akcenty (částice/
-      blikání/hover) ve stylu současných banner scén; izolované, vypínatelné
-      reduced-motion, šetrné k výkonu.
-- [ ] **Increment 6 — Ikony itemů / slotů / rarity**: procedurální ikony dle
-      slotu + rarity (rámeček/glow), postupně i per-item; inventář, inspect, loot,
-      AH, vendor. (Navazuje na asset spec sekce 5–6.)
-- [ ] **Increment 7 — Profil & showcase**: bohatší portrét na character sheetu /
-      inspectu (větší kompozice), frakční/class/race emblémy v hlavičkách stránek,
-      mount/skin vizuální varianty (kosmetika oddělená — kompatibilní s monetizací).
+      (strike/dot/drain/heal/shield/mitigation) + **živlu** odvozeného z názvu
+      (fire/frost/shadow/holy/nature/arcane/lightning/blood…, fallback na barvu
+      druhu). Jádro `pixelart/abilities.ts` (`drawAbilityIcon` na sdíleném
+      `Painter` + cachovaný `abilityIconDataUrl` pro hojné výskyty) +
+      `PixelAbilityIcon.svelte` (lehký `<img>` z cache). Zapojeno do combat logu
+      (`CombatLog.svelte`, malá ikona před názvem ability), talent stromů
+      (capstone uzly), `AbilityDetail.svelte` (velká ikona) a editoru rotace.
+- [x] **Increment 3 — Pozadí karet dle zóny/instance** ✅: lehká **statická**
+      varianta velkých PixiJS scén — `pixelart/scene-bg.ts` (`drawSceneThumb`
+      recykluje katalog témat `scenes.ts`) vykreslí miniaturu jednou, nacachuje
+      jako **data-URL** a sdílí ji přes CSS proměnnou `--scene-bg`. Třída
+      `.scene-card` (app.css) ji vykreslí přes `::before` jemně (16 %, maskováno
+      zleva → text čitelný), bez animace. Zapojeno na karty **dungeonů** (per
+      instance), **raidů** (per instance) a **questů** (per zóna). Žádné canvasy
+      per karta → škáluje i na desítky položek. Kosmetické, deterministické.
+- [x] **Increment 4 — Celková pozadí stránek** ✅: jemné dlaždicovatelné
+      procedurální pozadí appky laděné **per-frakce** (`pixelart/backdrop.ts` —
+      rozptýlené tečky + drobné jiskry, seamless tiling, data-URL cache). Třída
+      `.app-backdrop` (fixed, `z-index:-1`, nízký kontrast) zapojená v character
+      shellu (`characters/[id]/+layout.svelte`), tint dle rasy→frakce. Statické
+      (bez animace). Kosmetické, deterministické.
+- [x] **Increment 5 — Animované oživení karet** ✅: drobné PixiJS akcenty +
+      CSS shimmer na scene-kartách (dungeon/raid/quest). `CardAccent.svelte`
+      (izolovaný PixiJS overlay, pár stoupajících jisker v barvě scény přes
+      `sceneAccentColor`) se mountuje **jen nad kartou pod kurzorem** (`{#if}` na
+      hoveru) → naživu nanejvýš jeden WebGL kontext (šetrné k výkonu, ctí limit
+      kontextů). CSS `::after` shimmer sweep při hoveru. Obojí **vypnuté pod
+      `prefers-reduced-motion`**; SSR-safe (dynamický import Pixi). Pozn.: efekty
+      jsou hover-triggered (desktop) — na dotyku zůstává statické pozadí z
+      incrementu 3 (vědomě, kvůli výkonu/baterii na phone-first). Kosmetické.
+- [x] **Increment 6 — Ikony itemů / slotů / rarity** ✅: procedurální ikony dle
+      **slotu** (helm/chest/zbraň/štít/prsten/amulet/batoh…) obarvené dle **typu
+      brnění** (cloth/leather/mail/plate) resp. materiálu slotu, v **rámečku barvy
+      rarity** (common→legendary) s glow/jiskrami u epic/legendary. Jádro
+      `pixelart/items.ts` (`drawItemIcon` + cachovaný `itemIconDataUrl` +
+      `itemIconMetaById` lookup z `ITEMS` pro místa s pouhým `itemId`) +
+      `PixelItemIcon.svelte` (lehký `<img>` z cache). Zapojeno do: **inventáře**
+      (vybavené sloty + seznam), **inspect** (PlayerProfile), **lootu** (claim na
+      overview), **Auction House** i **vendora** (ne-equip položky bez slotu ikonu
+      nemají). Kosmetické, deterministické.
+- [x] **Increment 7 — Profil & showcase** ✅: `PortraitShowcase.svelte` — větší
+      procedurální portrét (`dim 48`) v ozdobném rámečku s **frakční pečetí**
+      (roh) + **class crestem** (`PixelEmblem`); zapojeno do character sheetu
+      (overview header) i **inspect** modalu. **Mount/skin vizuální varianty**:
+      `pixelart/mounts.ts` (`drawMount` — side-profil silueta dle druhu
+      horse/wolf/cat/gryphon z id, seedovaný odstín = různé skiny téhož druhu,
+      rámeček dle tieru: epic = zlatý + jiskry) + `PixelMount.svelte`, zapojeno do
+      `/mounts`. Demonstruje princip „skin oddělený od power" (kompatibilní s
+      monetizací). Kosmetické, deterministické. **M14 kompletní.**
 - **Výstup:** vizuálně bohatá, konzistentní hra s procedurálním pixel-artem
   napříč všemi obrazovkami (portréty, emblémy, spelly, pozadí, itemy).
 - **Zbývá doladit:** výtvarné jemnosti portrétů (varianty účesů/výrazů), výkonový

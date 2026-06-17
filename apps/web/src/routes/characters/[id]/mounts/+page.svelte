@@ -10,6 +10,7 @@
     type MountsView,
     type MountView,
   } from '$lib/api';
+  import PixelMount from '$lib/components/PixelMount.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -112,27 +113,31 @@
 
     <ul class="space-y-3">
       {#each view.mounts as m (m.id)}
-        <li
-          class="panel panel-pad"
-          style={m.active ? 'border-color:var(--success)' : ''}
-        >
+        <li class="panel panel-pad" style={m.active ? 'border-color:var(--success)' : ''}>
           <div class="flex items-center justify-between gap-3">
-            <div>
-              <p class="font-semibold text-[var(--text)]">
-                {m.name}
-                <span class="chip ml-2 uppercase tracking-wide">
-                  {tierLabel[m.tier]}
-                </span>
-                {#if m.active}
-                  <span class="chip ml-1" style="color:var(--success);border-color:color-mix(in srgb, var(--success) 35%, transparent)">
-                    {ui.active}
+            <div class="flex min-w-0 items-start gap-3">
+              <PixelMount id={m.id} tier={m.tier} size={52} />
+              <div class="min-w-0">
+                <p class="font-semibold text-[var(--text)]">
+                  {m.name}
+                  <span class="chip ml-2 uppercase tracking-wide">
+                    {tierLabel[m.tier]}
                   </span>
-                {/if}
-              </p>
-              <p class="mt-0.5 text-sm text-[var(--text-dim)]">{m.description}</p>
-              <p class="mt-1 text-xs" style="color:var(--success)">
-                +{pct(m.speedBonus)} travel speed · {ui.reqLevel} {m.requiredLevel} · 💰 {m.cost}
-              </p>
+                  {#if m.active}
+                    <span
+                      class="chip ml-1"
+                      style="color:var(--success);border-color:color-mix(in srgb, var(--success) 35%, transparent)"
+                    >
+                      {ui.active}
+                    </span>
+                  {/if}
+                </p>
+                <p class="mt-0.5 text-sm text-[var(--text-dim)]">{m.description}</p>
+                <p class="mt-1 text-xs" style="color:var(--success)">
+                  +{pct(m.speedBonus)} travel speed · {ui.reqLevel}
+                  {m.requiredLevel} · 💰 {m.cost}
+                </p>
+              </div>
             </div>
             <div class="shrink-0">
               {#if m.owned}

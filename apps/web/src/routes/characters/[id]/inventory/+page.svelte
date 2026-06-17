@@ -11,6 +11,7 @@
   } from '$lib/api';
   import { currentTokens } from '$lib/auth';
   import { RARITY_COLOR } from '$lib/cosmetics';
+  import PixelItemIcon from '$lib/components/PixelItemIcon.svelte';
   import type { ItemDef, EquipmentSlot } from '@game/shared';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -40,23 +41,61 @@
   type EquipmentSlotsView = { equipped: EquipmentEntry[]; equipmentStats: Record<string, number> };
 
   const SLOT_LABELS: Record<string, string> = {
-    head: 'Head', neck: 'Neck', shoulder: 'Shoulders', chest: 'Chest',
-    waist: 'Waist', legs: 'Legs', feet: 'Feet', wrist: 'Wrist',
-    hands: 'Hands', back: 'Back', main_hand: 'Main Hand', off_hand: 'Off Hand',
-    finger1: 'Ring 1', finger2: 'Ring 2', trinket1: 'Trinket 1', trinket2: 'Trinket 2',
+    head: 'Head',
+    neck: 'Neck',
+    shoulder: 'Shoulders',
+    chest: 'Chest',
+    waist: 'Waist',
+    legs: 'Legs',
+    feet: 'Feet',
+    wrist: 'Wrist',
+    hands: 'Hands',
+    back: 'Back',
+    main_hand: 'Main Hand',
+    off_hand: 'Off Hand',
+    finger1: 'Ring 1',
+    finger2: 'Ring 2',
+    trinket1: 'Trinket 1',
+    trinket2: 'Trinket 2',
   };
 
   const ALL_SLOTS: EquipmentSlot[] = [
-    'head', 'neck', 'shoulder', 'chest', 'waist', 'legs', 'feet', 'wrist',
-    'hands', 'back', 'main_hand', 'off_hand', 'finger1', 'finger2', 'trinket1', 'trinket2',
+    'head',
+    'neck',
+    'shoulder',
+    'chest',
+    'waist',
+    'legs',
+    'feet',
+    'wrist',
+    'hands',
+    'back',
+    'main_hand',
+    'off_hand',
+    'finger1',
+    'finger2',
+    'trinket1',
+    'trinket2',
   ];
 
   // Physical slot → item slot type (rings/trinkets share a type across two slots).
   const SLOT_TYPE_MAP: Record<string, string> = {
-    head: 'head', neck: 'neck', shoulder: 'shoulder', chest: 'chest',
-    waist: 'waist', legs: 'legs', feet: 'feet', wrist: 'wrist',
-    hands: 'hands', back: 'back', main_hand: 'main_hand', off_hand: 'off_hand',
-    finger1: 'finger', finger2: 'finger', trinket1: 'trinket', trinket2: 'trinket',
+    head: 'head',
+    neck: 'neck',
+    shoulder: 'shoulder',
+    chest: 'chest',
+    waist: 'waist',
+    legs: 'legs',
+    feet: 'feet',
+    wrist: 'wrist',
+    hands: 'hands',
+    back: 'back',
+    main_hand: 'main_hand',
+    off_hand: 'off_hand',
+    finger1: 'finger',
+    finger2: 'finger',
+    trinket1: 'trinket',
+    trinket2: 'trinket',
   };
 
   // Drag & drop equip: drag an inventory item onto a matching slot; drag an
@@ -230,17 +269,25 @@
 
   function statLabel(key: string): string {
     const labels: Record<string, string> = {
-      strength: 'Strength', agility: 'Agility', stamina: 'Stamina',
-      intellect: 'Intellect', spirit: 'Spirit', armor: 'Armor',
-      attack_power: 'Attack Power', spell_power: 'Spell Power',
-      crit_rating: 'Crit Rating', dodge_rating: 'Dodge Rating',
+      strength: 'Strength',
+      agility: 'Agility',
+      stamina: 'Stamina',
+      intellect: 'Intellect',
+      spirit: 'Spirit',
+      armor: 'Armor',
+      attack_power: 'Attack Power',
+      spell_power: 'Spell Power',
+      crit_rating: 'Crit Rating',
+      dodge_rating: 'Dodge Rating',
     };
     return labels[key] ?? key;
   }
 
   // Title-attr fallback pro tooltip (přístupnost na zařízeních bez hoveru).
   function tooltipText(item: ItemDef): string {
-    const stats = Object.entries(item.stats).map(([k, v]) => `+${v} ${statLabel(k)}`).join(', ');
+    const stats = Object.entries(item.stats)
+      .map(([k, v]) => `+${v} ${statLabel(k)}`)
+      .join(', ');
     const head = `${item.name} (${ui.ilvl} ${item.itemLevel})`;
     return stats ? `${head} — ${stats}` : head;
   }
@@ -261,7 +308,9 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="panel-title">Bags</h2>
           <span class="text-sm text-[var(--text-dim)]">
-            Slots: <strong class="text-[var(--gold-bright)]">{bags.usedSlots}/{bags.capacity}</strong>
+            Slots: <strong class="text-[var(--gold-bright)]"
+              >{bags.usedSlots}/{bags.capacity}</strong
+            >
             <span class="text-[var(--text-faint)]">({bags.freeSlots} free)</span>
           </span>
         </div>
@@ -281,7 +330,9 @@
                 {/if}
               </div>
               {#if b.bagId}
-                <p class="truncate text-xs font-medium text-[var(--text)]">{b.name} <span class="text-[var(--text-faint)]">(+{b.slots})</span></p>
+                <p class="truncate text-xs font-medium text-[var(--text)]">
+                  {b.name} <span class="text-[var(--text-faint)]">(+{b.slots})</span>
+                </p>
               {:else if ownedBags.length > 0}
                 <div class="mt-1 flex flex-wrap gap-1">
                   {#each ownedBags as ob (ob.itemId)}
@@ -334,22 +385,36 @@
                 onSlotDrop(slot);
               }}
             >
-              <div class="min-w-0">
-                <span class="text-xs text-[var(--text-faint)]">{SLOT_LABELS[slot] ?? slot}</span>
+              <div class="flex min-w-0 items-center gap-2">
                 {#if entry}
-                  <button
-                    type="button"
-                    class="block w-full truncate text-left text-sm font-medium"
-                    style={`color:${RARITY_COLOR[entry.item.rarity] ?? 'var(--text)'}`}
-                    title={tooltipText(entry.item)}
-                    onclick={() => (tooltipSlot = tooltipSlot === slot ? null : slot)}
-                  >
-                    {entry.item.name}
-                    <span class="ml-1 text-xs text-[var(--text-faint)]">{ui.ilvl} {entry.item.itemLevel}</span>
-                  </button>
-                {:else}
-                  <p class="text-sm text-[var(--text-faint)]">{candidate ? ui.dropHere : ui.empty}</p>
+                  <PixelItemIcon
+                    slot={entry.item.slot}
+                    rarity={entry.item.rarity}
+                    armorClass={entry.item.armorClass}
+                    size={30}
+                  />
                 {/if}
+                <div class="min-w-0">
+                  <span class="text-xs text-[var(--text-faint)]">{SLOT_LABELS[slot] ?? slot}</span>
+                  {#if entry}
+                    <button
+                      type="button"
+                      class="block w-full truncate text-left text-sm font-medium"
+                      style={`color:${RARITY_COLOR[entry.item.rarity] ?? 'var(--text)'}`}
+                      title={tooltipText(entry.item)}
+                      onclick={() => (tooltipSlot = tooltipSlot === slot ? null : slot)}
+                    >
+                      {entry.item.name}
+                      <span class="ml-1 text-xs text-[var(--text-faint)]"
+                        >{ui.ilvl} {entry.item.itemLevel}</span
+                      >
+                    </button>
+                  {:else}
+                    <p class="text-sm text-[var(--text-faint)]">
+                      {candidate ? ui.dropHere : ui.empty}
+                    </p>
+                  {/if}
+                </div>
               </div>
               {#if entry}
                 <button
@@ -368,11 +433,16 @@
                   class="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-2)] p-3 shadow-lg"
                   role="tooltip"
                 >
-                  <p class="text-sm font-semibold" style={`color:${RARITY_COLOR[it.rarity] ?? 'var(--text)'}`}>
+                  <p
+                    class="text-sm font-semibold"
+                    style={`color:${RARITY_COLOR[it.rarity] ?? 'var(--text)'}`}
+                  >
                     {it.name}
                   </p>
                   <p class="mt-0.5 text-xs text-[var(--text-faint)]">
-                    {ui.slot} {SLOT_LABELS[slot] ?? slot} · {ui.ilvl} {it.itemLevel}
+                    {ui.slot}
+                    {SLOT_LABELS[slot] ?? slot} · {ui.ilvl}
+                    {it.itemLevel}
                   </p>
                   <dl class="mt-2 space-y-0.5 text-xs">
                     {#each Object.entries(it.stats) as [key, val] (key)}
@@ -384,8 +454,11 @@
                       <p class="text-[var(--text-faint)]">{ui.noStats}</p>
                     {/each}
                   </dl>
-                  <p class="mt-2 border-t border-[var(--border)] pt-1.5 text-xs text-[var(--text-faint)]">
-                    {ui.vendorGold} {it.vendorGold}{ui.gold}
+                  <p
+                    class="mt-2 border-t border-[var(--border)] pt-1.5 text-xs text-[var(--text-faint)]"
+                  >
+                    {ui.vendorGold}
+                    {it.vendorGold}{ui.gold}
                   </p>
                 </div>
               {/if}
@@ -421,7 +494,9 @@
         }}
       >
         <h2 class="panel-title">{ui.inventory}</h2>
-        {#if draggedFromSlot}<p class="mt-1 text-xs text-[var(--gold-bright)]">{ui.unequip} — drop here</p>{/if}
+        {#if draggedFromSlot}<p class="mt-1 text-xs text-[var(--gold-bright)]">
+            {ui.unequip} — drop here
+          </p>{/if}
         {#if inventory.length === 0}
           <p class="mt-2 text-[var(--text-dim)]">{ui.noItems}</p>
         {:else}
@@ -429,7 +504,10 @@
             {#each inventory as inv (inv.itemId)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="cursor-grab rounded-lg border bg-[var(--surface-2)] p-3 {selectedItem?.itemId === inv.itemId ? 'border-[var(--border-strong)]' : 'border-[var(--border)]'}"
+                class="cursor-grab rounded-lg border bg-[var(--surface-2)] p-3 {selectedItem?.itemId ===
+                inv.itemId
+                  ? 'border-[var(--border-strong)]'
+                  : 'border-[var(--border)]'}"
                 draggable="true"
                 ondragstart={() => {
                   draggedItem = inv;
@@ -438,22 +516,40 @@
                 ondragend={clearDrag}
               >
                 <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
-                    <p class="truncate text-sm font-medium" style={`color:${RARITY_COLOR[inv.item.rarity] ?? 'var(--text)'}`}>
-                      {inv.item.name}
-                      {#if inv.quantity > 1}
-                        <span class="ml-1 text-[var(--text-faint)]">{ui.qty}{inv.quantity}</span>
-                      {/if}
-                    </p>
-                    <p class="text-xs text-[var(--text-faint)]">
-                      {inv.item.slot}{inv.item.armorClass ? ` · ${inv.item.armorClass}` : ''} · {ui.ilvl} {inv.item.itemLevel} · {ui.vendorGold} {inv.item.vendorGold}{ui.gold}
-                    </p>
-                    <p class="mt-1 text-xs text-[var(--text-dim)]">
-                      {Object.entries(inv.item.stats).map(([k, v]) => `+${v} ${statLabel(k)}`).join(', ')}
-                    </p>
+                  <div class="flex min-w-0 items-start gap-2">
+                    <PixelItemIcon
+                      slot={inv.item.slot}
+                      rarity={inv.item.rarity}
+                      armorClass={inv.item.armorClass}
+                      size={34}
+                    />
+                    <div class="min-w-0">
+                      <p
+                        class="truncate text-sm font-medium"
+                        style={`color:${RARITY_COLOR[inv.item.rarity] ?? 'var(--text)'}`}
+                      >
+                        {inv.item.name}
+                        {#if inv.quantity > 1}
+                          <span class="ml-1 text-[var(--text-faint)]">{ui.qty}{inv.quantity}</span>
+                        {/if}
+                      </p>
+                      <p class="text-xs text-[var(--text-faint)]">
+                        {inv.item.slot}{inv.item.armorClass ? ` · ${inv.item.armorClass}` : ''} · {ui.ilvl}
+                        {inv.item.itemLevel} · {ui.vendorGold}
+                        {inv.item.vendorGold}{ui.gold}
+                      </p>
+                      <p class="mt-1 text-xs text-[var(--text-dim)]">
+                        {Object.entries(inv.item.stats)
+                          .map(([k, v]) => `+${v} ${statLabel(k)}`)
+                          .join(', ')}
+                      </p>
+                    </div>
                   </div>
                   <button
-                    onclick={() => { selectedItem = selectedItem?.itemId === inv.itemId ? null : inv; equipTargetSlot = null; }}
+                    onclick={() => {
+                      selectedItem = selectedItem?.itemId === inv.itemId ? null : inv;
+                      equipTargetSlot = null;
+                    }}
                     class="btn btn-sm shrink-0"
                   >
                     {ui.equip}

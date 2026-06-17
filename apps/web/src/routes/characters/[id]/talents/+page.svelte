@@ -2,8 +2,10 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
+  import { SIGNATURE_ABILITIES, type AbilityKind } from '@game/shared';
   import { ApiError } from '$lib/api';
   import { currentTokens } from '$lib/auth';
+  import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -125,7 +127,11 @@
     }
   }
 
-  function canAllocate(node: TalentNodeView, tree: TalentTreeView, availablePoints: number): boolean {
+  function canAllocate(
+    node: TalentNodeView,
+    tree: TalentTreeView,
+    availablePoints: number,
+  ): boolean {
     if (availablePoints <= 0) return false;
     if (node.allocatedPoints >= node.maxRanks) return false;
     if (tree.pointsSpent < node.tierRequirement) return false;
@@ -149,6 +155,15 @@
   }
 
   const TREE_COLORS = ['var(--gold-bright)', 'var(--info)', 'var(--success)'];
+
+  /** Capstone uzel odemyká signature ability → vrať její název+druh pro ikonu. */
+  function capstoneAbility(node: TalentNodeView): { name: string; kind: AbilityKind } | null {
+    for (const tag of node.effect.combatTags ?? []) {
+      const spec = SIGNATURE_ABILITIES[tag];
+      if (spec) return { name: spec.name, kind: spec.kind };
+    }
+    return null;
+  }
 </script>
 
 <div class="space-y-6">
@@ -167,7 +182,9 @@
       <div class="panel px-4 py-2 text-sm">
         <span class="text-[var(--text-dim)]">{ui.available}: </span>
         <span class="font-bold text-[var(--gold-bright)]">{t.availablePoints}</span>
-        <span class="ml-2 text-[var(--text-faint)]">({ui.spent}: {t.spentPoints} / {ui.total}: {t.totalPoints})</span>
+        <span class="ml-2 text-[var(--text-faint)]"
+          >({ui.spent}: {t.spentPoints} / {ui.total}: {t.totalPoints})</span
+        >
       </div>
       {#if t.spentPoints > 0}
         <button onclick={resetAll} disabled={resetting} class="btn btn-danger btn-sm">
@@ -180,7 +197,9 @@
     <div class="grid gap-6 md:grid-cols-3">
       {#each t.trees as tree, treeIdx (tree.name)}
         <section class="panel panel-pad">
-          <h2 class="panel-title" style={`color:${TREE_COLORS[treeIdx] ?? 'var(--gold-bright)'}`}>{tree.name}</h2>
+          <h2 class="panel-title" style={`color:${TREE_COLORS[treeIdx] ?? 'var(--gold-bright)'}`}>
+            {tree.name}
+          </h2>
           <p class="mb-4 text-xs text-[var(--text-faint)]">{tree.pointsSpent} pts spent</p>
 
           <div class="space-y-3">
@@ -188,25 +207,50 @@
               {@const locked = tree.pointsSpent < node.tierRequirement}
               {@const maxed = node.allocatedPoints >= node.maxRanks}
               {@const canAlloc = canAllocate(node, tree, t.availablePoints)}
+              {@const capstone = capstoneAbility(node)}
 
               <div
                 class="rounded-lg border bg-[var(--surface-2)] p-3 transition-colors
-                  {locked ? 'border-[var(--border)] opacity-50' : maxed ? 'border-[var(--border-strong)]' : 'border-[var(--border)]'}"
+                  {locked
+                  ? 'border-[var(--border)] opacity-50'
+                  : maxed
+                    ? 'border-[var(--border-strong)]'
+                    : 'border-[var(--border)]'}"
               >
                 <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
-                    <p class="text-sm font-semibold {locked ? 'text-[var(--text-faint)]' : maxed ? 'text-[var(--gold-bright)]' : 'text-[var(--text)]'}">
-                      {node.name}
-                      {#if maxed}<span class="ml-1 text-xs text-[var(--gold)]">[{ui.maxRank}]</span>{/if}
-                    </p>
-                    <p class="mt-0.5 text-xs text-[var(--text-dim)]">
-                      Rank {node.allocatedPoints} / {node.maxRanks}
-                    </p>
+                  <div class="flex min-w-0 items-start gap-2">
+                    {#if capstone}
+                      <PixelAbilityIcon
+                        name={capstone.name}
+                        kind={capstone.kind}
+                        size={24}
+                        dim={16}
+                      />
+                    {/if}
+                    <div class="min-w-0">
+                      <p
+                        class="text-sm font-semibold {locked
+                          ? 'text-[var(--text-faint)]'
+                          : maxed
+                            ? 'text-[var(--gold-bright)]'
+                            : 'text-[var(--text)]'}"
+                      >
+                        {node.name}
+                        {#if maxed}<span class="ml-1 text-xs text-[var(--gold)]"
+                            >[{ui.maxRank}]</span
+                          >{/if}
+                      </p>
+                      <p class="mt-0.5 text-xs text-[var(--text-dim)]">
+                        Rank {node.allocatedPoints} / {node.maxRanks}
+                      </p>
+                    </div>
                   </div>
                   <button
                     onclick={() => allocate(node.id)}
                     disabled={!canAlloc || pendingTalentId !== null}
-                    class="btn btn-sm shrink-0 {canAlloc && pendingTalentId === null ? 'btn-primary' : ''}"
+                    class="btn btn-sm shrink-0 {canAlloc && pendingTalentId === null
+                      ? 'btn-primary'
+                      : ''}"
                   >
                     {pendingTalentId === node.id ? ui.allocating : ui.allocate}
                   </button>
@@ -215,7 +259,9 @@
                 <p class="mt-1 text-xs text-[var(--text-faint)]">{effectLabel(node)}</p>
                 {#if node.tierRequirement > 0}
                   <p class="mt-1 text-xs text-[var(--text-faint)]">
-                    {ui.tierReq} {node.tierRequirement} {ui.pointsInTree}
+                    {ui.tierReq}
+                    {node.tierRequirement}
+                    {ui.pointsInTree}
                   </p>
                 {/if}
               </div>

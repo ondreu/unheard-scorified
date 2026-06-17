@@ -12,11 +12,10 @@
   import { findAbilityByName, findEnemyByName } from '@game/shared';
   import type { CombatEvent } from '$lib/api';
   import { openAbility, openNpc, openProfile } from '$lib/ui-stores';
+  import PixelAbilityIcon from './PixelAbilityIcon.svelte';
 
-  let {
-    events,
-    players = {},
-  }: { events: CombatEvent[]; players?: Record<string, string> } = $props();
+  let { events, players = {} }: { events: CombatEvent[]; players?: Record<string, string> } =
+    $props();
 
   type Seg =
     | { kind: 'text'; text: string }
@@ -97,7 +96,13 @@
     {#each [...events].reverse() as e, i (events.length - 1 - i)}
       <li style={eventStyle(e)}>
         <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
-        {#each segments(e) as seg, si (si)}{#if seg.kind === 'text'}{seg.text}{:else}<button
+        {#each segments(e) as seg, si (si)}{#if seg.kind === 'text'}{seg.text}{:else if seg.kind === 'ability'}<PixelAbilityIcon
+              name={seg.text}
+              size={12}
+            /><button
+              class="underline decoration-dotted underline-offset-2 hover:decoration-solid"
+              onclick={() => activate(seg)}>{seg.text}</button
+            >{:else}<button
               class="underline decoration-dotted underline-offset-2 hover:decoration-solid"
               onclick={() => activate(seg)}>{seg.text}</button
             >{/if}{/each}

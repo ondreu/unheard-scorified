@@ -10,7 +10,7 @@
     type InspectView,
     type RaidRole,
   } from '$lib/api';
-  import { RACES, CLASSES } from '@game/shared';
+  import { RACES, CLASSES, type Faction } from '@game/shared';
   import {
     CLASS_COLOR,
     FACTION_COLOR,
@@ -21,7 +21,9 @@
     className,
   } from '$lib/cosmetics';
   import { inspectTarget, notifications, startWhisper } from '$lib/ui-stores';
-  import Avatar from './Avatar.svelte';
+  import { itemIconMetaById } from '$lib/pixelart/items';
+  import PortraitShowcase from './PortraitShowcase.svelte';
+  import PixelItemIcon from './PixelItemIcon.svelte';
   import Badge from './Badge.svelte';
 
   // Game-facing UI strings (English; separate from logic for future i18n).
@@ -195,12 +197,20 @@
         {:else if data}
           {@const d = data}
           <div class="flex items-start gap-4">
-            <Avatar name={d.name} race={d.race} klass={d.class} size={72} />
+            <PortraitShowcase
+              name={d.name}
+              race={d.race}
+              klass={d.class}
+              faction={(d.faction === 'horde' ? 'horde' : 'alliance') as Faction}
+              size={84}
+            />
             <div class="min-w-0 flex-1">
               <h2 class="truncate text-2xl font-bold text-[var(--gold-bright)]">{d.name}</h2>
               <p class="mt-0.5 text-sm text-[var(--text-dim)]">
                 Level {d.sheet.level} · {raceName(d.race)}
-                <span style={`color:${CLASS_COLOR[d.class] ?? 'inherit'}`}>{className(d.class)}</span>
+                <span style={`color:${CLASS_COLOR[d.class] ?? 'inherit'}`}
+                  >{className(d.class)}</span
+                >
               </p>
               {#if d.guild}
                 <p class="mt-0.5 text-sm text-[var(--text-dim)]">
@@ -245,10 +255,21 @@
           {:else}
             <ul class="mt-2 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
               {#each d.equipment as e (e.slot)}
+                {@const meta = itemIconMetaById(e.itemId)}
                 <li class="flex items-center justify-between gap-2 rounded bg-black/20 px-2 py-1">
-                  <span class="truncate" style={`color:${RARITY_COLOR[e.rarity] ?? 'inherit'}`}
-                    >{e.name}</span
-                  >
+                  <span class="flex min-w-0 items-center gap-1.5">
+                    {#if meta}
+                      <PixelItemIcon
+                        slot={meta.slot}
+                        rarity={meta.rarity}
+                        armorClass={meta.armorClass}
+                        size={20}
+                      />
+                    {/if}
+                    <span class="truncate" style={`color:${RARITY_COLOR[e.rarity] ?? 'inherit'}`}
+                      >{e.name}</span
+                    >
+                  </span>
                   <span class="shrink-0 text-xs text-[var(--text-faint)]">i{e.itemLevel}</span>
                 </li>
               {/each}
