@@ -4,6 +4,7 @@ import { DevService } from './dev.service';
 import {
   AddGoldDto,
   AddItemDto,
+  ChatHistoryQueryDto,
   CompleteQuestDto,
   SetArenaRatingDto,
   SetLevelDto,
@@ -158,5 +159,21 @@ export class DevModController {
   @Delete('characters/:characterId')
   deleteCharacter(@Param('characterId') characterId: string) {
     return this.dev.deleteCharacter(characterId);
+  }
+
+  @Get('chat')
+  listChat(@Query() query: ChatHistoryQueryDto) {
+    return this.dev.listChatMessages({
+      channel: query.channel,
+      search: query.search,
+      senderId: query.senderId,
+      before: query.before,
+      limit: query.limit,
+    });
+  }
+
+  @Delete('chat/:messageId')
+  deleteChatMessage(@Param('messageId') messageId: string) {
+    return this.dev.deleteChatMessage(messageId);
   }
 }

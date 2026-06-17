@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, ilike, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, lt, or, sql } from 'drizzle-orm';
 import {
   activeSeasonAt,
   ARENA_BRACKETS,
@@ -33,6 +33,7 @@ import {
   characterReputation,
   characterTalents,
   characters,
+  chatMessages,
   completedQuests,
   guildMembers,
   guilds,
@@ -78,6 +79,15 @@ export interface DevCharacterInspect {
   guild: { id: string; name: string; rank: string } | null;
   lockouts: { lockoutId: string; weekId: string }[];
   achievements: { id: string; name: string; earnedAt: Date }[];
+}
+
+export interface DevChatMessageView {
+  id: string;
+  channel: string;
+  senderId: string | null;
+  senderName: string;
+  body: string;
+  at: string;
 }
 
 @Injectable()
@@ -396,6 +406,66 @@ export class DevService {
     const char = await this.charactersRepo.findById(characterId);
     if (!char) throw new NotFoundException('Character not found');
     await this.db.delete(characters).where(eq(characters.id, characterId));
+    return { deleted: true };
+  }
+
+  // ── Chat moderation ────────────────────────────────────────────────────────
+
+  async listChatMessages(opts: {
+    channel?: string;
+    search?: string;
+    senderId?: string;
+    before?: string;
+    limit?: number;
+  }): Promise<{ messages: DevChatMessageView[]; hasMore: boolean }> {
+    const limit = Math.min(opts.limit ?? 50, 100);
+    const channel = (opts.channel ?? 'global') as 'global' | 'guild';
+
+    const filters = [
+      eq(chatMessages.channel, channel),
+      isNull(chatMessages.scopeId),
+    ];
+
+    if (opts.search?.trim()) {
+      const q = `%${opts.search.trim()}%`;
+      filters.push(or(ilike(chatMessages.body, q), ilike(chatMessages.senderName, q))!);
+    }
+    if (opts.senderId) {
+      filters.push(eq(chatMessages.senderCharacterId, opts.senderId));
+    }
+    if (opts.before) {
+      filters.push(lt(chatMessages.createdAt, new Date(opts.before)));
+    }
+
+    const rows = await this.db
+      .select()
+      .from(chatMessages)
+      .where(and(...filters))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    return {
+      messages: rows.slice(0, limit).map((r) => ({
+        id: r.id,
+        channel: r.channel,
+        senderId: r.senderCharacterId,
+        senderName: r.senderName,
+        body: r.body,
+        at: r.createdAt.toISOString(),
+      })),
+      hasMore,
+    };
+  }
+
+  async deleteChatMessage(messageId: string): Promise<{ deleted: boolean }> {
+    const [row] = await this.db
+      .select({ id: chatMessages.id })
+      .from(chatMessages)
+      .where(eq(chatMessages.id, messageId))
+      .limit(1);
+    if (!row) throw new NotFoundException('Message not found');
+    await this.db.delete(chatMessages).where(eq(chatMessages.id, messageId));
     return { deleted: true };
   }
 

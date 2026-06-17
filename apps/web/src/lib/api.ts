@@ -1789,3 +1789,37 @@ export function devInspectCharacter(characterId: string): Promise<DevCharacterIn
 export function devDeleteCharacter(characterId: string): Promise<{ deleted: boolean }> {
   return devRequest(`/dev/mod/characters/${characterId}`, { method: 'DELETE' });
 }
+
+export interface DevChatMessage {
+  id: string;
+  channel: string;
+  senderId: string | null;
+  senderName: string;
+  body: string;
+  at: string;
+}
+
+export interface DevChatHistoryResult {
+  messages: DevChatMessage[];
+  hasMore: boolean;
+}
+
+export function devListChat(opts: {
+  channel?: string;
+  search?: string;
+  senderId?: string;
+  before?: string;
+  limit?: number;
+}): Promise<DevChatHistoryResult> {
+  const params = new URLSearchParams();
+  if (opts.channel) params.set('channel', opts.channel);
+  if (opts.search) params.set('search', opts.search);
+  if (opts.senderId) params.set('senderId', opts.senderId);
+  if (opts.before) params.set('before', opts.before);
+  if (opts.limit != null) params.set('limit', String(opts.limit));
+  return devRequest(`/dev/mod/chat?${params.toString()}`);
+}
+
+export function devDeleteChatMessage(messageId: string): Promise<{ deleted: boolean }> {
+  return devRequest(`/dev/mod/chat/${messageId}`, { method: 'DELETE' });
+}
