@@ -331,7 +331,7 @@ export class RaidService {
     initiatorCharacterId: string,
   ): Promise<{ run: RaidRun; rewards: Map<string, RaidReward> }> {
     const seed = seedFromString(`${raid.id}:${initiatorCharacterId}:${Date.now()}`);
-    const bosses = raid.bosses.map((b) => scaleBoss(buildRaidBoss(b), party.length));
+    const bosses = raid.bosses.map((b) => scaleBoss(buildRaidBoss(b, raid.attunement.requiredLevel), party.length));
     const result = simulateRaidRun(party, bosses, seed);
 
     const run = await this.repo.createRun({
@@ -496,7 +496,7 @@ export class RaidService {
 
     // Bossy se škálují stejně jako při enter (dle velikosti party) → identický
     // deterministický timeline.
-    const bosses = (raid?.bosses ?? []).map((b) => scaleBoss(buildRaidBoss(b), run.party.length));
+    const bosses = (raid?.bosses ?? []).map((b) => scaleBoss(buildRaidBoss(b, raid?.attunement.requiredLevel), run.party.length));
     const result = simulateRaidRun(run.party, bosses, run.seed);
     const visible = result.events.filter((e) => e.t <= elapsedSec);
 

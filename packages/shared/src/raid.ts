@@ -29,6 +29,7 @@ import {
   type SignatureAbility,
 } from './combat';
 import { isAbilityEnabled, shouldCastAbility } from './rotation';
+import { missMessage, rollTag } from './dnd-combat';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -382,7 +383,9 @@ function fightBoss(
             amount: hit.amount,
             crit: hit.crit,
             targetHealthRemaining: bossHp,
-            message: `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
+            message: hit.hit
+              ? `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP ${rollTag(hit)}`
+              : missMessage(member.name, boss.name, hit),
           });
         }
         // jinak (pure HPS a nikdo zraněný) → healer tento swing nic nedělá
@@ -399,15 +402,17 @@ function fightBoss(
           amount: hit.amount,
           crit: hit.crit,
           targetHealthRemaining: bossHp,
-          message: buildAttackMessage({
-            attacker: member,
-            targetName: boss.name,
-            amount: hit.amount,
-            crit: hit.crit,
-            healed,
-            abilityName: undefined,
-            suffix: `. ${boss.name}: ${bossHp} HP`,
-          }),
+          message: hit.hit
+            ? buildAttackMessage({
+                attacker: member,
+                targetName: boss.name,
+                amount: hit.amount,
+                crit: hit.crit,
+                healed,
+                abilityName: undefined,
+                suffix: `. ${boss.name}: ${bossHp} HP ${rollTag(hit)}`,
+              })
+            : missMessage(member.name, boss.name, hit),
         });
       }
     } else if (timer.kind === 'dot_tick') {
@@ -495,9 +500,9 @@ function fightBoss(
       const hit = computeHit(member, boss, rng, mult, false);
       bossHp = Math.max(0, bossHp - hit.amount);
       const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
-      const healed = healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
+      const healed = hit.hit && healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
       if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
-      if (ability.kind === 'dot') scheduleDot(timers, member, ability, clock);
+      if (hit.hit && ability.kind === 'dot') scheduleDot(timers, member, ability, clock);
       const exec = executing ? ' (execute!)' : '';
       events.push({
         t: round1(clock),
@@ -508,8 +513,9 @@ function fightBoss(
         crit: hit.crit,
         ability: ability.name,
         targetHealthRemaining: bossHp,
-        message:
-          healed > 0
+        message: !hit.hit
+          ? `${member.name} casts ${ability.name} at ${boss.name} — MISS ${rollTag(hit)}`
+          : healed > 0
             ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
             : ability.kind === 'dot'
               ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, leaving a burn. ${boss.name}: ${bossHp} HP`
@@ -559,6 +565,15 @@ function fightBoss(
           message: ability
             ? `${boss.name} uses ${ability.name} on ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`
             : `${boss.name} hits ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`,
+        });
+      } else if (!hit.hit) {
+        events.push({
+          t: round1(clock),
+          type: 'attack',
+          source: boss.name,
+          target: target.name,
+          amount: 0,
+          message: missMessage(boss.name, target.name, hit),
         });
       }
       if (hp[tIdx] === 0) {

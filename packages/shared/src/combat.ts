@@ -17,6 +17,7 @@ import { SeededRng } from './rng';
 import { abilityModifier, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
 import { CLASSES, type ClassId, type SubclassId } from './data/classes';
 import { spellSlotsFor, type SpellSlots } from './data/spell-slots';
+import { attackHits, diceNotation, rollAttack, rollDice, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
 import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
@@ -35,8 +36,6 @@ const BASE_CRIT_CHANCE = 0.05;
 const CRIT_MULTIPLIER = 2;
 /** Strop crit šance. */
 const MAX_CRIT_CHANCE = 0.6;
-/** Konstanta pro armor mitigaci: reduction = armor / (armor + K). */
-const ARMOR_K = 400;
 
 // ── Iterativní wipe/retry (M8.5-A) — sdílená křivka obtížnosti s raid enginem ─
 /** Pokles obtížnosti za wipe (po prvním „zdarma" wipu) až k podlaze. */
@@ -317,6 +316,11 @@ export interface EnemyStats {
   armor?: number;
   isBoss?: boolean;
   // ── D&D dice-roll combat (MR-5) — volitelné ────────────────────────────────
+  /**
+   * Úroveň obsahu (pro odvození AC/attackBonus, když nejsou dané explicitně).
+   * Placeholder škálování ~level/2 (CR-based čísla = MR-10).
+   */
+  level?: number;
   /** Armor Class nepřítele. */
   armorClass?: number;
   /** Útočný bonus k d20 hodu na zásah. */
@@ -327,8 +331,25 @@ export interface EnemyStats {
   spellSaveDc?: number;
 }
 
+/**
+ * Placeholder D&D AC pro nepřítele dané úrovně (drží krok s hráčovými D&D
+ * modifikátory, které rostou ~level/2). Boss dostane +2. CR-based = MR-10.
+ */
+function enemyAcForLevel(level: number, isBoss: boolean): number {
+  return 10 + Math.round(Math.max(1, level) * 0.55) + (isBoss ? 2 : 0);
+}
+
+/** Placeholder D&D útočný bonus pro nepřítele dané úrovně. */
+function enemyAttackBonusForLevel(level: number, isBoss: boolean): number {
+  return 2 + Math.round(Math.max(1, level) * 0.55) + (isBoss ? 2 : 0);
+}
+
 /** Postaví `CombatActor` nepřítele (bez talentů/lifestealu). */
 export function buildEnemyActor(def: EnemyStats): CombatActor {
+  const isBoss = def.isBoss ?? false;
+  // AC/attackBonus: explicitní → jinak odvozené z `level` → jinak konzervativní
+  // default (úroveň 5), aby dice-roll combat (MR-5) fungoval i pro legacy data.
+  const lvl = def.level ?? 5;
   return {
     name: def.name,
     maxHealth: def.maxHealth,
@@ -339,26 +360,98 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     armor: def.armor ?? 0,
     lifesteal: 0,
     shield: 0,
-    armorClass: def.armorClass,
-    attackBonus: def.attackBonus,
+    armorClass: def.armorClass ?? enemyAcForLevel(lvl, isBoss),
+    attackBonus: def.attackBonus ?? enemyAttackBonusForLevel(lvl, isBoss),
     damageBonus: def.damageBonus,
-    spellSaveDc: def.spellSaveDc,
+    spellSaveDc: def.spellSaveDc ?? 8 + enemyAttackBonusForLevel(lvl, isBoss),
     signatureAbilities: [],
-    isBoss: def.isBoss ?? false,
+    isBoss,
   };
 }
 
-// ── Simulace ────────────────────────────────────────────────────────────────
+// ── D&D dice-roll resolution (MR-5) — sdílené napříč všemi simulátory ─────────
 
-export interface HitResult {
-  amount: number;
-  crit: boolean;
+/** Armor Class aktéra (fallback z continuous armoru, když AC chybí). */
+export function actorAc(actor: CombatActor): number {
+  if (actor.armorClass != null) return actor.armorClass;
+  return 10 + Math.floor((actor.armor ?? 0) / 50);
+}
+
+/** Útočný bonus aktéra (fallback ~ odvozený z attackPower, když chybí). */
+export function actorAttackBonus(actor: CombatActor): number {
+  if (actor.attackBonus != null) return actor.attackBonus;
+  return Math.max(0, Math.round(Math.sqrt(Math.max(0, actor.attackPower))));
+}
+
+/** Save modifikátor aktéra pro daný atribut (0, když není znám). */
+export function actorSaveMod(actor: CombatActor, ability: AbilityScore): number {
+  return actor.saveMods?.[ability] ?? 0;
+}
+
+/** Spell save DC aktéra (fallback 10, když nedefinováno). */
+export function actorSpellSaveDc(actor: CombatActor): number {
+  return actor.spellSaveDc ?? 10;
 }
 
 /**
- * Spočítá poškození jednoho zásahu (variance + crit + armor mitigace).
- * Exportováno, aby PVP duel (M7) počítal zásahy identicky jako PVE (žádná
- * duplikace bojových vzorců — viz CLAUDE.md).
+ * Damage dice aktéra — `count`d6 + `bonus` kalibrované tak, aby **průměr ≈
+ * `attackPower`** (NdX redesign per zbraň/kouzlo = MR-10). Crit zdvojnásobí
+ * `count` (D&D: kostky, ne bonus).
+ */
+export function weaponDamageSpec(actor: CombatActor, crit = false): DiceSpec {
+  const ap = Math.max(1, actor.attackPower);
+  const count = Math.max(1, Math.min(12, Math.round(ap / 7)));
+  const bonus = Math.max(0, Math.round(ap - count * 3.5));
+  return { count: crit ? count * 2 : count, sides: 6, bonus };
+}
+
+/** Výsledek jednoho hodu na zásah + poškození (D&D dice-roll). */
+export interface HitResult {
+  /** Výsledné poškození (0 při miss). */
+  amount: number;
+  /** Crit (přirozená 20)? */
+  crit: boolean;
+  /** Zasáhl útok (d20 + attackBonus vs AC)? */
+  hit: boolean;
+  /** Hod na zásah (natural / modifier / total). */
+  roll: AttackRoll;
+  /** AC cíle, proti které se házelo. */
+  targetAc: number;
+  /** Hod na poškození (jen při zásahu). */
+  damage?: DiceRoll;
+  /** Notace kostek poškození pro log (např. `5d6+18`). */
+  damageNotation?: string;
+}
+
+/** Společné jádro hodu na zásah (d20 + attackBonus vs AC → damage dice). */
+function rollHit(
+  attacker: CombatActor,
+  defender: CombatActor,
+  rng: SeededRng,
+  abilityMult: number,
+  autoHit: boolean,
+  enraged: boolean,
+): HitResult {
+  const targetAc = actorAc(defender);
+  const roll = rollAttack(rng, actorAttackBonus(attacker));
+  const hit = autoHit || attackHits(roll, targetAc);
+  if (!hit) return { amount: 0, crit: false, hit: false, roll, targetAc };
+  const crit = roll.isCrit;
+  const spec = weaponDamageSpec(attacker, crit);
+  const damage = rollDice(rng, spec.count, spec.sides);
+  const amount = Math.max(
+    1,
+    Math.round((damage.total + spec.bonus) * abilityMult * (enraged ? 3 : 1)),
+  );
+  return { amount, crit, hit: true, roll, targetAc, damage, damageNotation: diceNotation(spec) };
+}
+
+/**
+ * Hod na zásah jednoho útoku (D&D 5e): d20 + attackBonus vs AC → hit/miss; nat 20
+ * = crit (zdvojené damage dice), nat 1 = miss. Poškození = damage dice ×
+ * `abilityMult` × (enraged ? 3 : 1). **Sdílený zdroj pravdy** pro všechny
+ * simulátory (quest/dungeon/raid/PVP/Gauntlet) — žádná duplikace per-hit vzorců.
+ * Miss vrací `amount: 0`. Balanc (CR-based čísla) = MR-10.
  */
 export function computeHit(
   attacker: CombatActor,
@@ -367,16 +460,27 @@ export function computeHit(
   abilityMult: number,
   enraged: boolean,
 ): HitResult {
-  // Drobná náhoda (MIL): širší rozptyl než dřív (0.85..1.15), pořád seedovaně
-  // reprodukovatelné a se stejným průměrem (symetrické okolo 1.0) → balanc
-  // (DPS pásma z balance passů) zůstává neporušen, fighty jen méně předvídatelné.
-  const variance = 0.8 + rng.next() * 0.4; // 0.8..1.2
-  let dmg = attacker.attackPower * abilityMult * variance * (enraged ? 3 : 1);
-  const crit = rng.next() < attacker.critChance;
-  if (crit) dmg *= attacker.critMultiplier;
-  const reduction = defender.armor > 0 ? defender.armor / (defender.armor + ARMOR_K) : 0;
-  dmg *= 1 - reduction;
-  return { amount: Math.max(1, Math.round(dmg)), crit };
+  return rollHit(attacker, defender, rng, abilityMult, false, enraged);
+}
+
+export interface ResolveAttackOpts {
+  /** Násobek poškození ability (1 = základní úder). */
+  abilityMult?: number;
+  /** Automatický zásah (ignoruje hod na AC) — pro „nelze minout" efekty. */
+  autoHit?: boolean;
+}
+
+/**
+ * Vyřeší jeden útok s volbami (abilityMult, autoHit). Tenký wrapper nad sdíleným
+ * jádrem `rollHit` — používá ho quest combat (MR-5). Vrací stejný `HitResult`.
+ */
+export function resolveAttack(
+  attacker: CombatActor,
+  defender: CombatActor,
+  rng: SeededRng,
+  opts: ResolveAttackOpts = {},
+): HitResult {
+  return rollHit(attacker, defender, rng, opts.abilityMult ?? 1, opts.autoHit ?? false, false);
 }
 
 export function round1(n: number): number {

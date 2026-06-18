@@ -18,21 +18,16 @@
  */
 import {
   abilityDamageMult,
+  actorSpellSaveDc,
   applyAbsorb,
   buildEnemyActor,
+  resolveAttack,
   round1,
   type CombatActor,
   type CombatEvent,
   type EnemyStats,
 } from './combat';
-import {
-  actorSpellSaveDc,
-  buildDndAttackMessage,
-  buildSaveMessage,
-  resolveAttack,
-  rollInitiative,
-  savingThrow,
-} from './dnd-combat';
+import { buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
 import type { SpellSlots } from './data/spell-slots';
 import type { SignatureAbility } from './data/abilities';
 import {
