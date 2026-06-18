@@ -26,6 +26,10 @@ import type {
   AuctionDurationId,
   AuctionStatus,
   ClassId,
+  SubclassId,
+  BackgroundId,
+  AbilityScores,
+  LevelUpChoice,
   CombatActor,
   ActivityType,
   DuelSide,
@@ -69,6 +73,14 @@ export const characters = pgTable('characters', {
   name: varchar('name', { length: 16 }).notNull().unique(),
   race: varchar('race', { length: 16 }).$type<RaceId>().notNull(),
   class: varchar('class', { length: 16 }).$type<ClassId>().notNull(),
+  // Zvolená subclass (D&D, MR-2). Null dokud postava nedosáhne subclass levelu / nezvolí.
+  subclass: varchar('subclass', { length: 64 }).$type<SubclassId>(),
+  // D&D Background (MR-3) — skill proficiencies + lore, veřejně na profilu.
+  background: varchar('background', { length: 32 }).$type<BackgroundId>(),
+  // Přiřazený standard array (MR-3) — base atributy před rasovými mody.
+  baseScores: jsonb('base_scores').$type<AbilityScores>(),
+  // Veřejná volná backstory (MR-3).
+  backstory: varchar('backstory', { length: 500 }),
   faction: varchar('faction', { length: 16 }).$type<Faction>().notNull(),
   totalXp: integer('total_xp').notNull().default(0),
   gold: integer('gold').notNull().default(0),
@@ -158,18 +170,19 @@ export const characterEquipment = pgTable(
 );
 
 /**
- * Alokované talent body postavy (M4). Jeden řádek per talent uzel.
+ * D&D level-up volby postavy (MR-2, nahrazuje WoW talenty). Jeden řádek per slot
+ * (`subclass`, `asi@4`, …); `choice` je serializovaná volba (ASI / Feat / subclass).
  */
-export const characterTalents = pgTable(
-  'character_talents',
+export const characterLevelUpChoices = pgTable(
+  'character_levelup_choices',
   {
     characterId: uuid('character_id')
       .notNull()
       .references(() => characters.id, { onDelete: 'cascade' }),
-    talentId: varchar('talent_id', { length: 64 }).notNull(),
-    points: integer('points').notNull().default(0),
+    slotId: varchar('slot_id', { length: 32 }).notNull(),
+    choice: jsonb('choice').$type<LevelUpChoice>().notNull(),
   },
-  (t) => [primaryKey({ columns: [t.characterId, t.talentId] })],
+  (t) => [primaryKey({ columns: [t.characterId, t.slotId] })],
 );
 
 /**
@@ -742,7 +755,7 @@ export const charactersRelations = relations(characters, ({ one, many }) => ({
   completedQuests: many(completedQuests),
   inventory: many(characterInventory),
   equipment: many(characterEquipment),
-  talents: many(characterTalents),
+  levelUpChoices: many(characterLevelUpChoices),
   professions: many(characterProfessions),
   reputation: many(characterReputation),
   arenaRatings: many(arenaRatings),
@@ -803,9 +816,9 @@ export const characterEquipmentRelations = relations(characterEquipment, ({ one 
   }),
 }));
 
-export const characterTalentsRelations = relations(characterTalents, ({ one }) => ({
+export const characterLevelUpChoicesRelations = relations(characterLevelUpChoices, ({ one }) => ({
   character: one(characters, {
-    fields: [characterTalents.characterId],
+    fields: [characterLevelUpChoices.characterId],
     references: [characters.id],
   }),
 }));
@@ -1008,8 +1021,8 @@ export type CharacterInventory = typeof characterInventory.$inferSelect;
 export type NewCharacterInventory = typeof characterInventory.$inferInsert;
 export type CharacterEquipment = typeof characterEquipment.$inferSelect;
 export type NewCharacterEquipment = typeof characterEquipment.$inferInsert;
-export type CharacterTalent = typeof characterTalents.$inferSelect;
-export type NewCharacterTalent = typeof characterTalents.$inferInsert;
+export type CharacterLevelUpChoice = typeof characterLevelUpChoices.$inferSelect;
+export type NewCharacterLevelUpChoice = typeof characterLevelUpChoices.$inferInsert;
 export type CharacterSkin = typeof characterSkins.$inferSelect;
 export type NewCharacterSkin = typeof characterSkins.$inferInsert;
 export type CharacterBuff = typeof characterBuffs.$inferSelect;

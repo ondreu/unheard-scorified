@@ -14,15 +14,15 @@
  * Veškerá náhoda jen přes `SeededRng` (anti-cheat, reprodukovatelnost).
  */
 import { SeededRng } from './rng';
-import type { PrimaryStat, PrimaryStats } from './character';
-import { CLASSES, type ClassId } from './data/classes';
+import type { AbilityScore, AbilityScores } from './character';
+import { CLASSES, type ClassId, type SubclassId } from './data/classes';
 import type { ItemStats } from './data/items';
-import type { AggregatedTalentEffects } from './data/talents';
+import type { ProgressionEffects } from './levelup';
 import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
 import type { CharacterRotation } from './rotation';
 
 export type { AbilityKind, SignatureAbility, BaselineAbility } from './data/abilities';
-export { SIGNATURE_ABILITIES, SHIELD_TAGS, CLASS_BASELINE_ABILITIES, resolveAbilities, abilityDamageMult } from './data/abilities';
+export { SIGNATURE_ABILITIES, SUBCLASS_ABILITIES, SHIELD_TAGS, CLASS_BASELINE_ABILITIES, resolveAbilities, abilityDamageMult } from './data/abilities';
 
 // ── Bojové konstanty (laditelný balanc, vyladí se v M9) ─────────────────────
 
@@ -194,28 +194,30 @@ export interface CombatProfileInput {
   name: string;
   level: number;
   klass: ClassId;
-  /** Base primární staty (rasa + classa + level). */
-  primary: PrimaryStats;
+  /** Zvolená subclass (odemyká subclass signature ability). */
+  subclass?: SubclassId | null;
+  /** Base atributy (rasa + classa + level). */
+  primary: AbilityScores;
   /** Sečtené staty z equipnutého gearu (M4). */
   equipment: ItemStats;
-  /** Agregované talent efekty (M4) — stat bonusy + combat tagy. */
-  talents: AggregatedTalentEffects;
+  /** Agregované D&D level-up efekty (ASI/Feat) — stat bonusy + combat tagy. */
+  progression: ProgressionEffects;
 }
 
 /**
- * Převede postavu na `CombatActor`. Spojuje base staty + gear (M4) + talenty
- * (M4): stat bonusy zvyšují efektivní staty, combat tagy mění crit/haste/damage/
- * lifesteal a capstone tagy odemykají signature ability.
+ * Převede postavu na `CombatActor`. Spojuje base staty + gear (M4) + D&D level-up
+ * progresi (MR-2): stat bonusy (ASI/Feat) zvyšují efektivní staty, feat combat
+ * tagy mění crit/haste/damage/lifesteal, class+subclass+level odemykají abilit kit.
  */
 export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
-  const { level, klass, primary, equipment, talents } = input;
-  const primaryStat: PrimaryStat = CLASSES[klass].primaryStat;
+  const { level, klass, subclass, primary, equipment, progression } = input;
+  const primaryStat: AbilityScore = CLASSES[klass].primaryStat;
 
-  const stat = (key: PrimaryStat): number =>
-    primary[key] + (equipment[key] ?? 0) + (talents.statBonus[key] ?? 0);
+  const stat = (key: AbilityScore): number =>
+    primary[key] + (equipment[key] ?? 0) + (progression.statBonus[key] ?? 0);
 
   const effPrimary = stat(primaryStat);
-  const effStamina = stat('stamina');
+  const effStamina = stat('constitution');
   const weaponPower = (equipment.attack_power ?? 0) + (equipment.spell_power ?? 0);
 
   // Modifikátory z combat tagů.
@@ -229,7 +231,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
   let topLifestealContribution = 0;
   let lifestealSource: string | undefined;
 
-  for (const { tag, ranks } of talents.tags) {
+  for (const { tag, ranks } of progression.tags) {
     const eff = COMBAT_TAG_EFFECTS[tag];
     if (eff) {
       critChance += (eff.critChance ?? 0) * ranks;
@@ -247,12 +249,12 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     shieldMult += (SHIELD_TAGS[tag] ?? 0) * ranks;
   }
 
-  // Abilit kit = baseline (level) + capstone (talent) — jediný zdroj pravdy.
-  const abilities = resolveAbilities(klass, level, talents.tags);
+  // Abilit kit = class kit (level) + subclass signature — jediný zdroj pravdy.
+  const abilities = resolveAbilities(klass, subclass, level);
 
   const attackPower = (4 + effPrimary * 0.9 + level * 0.8 + weaponPower) * damageMult;
   const maxHealth = Math.round(
-    40 + effStamina * 8 + level * 6 + talents.healthBonus + healthFlat,
+    40 + effStamina * 8 + level * 6 + progression.healthBonus + healthFlat,
   );
 
   return {

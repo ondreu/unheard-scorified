@@ -197,10 +197,11 @@
   // Full stat words; CSS shows the short code on very narrow cells (see markup).
   const stats: { key: keyof CharacterView['sheet']['primary']; label: string; short: string }[] = [
     { key: 'strength', label: 'Strength', short: 'STR' },
-    { key: 'agility', label: 'Agility', short: 'AGI' },
-    { key: 'stamina', label: 'Stamina', short: 'STA' },
-    { key: 'intellect', label: 'Intellect', short: 'INT' },
-    { key: 'spirit', label: 'Spirit', short: 'SPI' },
+    { key: 'dexterity', label: 'Dexterity', short: 'DEX' },
+    { key: 'constitution', label: 'Constitution', short: 'CON' },
+    { key: 'intelligence', label: 'Intelligence', short: 'INT' },
+    { key: 'wisdom', label: 'Wisdom', short: 'WIS' },
+    { key: 'charisma', label: 'Charisma', short: 'CHA' },
   ];
 
   const members = $derived(group?.group?.members ?? []);

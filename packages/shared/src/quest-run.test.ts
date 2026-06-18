@@ -8,17 +8,17 @@ import {
   simulateQuestRun,
 } from './quest-run';
 import { baseStatsFor } from './character';
-import { aggregateTalentEffects } from './data/talents';
+import { EMPTY_PROGRESSION } from './levelup';
 import { SeededRng } from './rng';
 
 function makeProfile(level: number): CombatActor {
   return deriveCombatProfile({
     name: 'Hero',
     level,
-    klass: 'warrior',
-    primary: baseStatsFor('human', 'warrior', level),
+    klass: 'fighter',
+    primary: baseStatsFor('human', 'fighter', level),
     equipment: {},
-    talents: aggregateTalentEffects('warrior', {}),
+    progression: EMPTY_PROGRESSION,
   });
 }
 

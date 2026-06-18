@@ -25,28 +25,34 @@ export function factionLabel(faction: string): string {
 
 /** Class emblem (placeholder, dokud nepřijde pixel art) — sjednocené napříč UI. */
 export const CLASS_EMBLEM: Record<string, string> = {
-  warrior: '⚔️',
-  paladin: '🔨',
-  hunter: '🏹',
-  rogue: '🗡️',
-  priest: '✨',
-  shaman: '⚡',
-  mage: '🔮',
-  warlock: '☠️',
+  barbarian: '🪓',
+  bard: '🎵',
+  cleric: '✨',
   druid: '🐾',
+  fighter: '⚔️',
+  monk: '👊',
+  paladin: '🔨',
+  ranger: '🏹',
+  rogue: '🗡️',
+  sorcerer: '🔮',
+  warlock: '☠️',
+  wizard: '📖',
 };
 
-/** Vanilla-style class barvy (akcent v chipech/jménech). */
+/** D&D class barvy (akcent v chipech/jménech). */
 export const CLASS_COLOR: Record<string, string> = {
-  warrior: '#c79c6e',
-  paladin: '#f58cba',
-  hunter: '#abd473',
-  rogue: '#fff569',
-  priest: '#ffffff',
-  shaman: '#0070de',
-  mage: '#69ccf0',
-  warlock: '#9482c9',
+  barbarian: '#c79c6e',
+  bard: '#ff7da6',
+  cleric: '#ffffff',
   druid: '#ff7d0a',
+  fighter: '#b5b5b5',
+  monk: '#00ff96',
+  paladin: '#f58cba',
+  ranger: '#abd473',
+  rogue: '#fff569',
+  sorcerer: '#ff5a36',
+  warlock: '#9482c9',
+  wizard: '#69ccf0',
 };
 
 export const ROLE_META: Record<Role, { label: string; icon: string; color: string }> = {

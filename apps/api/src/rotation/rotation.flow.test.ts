@@ -12,22 +12,22 @@ import * as schema from '../db/schema';
 import { BuffRepository } from '../buff/buff.repository';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
-import { TalentRepository } from '../talent/talent.repository';
-import { TalentService } from '../talent/talent.service';
+import { LevelUpRepository } from '../levelup/levelup.repository';
+import { LevelUpService } from '../levelup/levelup.service';
 import { RotationRepository } from './rotation.repository';
 import { RotationService } from './rotation.service';
 
 /**
- * Integrační testy MIL deklarativní rotace nad in-memory Postgresem (pglite).
- * Ověřuje: dostupné ability dle talentů, default rotace, uložení + očištění,
- * vlastnictví.
+ * Integrační testy deklarativní rotace nad pglite. D&D Remaster (MR-2): abilit
+ * kit pochází z class + subclass + levelu (žádné talenty). Ověřuje: dostupné
+ * ability dle class/subclass/levelu, default rotace, uložení + očištění, vlastnictví.
  */
-describe('MIL flow: deklarativní rotace', () => {
+describe('flow: deklarativní rotace (D&D)', () => {
   let db: Database;
   let auth: AuthService;
   let characters: CharacterService;
   let charRepo: CharacterRepository;
-  let talents: TalentService;
+  let levelup: LevelUpService;
   let rotation: RotationService;
 
   beforeAll(async () => {
@@ -38,89 +38,75 @@ describe('MIL flow: deklarativní rotace', () => {
     auth = new AuthService(db, new JwtService());
     charRepo = new CharacterRepository(db);
     characters = new CharacterService(charRepo);
-    const talentRepo = new TalentRepository(db);
-    talents = new TalentService(charRepo, talentRepo);
+    const levelupRepo = new LevelUpRepository(db);
+    levelup = new LevelUpService(charRepo, levelupRepo);
     const inventory = new InventoryService(charRepo, new InventoryRepository(db), new BuffRepository(db));
-    rotation = new RotationService(charRepo, talentRepo, new RotationRepository(db), inventory);
+    rotation = new RotationService(charRepo, levelupRepo, new RotationRepository(db), inventory);
   });
 
-  /** Postava s capstone talentem odemykajícím signature ability (Mortal Strike). */
-  async function warriorWithMortalStrike(
+  /** Fighter na cap levelu, který si zvolil subclass Champion (odemkne signature). */
+  async function championFighter(
     username: string,
     name: string,
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'human', class: 'warrior' });
-    // Vysoký level → dost bodů. Naplň Arms strom k capstone (tier 28).
-    await charRepo.addRewards(char.id, 60_000_000, 0);
-    const arms: [string, number][] = [
-      ['warrior.arms.weapon_expertise', 5],
-      ['warrior.arms.tactical_mastery', 5],
-      ['warrior.arms.deflection', 5],
-      ['warrior.arms.improved_rend', 3],
-      ['warrior.arms.poleaxe_specialization', 5],
-      ['warrior.arms.deep_wounds', 3],
-      ['warrior.arms.two_handed_specialization', 4], // → 30 pts in tree (≥28)
-    ];
-    for (const [id, ranks] of arms) {
-      for (let i = 0; i < ranks; i++) await talents.allocate(accountId, char.id, id);
-    }
-    await talents.allocate(accountId, char.id, 'warrior.arms.mortal_strike'); // tier 28 capstone
+    const char = await characters.create(accountId, { name, race: 'human', class: 'fighter' });
+    await charRepo.addRewards(char.id, 60_000_000, 0); // cap level (subclass + ASI sloty)
+    await levelup.choose(accountId, char.id, 'subclass', { kind: 'subclass', subclassId: 'champion' });
     return { accountId, id: char.id };
   }
 
-  it('default rotace obsahuje odemčené ability se always podmínkou', async () => {
-    const { accountId, id } = await warriorWithMortalStrike('rota', 'Varian');
+  it('default rotace obsahuje subclass signature ability se always podmínkou', async () => {
+    const { accountId, id } = await championFighter('rota', 'Varian');
     const view = await rotation.getRotation(accountId, id);
-    expect(view.abilities.map((a) => a.id)).toContain('mortal_strike');
-    const rule = view.rules.find((r) => r.abilityId === 'mortal_strike');
+    expect(view.abilities.map((a) => a.id)).toContain('champion_heroic_surge');
+    const rule = view.rules.find((r) => r.abilityId === 'champion_heroic_surge');
     expect(rule).toMatchObject({ enabled: true, conditionType: 'always' });
   });
 
-  it('postava na lvl 1 má baseline ability, ale ne capstone', async () => {
+  it('postava na lvl 1 má class kit, ale ne high-level ani subclass ability', async () => {
     const tokens = await auth.register('rotb', 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name: 'Anduin', race: 'human', class: 'warrior' });
+    const char = await characters.create(accountId, { name: 'Anduin', race: 'human', class: 'fighter' });
     const view = await rotation.getRotation(accountId, char.id);
     const ids = view.abilities.map((a) => a.id);
-    expect(ids).toContain('warrior_heroic_strike'); // baseline lvl 1
-    expect(ids).not.toContain('warrior_overpower'); // baseline lvl 14
-    expect(ids).not.toContain('mortal_strike'); // capstone (talent)
+    expect(ids).toContain('fighter_weapon_strike'); // baseline lvl 1
+    expect(ids).not.toContain('fighter_execute'); // baseline lvl 20
+    expect(ids).not.toContain('champion_heroic_surge'); // subclass nezvolena
   });
 
   it('uložení rotace přežije a očistí neznámé ability + clampne práh', async () => {
-    const { accountId, id } = await warriorWithMortalStrike('rotc', 'Bolvar');
+    const { accountId, id } = await championFighter('rotc', 'Bolvar');
     const saved = await rotation.setRotation(accountId, id, {
       rules: [
-        { abilityId: 'mortal_strike', enabled: true, conditionType: 'enemy_hp_below', threshold: 9 },
+        { abilityId: 'champion_heroic_surge', enabled: true, conditionType: 'enemy_hp_below', threshold: 9 },
         { abilityId: 'ghost_ability', enabled: true, conditionType: 'always' },
       ],
     });
-    const ms = saved.rules.find((r) => r.abilityId === 'mortal_strike')!;
+    const ms = saved.rules.find((r) => r.abilityId === 'champion_heroic_surge')!;
     expect(ms.threshold).toBe(1); // 9 → clamp 1
     expect(saved.rules.some((r) => r.abilityId === 'ghost_ability')).toBe(false);
 
-    // Načtení vrátí uložený stav.
     const reloaded = await rotation.getRotation(accountId, id);
-    expect(reloaded.rules.find((r) => r.abilityId === 'mortal_strike')).toMatchObject({
+    expect(reloaded.rules.find((r) => r.abilityId === 'champion_heroic_surge')).toMatchObject({
       conditionType: 'enemy_hp_below',
       threshold: 1,
     });
   });
 
   it('rotationForCombat vrací undefined bez uložené rotace, jinak očištěnou', async () => {
-    const { accountId, id } = await warriorWithMortalStrike('rotd', 'Tirion');
-    expect(await rotation.rotationForCombat(id, 'warrior', 60)).toBeUndefined();
+    const { accountId, id } = await championFighter('rotd', 'Tirion');
+    expect(await rotation.rotationForCombat(id, 'fighter', 'champion', 60)).toBeUndefined();
     await rotation.setRotation(accountId, id, {
-      rules: [{ abilityId: 'mortal_strike', enabled: false, conditionType: 'always' }],
+      rules: [{ abilityId: 'champion_heroic_surge', enabled: false, conditionType: 'always' }],
     });
-    const forCombat = await rotation.rotationForCombat(id, 'warrior', 60);
-    expect(forCombat?.rules.find((r) => r.abilityId === 'mortal_strike')?.enabled).toBe(false);
+    const forCombat = await rotation.rotationForCombat(id, 'fighter', 'champion', 60);
+    expect(forCombat?.rules.find((r) => r.abilityId === 'champion_heroic_surge')?.enabled).toBe(false);
   });
 
   it('cizí účet nemůže číst/ukládat rotaci', async () => {
-    const owner = await warriorWithMortalStrike('rote', 'Grom');
+    const owner = await championFighter('rote', 'Grom');
     const tokens = await auth.register('rotf', 'password123');
     const otherAccount = auth.verifyAccessToken(tokens.accessToken).sub;
     await expect(rotation.getRotation(otherAccount, owner.id)).rejects.toThrow();
@@ -128,7 +114,7 @@ describe('MIL flow: deklarativní rotace', () => {
   });
 
   it('testDummy odbojuje sandbox proti trénovacímu terči a vrátí timeline', async () => {
-    const { accountId, id } = await warriorWithMortalStrike('rotg', 'Sylvanas');
+    const { accountId, id } = await championFighter('rotg', 'Sylvanas');
     const result = await rotation.testDummy(accountId, id, 'dps', 30);
     expect(result.durationSec).toBeLessThanOrEqual(30);
     expect(result.events.length).toBeGreaterThan(0);
@@ -136,13 +122,13 @@ describe('MIL flow: deklarativní rotace', () => {
   });
 
   it('testDummy clampne mimo rozsah délku a neznámou roli spadne na dps', async () => {
-    const { accountId, id } = await warriorWithMortalStrike('roth', 'Cairne');
+    const { accountId, id } = await championFighter('roth', 'Cairne');
     const result = await rotation.testDummy(accountId, id, 'not-a-role', 999);
     expect(result.durationSec).toBeLessThanOrEqual(180);
   });
 
   it('testDummy odmítne cizí postavu', async () => {
-    const owner = await warriorWithMortalStrike('roti', 'Jaina');
+    const owner = await championFighter('roti', 'Jaina');
     const tokens = await auth.register('rotj', 'password123');
     const otherAccount = auth.verifyAccessToken(tokens.accessToken).sub;
     await expect(rotation.testDummy(otherAccount, owner.id, 'dps', 30)).rejects.toThrow();

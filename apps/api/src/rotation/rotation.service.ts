@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  aggregateTalentEffects,
+  abilityScoresFor,
+  aggregateProgression,
   baseStatsFor,
   defaultRotation,
   deriveCombatProfile,
@@ -19,10 +20,12 @@ import {
   type RaidRole,
   type RotationRule,
   type SignatureAbility,
+  type SubclassId,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
+import { toStoredChoices } from '../levelup/levelup.service';
 import type { Character } from '../db/schema';
 import { RotationRepository } from './rotation.repository';
 
@@ -50,7 +53,7 @@ export interface RotationView {
 export class RotationService {
   constructor(
     private readonly characters: CharacterRepository,
-    private readonly talents: TalentRepository,
+    private readonly levelup: LevelUpRepository,
     private readonly rotations: RotationRepository,
     private readonly inventory: InventoryService,
   ) {}
@@ -60,9 +63,9 @@ export class RotationService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
-    const abilities = await this.abilitiesFor(
-      characterId,
+    const abilities = this.abilitiesFor(
       character.class as ClassId,
+      character.subclass as SubclassId | null,
       levelFromXp(character.totalXp),
     );
     const abilityIds = abilities.map((a) => a.id);
@@ -83,9 +86,9 @@ export class RotationService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
 
-    const abilities = await this.abilitiesFor(
-      characterId,
+    const abilities = this.abilitiesFor(
       character.class as ClassId,
+      character.subclass as SubclassId | null,
       levelFromXp(character.totalXp),
     );
     const sanitized = sanitizeRotation(input, abilities.map((a) => a.id));
@@ -100,11 +103,12 @@ export class RotationService {
   async rotationForCombat(
     characterId: string,
     classId: ClassId,
+    subclass: SubclassId | null,
     level: number,
   ): Promise<CharacterRotation | undefined> {
     const stored = await this.rotations.getRules(characterId);
     if (!stored || stored.length === 0) return undefined;
-    const abilities = await this.abilitiesFor(characterId, classId, level);
+    const abilities = this.abilitiesFor(classId, subclass, level);
     if (abilities.length === 0) return undefined;
     return sanitizeRotation({ rules: stored }, abilities.map((a) => a.id));
   }
@@ -141,36 +145,35 @@ export class RotationService {
    * (`ActivityService` při claimu) bez duplikace profil-buildingu.
    */
   async buildCombatProfile(character: Character, level: number): Promise<CombatActor> {
-    const primary = baseStatsFor(character.race as RaceId, character.class as ClassId, level);
+    const klass = character.class as ClassId;
+    const subclass = character.subclass as SubclassId | null;
+    const primary = character.baseScores
+      ? abilityScoresFor(character.baseScores, character.race as RaceId, level)
+      : baseStatsFor(character.race as RaceId, klass, level);
     const equipment = await this.inventory.getEquipmentStats(character.id);
-    const rotation = await this.rotationForCombat(character.id, character.class as ClassId, level);
-    const talentRows = await this.talents.listTalents(character.id);
-    const allocations: Record<string, number> = {};
-    for (const r of talentRows) allocations[r.talentId] = r.points;
-    const talents = aggregateTalentEffects(character.class as ClassId, allocations);
+    const rotation = await this.rotationForCombat(character.id, klass, subclass, level);
+    const choices = await this.levelup.listChoices(character.id);
+    const progression = aggregateProgression(toStoredChoices(choices));
 
     const profile = deriveCombatProfile({
       name: character.name,
       level,
-      klass: character.class as ClassId,
+      klass,
+      subclass,
       primary,
       equipment,
-      talents,
+      progression,
     });
     return rotation ? { ...profile, rotation } : profile;
   }
 
-  /** Kompletní ability kit postavy (baseline dle levelu + capstone dle talentů). */
-  private async abilitiesFor(
-    characterId: string,
+  /** Kompletní ability kit postavy (class kit dle levelu + subclass signature). */
+  private abilitiesFor(
     classId: ClassId,
+    subclass: SubclassId | null,
     level: number,
-  ): Promise<SignatureAbility[]> {
-    const rows = await this.talents.listTalents(characterId);
-    const allocations: Record<string, number> = {};
-    for (const r of rows) allocations[r.talentId] = r.points;
-    const effects = aggregateTalentEffects(classId, allocations);
-    return resolveAbilities(classId, level, effects.tags);
+  ): SignatureAbility[] {
+    return resolveAbilities(classId, subclass, level);
   }
 
   private abilityViews(abilities: SignatureAbility[]): RotationAbilityView[] {

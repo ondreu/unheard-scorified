@@ -31,7 +31,7 @@ import {
   characterMounts,
   characterProfessions,
   characterReputation,
-  characterTalents,
+  characterLevelUpChoices,
   characters,
   chatMessages,
   completedQuests,
@@ -185,11 +185,13 @@ export class DevService {
     await this.db.delete(characterActivities).where(eq(characterActivities.characterId, characterId));
     await this.db.delete(characterInventory).where(eq(characterInventory.characterId, characterId));
     await this.db.delete(characterEquipment).where(eq(characterEquipment.characterId, characterId));
-    await this.db.delete(characterTalents).where(eq(characterTalents.characterId, characterId));
+    await this.db
+      .delete(characterLevelUpChoices)
+      .where(eq(characterLevelUpChoices.characterId, characterId));
     await this.db.delete(characterMounts).where(eq(characterMounts.characterId, characterId));
     await this.db
       .update(characters)
-      .set({ totalXp: 0, gold: 0, activeMountId: null })
+      .set({ totalXp: 0, gold: 0, activeMountId: null, subclass: null })
       .where(eq(characters.id, characterId));
     return { reset: true };
   }

@@ -44,7 +44,7 @@ describe('M4 flow: inventory & equipment', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'human', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'human', class: 'fighter' });
     return { accountId, id: char.id };
   }
 
@@ -168,7 +168,7 @@ describe('M4 flow: inventory & equipment', () => {
   it('armor proficiency: mage nemůže nasadit plate, ale cloth ano', async () => {
     const tokens = await auth.register('inv_mage', 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const mage = await characters.create(accountId, { name: 'Khadgar', race: 'human', class: 'mage' });
+    const mage = await characters.create(accountId, { name: 'Khadgar', race: 'human', class: 'wizard' });
 
     await invRepo.addItem(mage.id, 'warlord_plate'); // plate chest
     await invRepo.addItem(mage.id, 'arcane_robes'); // cloth chest

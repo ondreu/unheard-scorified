@@ -408,7 +408,7 @@
           <section class="card card--danger">
             <h2>Danger Zone</h2>
             <button class="btn btn--danger" disabled={busy} onclick={() => {
-              if (confirm(`Reset ${selectedChar?.name}? Clears XP, gold, inventory, equipment and talents.`)) {
+              if (confirm(`Reset ${selectedChar?.name}? Clears XP, gold, inventory, equipment and level-up choices.`)) {
                 charAct((id) => devResetCharacter(id), () => 'Character reset to level 1');
               }
             }}>Reset Character</button>

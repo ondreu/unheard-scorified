@@ -13,7 +13,7 @@ import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
@@ -66,29 +66,29 @@ describe('M9 flow: groups (party)', () => {
 
     const invRepo = new InventoryRepository(db);
     const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
-    const talents = new TalentRepository(db);
+    const levelup = new LevelUpRepository(db);
     const push = new PushService(new PushRepository(db));
     const raidRepo = new RaidRepository(db);
     const lockouts = new LockoutRepository(db);
     const reputation = new ReputationRepository(db);
     const queue = new InMemoryRaidQueue();
     const arenaRepo = new ArenaRepository(db);
-    const rotation = new RotationService(charRepo, talents, new RotationRepository(db), invService);
+    const rotation = new RotationService(charRepo, levelup, new RotationRepository(db), invService);
 
     const history = new HistoryRepository(db);
     const raids = new RaidService(
-      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, completed, push, raidRepo,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), completed, push, raidRepo,
       new RaidEventsRelay(), lockouts, rotation, history, queue,
     );
     const dungeons = new DungeonService(
-      charRepo, invService, invRepo, makeGrant(db, invRepo), talents, push, raidRepo, lockouts, reputation, rotation, completed, history, queue,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), push, raidRepo, lockouts, reputation, rotation, completed, history, queue,
     );
     const arena = new ArenaService(
-      charRepo, invService, talents, arenaRepo, push,
+      charRepo, invService, arenaRepo, push,
       new ArenaEventsRelay(), rotation, history, new InMemoryMatchmakingQueue(), new InMemoryArenaLeaderboard(),
     );
     const teamArena = new TeamArenaService(
-      charRepo, invService, talents, arenaRepo, push, rotation, new InMemoryTeamArenaQueue(),
+      charRepo, invService, arenaRepo, push, rotation, new InMemoryTeamArenaQueue(),
     );
     group = new GroupService(
       charRepo, new GroupRepository(db), social, new GuildRepository(db),
@@ -100,7 +100,7 @@ describe('M9 flow: groups (party)', () => {
     seq += 1;
     const tokens = await auth.register(`grp_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 60_000_000, 0); // vysoký level (raid/aréna gates)
     return { accountId, id: char.id, name: char.name };
   }

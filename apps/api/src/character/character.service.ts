@@ -5,14 +5,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ABILITY_SCORES,
+  BACKSTORY_MAX_LENGTH,
   buildCharacterSheet,
   factionOf,
+  isBackgroundId,
   isClassId,
   isRaceId,
   isValidCharacterName,
   isValidRaceClass,
+  isValidStandardArray,
   sumEquipmentStats,
   ITEMS,
+  type AbilityScores,
+  type BackgroundId,
   type CharacterSheet,
   type ItemStats,
 } from '@game/shared';
@@ -28,6 +34,10 @@ export interface CharacterView {
   race: string;
   class: string;
   faction: string;
+  /** D&D Background (MR-3) — null pro starší/neúplné postavy. */
+  background: string | null;
+  /** Veřejná backstory (MR-3). */
+  backstory: string | null;
   gold: number;
   sheet: CharacterSheet;
 }
@@ -54,6 +64,10 @@ export interface InspectView {
   inGroup: boolean;
   /** Guilda postavy (jméno + rank), nebo null když není v žádné. */
   guild: { name: string; rank: string } | null;
+  /** D&D Background (MR-3) — veřejně viditelný. */
+  background: string | null;
+  /** Veřejná backstory (MR-3). */
+  backstory: string | null;
   sheet: CharacterSheet;
   equipment: InspectItemView[];
 }
@@ -71,7 +85,14 @@ export class CharacterService {
 
   async create(
     accountId: string,
-    input: { name: string; race: string; class: string },
+    input: {
+      name: string;
+      race: string;
+      class: string;
+      background?: string;
+      abilityScores?: Record<string, number>;
+      backstory?: string;
+    },
   ): Promise<CharacterView> {
     const { name, race, class: klass } = input;
 
@@ -85,6 +106,34 @@ export class CharacterService {
       throw new BadRequestException(`The ${race}/${klass} combination is not allowed`);
     }
 
+    // MR-3: Background (volitelné, ale když dané, musí být validní).
+    let background: BackgroundId | null = null;
+    if (input.background !== undefined) {
+      if (!isBackgroundId(input.background)) throw new BadRequestException('Unknown background');
+      background = input.background;
+    }
+
+    // MR-3: přiřazený standard array (volitelné). Musí obsahovat všech 6 atributů
+    // a být přesně permutací standard array.
+    let baseScores: AbilityScores | null = null;
+    if (input.abilityScores !== undefined) {
+      const raw = input.abilityScores;
+      const scores = {} as AbilityScores;
+      for (const k of ABILITY_SCORES) {
+        const v = raw[k];
+        if (typeof v !== 'number' || !Number.isInteger(v)) {
+          throw new BadRequestException('Ability scores must assign all six abilities');
+        }
+        scores[k] = v;
+      }
+      if (!isValidStandardArray(scores)) {
+        throw new BadRequestException('Ability scores must use the standard array (15,14,13,12,10,8)');
+      }
+      baseScores = scores;
+    }
+
+    const backstory = input.backstory?.trim().slice(0, BACKSTORY_MAX_LENGTH) || null;
+
     try {
       const created = await this.repo.create({
         accountId,
@@ -92,6 +141,9 @@ export class CharacterService {
         race,
         class: klass,
         faction: factionOf(race),
+        background,
+        baseScores,
+        backstory,
       });
       return this.toView(created);
     } catch (err) {
@@ -174,7 +226,9 @@ export class CharacterService {
       itemLevel,
       inGroup,
       guild,
-      sheet: buildCharacterSheet(row.race, row.class, row.totalXp, equipmentStats),
+      background: row.background ?? null,
+      backstory: row.backstory ?? null,
+      sheet: buildCharacterSheet(row.race, row.class, row.totalXp, equipmentStats, row.baseScores),
       equipment,
     };
   }
@@ -186,8 +240,10 @@ export class CharacterService {
       race: c.race,
       class: c.class,
       faction: c.faction,
+      background: c.background ?? null,
+      backstory: c.backstory ?? null,
       gold: c.gold,
-      sheet: buildCharacterSheet(c.race, c.class, c.totalXp),
+      sheet: buildCharacterSheet(c.race, c.class, c.totalXp, undefined, c.baseScores),
     };
   }
 }

@@ -1,20 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aggregateTalentEffects,
+  aggregateProgression,
   baseStatsFor,
   deriveCombatProfile,
   wipeRewardMultiplier,
+  EMPTY_PROGRESSION,
+  type FeatId,
+  type ProgressionEffects,
   type CombatActor,
 } from './index';
 
-function profile(level: number, talents = aggregateTalentEffects('warrior', {})): CombatActor {
+function featProg(...featIds: FeatId[]): ProgressionEffects {
+  return aggregateProgression(
+    featIds.map((featId, i) => ({ slotId: `asi@${i}`, choice: { kind: 'feat', featId } })),
+  );
+}
+
+function profile(level: number, progression: ProgressionEffects = EMPTY_PROGRESSION): CombatActor {
   return deriveCombatProfile({
     name: 'Hero',
     level,
-    klass: 'warrior',
-    primary: baseStatsFor('orc', 'warrior', level),
+    klass: 'fighter',
+    primary: baseStatsFor('orc', 'fighter', level),
     equipment: {},
-    talents,
+    progression,
   });
 }
 
@@ -27,30 +36,34 @@ describe('deriveCombatProfile', () => {
     expect(p.critChance).toBeGreaterThanOrEqual(0.05);
   });
 
-  it('combat tagy z talentů zvyšují crit a odemykají signature ability', () => {
+  it('combat tagy z featů zvyšují crit a HP', () => {
     const base = profile(20);
-    // Warrior Fury: cruelty (crit) + capstone bloodthirst (ability + lifesteal).
-    const talents = aggregateTalentEffects('warrior', {
-      'warrior.fury.cruelty': 5,
-      'warrior.fury.bloodthirst': 1,
-    });
-    const buffed = profile(20, talents);
+    // Lucky (crit) + Tough (HP).
+    const buffed = profile(20, featProg('lucky', 'tough'));
     expect(buffed.critChance).toBeGreaterThan(base.critChance);
-    expect(buffed.lifesteal).toBeGreaterThan(0);
-    expect(buffed.signatureAbilities.map((a) => a.id)).toContain('bloodthirst');
+    expect(buffed.maxHealth).toBeGreaterThan(base.maxHealth);
+  });
+
+  it('subclass odemkne signature ability', () => {
+    const p = deriveCombatProfile({
+      name: 'Hero', level: 20, klass: 'fighter', subclass: 'champion',
+      primary: baseStatsFor('orc', 'fighter', 20), equipment: {},
+      progression: EMPTY_PROGRESSION,
+    });
+    expect(p.signatureAbilities.map((a) => a.id)).toContain('champion_heroic_surge');
   });
 
   it('gear staty zvyšují HP a attack power', () => {
     const naked = deriveCombatProfile({
-      name: 'A', level: 10, klass: 'warrior',
-      primary: baseStatsFor('orc', 'warrior', 10), equipment: {},
-      talents: aggregateTalentEffects('warrior', {}),
+      name: 'A', level: 10, klass: 'fighter',
+      primary: baseStatsFor('orc', 'fighter', 10), equipment: {},
+      progression: EMPTY_PROGRESSION,
     });
     const geared = deriveCombatProfile({
-      name: 'A', level: 10, klass: 'warrior',
-      primary: baseStatsFor('orc', 'warrior', 10),
-      equipment: { strength: 20, stamina: 20, attack_power: 15, armor: 50 },
-      talents: aggregateTalentEffects('warrior', {}),
+      name: 'A', level: 10, klass: 'fighter',
+      primary: baseStatsFor('orc', 'fighter', 10),
+      equipment: { strength: 20, constitution: 20, attack_power: 15, armor: 50 },
+      progression: EMPTY_PROGRESSION,
     });
     expect(geared.maxHealth).toBeGreaterThan(naked.maxHealth);
     expect(geared.attackPower).toBeGreaterThan(naked.attackPower);

@@ -15,20 +15,20 @@ import {
   rollGauntletDraft,
   startGauntletRun,
   SeededRng,
-  aggregateTalentEffects,
+  EMPTY_PROGRESSION,
   GAUNTLET_BASIC_ATTACK,
   type CombatActor,
   type GauntletRunState,
 } from './index';
 
-function hero(level: number, klass: 'warrior' | 'mage' = 'warrior'): CombatActor {
+function hero(level: number, klass: 'fighter' | 'wizard' = 'fighter'): CombatActor {
   return deriveCombatProfile({
     name: 'Hero',
     level,
     klass,
     primary: baseStatsFor('orc', klass, level),
     equipment: {},
-    talents: aggregateTalentEffects(klass, {}),
+    progression: EMPTY_PROGRESSION,
   });
 }
 
@@ -122,10 +122,10 @@ describe('resolveGauntletTurn', () => {
     const base = deriveCombatProfile({
       name: 'Veteran',
       level: 60,
-      klass: 'warrior',
-      primary: baseStatsFor('orc', 'warrior', 60),
-      equipment: { strength: 120, stamina: 120, attack_power: 200, armor: 400, crit_rating: 40 },
-      talents: aggregateTalentEffects('warrior', {}),
+      klass: 'fighter',
+      primary: baseStatsFor('orc', 'fighter', 60),
+      equipment: { strength: 120, constitution: 120, attack_power: 200, armor: 400, crit_rating: 40 },
+      progression: EMPTY_PROGRESSION,
     });
     let s = startGauntletRun(base, 60, 4242);
     for (let i = 0; i < 20000 && (s.status === 'in_combat' || s.status === 'drafting'); i++) {

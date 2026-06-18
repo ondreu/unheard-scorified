@@ -7,11 +7,8 @@ import {
 } from '@nestjs/common';
 import {
   activeSeasonAt,
-  aggregateTalentEffects,
   ARENA_MIN_LEVEL,
-  baseStatsFor,
   bracketTeamSize,
-  deriveCombatProfile,
   eloDelta,
   isTeamBracket,
   levelFromXp,
@@ -19,16 +16,13 @@ import {
   seedFromString,
   simulateTeamFight,
   type ArenaBracket,
-  type ClassId,
   type CombatActor,
   type CombatEvent,
   type DuelSide,
-  type RaceId,
   type TeamBracket,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
-import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
 import type { ArenaTeamMatch, Character } from '../db/schema';
 import { ArenaRepository } from './arena.repository';
@@ -92,7 +86,6 @@ export class TeamArenaService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryService,
-    private readonly talents: TalentRepository,
     private readonly arena: ArenaRepository,
     private readonly push: PushService,
     private readonly rotation: RotationService,
@@ -275,28 +268,8 @@ export class TeamArenaService {
     }
   }
 
-  private async buildCombatProfile(character: Character): Promise<CombatActor> {
-    const level = levelFromXp(character.totalXp);
-    const primary = baseStatsFor(character.race as RaceId, character.class as ClassId, level);
-    const equipment = await this.inventory.getEquipmentStats(character.id);
-    const talentRows = await this.talents.listTalents(character.id);
-    const allocations: Record<string, number> = {};
-    for (const r of talentRows) allocations[r.talentId] = r.points;
-    const talents = aggregateTalentEffects(character.class as ClassId, allocations);
-    const profile = deriveCombatProfile({
-      name: character.name,
-      level,
-      klass: character.class as ClassId,
-      primary,
-      equipment,
-      talents,
-    });
-    const rotation = await this.rotation.rotationForCombat(
-      character.id,
-      character.class as ClassId,
-      level,
-    );
-    return rotation ? { ...profile, rotation } : profile;
+  private buildCombatProfile(character: Character): Promise<CombatActor> {
+    return this.rotation.buildCombatProfile(character, levelFromXp(character.totalXp));
   }
 
   private toMatchView(match: ArenaTeamMatch, mySide: DuelSide, now: number): TeamMatchView {

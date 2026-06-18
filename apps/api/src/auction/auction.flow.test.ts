@@ -75,7 +75,7 @@ describe('M8 flow: auction house', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 0, gold);
     for (const it of items) await invRepo.addItemQty(char.id, it.id, it.qty);
     return { accountId, id: char.id };

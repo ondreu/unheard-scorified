@@ -246,6 +246,20 @@
       "when": 1781712749919,
       "tag": "0034_high_mongu",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1781755986762,
+      "tag": "0035_dnd_levelup",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1781757302283,
+      "tag": "0036_small_zeigeist",
+      "breakpoints": true
     }
   ]
 }

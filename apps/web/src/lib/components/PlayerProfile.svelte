@@ -10,7 +10,7 @@
     type InspectView,
     type RaidRole,
   } from '$lib/api';
-  import { RACES, CLASSES, type Faction } from '@game/shared';
+  import { RACES, CLASSES, BACKGROUNDS, type Faction } from '@game/shared';
   import {
     CLASS_COLOR,
     FACTION_COLOR,
@@ -160,10 +160,11 @@
 
   const statRows: { key: string; label: string }[] = [
     { key: 'strength', label: 'Strength' },
-    { key: 'agility', label: 'Agility' },
-    { key: 'stamina', label: 'Stamina' },
-    { key: 'intellect', label: 'Intellect' },
-    { key: 'spirit', label: 'Spirit' },
+    { key: 'dexterity', label: 'Dexterity' },
+    { key: 'constitution', label: 'Constitution' },
+    { key: 'intelligence', label: 'Intelligence' },
+    { key: 'wisdom', label: 'Wisdom' },
+    { key: 'charisma', label: 'Charisma' },
   ];
 
   function primaryWithGear(d: InspectView, key: string): number {
@@ -226,6 +227,19 @@
               </div>
             </div>
           </div>
+
+          {#if d.background || d.backstory}
+            <hr class="divider my-4" />
+            {#if d.background}
+              <p class="text-sm text-[var(--text-dim)]">
+                <span class="text-[var(--text-faint)]">Background:</span>
+                {BACKGROUNDS[d.background as keyof typeof BACKGROUNDS]?.name ?? d.background}
+              </p>
+            {/if}
+            {#if d.backstory}
+              <p class="mt-1 whitespace-pre-line text-sm italic text-[var(--text-dim)]">“{d.backstory}”</p>
+            {/if}
+          {/if}
 
           <hr class="divider my-4" />
 

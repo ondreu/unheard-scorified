@@ -5,7 +5,6 @@ import { HistoryModule } from '../history/history.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { PushModule } from '../push/push.module';
 import { SocialModule } from '../social/social.module';
-import { TalentModule } from '../talent/talent.module';
 import { RotationModule } from '../rotation/rotation.module';
 import { ArenaController } from './arena.controller';
 import { ArenaEventsRelay } from './arena.events';
@@ -32,7 +31,6 @@ import { TeamArenaService } from './team-arena.service';
     CharacterModule,
     HistoryModule,
     InventoryModule,
-    TalentModule,
     PushModule,
     SocialModule,
     RotationModule,

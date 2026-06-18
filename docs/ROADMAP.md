@@ -864,7 +864,8 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 > Přechod hry od WoW-inspirace na D&D (Dungeons & Dragons 5e) / BG3 styl.
 > Největší architektonický zásah od spuštění projektu. Realizovat inkrementálně.
-> **Před startem MR je nutné rozhodnutí PM o level capu (12/15/20).**
+> **Rozhodnutí PM potvrzeno:** level cap **20**, **homebrew** D&D setting, **PHB** rasy,
+> **1 subclass/třída** v MVP (viz „Otevřená rozhodnutí PM" níže).
 
 #### Rozsah refaktoru
 
@@ -916,12 +917,83 @@ MR-1 (staty STR/DEX/CON/INT/WIS/CHA + AC)
 → MR-11 (level cap + XP křivka dle zvoleného capu)
 ```
 
-#### Otevřená rozhodnutí PM (nutná před nebo v průběhu MR)
+#### Otevřená rozhodnutí PM (nutná před nebo v průběhu MR) — ✅ vyřešeno
 
-- [ ] **Maximální level: 12 / 15 / 20?** — ovlivňuje spell tier progression, XP křivku, subclass count.
-- [ ] **D&D rasy:** PHB only, nebo Tasha's / Mordenkainen's / BG3 extra rasy?
-- [ ] **Subclassy:** kolik per třída v MVP (1 subclass na start, další přidat postupně)?
-- [ ] **Lore setting:** vlastní D&D-universum (homebrew) nebo zasazení do Forgotten Realms (BG3 setting)?
+- [x] **Maximální level: 20** (plný D&D cap, spell tier 1–9, nejvíc progression prostoru).
+- [x] **D&D rasy: PHB only** — Human, Elf, Dwarf, Halfling, Gnome, Half-Elf, Half-Orc, Tiefling, Dragonborn.
+- [x] **Subclassy: 1 per třída v MVP**, další přidávat postupně.
+- [x] **Lore setting: homebrew D&D** — vlastní D&D-neutrální universum (žádné licenční vazby).
+
+#### Postup MR
+
+- [x] **MR-1 — D&D staty (STR/DEX/CON/INT/WIS/CHA + AC)** ✅: WoW-flavored staty
+      (Strength/Agility/Intellect/Spirit/Stamina) nahrazeny 6 D&D atributy s
+      modifikátory (`abilityModifier` = `floor((score-10)/2)`). Přidán `proficiencyBonus`
+      (D&D 5e: `2 + floor((lvl-1)/4)`). Odvozené staty dle D&D: **Armor Class**
+      (10 + DEX mod), saving throw bonusy, **spell save DC** (8 + prof + casting mod),
+      **spell attack bonus**, **initiative** (DEX mod), **attack bonus** (prof + lepší
+      z STR/DEX). Classa má nově `spellcastingAbility` (D&D casting atribut: mage=INT,
+      cleric/druid/ranger=WIS, warlock/paladin=CHA). Vše v `packages/shared`
+      (`character.ts`), propagováno do `races`/`classes`/`items`/`materials`/`talents`/
+      `combat`/gauntlet/web/API. Nový test kontrakt `dnd-stats.test.ts` (+28).
+      Magnitudy skóre zatím zachované (combat balanc = MR-5/MR-10), dice-roll combat
+      = MR-5. Build/test/lint/typecheck zelené (353 shared + 193 API).
+      _Pozn.: rasy/classy zatím WoW sada (8/9) namapovaná na D&D atributy — plný
+      D&D class/race redesign (12 tříd, PHB rasy, subclassy) přijde v MR-2/MR-3/MR-9._
+- [x] **MR-2 — 12 D&D tříd + subclassy + D&D level-up systém** ✅ (složeno s MR-6
+      dle rozhodnutí PM — WoW talent stromy rovnou zrušeny, ne placeholder):
+      - **12 D&D 5e tříd** (`data/classes.ts`): Barbarian, Bard, Cleric, Druid,
+        Fighter, Monk, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard. Každá:
+        `primaryStat` (combat-scaling), `spellcastingAbility`, `resource`, `hitDie`,
+        `roles`, `subclassLevel` + **1 subclass v MVP** (`SubclassId`, `SUBCLASSES`).
+      - **Race-class matice bez omezení** (D&D — `isValidRaceClass` vždy true; rasy
+        zatím WoW sada, přejmenování v MR-3/MR-9).
+      - **Talent stromy odstraněny** (`data/talents.ts`, `TalentModule`,
+        `character_talents`) → nahrazeny **D&D level-up systémem** (`levelup.ts`,
+        `data/feats.ts`): na ASI levelech (4/8/12/16/19) hráč volí **ASI** (+2 /
+        +1+1) nebo **Feat** (katalog ~13 featů); na subclass levelu volí subclass.
+        Volby v `character_levelup_choices` (migrace `0035`) + denormalizovaná
+        `characters.subclass`. `aggregateProgression` → `ProgressionEffects`
+        (stejný tvar jako dřív talenty → combat engine beze změny; combat tagy
+        crit/haste/dmg/lifesteal/shield nově z featů).
+      - **Abilit kit** (`abilities.ts`): D&D class kity (12) + subclass signature
+        ability; `resolveAbilities(klass, subclass, level)` (žádné talent capstony).
+      - **API**: `LevelUpModule` (GET stav slotů/voleb/možností, POST volba, DELETE
+        respec). `RotationService.buildCombatProfile` je jediný zdroj profil-buildingu
+        (dungeon/raid/arena/team-arena ho recyklují — odstraněna duplikace).
+      - **Web**: `/characters/[id]/levelup` (subclass picker + ASI/Feat), nav +
+        cosmetics/pixelart (emblémy, portréty) rozšířeny na 12 tříd.
+      - Wipe dev data (rozhodnutí PM) — žádná migrace starých class hodnot.
+      - Build/test/lint/typecheck zelené (357 shared + 185 API).
+      - _Pozn.: plné D&D spell sloty + tiered kouzla = MR-4; dice-roll combat = MR-5;
+        D&D bestiář/CR = MR-7; lore přejmenování = MR-8._
+- [x] **MR-3 — tvorba postavy + backstory (D&D)** ✅:
+      - **D&D Backgrounds** (`data/backgrounds.ts`): 12 backgroundů (Acolyte,
+        Charlatan, Criminal, Entertainer, Folk Hero, Guild Artisan, Hermit, Noble,
+        Outlander, Sage, Sailor, Soldier) — skill proficiencies + lore.
+      - **Standard array** (`STANDARD_ARRAY` = 15/14/13/12/10/8, `isValidStandardArray`):
+        hráč při tvorbě přiřadí hodnoty 6 atributům. Uloženo jako `characters.base_scores`
+        (jsonb); `abilityScoresFor(baseScores, race, level)` = array + rasové mody + růst
+        (třída ke skóre nepřidává — D&D). `buildCharacterSheet` + `RotationService.
+        buildCombatProfile` použijí base_scores, když existují (jinak legacy `baseStatsFor`).
+      - **Veřejná backstory**: volný text `characters.backstory` (≤500), zobrazený na
+        profilu (inspect modal `PlayerProfile`) spolu s backgroundem.
+      - DB migrace `0036` (background / base_scores / backstory). Web `/characters/new`
+        rozšířen o array assignment + background picker + backstory.
+      - Testy: shared `dnd-stats`/`levelup` + API `character.flow` (background + array +
+        validace). Build/test/lint/typecheck zelené (357 shared + 187 API).
+      - _Pozn.: zvoleno **standard array** (rozhodnutí PM); **point-buy** = follow-up.
+        Background skill proficiencies jsou zatím jen lore/zobrazení (skill checky D&D
+        se v idle modelu neřeší) — případné napojení na mechaniky = pozdější._
+- [ ] MR-4 — spell systém + tiered spell sloty (D&D tabulka, Long Rest recharge).
+
+> 🔜 **Handoff pro další session:** hotovo **MR-1, MR-2 (+MR-6), MR-3**. Pokračovat
+> **MR-4** (spell sloty: D&D tabulka per třída/level, aktivity je spotřebovávají,
+> Long Rest = full recharge při claimu; spell list per třída). Pak MR-5 (dice-roll
+> combat: d20 vs AC, damage dice, saving throws), MR-7 (D&D bestiář + CR), MR-8 (lore
+> přejmenování zón/dungeonů/raidů — WoW → homebrew D&D), MR-9 (odstranění frakcí),
+> MR-10 (balance pass), MR-11 (level cap 20 + XP křivka). Pozn.: rasy jsou stále WoW
+> sada namapovaná na D&D atributy — PHB rasy přijdou s lore přejmenováním (MR-8/MR-9).
 
 ---
 

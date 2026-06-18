@@ -12,7 +12,7 @@ import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { BuffRepository } from '../buff/buff.repository';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
@@ -55,16 +55,15 @@ describe('M7 flow: arena PVP', () => {
     vi.setSystemTime(T0);
     // Čerstvá fronta + žebříček pro každý test (in-memory stav neteče mezi testy).
     const invService = new InventoryService(charRepo, new InventoryRepository(db), new BuffRepository(db));
-    const talentRepo = new TalentRepository(db);
+    const levelup = new LevelUpRepository(db);
     const push = new PushService(new PushRepository(db));
     arena = new ArenaService(
       charRepo,
       invService,
-      talentRepo,
       arenaRepo,
       push,
       new ArenaEventsRelay(),
-      new RotationService(charRepo, talentRepo, new RotationRepository(db), invService),
+      new RotationService(charRepo, levelup, new RotationRepository(db), invService),
       new HistoryRepository(db),
       new InMemoryMatchmakingQueue(),
       new InMemoryArenaLeaderboard(),
@@ -83,7 +82,7 @@ describe('M7 flow: arena PVP', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 10_000_000, 0); // vysoký level → eligible
     if (weapon) {
       const invRepo = new InventoryRepository(db);
@@ -96,7 +95,7 @@ describe('M7 flow: arena PVP', () => {
   it('lvl pod minimem nemůže do arény', async () => {
     const tokens = await auth.register('lowbie', 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name: 'Tinyrunt', race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name: 'Tinyrunt', race: 'orc', class: 'fighter' });
     await expect(arena.queue(accountId, char.id)).rejects.toThrow();
   });
 

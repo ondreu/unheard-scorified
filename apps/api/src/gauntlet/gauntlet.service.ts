@@ -358,7 +358,7 @@ export class GauntletService {
     const weaponPower = (s.attack_power ?? 0) + (s.spell_power ?? 0);
     return {
       attackPower: Math.round(primary * 0.9 + weaponPower),
-      maxHealth: Math.round((s.stamina ?? 0) * 8),
+      maxHealth: Math.round((s.constitution ?? 0) * 8),
       critChance: (s.crit_rating ?? 0) * 0.002,
       armor: s.armor ?? 0,
     };
@@ -370,9 +370,9 @@ export class GauntletService {
     for (const k of Object.keys(offered.stats) as (keyof ItemStats)[]) keys.add(k);
     if (current) for (const k of Object.keys(current.stats) as (keyof ItemStats)[]) keys.add(k);
     const label: Record<string, string> = {
-      strength: 'Strength', agility: 'Agility', intellect: 'Intellect', stamina: 'Stamina',
-      spirit: 'Spirit', armor: 'Armor', attack_power: 'Attack Power', spell_power: 'Spell Power',
-      crit_rating: 'Crit', dodge_rating: 'Dodge',
+      strength: 'STR', dexterity: 'DEX', constitution: 'CON', intelligence: 'INT',
+      wisdom: 'WIS', charisma: 'CHA', armor: 'Armor', attack_power: 'Attack Power',
+      spell_power: 'Spell Power', crit_rating: 'Crit', dodge_rating: 'Dodge',
     };
     return [...keys].map((k) => ({
       label: label[k] ?? k,

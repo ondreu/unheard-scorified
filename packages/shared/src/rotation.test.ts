@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aggregateTalentEffects,
+  EMPTY_PROGRESSION,
   baseStatsFor,
   defaultRotation,
   deriveCombatProfile,
@@ -16,7 +16,7 @@ import {
 
 describe('defaultRotation', () => {
   it('enables every ability with an always condition', () => {
-    const rot = defaultRotation(['mortal_strike', 'bloodthirst']);
+    const rot = defaultRotation(['fighter_action_surge', 'fighter_execute']);
     expect(rot.rules).toHaveLength(2);
     expect(rot.rules.every((r) => r.enabled && r.conditionType === 'always')).toBe(true);
   });
@@ -85,10 +85,10 @@ describe('rotation in the engine', () => {
     const base = deriveCombatProfile({
       name: 'Exec',
       level: 50,
-      klass: 'warrior',
-      primary: baseStatsFor('orc', 'warrior', 50),
+      klass: 'fighter',
+      primary: baseStatsFor('orc', 'fighter', 50),
       equipment: { attack_power: 60, strength: 40 },
-      talents: aggregateTalentEffects('warrior', { 'warrior.arms.mortal_strike': 1 }),
+      progression: EMPTY_PROGRESSION,
     });
     return deriveRaidActor({ ...base, rotation }, 'dps');
   }
@@ -113,20 +113,20 @@ describe('rotation in the engine', () => {
       dpsWithExecute(rot),
     ];
     const withDefault = simulateRaidRun(party(), [boss], 123);
-    // Hold Mortal Strike until boss < 1% HP → effectively never in this fight.
+    // Hold Action Surge until boss < 1% HP → effectively never in this fight.
     const held: CharacterRotation = {
-      rules: [{ abilityId: 'mortal_strike', enabled: true, conditionType: 'enemy_hp_below', threshold: 0.01 }],
+      rules: [{ abilityId: 'fighter_action_surge', enabled: true, conditionType: 'enemy_hp_below', threshold: 0.01 }],
     };
     const withHold = simulateRaidRun(party(held), [boss], 123);
-    const msDefault = withDefault.events.filter((e) => e.ability === 'Mortal Strike').length;
-    const msHeld = withHold.events.filter((e) => e.ability === 'Mortal Strike').length;
+    const msDefault = withDefault.events.filter((e) => e.ability === 'Action Surge').length;
+    const msHeld = withHold.events.filter((e) => e.ability === 'Action Surge').length;
     expect(msDefault).toBeGreaterThan(0);
     expect(msHeld).toBeLessThan(msDefault);
   });
 
   it('is deterministic with a custom rotation', () => {
     const held: CharacterRotation = {
-      rules: [{ abilityId: 'mortal_strike', enabled: false, conditionType: 'always' }],
+      rules: [{ abilityId: 'fighter_action_surge', enabled: false, conditionType: 'always' }],
     };
     const mk = (): RaidActor[] => [deriveRaidActor(dpsWithExecute(held), 'tank'), dpsWithExecute(held)];
     const a = simulateRaidRun(mk(), [boss], 555);

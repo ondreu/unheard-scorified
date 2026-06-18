@@ -39,7 +39,7 @@ describe('flow: bank storage', () => {
   async function newCharacter(username: string, name: string): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'human', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'human', class: 'fighter' });
     return { accountId, id: char.id };
   }
 
