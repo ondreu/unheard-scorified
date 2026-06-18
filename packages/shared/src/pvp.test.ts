@@ -51,6 +51,16 @@ describe('simulatePvpDuel', () => {
     expect(result.events.at(-1)?.source).toBe('Strong');
   });
 
+  it('MR-5: combat běží na dice-roll modelu (d20 vs AC v logu, hity i miss)', () => {
+    const a = actor('Alice', { attackPower: 40, armorClass: 16, attackBonus: 6 });
+    const b = actor('Bob', { attackPower: 40, armorClass: 16, attackBonus: 6 });
+    const joined = simulatePvpDuel(a, b, 7)
+      .events.map((e) => e.message)
+      .join('\n');
+    expect(joined).toMatch(/vs AC \d+/);
+    expect(joined).toMatch(/MISS/);
+  });
+
   it('vždy určí vítěze a má smysluplnou délku', () => {
     // I dva tanci s lifestealem skončí (rampage eskalace).
     const a = actor('Tank A', { maxHealth: 2000, attackPower: 15, armor: 300, lifesteal: 0.2 });

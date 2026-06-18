@@ -149,6 +149,18 @@ describe('rich combat log (raid/dungeon engine)', () => {
     expect(r.events.some((e) => e.type === 'drain')).toBe(true);
   });
 
+  it('MR-5: raid combat běží na dice-roll modelu (d20 vs AC v logu)', () => {
+    const party: RaidActor[] = [
+      deriveRaidActor(profile('fighter'), 'tank'),
+      deriveRaidActor(profile('cleric'), 'healer'),
+      deriveRaidActor(profile('warlock'), 'dps'),
+    ];
+    const joined = simulateRaidRun(party, boss, 4242)
+      .events.map((e) => e.message)
+      .join('\n');
+    expect(joined).toMatch(/vs AC \d+/);
+  });
+
   it('a dot caster produces dot tick events', () => {
     const party: RaidActor[] = [
       deriveRaidActor(profile('fighter'), 'tank'),
@@ -226,8 +238,8 @@ describe('tank mitigation (engine path)', () => {
   });
 
   it('a mitigation cooldown reduces damage taken by the tank', () => {
-    const dmgTaken = (party: RaidActor[]): number => {
-      const r = simulateRaidRun(party, [pressureBoss], 999);
+    const dmgTaken = (party: RaidActor[], seed: number): number => {
+      const r = simulateRaidRun(party, [pressureBoss], seed);
       let d = 0;
       for (const e of r.events) {
         if (e.t > 60) break;
@@ -237,7 +249,15 @@ describe('tank mitigation (engine path)', () => {
     };
     const withMit = simulateRaidRun([mitTank(true)], [pressureBoss], 999);
     expect(withMit.events.some((e) => e.ability === 'Shield of Faith')).toBe(true);
-    expect(dmgTaken([mitTank(true)])).toBeLessThan(dmgTaken([mitTank(false)]));
+    // Dice-roll combat (MR-5) přidává hit/miss varianci → porovnání agreguj přes víc
+    // seedů, ať mitigace (snižuje každý zásah) převáží šum jednotlivého běhu.
+    let totalWith = 0;
+    let totalWithout = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      totalWith += dmgTaken([mitTank(true)], seed);
+      totalWithout += dmgTaken([mitTank(false)], seed);
+    }
+    expect(totalWith).toBeLessThan(totalWithout);
   });
 });
 

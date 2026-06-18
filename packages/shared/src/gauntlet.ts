@@ -31,6 +31,7 @@ import {
   type CombatEvent,
   type SignatureAbility,
 } from './combat';
+import { missMessage } from './dnd-combat';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
 
@@ -96,6 +97,8 @@ export interface GauntletEnemyState {
   currentHealth: number;
   attackPower: number;
   armor: number;
+  /** Efektivní úroveň pro D&D AC/attackBonus (MR-5) — roste s vlnou. */
+  level?: number;
   dots: GauntletDot[];
 }
 
@@ -255,7 +258,9 @@ export function buildGauntletEnemy(level: number, wave: number, rng: SeededRng):
   const pool = isElite ? ELITE_ENEMY_NAMES : NORMAL_ENEMY_NAMES;
   const name = pool[rng.int(0, pool.length - 1)]!;
 
-  return { name, isElite, maxHealth, currentHealth: maxHealth, attackPower, armor, dots: [] };
+  // Efektivní úroveň roste s vlnou → AC/attackBonus drží krok s hráčem (MR-5).
+  const effLevel = level + waveStep;
+  return { name, isElite, maxHealth, currentHealth: maxHealth, attackPower, armor, level: effLevel, dots: [] };
 }
 
 /** `CombatActor` nepřítele pro sdílený `computeHit` (zdroj pravdy combat vzorce). */
@@ -267,6 +272,7 @@ function enemyActor(enemy: GauntletEnemyState): CombatActor {
     swingInterval: GAUNTLET_TURN_SEC,
     armor: enemy.armor,
     isBoss: enemy.isElite,
+    level: enemy.level,
   });
 }
 
@@ -425,13 +431,13 @@ export function resolveGauntletTurn(
     const hit = computeHit(player, enemyAsActor, rng, mult, false);
     enemy.currentHealth -= hit.amount;
 
-    let healed = Math.round(hit.amount * player.lifesteal);
-    if (ability.kind === 'drain') healed += Math.round(hit.amount * (ability.drainHealFraction ?? 0));
+    let healed = hit.hit ? Math.round(hit.amount * player.lifesteal) : 0;
+    if (hit.hit && ability.kind === 'drain') healed += Math.round(hit.amount * (ability.drainHealFraction ?? 0));
     if (healed > 0) {
       state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + healed);
     }
 
-    if (ability.kind === 'dot' && ability.dotTicks && ability.dotTickMult) {
+    if (hit.hit && ability.kind === 'dot' && ability.dotTicks && ability.dotTickMult) {
       enemy.dots.push({
         remainingTicks: ability.dotTicks,
         tickDamage: Math.max(1, Math.round(player.attackPower * ability.dotTickMult)),
@@ -441,23 +447,26 @@ export function resolveGauntletTurn(
     }
 
     const remaining = Math.max(0, Math.round(enemy.currentHealth));
+    const named = ability.id === GAUNTLET_BASIC_ATTACK.id ? undefined : ability.name;
     pushEvent({
       t,
-      type: ability.id === GAUNTLET_BASIC_ATTACK.id ? 'attack' : 'ability',
-      message: buildAttackMessage({
-        attacker: player,
-        targetName: enemy.name,
-        amount: hit.amount,
-        crit: hit.crit,
-        healed,
-        abilityName: ability.id === GAUNTLET_BASIC_ATTACK.id ? undefined : ability.name,
-        suffix: `. Target: ${remaining} HP`,
-      }),
+      type: named ? 'ability' : 'attack',
+      message: hit.hit
+        ? buildAttackMessage({
+            attacker: player,
+            targetName: enemy.name,
+            amount: hit.amount,
+            crit: hit.crit,
+            healed,
+            abilityName: named,
+            suffix: `. Target: ${remaining} HP`,
+          })
+        : missMessage(player.name, enemy.name, hit),
       source: player.name,
       target: enemy.name,
       amount: hit.amount,
       crit: hit.crit,
-      ability: ability.id === GAUNTLET_BASIC_ATTACK.id ? undefined : ability.name,
+      ability: named,
       targetHealthRemaining: remaining,
     });
   }
@@ -481,7 +490,9 @@ export function resolveGauntletTurn(
   pushEvent({
     t,
     type: 'attack',
-    message: `${enemy.name} hits ${player.name} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. You: ${Math.max(0, Math.round(state.player.currentHealth))} HP`,
+    message: enemyHit.hit
+      ? `${enemy.name} hits ${player.name} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. You: ${Math.max(0, Math.round(state.player.currentHealth))} HP`
+      : missMessage(enemy.name, player.name, enemyHit),
     source: enemy.name,
     target: player.name,
     amount: absorbResult.netDamage,

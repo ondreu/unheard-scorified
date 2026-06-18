@@ -100,11 +100,14 @@ export function groupEncounters(
     const dungeon = DUNGEONS[contentId];
     if (!dungeon) return [];
     const factor = Math.max(1, size); // dungeon base = 1 hráč
-    return dungeon.encounters.map((e) => scaleActor(buildEnemyActor(e), factor));
+    // Úroveň obsahu → D&D AC/attackBonus nepřátel (MR-5).
+    return dungeon.encounters.map((e) =>
+      scaleActor(buildEnemyActor({ ...e, level: e.level ?? dungeon.requiredLevel }), factor),
+    );
   }
   const raid = RAIDS[contentId];
   if (!raid) return [];
-  return raid.bosses.map((b) => scaleBoss(buildRaidBoss(b), size));
+  return raid.bosses.map((b) => scaleBoss(buildRaidBoss(b, raid.attunement.requiredLevel), size));
 }
 
 /** Je obsah pro postavu odemčený (level + případný attunement/questline)? */

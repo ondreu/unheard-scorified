@@ -20,6 +20,7 @@ import {
   type CombatEvent,
 } from './combat';
 import { shouldCastAbility } from './rotation';
+import { missMessage } from './dnd-combat';
 import {
   ARENA_SEASONS,
   ARENA_TIERS,
@@ -155,7 +156,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       dmg = abs.netDamage;
     }
     hp[defenderSide] = Math.max(0, hp[defenderSide] - dmg);
-    const healed = attacker.lifesteal > 0 ? Math.round(hit.amount * attacker.lifesteal) : 0;
+    const healed = hit.hit && attacker.lifesteal > 0 ? Math.round(hit.amount * attacker.lifesteal) : 0;
     if (healed > 0) hp[attackerSide] = Math.min(attacker.maxHealth, hp[attackerSide] + healed);
 
     if (absorbed > 0) {
@@ -177,15 +178,17 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       crit: hit.crit,
       ability: timer.abilityName,
       targetHealthRemaining: hp[defenderSide],
-      message: buildAttackMessage({
-        attacker,
-        targetName: defender.name,
-        amount: hit.amount,
-        crit: hit.crit,
-        healed,
-        abilityName: timer.abilityName,
-        suffix: `${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`,
-      }),
+      message: hit.hit
+        ? buildAttackMessage({
+            attacker,
+            targetName: defender.name,
+            amount: hit.amount,
+            crit: hit.crit,
+            healed,
+            abilityName: timer.abilityName,
+            suffix: `${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`,
+          })
+        : missMessage(attacker.name, defender.name, hit),
     });
   }
 
@@ -356,7 +359,7 @@ export function simulateTeamFight(
       dmg = abs.netDamage;
     }
     hp[defenderSide][targetIdx] = Math.max(0, hp[defenderSide][targetIdx]! - dmg);
-    const healed = attacker.lifesteal > 0 ? Math.round(hit.amount * attacker.lifesteal) : 0;
+    const healed = hit.hit && attacker.lifesteal > 0 ? Math.round(hit.amount * attacker.lifesteal) : 0;
     if (healed > 0)
       hp[attackerSide][timer.member] = Math.min(
         attacker.maxHealth,
@@ -383,15 +386,17 @@ export function simulateTeamFight(
       crit: hit.crit,
       ability: timer.abilityName,
       targetHealthRemaining: hp[defenderSide][targetIdx]!,
-      message: buildAttackMessage({
-        attacker,
-        targetName: defender.name,
-        amount: hit.amount,
-        crit: hit.crit,
-        healed,
-        abilityName: timer.abilityName,
-        suffix: `${enraged ? ' [rampage]' : ''}.${fell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
-      }),
+      message: hit.hit
+        ? buildAttackMessage({
+            attacker,
+            targetName: defender.name,
+            amount: hit.amount,
+            crit: hit.crit,
+            healed,
+            abilityName: timer.abilityName,
+            suffix: `${enraged ? ' [rampage]' : ''}.${fell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
+          })
+        : missMessage(attacker.name, defender.name, hit),
     });
   }
 

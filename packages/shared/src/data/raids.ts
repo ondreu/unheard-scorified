@@ -169,9 +169,12 @@ export function isRaidId(value: string): value is string {
   return value in RAIDS;
 }
 
-/** Postaví `CombatActor` bosse (vč. signature abilities). */
-export function buildRaidBoss(def: RaidBossDef): CombatActor {
-  const base = buildEnemyActor(def);
+/**
+ * Postaví `CombatActor` bosse (vč. signature abilities). `level` (úroveň raidu)
+ * odvodí D&D AC/attackBonus nepřítele (MR-5), když je boss nemá explicitně.
+ */
+export function buildRaidBoss(def: RaidBossDef, level?: number): CombatActor {
+  const base = buildEnemyActor({ ...def, level: def.level ?? level });
   return {
     ...base,
     signatureAbilities: (def.abilities ?? []).map((a, i) => ({

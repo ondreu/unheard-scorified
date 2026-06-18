@@ -1,6 +1,6 @@
-# ADR 0030 — D&D dice-roll combat (MR-5, increment 1)
+# ADR 0030 — D&D dice-roll combat (MR-5)
 
-Status: Accepted · Datum: 2026-06-18
+Status: Accepted · Datum: 2026-06-18 · Increment 1 + 2 hotové
 
 ## Kontext
 
@@ -62,16 +62,37 @@ zbraň/kouzlo (1d8+STR, 8d6 Fireball) = MR-10 (závisí na itemizaci/spell datec
 No-fail flavor combat (nelze prohrát, M9) i combat-objective (M12, lze prohrát)
 zachovány. Odměny netknuté.
 
+## Increment 2 — sjednocení všech simulátorů
+
+`computeHit` **přepsán na dice-roll** (sdílené jádro `rollHit` v `combat.ts`:
+d20 + attackBonus vs AC → hit/miss/crit + damage dice). Tím **všechny simulátory**
+(dungeon/raid/PVP/aréna/Gauntlet) přešly na D&D model bez duplikace — `resolveAttack`
+i `computeHit` jsou tenké wrappery nad jedním jádrem. **Konec dvou modelů.**
+
+- **`HitResult` rozšířen** o `hit`/`roll`/`targetAc`/`damage`/`damageNotation`.
+  Miss vrací `amount: 0` → call-sites mají miss-aware logy (`missMessage`/`rollTag`:
+  `[d20: 14 + 6 = 20 vs AC 13]`). DoT/lifesteal se aplikují jen při zásahu.
+- **Nepřátelé dostávají D&D pole z úrovně obsahu** (`EnemyStats.level` →
+  `buildEnemyActor` odvodí AC/attackBonus ~level/2): raid bossové z
+  `raid.attunement.requiredLevel`, dungeon nepřátelé z `dungeon.requiredLevel`,
+  Gauntlet enemy z `level + wave`. Hráči mají D&D pole z `deriveCombatProfile`.
+  PVP/aréna = hráč vs hráč → obě strany mají reálná pole.
+- Pole `armor`/`critChance`/`critMultiplier` na `CombatActor` zůstávají (zatím
+  nevyužitá v hitu) — odstraní/nahradí MR-10.
+
+Testy: navíc raid + PVP dice-log asserty; mitigation test agreguje přes seedy
+(hit/miss šum). 408 shared + 192 API zelené.
+
 ## Rozsah vs. follow-up
 
 **Hotovo (increment 1):** dice/dnd-combat moduly + D&D actor pole + quest combat
-end-to-end (d20/AC, dice, saves, initiative, spell-slot spotřeba) + bohatý log.
-Testy: `dice.test.ts` (+11), `dnd-combat.test.ts` (+11), quest-run (+3).
+end-to-end + bohatý log. **Hotovo (increment 2):** unifikace `computeHit` na dice
+napříč všemi simulátory + level-based AC/attackBonus nepřátel + miss-aware logy.
 
-**Increment 2 (zbývá MR-5):** migrovat **dungeon/raid/PVP/aréna/Gauntlet** z
-continuous `computeHit` na `resolveAttack` (recalibrace tuned encounterů,
-Elo/wipe křivek). Plný damage-dice redesign (1d8+STR, 8d6) + saving-throw-heavy
-kouzla = MR-7 (bestiář/CR) + MR-10 (balance pass).
+**Zbývá (MR-10 balance pass, rozhodnutí PM — balanc až nakonec převzetím D&D
+čísel):** plný damage-dice redesign per zbraň/kouzlo (1d8+STR, 8d6 Fireball),
+CR-based AC/attack/HP/damage, save-DC kouzla, recalibrace XP/Elo/wipe. Bestiář +
+CR = MR-7.
 
 ## Důsledky
 

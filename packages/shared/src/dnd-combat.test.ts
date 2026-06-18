@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { deriveCombatProfile, buildEnemyActor, type CombatActor } from './combat';
 import {
+  deriveCombatProfile,
+  buildEnemyActor,
   actorAc,
   actorAttackBonus,
-  buildDndAttackMessage,
   resolveAttack,
-  rollInitiative,
   weaponDamageSpec,
-} from './dnd-combat';
+  type CombatActor,
+} from './combat';
+import { buildDndAttackMessage, rollInitiative } from './dnd-combat';
 import { diceAverage } from './dice';
 import { baseStatsFor } from './character';
 import { EMPTY_PROGRESSION } from './levelup';
