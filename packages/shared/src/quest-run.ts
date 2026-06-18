@@ -19,14 +19,22 @@
 import {
   abilityDamageMult,
   applyAbsorb,
-  buildAttackMessage,
   buildEnemyActor,
-  computeHit,
   round1,
   type CombatActor,
   type CombatEvent,
   type EnemyStats,
 } from './combat';
+import {
+  actorSpellSaveDc,
+  buildDndAttackMessage,
+  buildSaveMessage,
+  resolveAttack,
+  rollInitiative,
+  savingThrow,
+} from './dnd-combat';
+import type { SpellSlots } from './data/spell-slots';
+import type { SignatureAbility } from './data/abilities';
 import {
   type QuestDef,
   type QuestEnemyTier,
@@ -34,6 +42,29 @@ import {
   type QuestStep,
 } from './data/quests';
 import { SeededRng } from './rng';
+
+/** Ordinální tvar tieru slotu pro log (1→1st, 2→2nd, 3→3rd, jinak Nth). */
+function ordinal(n: number): string {
+  if (n === 1) return '1st';
+  if (n === 2) return '2nd';
+  if (n === 3) return '3rd';
+  return `${n}th`;
+}
+
+/**
+ * Vyčerpá jeden spell slot tieru >= `minTier` (nejnižší dostupný → upcast jen
+ * když musí). Mutuje lokální kopii rozpočtu; vrací použitý tier nebo null (nic
+ * dostupné → kouzlo „fizzles", postava sáhne po zbrani/cantripu).
+ */
+function spendSlotForTier(slots: SpellSlots, minTier: number): number | null {
+  for (let tier = minTier; tier <= 9; tier++) {
+    if ((slots[tier] ?? 0) > 0) {
+      slots[tier] = (slots[tier] ?? 0) - 1;
+      return tier;
+    }
+  }
+  return null;
+}
 
 /**
  * Násobiče HP/AP nepřítele dle tieru. Konkrétní staty se odvodí z levelu questu
@@ -44,8 +75,8 @@ import { SeededRng } from './rng';
 const TIER_SCALE: Record<QuestEnemyTier, { hp: number; ap: number; boss: boolean }> = {
   minion: { hp: 0.45, ap: 0.5, boss: false },
   standard: { hp: 1, ap: 0.85, boss: false },
-  elite: { hp: 1.9, ap: 1.1, boss: false },
-  boss: { hp: 3.2, ap: 1.35, boss: true },
+  elite: { hp: 1.9, ap: 1.45, boss: false },
+  boss: { hp: 3.2, ap: 1.9, boss: true },
 };
 
 /** Cap délky jednoho encounteru (s) — flavor log nesmí být nekonečný. */
@@ -53,16 +84,36 @@ const QUEST_ENCOUNTER_MAX_SEC = 90;
 /** Pauza mezi kroky v timeline logu (s). */
 const STEP_GAP_SEC = 2;
 
+/**
+ * D&D AC/útočný bonus questového nepřítele dle tieru. Škáluje pozvolna s levelem
+ * (jako proficiency bonus), tier dává malý posun → vyšší tier = těžší zásah i
+ * vyšší šance zasáhnout postavu. Balanc = MR-10.
+ */
+const TIER_DND: Record<QuestEnemyTier, { acBonus: number; atkBonus: number }> = {
+  minion: { acBonus: -1, atkBonus: -1 },
+  standard: { acBonus: 0, atkBonus: 0 },
+  elite: { acBonus: 1, atkBonus: 1 },
+  boss: { acBonus: 2, atkBonus: 2 },
+};
+
 /** Odvodí staty questového nepřítele z levelu questu a tieru (deterministicky, bez RNG). */
 export function questFoeStats(foe: QuestFoe, questLevel: number): EnemyStats {
   const s = TIER_SCALE[foe.tier];
+  const d = TIER_DND[foe.tier];
   const lvl = Math.max(1, questLevel);
+  // AC i útočný bonus škálují ~level/2 — aby drželi krok s D&D modifikátory hráče
+  // (`baseStatsFor` přidává +1/level všem skóre → mody i AC rostou s levelem).
+  // Tím je boj na úrovni reálný kontest; balanc = MR-10.
+  const scale = Math.round(lvl * 0.55);
   return {
     name: foe.name,
     maxHealth: Math.round((40 + lvl * 24) * s.hp),
     attackPower: round1((3 + lvl * 1.5) * s.ap),
     swingInterval: foe.tier === 'boss' ? 2.8 : 2.4,
     isBoss: s.boss,
+    armorClass: 10 + scale + d.acBonus,
+    attackBonus: 2 + scale + d.atkBonus,
+    spellSaveDc: 10 + scale + d.atkBonus,
   };
 }
 
@@ -113,15 +164,23 @@ export function simulateQuestEncounter(
   const abilities = offensiveAbilities(player);
   const readyAt: Record<string, number> = {};
   for (const a of abilities) readyAt[a.id] = startT; // ready od startu
+  // Spell sloty (MR-4) jako rozpočet kouzel v rámci tohoto běhu — kouzla (tier ≥ 1)
+  // ho čerpají; když dojdou, postava sáhne po zbrani/cantripu. Lokální kopie.
+  const slotBudget: SpellSlots = { ...(player.spellSlots ?? {}) };
+
+  // Initiative (d20 + DEX): rozhodne, kdo udeří jako první (D&D 5e).
+  const playerInit = rollInitiative(player, rng);
+  const enemyInit = rollInitiative(enemy, rng);
+  const playerFirst = playerInit >= enemyInit;
 
   let t = startT;
-  let pNext = startT + player.swingInterval;
-  let eNext = startT + enemy.swingInterval;
+  let pNext = playerFirst ? startT : startT + player.swingInterval;
+  let eNext = playerFirst ? startT + enemy.swingInterval : startT;
 
   events.push({
     t: round1(startT),
     type: 'encounter_start',
-    message: `⚔️ ${player.name} engages ${enemy.name}.`,
+    message: `⚔️ ${player.name} engages ${enemy.name}. Initiative — ${player.name}: ${playerInit}, ${enemy.name}: ${enemyInit}. ${playerFirst ? player.name : enemy.name} acts first.`,
     source: player.name,
     target: enemy.name,
     targetHealthRemaining: enemyHp,
@@ -129,63 +188,118 @@ export function simulateQuestEncounter(
 
   const hardStop = startT + QUEST_ENCOUNTER_MAX_SEC;
   let playerDown = false;
+  let enemyTurns = 0;
   while (enemyHp > 0 && t < hardStop) {
     if (pNext <= eNext) {
       t = pNext;
       pNext = t + player.swingInterval;
-      const ready = abilities.find((a) => (readyAt[a.id] ?? startT) <= t);
-      let mult = 1;
-      let abilityName: string | undefined;
-      if (ready) {
-        mult = abilityDamageMult(ready, enemyHp / enemy.maxHealth);
-        abilityName = ready.name;
-        readyAt[ready.id] = t + ready.cooldownSec;
+      // Zvol první ready ability, kterou lze seslat (cantrip/martial zdarma, kouzlo
+      // jen když je volný slot). Když nic → základní úder zbraní.
+      let chosen: SignatureAbility | undefined;
+      let slotTier: number | null = null;
+      for (const a of abilities) {
+        if ((readyAt[a.id] ?? startT) > t) continue;
+        const tier = a.spellTier ?? 0;
+        if (tier >= 1) {
+          const used = spendSlotForTier(slotBudget, tier);
+          if (used == null) continue; // žádný slot → kouzlo fizzles, zkus další
+          slotTier = used;
+        }
+        chosen = a;
+        readyAt[a.id] = t + a.cooldownSec;
+        break;
       }
-      const hit = computeHit(player, enemy, rng, mult, false);
-      enemyHp = Math.max(0, enemyHp - hit.amount);
-      const healed = player.lifesteal > 0 ? Math.round(hit.amount * player.lifesteal) : 0;
-      if (healed > 0) {
-        playerHp = Math.min(player.maxHealth, playerHp + healed);
+      const mult = chosen ? abilityDamageMult(chosen, enemyHp / enemy.maxHealth) : 1;
+      const result = resolveAttack(player, enemy, rng, { abilityMult: mult });
+
+      // Damaging spell (DoT/area) → nepřítel si hodí CON save (úspěch = poloviční dmg).
+      let saveMessage: string | undefined;
+      if (result.hit && chosen?.kind === 'dot') {
+        const save = savingThrow(enemy, rng, 'constitution', actorSpellSaveDc(player));
+        if (save.success) result.amount = Math.max(1, Math.floor(result.amount / 2));
+        saveMessage = buildSaveMessage(enemy.name, 'constitution', save, true);
       }
+
+      if (result.hit) enemyHp = Math.max(0, enemyHp - result.amount);
+      let healed = 0;
+      if (result.hit) {
+        if (player.lifesteal > 0) healed += Math.round(result.amount * player.lifesteal);
+        if (chosen?.kind === 'drain' && chosen.drainHealFraction) {
+          healed += Math.round(result.amount * chosen.drainHealFraction);
+        }
+        if (healed > 0) playerHp = Math.min(player.maxHealth, playerHp + healed);
+      }
+
+      const slotNote = slotTier != null ? ` (${ordinal(slotTier)}-level slot)` : undefined;
       events.push({
         t: round1(t),
-        type: healed > 0 ? 'drain' : abilityName ? 'ability' : 'attack',
-        message: buildAttackMessage({
-          attacker: player,
+        type: !result.hit ? 'attack' : healed > 0 ? 'drain' : chosen ? 'ability' : 'attack',
+        message: buildDndAttackMessage({
+          attackerName: player.name,
           targetName: enemy.name,
-          amount: hit.amount,
-          crit: hit.crit,
+          result,
+          abilityName: chosen?.name,
+          slotNote,
           healed,
-          abilityName,
-          suffix: '.',
+          suffix: result.hit ? ` ${enemy.name}: ${enemyHp} HP.` : '',
         }),
         source: player.name,
         target: enemy.name,
-        amount: hit.amount,
-        crit: hit.crit,
-        ability: abilityName,
+        amount: result.amount,
+        crit: result.crit,
+        ability: chosen?.name,
         targetHealthRemaining: enemyHp,
       });
+      if (saveMessage) {
+        events.push({ t: round1(t), type: 'ability', message: saveMessage, source: enemy.name });
+      }
     } else {
       t = eNext;
       eNext = t + enemy.swingInterval;
-      const hit = computeHit(enemy, player, rng, 1, false);
-      const absorb = applyAbsorb(hit.amount, playerShield);
-      playerShield = absorb.shieldRemaining;
-      // No-fail clamp (flavor combat) vs. reálný výsledek (combat-objective questy).
-      playerHp = allowDefeat ? playerHp - absorb.netDamage : Math.max(1, playerHp - absorb.netDamage);
+      // Boss občas (každý 3. tah) sešle telegrafovaný „special" — silnější úder
+      // (1.6×), proti kterému si postava hodí DEX save (úspěch = poloviční dmg).
+      // Běžné údery jdou plnou silou → boss zůstává hrozbou (balanc = MR-10).
+      const special = enemy.isBoss && ++enemyTurns % 3 === 0;
+      const result = resolveAttack(enemy, player, rng, { abilityMult: special ? 1.6 : 1 });
+
+      let dmg = result.amount;
+      let saveMessage: string | undefined;
+      if (result.hit && special) {
+        const save = savingThrow(player, rng, 'dexterity', actorSpellSaveDc(enemy));
+        if (save.success) dmg = Math.max(1, Math.floor(dmg / 2));
+        saveMessage = buildSaveMessage(player.name, 'dexterity', save, true);
+      }
+
+      let absorbedNote = '';
+      if (result.hit) {
+        const absorb = applyAbsorb(dmg, playerShield);
+        playerShield = absorb.shieldRemaining;
+        if (absorb.absorbed > 0) absorbedNote = ` 🛡️ ${absorb.absorbed} absorbed.`;
+        // No-fail clamp (flavor combat) vs. reálný výsledek (combat-objective questy).
+        playerHp = allowDefeat
+          ? playerHp - absorb.netDamage
+          : Math.max(1, playerHp - absorb.netDamage);
+      }
+
       events.push({
         t: round1(t),
         type: 'attack',
-        message:
-          absorb.absorbed > 0
-            ? `🛡️ ${enemy.name} hits ${player.name} for ${hit.amount} (${absorb.absorbed} absorbed).`
-            : `${enemy.name} hits ${player.name} for ${hit.amount}.`,
+        message: buildDndAttackMessage({
+          attackerName: enemy.name,
+          targetName: player.name,
+          result: { ...result, amount: dmg },
+          abilityName: special ? 'a savage onslaught' : undefined,
+          suffix: result.hit ? `${absorbedNote} ${player.name}: ${Math.max(0, playerHp)} HP.` : '',
+        }),
         source: enemy.name,
         target: player.name,
-        amount: hit.amount,
+        amount: dmg,
+        crit: result.crit,
         targetHealthRemaining: Math.max(0, playerHp),
       });
+      if (saveMessage) {
+        events.push({ t: round1(t), type: 'ability', message: saveMessage, source: player.name });
+      }
       if (allowDefeat && playerHp <= 0) {
         playerDown = true;
         break;
