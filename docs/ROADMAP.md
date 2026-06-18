@@ -117,7 +117,65 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 
 ---
 
-# Archiv — WoW-éra (M0–M14, ✅ hotovo)
+# Backlog — post-Remaster fáze (rozhodnutí PM, priorita k doladění)
+
+> Zachycené záměry po dokončení MR (D&D Remaster). Pořadí/krájení na slice se doladí
+> s PM. Explicitní rozhodnutí = checkbox; otevřené otázky = **❓ k rozhodnutí**.
+> Velká rozhodnutí (vyříznutí raidů, dungeon overhaul, scrap mana, monetizace) → ADR.
+
+## Combat & obsah — overhaul
+
+- [ ] **Raidy úplně vyříznout** — odstranit raid systém (kód `raid.ts`/služby, data `data/raids.ts`, UI, weekly lockout vázaný na raidy, attunement questy jen-pro-raid). Rozhodnout osud raid lootu/achievementů (přemapovat na dungeony, nebo retire). ADR.
+- [ ] **Dungeon overhaul → tahové, 3 velikosti** (nahrazuje idle auto-resolve group PVE run interaktivním tahovým bojem — navázat na tahový engine Gauntletu):
+  - [ ] **Solo** — tahové.
+  - [ ] **3-player** — ručně složené **nebo autofill s AI**; AI parťáci **mimikují hráče** (rotace/role/spell sloty), tahové.
+  - [ ] **5-player** — **pouze ručně složené**, tahové.
+- [ ] **Gauntlet — overhaul bonusů** (draft odměn): lepší balanc + větší diverzifikace nabízených buffů/směrů.
+- [ ] **Arény (PVP) — zatím out of order** — pozastavit, než se rozhodne, co s nimi (směr/formát). ADR až s rozhodnutím.
+
+## Spell sloty & resource
+
+- [ ] **Spell sloty všude** — zavést D&D spell sloty do všech bojových režimů (dungeony/Gauntlet/…); **scrap mana** = odstranit zjednodušený `ResourceType` (mana/energy/rage proxy), sjednotit na D&D spell sloty (+ class resources Rage/Ki/Pact Magic). ADR.
+- [ ] **Fix kouzla nesedící na D&D** — narovnat ability, které neodpovídají D&D mechanice (např. **Hunter's Mark** = momentálně jen weapon strike; v D&D je to concentration buff +1d6 na zásah). Audit celého katalogu `abilities.ts` proti D&D 5e.
+- [ ] **Kniha kouzel — hráč si volí aktivní spelly** — místo fixního kitu (`resolveAbilities` = class+subclass+level) si hráč **vybere aktivní kouzla**, která má v boji k dispozici. Pool nabídky = **+- všechna kouzla, ke kterým by měl v D&D přístup** (spell list dané classy do jeho úrovně). Navazuje na rotaci (`CharacterRotation`) a spell sloty.
+  - **❓ k rozhodnutí — model Wizarda.** V D&D má wizard **spellbook** (učí se kouzla → velký „known" pool, z něj denně **připravuje** podmnožinu), ostatní classy mají „known spells". Vymyslet, jak to namodelovat: učení kouzel wizardem (level-up + scrolls/scribování?), prepared vs known, a sjednocení s ostatními classami.
+  - **❓ k rozhodnutí — omezení přehazování.** Swap aktivních kouzel bude **omezený** — kandidáti: **gold cost** za přehození, nebo vázané na Long Rest / downtime / level-up. Vybrat mechaniku (gold sink vs. časové gate).
+
+## Enemy systém
+
+- [ ] **Refactor enemy** — datový model nepřátel (sjednotit `data/enemies.ts` / dungeon / quest foe → jeden zdroj pravdy s CR, typy, schopnostmi).
+- [ ] **Enemy schopnosti** — aktivní abilities nepřátel (ne jen boss `damageMult`/special): typované útoky, conditiony, saving-throw efekty proti hráči.
+- [ ] **Bestiář pro hráče** — in-game encyklopedie nepřátel (navázat na MR-7 `data/enemies.ts` + CR + typové obrany): odemykání po setkání, lore, staty/odolnosti.
+
+## Ekonomika & gear
+
+- [ ] **Recheck gear** — revize gear systému a stat škály vůči nové D&D magnitudě (navazuje na MR-10e follow-up: `attack_power`/`spell_power` vs literal dice).
+- [ ] **Revize gold systému — balance** — zdroje/sinky zlata, inflace, ceny.
+- [ ] **Banka: poplatek za vklad/výběr** — uložení i vytažení věcí z banky stojí gold → navádí hráče banku tolik nevyužívat (gold sink + design tlak).
+
+## Platforma & distribuce
+
+- [ ] **Refactor UI pro mobily** — responsivní / mobile-first přepracování (hra je PWA, primárně mobilní idle).
+- [ ] **Wrapper PWA → APK** (TWA / Capacitor — rozhodnout) a **release na Google Play**.
+
+## Monetizace
+
+- [ ] **Vymyslet a přidat monetizaci** — kosmetická vrstva (skiny/tituly) je oddělená od statů od M0 (ADR 0003); rozhodnout model (skiny, battle-pass, …) a implementovat. ADR.
+
+## Auth
+
+- [ ] **Email auth** — registrace/login přes e-mail s potvrzením (rozšiřuje stávající průřezový auth follow-up níže).
+
+## RP / D&D / BG3 prvky
+
+- [ ] **Víc RP prvků** — vymyslet a přidat (rozšířit backstory/Background dopady, charakterové volby, …).
+- **❓ k rozhodnutí — idle gameplay mimo questing?** Když jsou dungeony tahové (interaktivní), zůstane questing hlavní idle smyčkou. Rozhodnout, zda/jak zachovat **idle progres i mimo questing** (idle profese? idle „expedice"? offline dopočet i u tahových režimů?).
+- **❓ k rozhodnutí — revize guild systému?** Posoudit, zda guildy potřebují přepracování (po vyříznutí raidů ztrácí část MP účelu — guild aktivity/perky/cíle?).
+- **❓ k rozhodnutí — další RP / D&D / BG3 prvky?** Brainstorm k výběru: conditions (prone/stunned/frightened…), Inspiration, Short/Long Rest mechanika napříč obsahem, downtime aktivity, dialogové volby s skill checky (DC + atribut), companions/origin postavy (BG3), alignment, reaction/concentration, environmentální interakce.
+
+---
+
+
 
 > Kompletní hratelná WoW-inspirovaná hra. MR ji postupně přepisuje na D&D — proto kondenzováno (detaily v odkazovaných ADR/systems). Pixel-art, sociální vrstva, ekonomika, idle/combat infra a content infra z těchto milníků **zůstávají**; mění se theming (rasy/lore/frakce), staty, classy, spelly a combat čísla.
 
