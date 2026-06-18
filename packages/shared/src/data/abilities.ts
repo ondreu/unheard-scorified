@@ -48,6 +48,13 @@ export interface SignatureAbility {
   mitigationPct?: number;
   /** Mitigation: doba trvání obranného okna v sekundách. */
   mitigationDurationSec?: number;
+  /**
+   * D&D spell tier (MR-4): 0 = cantrip / at-will (zdarma, bez slotu), 1..9 =
+   * kouzlo daného levelu (spotřebuje spell slot ≥ tier). U martial tříd
+   * (Barbarian/Fighter/Monk/Rogue) jsou „abilities" bojové techniky, ne kouzla →
+   * `spellTier` nedefinováno (nepatří do spellbooku, viz `casterTypeOf`).
+   */
+  spellTier?: number;
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -64,6 +71,8 @@ interface BaselineOpts {
   drainHealFraction?: number;
   execute?: { executeBelowPct: number; executeDamageMult: number };
   mitigation?: { mitigationPct: number; mitigationDurationSec: number };
+  /** D&D spell tier (0 = cantrip, 1..9 = kouzlo). Jen pro caster classy. */
+  spellTier?: number;
 }
 
 function ba(
@@ -88,6 +97,7 @@ function ba(
     ...(opts.drainHealFraction ? { drainHealFraction: opts.drainHealFraction } : {}),
     ...(opts.execute ?? {}),
     ...(opts.mitigation ?? {}),
+    ...(opts.spellTier !== undefined ? { spellTier: opts.spellTier } : {}),
   };
 }
 
@@ -104,21 +114,21 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('barb_brutal_strike', 'Brutal Strike', 'A crushing 180% blow, rising to 280% against foes below 30% health.', 'strike', 8, 1.8, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.8 } }),
   ],
   bard: [
-    ba('bard_vicious_mockery', 'Vicious Mockery', 'Cutting insults sear the mind for 110% spell damage and 90% over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 } }),
-    ba('bard_healing_word', 'Healing Word', 'A word of power restores 200% of your healing power to a wounded ally.', 'heal', 5, 2.0, 1),
-    ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 175% spell damage.', 'strike', 7, 1.75, 9),
+    ba('bard_vicious_mockery', 'Vicious Mockery', 'Cutting insults sear the mind for 110% spell damage and 90% over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0 }),
+    ba('bard_healing_word', 'Healing Word', 'A word of power restores 200% of your healing power to a wounded ally.', 'heal', 5, 2.0, 1, { spellTier: 1 }),
+    ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 175% spell damage.', 'strike', 7, 1.75, 9, { spellTier: 1 }),
   ],
   cleric: [
-    ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame descends for 150% spell damage.', 'strike', 5, 1.5, 1),
-    ba('cleric_cure_wounds', 'Cure Wounds', 'Channels divine power to heal an ally for 230% of your healing power.', 'heal', 6, 2.3, 1),
-    ba('cleric_guiding_bolt', 'Guiding Bolt', 'A bolt of light strikes for 210% spell damage.', 'strike', 7, 2.1, 8),
-    ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians harry the enemy for 120% damage over 9s.', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 } }),
+    ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame descends for 150% spell damage.', 'strike', 5, 1.5, 1, { spellTier: 0 }),
+    ba('cleric_cure_wounds', 'Cure Wounds', 'Channels divine power to heal an ally for 230% of your healing power.', 'heal', 6, 2.3, 1, { spellTier: 1 }),
+    ba('cleric_guiding_bolt', 'Guiding Bolt', 'A bolt of light strikes for 210% spell damage.', 'strike', 7, 2.1, 8, { spellTier: 1 }),
+    ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians harry the enemy for 120% damage over 9s.', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 }, spellTier: 3 }),
   ],
   druid: [
-    ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 150% spell damage.', 'strike', 5, 1.5, 1),
-    ba('druid_healing_word', 'Healing Word', 'Nature mends an ally for 220% of your healing power.', 'heal', 5, 2.2, 1),
-    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears for 130% damage over 9s.', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.45 } }),
-    ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 190% spell damage.', 'strike', 7, 1.9, 14),
+    ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 150% spell damage.', 'strike', 5, 1.5, 1, { spellTier: 0 }),
+    ba('druid_healing_word', 'Healing Word', 'Nature mends an ally for 220% of your healing power.', 'heal', 5, 2.2, 1, { spellTier: 1 }),
+    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears for 130% damage over 9s.', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.45 }, spellTier: 2 }),
+    ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 190% spell damage.', 'strike', 7, 1.9, 14, { spellTier: 3 }),
   ],
   fighter: [
     ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined 115% weapon-damage strike.', 'strike', 4, 1.15, 1),
@@ -132,16 +142,16 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('monk_quivering_palm', 'Quivering Palm', 'Lethal vibrations for 200% damage, rising to 300% against foes below 30% health.', 'strike', 9, 2.0, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 3.0 } }),
   ],
   paladin: [
-    ba('paladin_divine_smite', 'Divine Smite', 'A radiant strike for 180% weapon damage.', 'strike', 5, 1.8, 1),
-    ba('paladin_lay_on_hands', 'Lay on Hands', 'Restores 220% of your healing power to a wounded ally.', 'heal', 6, 2.2, 1),
-    ba('paladin_searing_smite', 'Searing Smite', 'A flaming blow for 140% damage that burns for 100% over 8s.', 'dot', 8, 0.4, 12, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.3 } }),
-    ba('paladin_flash_of_light', 'Flash of Light', 'A quick heal restoring 130% of your healing power.', 'heal', 4, 1.3, 20),
+    ba('paladin_divine_smite', 'Divine Smite', 'A radiant strike for 180% weapon damage.', 'strike', 5, 1.8, 1, { spellTier: 1 }),
+    ba('paladin_lay_on_hands', 'Lay on Hands', 'Restores 220% of your healing power to a wounded ally.', 'heal', 6, 2.2, 1, { spellTier: 1 }),
+    ba('paladin_searing_smite', 'Searing Smite', 'A flaming blow for 140% damage that burns for 100% over 8s.', 'dot', 8, 0.4, 12, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.3 }, spellTier: 2 }),
+    ba('paladin_flash_of_light', 'Flash of Light', 'A quick heal restoring 130% of your healing power.', 'heal', 4, 1.3, 20, { spellTier: 1 }),
   ],
   ranger: [
-    ba('ranger_hunters_mark', "Hunter's Mark", 'A marked-prey shot for 155% weapon damage.', 'strike', 5, 1.55, 1),
-    ba('ranger_serpent_arrow', 'Serpent Arrow', 'A venomed arrow for 40% on impact and 125% over 10s.', 'dot', 9, 0.4, 6, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0.25 } }),
-    ba('ranger_volley', 'Volley', 'A rain of arrows dealing 185% weapon damage.', 'strike', 8, 1.85, 14),
-    ba('ranger_cure_wounds', 'Cure Wounds', 'Restores 170% of your healing power to a wounded ally.', 'heal', 6, 1.7, 9),
+    ba('ranger_hunters_mark', "Hunter's Mark", 'A marked-prey shot for 155% weapon damage.', 'strike', 5, 1.55, 1, { spellTier: 1 }),
+    ba('ranger_serpent_arrow', 'Serpent Arrow', 'A venomed arrow for 40% on impact and 125% over 10s.', 'dot', 9, 0.4, 6, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0.25 }, spellTier: 1 }),
+    ba('ranger_volley', 'Volley', 'A rain of arrows dealing 185% weapon damage.', 'strike', 8, 1.85, 14, { spellTier: 2 }),
+    ba('ranger_cure_wounds', 'Cure Wounds', 'Restores 170% of your healing power to a wounded ally.', 'heal', 6, 1.7, 9, { spellTier: 1 }),
   ],
   rogue: [
     ba('rogue_sneak_attack', 'Sneak Attack', 'A vital strike for 140% weapon damage, rising to 250% against foes below 35% health.', 'strike', 4, 1.4, 1, { execute: { executeBelowPct: 0.35, executeDamageMult: 2.5 } }),
@@ -149,22 +159,22 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('rogue_assassinate', 'Assassinate', 'A killing strike for 200% weapon damage, rising to 320% against foes below 35% health.', 'strike', 8, 2.0, 14, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
   ],
   sorcerer: [
-    ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 110% spell damage.', 'strike', 4, 1.1, 1),
-    ba('sorc_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 165% spell damage.', 'strike', 6, 1.65, 5),
-    ba('sorc_scorching_ray', 'Scorching Ray', 'Searing rays for 140% damage plus 90% over 6s.', 'dot', 8, 0.4, 9, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 } }),
-    ba('sorc_fireball', 'Fireball', 'A roaring explosion for 220% spell damage.', 'strike', 9, 2.2, 14),
+    ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 110% spell damage.', 'strike', 4, 1.1, 1, { spellTier: 0 }),
+    ba('sorc_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 165% spell damage.', 'strike', 6, 1.65, 5, { spellTier: 1 }),
+    ba('sorc_scorching_ray', 'Scorching Ray', 'Searing rays for 140% damage plus 90% over 6s.', 'dot', 8, 0.4, 9, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 2 }),
+    ba('sorc_fireball', 'Fireball', 'A roaring explosion for 220% spell damage.', 'strike', 9, 2.2, 14, { spellTier: 3 }),
   ],
   warlock: [
-    ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling energy for 145% spell damage.', 'strike', 4, 1.45, 1),
-    ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 } }),
-    ba('warlock_drain_life', 'Drain Life', 'Drains 100% damage, healing you for 50% of the damage dealt.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5 }),
-    ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'Void tendrils gnaw for 40% on impact and 110% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.27 } }),
+    ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling energy for 145% spell damage.', 'strike', 4, 1.45, 1, { spellTier: 0 }),
+    ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }, spellTier: 1 }),
+    ba('warlock_drain_life', 'Drain Life', 'Drains 100% damage, healing you for 50% of the damage dealt.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3 }),
+    ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'Void tendrils gnaw for 40% on impact and 110% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.27 }, spellTier: 3 }),
   ],
   wizard: [
-    ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 105% spell damage.', 'strike', 4, 1.05, 1),
-    ba('wiz_magic_missile', 'Magic Missile', 'Unerring darts of force for 130% spell damage.', 'strike', 4, 1.3, 1),
-    ba('wiz_scorching_ray', 'Scorching Ray', 'Searing rays for 40% on impact and 75% over 6s.', 'dot', 8, 0.4, 8, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.25 } }),
-    ba('wiz_fireball', 'Fireball', 'A roaring explosion for 230% spell damage.', 'strike', 9, 2.3, 14),
+    ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 105% spell damage.', 'strike', 4, 1.05, 1, { spellTier: 0 }),
+    ba('wiz_magic_missile', 'Magic Missile', 'Unerring darts of force for 130% spell damage.', 'strike', 4, 1.3, 1, { spellTier: 1 }),
+    ba('wiz_scorching_ray', 'Scorching Ray', 'Searing rays for 40% on impact and 75% over 6s.', 'dot', 8, 0.4, 8, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.25 }, spellTier: 2 }),
+    ba('wiz_fireball', 'Fireball', 'A roaring explosion for 230% spell damage.', 'strike', 9, 2.3, 14, { spellTier: 3 }),
   ],
 };
 
@@ -172,17 +182,17 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
 
 export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
   path_of_the_berserker: ba('berserker_frenzy', 'Frenzy', 'Berserk fury strikes for 250% weapon damage.', 'strike', 8, 2.5, 3),
-  college_of_lore: ba('lore_song_of_rest', 'Song of Rest', 'An inspiring melody heals an ally for 270% of your healing power.', 'heal', 8, 2.7, 3),
-  life_domain: ba('life_preserve_life', 'Preserve Life', 'Disciple of life surges a heal for 300% of your healing power.', 'heal', 8, 3.0, 1),
+  college_of_lore: ba('lore_song_of_rest', 'Song of Rest', 'An inspiring melody heals an ally for 270% of your healing power.', 'heal', 8, 2.7, 3, { spellTier: 2 }),
+  life_domain: ba('life_preserve_life', 'Preserve Life', 'Disciple of life surges a heal for 300% of your healing power.', 'heal', 8, 3.0, 1, { spellTier: 2 }),
   circle_of_the_moon: ba('moon_wild_shape', 'Wild Shape: Dire Bear', 'Transforms to maul for 240% weapon damage.', 'strike', 9, 2.4, 2),
   champion: ba('champion_heroic_surge', 'Heroic Surge', 'A champion strike for 230% weapon damage.', 'strike', 8, 2.3, 3),
   way_of_the_open_hand: ba('open_hand_flurry', 'Flurry of Blows', 'A blinding flurry for 260% weapon damage.', 'strike', 8, 2.6, 3),
-  oath_of_devotion: ba('devotion_sacred_weapon', 'Sacred Weapon', 'A radiant strike for 240% weapon damage.', 'strike', 9, 2.4, 3),
+  oath_of_devotion: ba('devotion_sacred_weapon', 'Sacred Weapon', 'A radiant strike for 240% weapon damage.', 'strike', 9, 2.4, 3, { spellTier: 1 }),
   hunter: ba('hunter_colossus_slayer', 'Colossus Slayer', 'A focused shot for 230% damage, rising to 320% against foes below 35% health.', 'strike', 9, 2.3, 3, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
   thief: ba('thief_backstab', 'Backstab', 'A shadow strike for 230% weapon damage, rising to 320% against foes below 35% health.', 'strike', 9, 2.3, 3, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
-  draconic_bloodline: ba('draconic_elemental_burst', 'Elemental Burst', 'Draconic power erupts for 250% spell damage.', 'strike', 9, 2.5, 1),
-  the_fiend: ba('fiend_dark_ones_blessing', "Dark One's Own Luck", 'A fiendish blast for 230% damage, healing you for 20% of the damage dealt.', 'drain', 8, 2.3, 1, { drainHealFraction: 0.2 }),
-  school_of_evocation: ba('evocation_overchannel', 'Overchannel', 'Overchanneled arcana for 270% spell damage.', 'strike', 10, 2.7, 2),
+  draconic_bloodline: ba('draconic_elemental_burst', 'Elemental Burst', 'Draconic power erupts for 250% spell damage.', 'strike', 9, 2.5, 1, { spellTier: 2 }),
+  the_fiend: ba('fiend_dark_ones_blessing', "Dark One's Own Luck", 'A fiendish blast for 230% damage, healing you for 20% of the damage dealt.', 'drain', 8, 2.3, 1, { drainHealFraction: 0.2, spellTier: 2 }),
+  school_of_evocation: ba('evocation_overchannel', 'Overchannel', 'Overchanneled arcana for 270% spell damage.', 'strike', 10, 2.7, 2, { spellTier: 3 }),
 };
 
 /**

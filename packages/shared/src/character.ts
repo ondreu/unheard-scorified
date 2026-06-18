@@ -11,6 +11,7 @@
 import { CLASSES, type ClassId, type ResourceType } from './data/classes';
 import { RACES, type Faction, type RaceId } from './data/races';
 import { levelFromTotalXp } from './leveling';
+import { casterTypeOf, spellSlotsFor, type CasterType, type SpellSlots } from './data/spell-slots';
 import type { ItemStats } from './data/items';
 
 export type { ClassId, ResourceType, Role } from './data/classes';
@@ -167,6 +168,10 @@ export interface DerivedStats {
   spellAttackBonus: number;
   /** Útočný bonus (proficiency + lepší z STR/DEX modifikátoru). */
   attackBonus: number;
+  /** Typ sesilatele (full/half/pact/none) — D&D spell sloty (MR-4). */
+  casterType: CasterType;
+  /** Maximální spell sloty (plně odpočaté) per tier — D&D tabulka (MR-4). */
+  spellSlots: SpellSlots;
 }
 
 /** Odvozené staty z atributů dle D&D 5e. Placeholder magnitudy (laděno v MR-10). */
@@ -203,6 +208,8 @@ export function deriveStats(primary: AbilityScores, level: number, klass: ClassI
     spellSaveDc: 8 + prof + castingMod,
     spellAttackBonus: prof + castingMod,
     attackBonus: prof + Math.max(mods.strength, mods.dexterity),
+    casterType: casterTypeOf(klass),
+    spellSlots: spellSlotsFor(klass, level),
   };
 }
 

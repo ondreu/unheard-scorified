@@ -985,15 +985,39 @@ MR-1 (staty STR/DEX/CON/INT/WIS/CHA + AC)
       - _Pozn.: zvoleno **standard array** (rozhodnutí PM); **point-buy** = follow-up.
         Background skill proficiencies jsou zatím jen lore/zobrazení (skill checky D&D
         se v idle modelu neřeší) — případné napojení na mechaniky = pozdější._
-- [ ] MR-4 — spell systém + tiered spell sloty (D&D tabulka, Long Rest recharge).
+- [x] **MR-4 — spell systém + tiered spell sloty** ✅ (D&D tabulka, Long Rest recharge):
+      - **Slotová tabulka** (`@game/shared/data/spell-slots.ts`): D&D 5e sloty 1.–9.
+        tier per třída/level, **typy sesilatelů** `CASTER_TYPE` — full (Bard/Cleric/
+        Druid/Sorcerer/Wizard), half (Paladin/Ranger, od lvl 2), pact (Warlock —
+        Pact Magic), none (Barbarian/Fighter/Monk/Rogue). `spellSlotsFor(klass,level)`
+        je čistá derivace (žádný mutable max).
+      - **Idle spotřeba + Long Rest**: aktivita při startu sešle nejlepší dostupná
+        kouzla (`activitySlotCost` slotů od nejvyššího tieru, `spendHighestSlots`),
+        **Long Rest = plné dobití při claimu/návratu** (reset) + manuální endpoint.
+        Jediný mutable stav `characters.spent_spell_slots` (migrace `0037`);
+        available = max − spent.
+      - **Spellbook**: abilit katalog dostal `spellTier` (0 = cantrip, 1..9 = kouzlo);
+        `spellbookFor(klass,subclass,level)` seskupí známá kouzla po tieru. Martial
+        classy → prázdný spellbook (kit = bojové techniky → Rotation).
+      - **Character sheet**: `DerivedStats.casterType` + `spellSlots` (max) — sloty
+        viditelné v overview/inspect.
+      - **API** `SpellModule`: `GET /characters/:id/spells` (spellbook + sloty
+        max/available + rested), `POST .../spells/long-rest`. **Web**
+        `/characters/[id]/spells` (sloty per tier + Long Rest + spellbook s ikonami).
+      - Testy: shared `spell-slots.test.ts` (+24) + API `spell.flow.test.ts` (+5).
+        Build/test/lint/typecheck zelené (381 shared + 192 API). **ADR 0029**,
+        `docs/systems/spells.md`.
+      - _Pozn.: per-encounter depletion řídící boj = MR-5 (dice combat); spotřeba u
+        dungeonů/raidů/arén/Gauntletu + Short Rest granularita = MR-5+; balanc = MR-10._
 
-> 🔜 **Handoff pro další session:** hotovo **MR-1, MR-2 (+MR-6), MR-3**. Pokračovat
-> **MR-4** (spell sloty: D&D tabulka per třída/level, aktivity je spotřebovávají,
-> Long Rest = full recharge při claimu; spell list per třída). Pak MR-5 (dice-roll
-> combat: d20 vs AC, damage dice, saving throws), MR-7 (D&D bestiář + CR), MR-8 (lore
-> přejmenování zón/dungeonů/raidů — WoW → homebrew D&D), MR-9 (odstranění frakcí),
-> MR-10 (balance pass), MR-11 (level cap 20 + XP křivka). Pozn.: rasy jsou stále WoW
-> sada namapovaná na D&D atributy — PHB rasy přijdou s lore přejmenováním (MR-8/MR-9).
+> 🔜 **Handoff pro další session:** hotovo **MR-1, MR-2 (+MR-6), MR-3, MR-4**.
+> Pokračovat **MR-5** (dice-roll combat: d20 attack roll vs AC → hit/miss, damage
+> dice, saving throws, initiative; log „rolled 14 + 5 = 19 vs AC 16 → HIT"; navázat
+> **spotřebu spell slotů z MR-4** na per-encounter combat). Pak MR-7 (D&D bestiář +
+> CR), MR-8 (lore přejmenování zón/dungeonů/raidů — WoW → homebrew D&D), MR-9
+> (odstranění frakcí), MR-10 (balance pass), MR-11 (level cap 20 + XP křivka). Pozn.:
+> rasy jsou stále WoW sada namapovaná na D&D atributy — PHB rasy přijdou s lore
+> přejmenováním (MR-8/MR-9).
 
 ---
 

@@ -1,0 +1,1 @@
+ALTER TABLE "characters" ADD COLUMN "spent_spell_slots" jsonb DEFAULT '{}'::jsonb NOT NULL;
