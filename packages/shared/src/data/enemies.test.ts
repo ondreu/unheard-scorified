@@ -1,0 +1,162 @@
+import { describe, expect, it } from 'vitest';
+import {
+  BESTIARY,
+  BESTIARY_IDS,
+  bestiaryEnemyById,
+  buildBestiaryEnemy,
+  enemiesByChallengeRating,
+  enemiesByCreatureType,
+  getEnemyTemplate,
+} from './enemies';
+import { CHALLENGE_RATINGS, CREATURE_TYPES, DAMAGE_TYPES, crStatGuide } from './damage';
+import { buildEnemyActor, resolveAttack, type CombatActor } from '../combat';
+import { SeededRng } from '../rng';
+
+describe('bestiary integrity', () => {
+  it('every template has a unique, key-matching id', () => {
+    expect(new Set(BESTIARY_IDS).size).toBe(BESTIARY_IDS.length);
+    for (const id of BESTIARY_IDS) expect(BESTIARY[id]!.id).toBe(id);
+  });
+
+  it('every template uses valid CR, creature type and damage type', () => {
+    for (const t of Object.values(BESTIARY)) {
+      expect(CHALLENGE_RATINGS).toContain(t.cr);
+      expect(CREATURE_TYPES).toContain(t.creatureType);
+      expect(DAMAGE_TYPES).toContain(t.attackType);
+      for (const list of [t.resistances, t.vulnerabilities, t.immunities]) {
+        for (const dt of list ?? []) expect(DAMAGE_TYPES).toContain(dt);
+      }
+    }
+  });
+
+  it('never lists a damage type as both resistant and immune (redundant)', () => {
+    for (const t of Object.values(BESTIARY)) {
+      const immune = new Set(t.immunities ?? []);
+      for (const r of t.resistances ?? []) expect(immune.has(r)).toBe(false);
+    }
+  });
+
+  it('every ability uses a valid damage type and a non-trivial multiplier', () => {
+    for (const t of Object.values(BESTIARY)) {
+      for (const ab of t.abilities ?? []) {
+        expect(DAMAGE_TYPES).toContain(ab.damageType);
+        expect(ab.damageMult).toBeGreaterThan(1);
+        expect(ab.cooldownSec).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('indexes by creature type and CR', () => {
+    expect(enemiesByCreatureType('undead').length).toBeGreaterThan(0);
+    expect(enemiesByChallengeRating(5).every((t) => t.cr === 5)).toBe(true);
+    expect(getEnemyTemplate('skeleton_warrior')?.creatureType).toBe('undead');
+    expect(getEnemyTemplate('nope')).toBeUndefined();
+  });
+});
+
+describe('buildBestiaryEnemy', () => {
+  it('derives stats from CR guide and carries the damage profile', () => {
+    const wraith = buildBestiaryEnemy(BESTIARY['grave_wraith']!);
+    const guide = crStatGuide(5);
+    expect(wraith.armorClass).toBe(guide.armorClass);
+    expect(wraith.attackBonus).toBe(guide.attackBonus);
+    expect(wraith.maxHealth).toBe(guide.hitPoints);
+    expect(wraith.attackPower).toBe(guide.damagePerRound);
+    expect(wraith.damageType).toBe('necrotic');
+    expect(wraith.immunities).toContain('necrotic');
+    expect(wraith.vulnerabilities).toContain('radiant');
+  });
+
+  it('gives bosses +2 AC over the CR guide', () => {
+    const dragon = buildBestiaryEnemy(BESTIARY['young_red_dragon']!);
+    expect(dragon.isBoss).toBe(true);
+    expect(dragon.armorClass).toBe(crStatGuide(10).armorClass + 2);
+  });
+
+  it('honours stat overrides', () => {
+    const ogre = buildBestiaryEnemy(BESTIARY['hill_ogre']!, { maxHealth: 999, attackPower: 50 });
+    expect(ogre.maxHealth).toBe(999);
+    expect(ogre.attackPower).toBe(50);
+  });
+
+  it('bestiaryEnemyById resolves and returns undefined for unknown id', () => {
+    expect(bestiaryEnemyById('fire_elemental')?.name).toBe('Fire Elemental');
+    expect(bestiaryEnemyById('ghost_of_christmas')).toBeUndefined();
+  });
+});
+
+describe('resistance / vulnerability in dice-roll combat (MR-7)', () => {
+  function attacker(damageType: CombatActor['damageType']): CombatActor {
+    return {
+      name: 'Hero',
+      maxHealth: 100,
+      attackPower: 28,
+      swingInterval: 2.4,
+      critChance: 0,
+      critMultiplier: 2,
+      armor: 0,
+      lifesteal: 0,
+      shield: 0,
+      attackBonus: 8,
+      damageType,
+      signatureAbilities: [],
+    };
+  }
+
+  /** Poškození jednoho auto-hit útoku daného typu proti danému cíli (fixní seed). */
+  function autoHitDamage(atk: CombatActor, def: CombatActor): number {
+    const rng = new SeededRng(424242);
+    return resolveAttack(atk, def, rng, { autoHit: true }).amount;
+  }
+
+  const baseline = buildEnemyActor({
+    name: 'Dummy',
+    maxHealth: 200,
+    attackPower: 10,
+    swingInterval: 2.4,
+  });
+  const resistant = buildEnemyActor({
+    name: 'Fire Resistant',
+    maxHealth: 200,
+    attackPower: 10,
+    swingInterval: 2.4,
+    resistances: ['fire'],
+  });
+  const immune = buildEnemyActor({
+    name: 'Fire Immune',
+    maxHealth: 200,
+    attackPower: 10,
+    swingInterval: 2.4,
+    immunities: ['fire'],
+  });
+  const vulnerable = buildEnemyActor({
+    name: 'Fire Vulnerable',
+    maxHealth: 200,
+    attackPower: 10,
+    swingInterval: 2.4,
+    vulnerabilities: ['fire'],
+  });
+
+  it('resistance halves, vulnerability doubles, immunity zeroes — vs the same roll', () => {
+    const fire = attacker('fire');
+    const normal = autoHitDamage(fire, baseline);
+    expect(normal).toBeGreaterThan(1);
+    expect(autoHitDamage(fire, resistant)).toBe(Math.floor(normal / 2));
+    expect(autoHitDamage(fire, vulnerable)).toBe(normal * 2);
+    expect(autoHitDamage(fire, immune)).toBe(0);
+  });
+
+  it('only the matching damage type is affected', () => {
+    const cold = attacker('cold');
+    // Cold útok proti fire-resistantnímu cíli = plné poškození.
+    expect(autoHitDamage(cold, resistant)).toBe(autoHitDamage(cold, baseline));
+  });
+
+  it('ability damage type override can bypass a physical default', () => {
+    const physical = attacker('bludgeoning');
+    const rng = new SeededRng(99001);
+    const hit = resolveAttack(physical, immune, rng, { autoHit: true, damageType: 'fire' });
+    expect(hit.damageInteraction).toBe('immune');
+    expect(hit.amount).toBe(0);
+  });
+});
