@@ -12,7 +12,7 @@ describe('achievements', () => {
   });
 
   it('achievementById najde i mine', () => {
-    expect(achievementById('level_60')?.metric).toBe('level');
+    expect(achievementById('level_20')?.metric).toBe('level');
     expect(achievementById('nope')).toBeUndefined();
   });
 

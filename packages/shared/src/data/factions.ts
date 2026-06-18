@@ -5,6 +5,7 @@
  *
  * Jediný zdroj pravdy pro API i web.
  */
+import { MAX_LEVEL } from '../constants';
 
 export type FactionId = 'miners_league' | 'herbalist_circle' | 'explorers_guild';
 
@@ -110,7 +111,7 @@ export const GENERALIST_FACTION: FactionId = 'explorers_guild';
  * (řádově srovnatelný s profession během, viz `repReward` 20–80).
  */
 export function questReputationGain(level: number): number {
-  const lvl = Math.max(1, Math.min(60, Math.floor(level)));
+  const lvl = Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
   return Math.round(10 + lvl * 0.5);
 }
 
@@ -119,6 +120,6 @@ export function questReputationGain(level: number): number {
  * víc než quest (dungeon = větší závazek). Uděluje se jen při clearu (ne wipe).
  */
 export function dungeonReputationGain(level: number): number {
-  const lvl = Math.max(1, Math.min(60, Math.floor(level)));
+  const lvl = Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
   return Math.round(25 + lvl);
 }

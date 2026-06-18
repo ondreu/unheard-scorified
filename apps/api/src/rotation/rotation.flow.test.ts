@@ -97,11 +97,11 @@ describe('flow: deklarativní rotace (D&D)', () => {
 
   it('rotationForCombat vrací undefined bez uložené rotace, jinak očištěnou', async () => {
     const { accountId, id } = await championFighter('rotd', 'Tirion');
-    expect(await rotation.rotationForCombat(id, 'fighter', 'champion', 60)).toBeUndefined();
+    expect(await rotation.rotationForCombat(id, 'fighter', 'champion', 20)).toBeUndefined();
     await rotation.setRotation(accountId, id, {
       rules: [{ abilityId: 'champion_heroic_surge', enabled: false, conditionType: 'always' }],
     });
-    const forCombat = await rotation.rotationForCombat(id, 'fighter', 'champion', 60);
+    const forCombat = await rotation.rotationForCombat(id, 'fighter', 'champion', 20);
     expect(forCombat?.rules.find((r) => r.abilityId === 'champion_heroic_surge')?.enabled).toBe(false);
   });
 

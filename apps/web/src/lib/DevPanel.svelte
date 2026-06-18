@@ -109,7 +109,7 @@
         <section class="dev-section">
           <h3>Level</h3>
           <div class="dev-row">
-            <input type="number" min="1" max="60" bind:value={levelInput} class="dev-input" />
+            <input type="number" min="1" max="20" bind:value={levelInput} class="dev-input" />
             <button
               class="dev-btn"
               disabled={busy}

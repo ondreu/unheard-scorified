@@ -12,7 +12,7 @@ import {
 describe('xpForNextLevel', () => {
   it('roste s levelem (strmá křivka)', () => {
     expect(xpForNextLevel(2)).toBeGreaterThan(xpForNextLevel(1));
-    expect(xpForNextLevel(30)).toBeGreaterThan(xpForNextLevel(10));
+    expect(xpForNextLevel(15)).toBeGreaterThan(xpForNextLevel(5));
   });
 
   it('vrací 0 na max levelu', () => {
@@ -30,7 +30,7 @@ describe('levelFromTotalXp', () => {
   });
 
   it('je inverzní k totalXpForLevel', () => {
-    for (const target of [2, 5, 20, 59, MAX_LEVEL]) {
+    for (const target of [2, 5, 15, 19, MAX_LEVEL]) {
       expect(levelFromTotalXp(totalXpForLevel(target)).level).toBe(target);
     }
   });
@@ -45,7 +45,7 @@ describe('levelFromTotalXp', () => {
 
 describe('smluvní aliasy xpForLevel / levelFromXp', () => {
   it('xpForLevel = totalXpForLevel', () => {
-    for (const lvl of [1, 2, 10, 30, MAX_LEVEL]) {
+    for (const lvl of [1, 2, 10, 15, MAX_LEVEL]) {
       expect(xpForLevel(lvl)).toBe(totalXpForLevel(lvl));
     }
   });

@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { activityEfficiency, QUESTS, xpForLevel } from '@game/shared';
+import { activityEfficiency, MAX_LEVEL, QUESTS, xpForLevel } from '@game/shared';
 import { AuthService } from '../auth/auth.service';
 import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
@@ -39,8 +39,12 @@ describe('M2 flow: leveling & idle smyčka', () => {
   let activity: ActivityService;
 
   const KOBOLD = QUESTS.ns_kobold_culling!;
-  // M12: combat-objective quest (souboj lze prohrát), Alliance/Northshire, req lvl 8.
+  // Combat-objective quest (souboj lze prohrát). Nízkolevelová varianta (req lvl 3,
+  // Dawnhollow): silná postava ji s rezervou vyhraje.
   const CHALLENGE = QUESTS.ns_padfoot_bounty!;
+  // Vysokolevelová varianta (req lvl 18, Blighted Marches): nepřítel škáluje
+  // tvrději než ne-gearovaná postava na stejném levelu → spolehlivá prohra.
+  const CHALLENGE_LOSS = QUESTS.epl_araj_reckoning!;
   const T0 = Date.UTC(2026, 5, 14, 12, 0, 0);
 
   beforeAll(async () => {
@@ -165,15 +169,15 @@ describe('M2 flow: leveling & idle smyčka', () => {
 
   it('postava povýší po dostatku XP', async () => {
     const { accountId, id } = await newCharacter('m2e', 'Modera');
-    // kobold (~99 XP) → stále lvl 1 (xpForNextLevel(1) = 120)
+    // kobold (~99 XP) → stále lvl 1 (xpForNextLevel(1) = 1966 v MR-11 křivce)
     await activity.start(accountId, id, { activityType: 'quest', questId: KOBOLD.id });
     vi.setSystemTime(T0 + KOBOLD.durationSec * 1000 + 1);
     let r = await activity.claim(accountId, id);
     expect(r.character.sheet.level).toBe(1);
 
-    // Gone Questing 20 min (~197 XP) → 296 XP > 120 → level 2 (claim = level-up)
+    // Gone Questing 6 h (~2880 XP @ eff 0.8) → ~2979 XP > 1966 → level 2 (claim = level-up)
     const base = Date.now();
-    const GRIND_SEC = 1200;
+    const GRIND_SEC = 21600;
     await activity.start(accountId, id, { activityType: 'grind', durationSec: GRIND_SEC });
     vi.setSystemTime(base + GRIND_SEC * 1000 + 1);
     r = await activity.claim(accountId, id);
@@ -215,10 +219,10 @@ describe('M2 flow: leveling & idle smyčka', () => {
   it('combat-objective quest: prohra → žádná odměna, quest se nedokončí (lze opakovat)', async () => {
     const { accountId, id } = await newCharacter('m12fail', 'Tirion');
     // Postava přesně na požadovaném levelu, bez gearu → slabá → souboj prohraje.
-    await charRepo.addRewards(id, xpForLevel(CHALLENGE.requiredLevel), 0);
+    await charRepo.addRewards(id, xpForLevel(CHALLENGE_LOSS.requiredLevel), 0);
 
-    await activity.start(accountId, id, { activityType: 'quest', questId: CHALLENGE.id });
-    vi.setSystemTime(T0 + CHALLENGE.durationSec * 1000 + 1);
+    await activity.start(accountId, id, { activityType: 'quest', questId: CHALLENGE_LOSS.id });
+    vi.setSystemTime(T0 + CHALLENGE_LOSS.durationSec * 1000 + 1);
     const result = await activity.claim(accountId, id);
 
     expect(result.questFailed).toBe(true);
@@ -231,15 +235,15 @@ describe('M2 flow: leveling & idle smyčka', () => {
 
     // Quest se NEdokončil → je pořád v nabídce (lze opakovat se silnějším buildem).
     const ids = (await quests.listAvailable(accountId, id)).map((q) => q.id);
-    expect(ids).toContain(CHALLENGE.id);
+    expect(ids).toContain(CHALLENGE_LOSS.id);
     // Aktivita je pryč → lze zkusit znovu.
     expect(await activity.getCurrent(accountId, id)).toBeNull();
   });
 
   it('combat-objective quest: výhra → odměna + jednorázové dokončení', async () => {
     const { accountId, id } = await newCharacter('m12win', 'Uther');
-    // Silná postava (vysoký level) → vyhraje s velkou rezervou.
-    await charRepo.addRewards(id, xpForLevel(60), 0);
+    // Silná postava (max level) → vyhraje s velkou rezervou.
+    await charRepo.addRewards(id, xpForLevel(MAX_LEVEL), 0);
 
     await activity.start(accountId, id, { activityType: 'quest', questId: CHALLENGE.id });
     vi.setSystemTime(T0 + CHALLENGE.durationSec * 1000 + 1);

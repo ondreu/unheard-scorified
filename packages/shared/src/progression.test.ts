@@ -21,7 +21,7 @@ describe('progrese — cíl času na cap', () => {
     return h;
   })();
 
-  it('perfect-chain čas 1→60 je blízko cíle (±2 %)', () => {
+  it('perfect-chain čas 1→20 je blízko cíle (±2 %)', () => {
     expect(totalHours).toBeGreaterThan(TARGET_HOURS_TO_CAP * 0.98);
     expect(totalHours).toBeLessThan(TARGET_HOURS_TO_CAP * 1.02);
   });
@@ -32,25 +32,24 @@ describe('progrese — cíl času na cap', () => {
     }
   });
 
-  it('lvl 10 ≈ 22 h (early fáze rychlá)', () => {
-    let h = 0;
-    for (let l = 1; l < 10; l++) h += hoursToNextLevel(l);
-    expect(h).toBeGreaterThan(18);
-    expect(h).toBeLessThan(28);
+  it('lvl 1→2 ≈ „level za den" (~3,3 h perfect-chain)', () => {
+    const h = hoursToNextLevel(1);
+    expect(h).toBeGreaterThan(2);
+    expect(h).toBeLessThan(5);
   });
 
-  it('rozložení: 1–10 je malý zlomek, 50–60 dominuje', () => {
+  it('rozložení: 1–5 je malý zlomek, 15–20 dominuje', () => {
     const band = (a: number, b: number) => {
       let h = 0;
       for (let l = a; l < b; l++) h += hoursToNextLevel(l);
       return h;
     };
-    expect(band(1, 10) / totalHours).toBeLessThan(0.05);
-    expect(band(50, 60) / totalHours).toBeGreaterThan(0.3);
+    expect(band(1, 5) / totalHours).toBeLessThan(0.05);
+    expect(band(15, MAX_LEVEL) / totalHours).toBeGreaterThan(0.4);
   });
 
   it('referenční XP/h roste s levelem', () => {
-    expect(referenceXpPerHour(60)).toBeGreaterThan(referenceXpPerHour(1));
+    expect(referenceXpPerHour(MAX_LEVEL)).toBeGreaterThan(referenceXpPerHour(1));
     expect(referenceXpPerHour(10)).toBeGreaterThan(referenceXpPerHour(5));
   });
 

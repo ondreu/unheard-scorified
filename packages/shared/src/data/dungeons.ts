@@ -65,15 +65,15 @@ function enemy(
 }
 
 export const DUNGEONS: Record<string, DungeonDef> = {
-  // ── Emberfire Chasm (8–13) ──────────────────────────────────────────────────
+  // ── Emberfire Chasm (3–5) ──────────────────────────────────────────────────
   ragefire_chasm: {
     id: 'ragefire_chasm',
     name: 'Emberfire Chasm',
     description: 'A volcanic warren beneath Karngar crawling with Ember Cult cultists.',
-    requiredLevel: 8,
+    requiredLevel: 3,
     // Attunement (M9): vyžaduje dokončený startovní questline (Coalition/Warband paralelně).
     attunement: { questAnyOf: ['al_ragefire_attunement', 'ho_ragefire_attunement'] },
-    recommendedLevel: 13,
+    recommendedLevel: 5,
     baseXp: 320,
     baseGold: 25,
     goldVariance: 0.25,
@@ -84,14 +84,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── The Drowned Mines (15–20) ──────────────────────────────────────────────────
+  // ── The Drowned Mines (6–7) ──────────────────────────────────────────────────
   deadmines: {
     id: 'deadmines',
     name: 'The Drowned Mines',
     description: 'The Ashen Hand\'s hidden goblin shipyard carved into the Harrowfield cliffs.',
-    requiredLevel: 15,
+    requiredLevel: 6,
     attunement: { questAnyOf: ['al_dm_attune_2', 'ho_dm_attune_2'] },
-    recommendedLevel: 20,
+    recommendedLevel: 7,
     baseXp: 760,
     baseGold: 45,
     goldVariance: 0.25,
@@ -103,14 +103,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Wailing Hollows (17–24, M12) ────────────────────────────────────────────
+  // ── Wailing Hollows (6–8, M12) ────────────────────────────────────────────
   wailing_caverns: {
     id: 'wailing_caverns',
     name: 'Wailing Hollows',
     description: 'A humid network of vine-choked tunnels beneath the Goldgrass Plains, where the druid Naralen dreams a nightmare into the world.',
-    requiredLevel: 17,
+    requiredLevel: 6,
     attunement: { questAnyOf: ['al_wc_attune_2', 'ho_wc_attune_2'] },
-    recommendedLevel: 24,
+    recommendedLevel: 8,
     baseXp: 1050,
     baseGold: 55,
     goldVariance: 0.25,
@@ -122,14 +122,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Shadowmaw Keep (20–26) ────────────────────────────────────────────────
+  // ── Shadowmaw Keep (7–9) ────────────────────────────────────────────────
   shadowfang_keep: {
     id: 'shadowfang_keep',
     name: 'Shadowmaw Keep',
     description: 'A cursed fortress where Archmage Argol\'s lycan prowl the moonlit halls.',
-    requiredLevel: 20,
+    requiredLevel: 7,
     attunement: { questAnyOf: ['al_sfk_attune_2', 'ho_sfk_attune_2'] },
-    recommendedLevel: 26,
+    recommendedLevel: 9,
     baseXp: 1500,
     baseGold: 70,
     goldVariance: 0.2,
@@ -141,14 +141,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Drownfathom Deeps (24–29, M12) ──────────────────────────────────────────
+  // ── Drownfathom Deeps (8–10, M12) ──────────────────────────────────────────
   blackfathom_deeps: {
     id: 'blackfathom_deeps',
     name: 'Drownfathom Deeps',
     description: 'A sunken temple of the moon goddess off the Greywood coast, now a flooded lair where naga and the Duskhammer rouse the beast Akhumai.',
-    requiredLevel: 24,
+    requiredLevel: 8,
     attunement: { questAnyOf: ['al_bfd_attune_2', 'ho_bfd_attune_2'] },
-    recommendedLevel: 29,
+    recommendedLevel: 10,
     baseXp: 2600,
     baseGold: 95,
     goldVariance: 0.2,
@@ -160,14 +160,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Crimson Cloister (30–38) ──────────────────────────────────────────────
+  // ── Crimson Cloister (10–13) ──────────────────────────────────────────────
   scarlet_monastery: {
     id: 'scarlet_monastery',
     name: 'Crimson Cloister',
     description: 'The fanatical Crimson Tribunal\'s stronghold, led by the zealot Herrod and High Inquisitor Palevane.',
-    requiredLevel: 30,
+    requiredLevel: 10,
     attunement: { questAnyOf: ['al_sm_attune_2', 'ho_sm_attune_2'] },
-    recommendedLevel: 38,
+    recommendedLevel: 13,
     baseXp: 4200,
     baseGold: 140,
     goldVariance: 0.2,
@@ -180,14 +180,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Zarfarai (42–47, M12) ─────────────────────────────────────────────────
+  // ── Zarfarai (14–16, M12) ─────────────────────────────────────────────────
   zulfarrak: {
     id: 'zulfarrak',
     name: "Zarfarai",
     description: 'A Dunescale troll city baking in the Sunscar desert, where blood rituals call a serpent god from the sacred pool.',
-    requiredLevel: 42,
+    requiredLevel: 14,
     attunement: { questAnyOf: ['al_zf_attunement', 'ho_zf_attunement'] },
-    recommendedLevel: 47,
+    recommendedLevel: 16,
     baseXp: 6500,
     baseGold: 200,
     goldVariance: 0.2,
@@ -199,14 +199,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Maradoth (46–52, M12) ───────────────────────────────────────────────────
+  // ── Maradoth (15–17, M12) ───────────────────────────────────────────────────
   maraudon: {
     id: 'maraudon',
     name: 'Maradoth',
     description: 'A crystalline cavern poisoned by the union of an earth elemental and the demigod Zaethar, ruled now by their daughter Princess Theradris.',
-    requiredLevel: 46,
+    requiredLevel: 15,
     attunement: { questAnyOf: ['al_mar_attunement', 'ho_mar_attunement'] },
-    recommendedLevel: 52,
+    recommendedLevel: 17,
     baseXp: 8200,
     baseGold: 250,
     goldVariance: 0.2,
@@ -218,14 +218,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Cinderdeep Halls (52–58, M12) ───────────────────────────────────────────
+  // ── Cinderdeep Halls (17–19, M12) ───────────────────────────────────────────
   blackrock_depths: {
     id: 'blackrock_depths',
     name: 'Cinderdeep Halls',
     description: 'The vast Cinderforge dwarf city deep in the mountain, where Emperor Dagran Embermane rules over forge, arena, and prison.',
-    requiredLevel: 52,
+    requiredLevel: 17,
     attunement: { questAnyOf: ['al_brd_attunement', 'ho_brd_attunement'] },
-    recommendedLevel: 58,
+    recommendedLevel: 19,
     baseXp: 11000,
     baseGold: 320,
     goldVariance: 0.2,
@@ -238,16 +238,16 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     ],
   },
 
-  // ── Pyrehold (58–60, M12) ─────────────────────────────────────────────────
+  // ── Pyrehold (19–20, M12) ─────────────────────────────────────────────────
   stratholme: {
     id: 'stratholme',
     name: 'Pyrehold',
     description: 'The plagued city of Caldmoor, half claimed by the Crimson Tribunal and half by the Pale Legion under the dreadlord-served Baron Ravendere.',
-    requiredLevel: 58,
+    requiredLevel: 19,
     // Attunement (M12): capstone dungeon gated vlastní questline navazující na
     // frontier zóny (Blighted Marches / Witherwood).
     attunement: { questAnyOf: ['al_culling_stratholme', 'ho_culling_stratholme'] },
-    recommendedLevel: 60,
+    recommendedLevel: 20,
     baseXp: 14500,
     baseGold: 400,
     goldVariance: 0.2,

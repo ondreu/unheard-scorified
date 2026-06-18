@@ -61,12 +61,12 @@ function boss(
 }
 
 export const RAIDS: Record<string, RaidDef> = {
-  // ── Cinderforge Depths (tier 1 raid, ~lvl 40) ──────────────────────────────────────
+  // ── Cinderforge Depths (tier 1 raid, ~lvl 14) ──────────────────────────────────────
   molten_core: {
     id: 'molten_core',
     name: 'Cinderforge Depths',
     description: 'The molten heart of Cinderpeak, where Ignaroth the Flamelord smolders in his throne.',
-    attunement: { requiredLevel: 40, questAnyOf: ['dw_morbent_fel', 'tn_galak_ogres'] },
+    attunement: { requiredLevel: 14, questAnyOf: ['dw_morbent_fel', 'tn_galak_ogres'] },
     sizes: [5, 10, 20],
     baseXp: 9000,
     baseGold: 300,
@@ -84,12 +84,12 @@ export const RAIDS: Record<string, RaidDef> = {
     ],
   },
 
-  // ── Drakefell Spire (tier 2 raid, ~lvl 55) ───────────────────────────────────
+  // ── Drakefell Spire (tier 2 raid, ~lvl 18) ───────────────────────────────────
   blackwing_lair: {
     id: 'blackwing_lair',
     name: 'Drakefell Spire',
     description: 'Nefarius\'s dread fortress atop Cinderpeak Spire, home to his twisted prismatic experiments.',
-    attunement: { requiredLevel: 55, questAnyOf: ['al_drakefire_attunement', 'ho_drakefire_attunement'] },
+    attunement: { requiredLevel: 18, questAnyOf: ['al_drakefire_attunement', 'ho_drakefire_attunement'] },
     sizes: [10, 20],
     baseXp: 18000,
     baseGold: 520,
@@ -107,15 +107,15 @@ export const RAIDS: Record<string, RaidDef> = {
     ],
   },
 
-  // ── Zargubai (tier 1.5 raid, ~lvl 50, M12) ─────────────────────────────────
-  // Progresní most mezi Cinderforge Depths (40) a Drakefell Spire (55): troll-říše
+  // ── Zargubai (tier 1.5 raid, ~lvl 17, M12) ─────────────────────────────────
+  // Progresní most mezi Cinderforge Depths (14) a Drakefell Spire (18): troll-říše
   // Gurubai a krvavý bůh Hazkar.
   zulgurub: {
     id: 'zulgurub',
     name: "Zargubai",
     description:
       'The ruined jungle city of the Gurubai trolls, where the priests of Hazkar the Soulflayer bleed the living to call their blood god into the world.',
-    attunement: { requiredLevel: 50, questAnyOf: ['al_paragons_of_power', 'ho_paragons_of_power'] },
+    attunement: { requiredLevel: 17, questAnyOf: ['al_paragons_of_power', 'ho_paragons_of_power'] },
     sizes: [10, 20],
     baseXp: 13500,
     baseGold: 430,
@@ -133,7 +133,7 @@ export const RAIDS: Record<string, RaidDef> = {
     ],
   },
 
-  // ── Hollow Temple of Ankhareth (tier 3 raid, ~lvl 58, M12) ─────────────────────────
+  // ── Hollow Temple of Ankhareth (tier 3 raid, ~lvl 19, M12) ─────────────────────────
   // Nový top-end nad Drakefell Spire: chitin-spawní úl pod pouští a spící Prastarý bůh
   // Xathun.
   ahnqiraj: {
@@ -141,7 +141,7 @@ export const RAIDS: Record<string, RaidDef> = {
     name: "Hollow Temple of Ankhareth",
     description:
       'Beneath the chitin-spawn hive of Ankhareth coils Xathun, an Elder Horror dreaming of devouring the world. The Khareth legions stand between you and its slumbering eye.',
-    attunement: { requiredLevel: 58, questAnyOf: ['al_scepter_of_the_sands', 'ho_scepter_of_the_sands'] },
+    attunement: { requiredLevel: 19, questAnyOf: ['al_scepter_of_the_sands', 'ho_scepter_of_the_sands'] },
     sizes: [10, 20],
     baseXp: 22000,
     baseGold: 640,

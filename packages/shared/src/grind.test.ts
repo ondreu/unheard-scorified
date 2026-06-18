@@ -19,15 +19,15 @@ function makeProfile(level: number): CombatActor {
 
 describe('questingZoneForLevel', () => {
   it('vybere zónu dle levelu (neutrální track, první v pořadí pro bracket)', () => {
-    expect(questingZoneForLevel(1)).toBe('northshire');
-    expect(questingZoneForLevel(5)).toBe('northshire');
-    expect(questingZoneForLevel(20)).toBe('westfall');
-    expect(questingZoneForLevel(30)).toBe('duskwood');
-    expect(questingZoneForLevel(55)).toBe('eastern_plaguelands');
+    expect(questingZoneForLevel(1)).toBe('northshire'); // 1–4
+    expect(questingZoneForLevel(3)).toBe('northshire');
+    expect(questingZoneForLevel(5)).toBe('westfall'); // 4–9
+    expect(questingZoneForLevel(10)).toBe('duskwood'); // 9–14
+    expect(questingZoneForLevel(17)).toBe('eastern_plaguelands'); // 14–20
   });
 
   it('level nad rozsah → nejvyšší odemčená zóna', () => {
-    expect(questingZoneForLevel(60)).toBe('eastern_plaguelands');
+    expect(questingZoneForLevel(30)).toBe('felwood');
   });
 });
 
