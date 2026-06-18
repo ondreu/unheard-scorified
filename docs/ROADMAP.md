@@ -1,4 +1,4 @@
-# AFK to 60 — kompletní roadmapa (idle RPG, WoW-inspired)
+# AFK to 60 — kompletní roadmapa (idle RPG, D&D-inspired)
 
 > Living document. Po každém milníku se aktualizuje (odškrtnutí hotového, doplnění detailů další fáze).
 > Toto je **single source of truth** roadmapy projektu.
@@ -7,13 +7,13 @@
 
 ## Context
 
-Cílem je webová **idle RPG hra inspirovaná vanilla World of Warcraft**:
+Cílem je webová **idle RPG hra inspirovaná Dungeons & Dragons** (s výraznou inspirací Baldur's Gate 3 tam, kde by D&D 5e bylo příliš komplexní nebo nevhodné pro idle formát):
 
 - Primárně **textová**, místy oživená **pixel art** grafikou.
 - **Idle** design — hráč kontroluje jen párkrát denně, ale dá se hrát i ~10 min v kuse.
 - Běží na **vlastním Dockeru**, instalovatelná na telefon jako **PWA** s **push notifikacemi**.
-- **Singleplayer-first** s multiplayer prvky: Arény = MP PVP, Dungeony = SP PVE, Raidy = MP PVE. Vše idle, minimální nutná interakce.
-- Systémy à la vanilla WoW: leveling, talenty, gear/equipment, postupné odemykání contentu (dungeony/raidy na úrovních), základní rasy a classy, filler aktivity (questing, profese) za XP a zlato.
+- **Singleplayer-first** s multiplayer prvky: Arény = MP PVP, Dungeony = SP/group PVE, Raidy = MP PVE. Vše idle, minimální nutná interakce.
+- Systémy à la D&D 5e / BG3: leveling 1–20 (TBD: 12/15/20), třídy a podtřídy dle D&D, rasy dle D&D, Armor Class, tiered spell sloty, turn-based combat s dice rollem, veřejná backstory postavy, guilda přístupná od lvl 1.
 
 Toto je **velmi velký, vícesezónní projekt**. Implementace probíhá inkrementálně po milnících (viz Roadmapa).
 
@@ -21,13 +21,13 @@ Toto je **velmi velký, vícesezónní projekt**. Implementace probíhá inkreme
 
 ## Vize hry v kostce
 
-| Aspekt          | Rozhodnutí                                                                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Žánr            | Idle / incremental RPG s WoW-style progresí                                                                                                    |
-| Smyčka          | Pošli postavu na aktivitu (quest/profese/dungeon) → běží na pozadí v reálném čase → vrať se, vyber odměny, přehoď gear/talenty, pošli na další |
-| Interakce       | "Set & forget" aktivity (hodiny) + krátké "active" sezení (10 min): správa gearu, talentů, AH, výběr dalších aktivit                           |
-| Offline progres | Server dopočítá co se stalo, když hráč nebyl ve hře (server-authoritative)                                                                     |
-| Estetika        | Tmavé fantasy UI, převážně text + tabulky, pixel art portréty/itemy/zóny pro oživení                                                           |
+| Aspekt          | Rozhodnutí                                                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Žánr            | Idle / incremental RPG s D&D-style progresí                                                                                                       |
+| Smyčka          | Pošli postavu na aktivitu (quest/profese/dungeon) → běží na pozadí v reálném čase → vrať se, vyber odměny, přehoď gear/spelly, pošli na další     |
+| Interakce       | "Set & forget" aktivity (hodiny) + krátké "active" sezení (10 min): správa gearu, spell slotů, rotace abilit, AH, výběr dalších aktivit           |
+| Offline progres | Server dopočítá co se stalo, když hráč nebyl ve hře (server-authoritative)                                                                        |
+| Estetika        | Tmavé fantasy UI, převážně text + tabulky, pixel art portréty/itemy/zóny pro oživení                                                             |
 
 ---
 
@@ -37,8 +37,8 @@ Tato rozhodnutí platí napříč všemi fázemi a jsou pro projekt závazná:
 
 1. **Vývoj řízený AI — agent-first kódová báze.** Celý projekt staví AI agenti; PM (uživatel) zadává směr a schvaluje. Kódová báze proto MUSÍ být optimalizovaná pro to, aby na ní mohli **různí agenti pohodlně a nezávisle pracovat** (viz sekce „Vývoj řízený AI" níže). To je tvrdý požadavek, ne nice-to-have.
 2. **Škálovatelnost od základu.** Stateless API (horizontální škálování za load balancerem), stav výhradně v Postgres/Redis, žádný in-memory stav vázaný na jeden proces. Herní simulace, fronty (BullMQ) a WebSocket vrstva navržené tak, aby šly škálovat na víc instancí (Redis pub/sub adaptér, sticky sessions / shared adapter). Datový model a moduly připravené na růst contentu i hráčů.
-3. **Level cap 60, ale velmi pomalý.** XP křivka záměrně „long-haul" — dosažení 60 má trvat dlouho a být hlavní dlouhodobou metou. Křivka jako laditelný parametr v `packages/shared`.
-4. **Frakce zatím jen kosmetické.** Aliance/Horda = vizuál + lore, žádné herní/MP dělení. Architektura ale nesmí znemožnit pozdější herní rozdělení (frakce jako data atribut, ne natvrdo zadrátovaná logika).
+3. **Level cap TBD (12/15/20), velmi pomalý.** XP křivka záměrně „long-haul" — lvl 1 zvládnutelný za den, lvl 3 za týden, max level za 3–5 měsíců reálného kalendářního času. Křivka jako laditelný parametr v `packages/shared`. Konkrétní cap rozhodne PM v rámci MR milníku.
+4. **Frakce odstraněny.** Systém Aliance/Horda kompletně pryč (součást MR refaktoru). Případné D&D lore frakce (Harpers, Zhentarim apod.) jsou čistě kosmetické/lore, bez herního/MP dělení.
 5. **Monetizace later, ale připravená teď.** Zatím čistě osobní projekt bez plateb. Návrh ale musí umožnit pozdější **prodej kosmetiky (skiny)**: od začátku oddělit **kosmetickou vrstvu** (skiny, vizuální varianty) od herních statů → cosmetic je samostatná entita/ownership, nikdy nedává power. Tím půjde monetizaci doplnit bez refaktoru jádra.
 6. **Jazyk hry = angličtina.** Veškerý herní obsah a UI (texty, názvy ras/class/itemů/questů, hlášky, notifikace) je **anglicky**. Projektová dokumentace (`docs/`, `CLAUDE.md`, komentáře) zůstává česky. Žádné lokalizace zatím neřešíme, ale uživatelsky viditelné stringy drž oddělené od logiky, ať jde i18n případně doplnit později bez refaktoru.
 
@@ -78,24 +78,27 @@ Determinismus (seedovaný RNG) umožní reprodukovat výsledek a validovat na se
 
 ---
 
-## Herní systémy (WoW-inspirované) — přehled
+## Herní systémy (D&D-inspirované) — přehled
 
-Detailní specifikace (vzorce, kompletní seznamy) vzniknou v příslušné fázi a žijí v `docs/systems/`.
+> ⚠️ **Tato sekce odráží cílový stav po MR milníku (D&D Remaster).** Implementované WoW-era systémy jsou popsány v dokončených milnících M0–M14; MR je postupně nahradí. Detailní D&D specy vzniknou v průběhu MR a žijí v `docs/systems/`.
 
-- **Rasy** (vanilla-style): Aliance — Human, Dwarf, Night Elf, Gnome; Horda — Orc, Tauren, Troll, Undead. Každá rasa = pasivní bonusy + omezení dostupných class.
-- **Classy** (vanilla 9): Warrior, Paladin, Hunter, Rogue, Priest, Shaman, Mage, Warlock, Druid. Každá: resource (rage/energy/mana), základní schopnosti, role (tank/heal/dps).
-- **Leveling**: lvl 1–60 (vanilla cap, pomalá křivka), XP křivka, odemykání schopností a contentu na úrovních.
-- **Talent systém**: 3 stromy na classu, body za level, definuje idle combat chování (rotace/priority).
-- **Gear & equipment**: sloty (head, chest, weapon...), rarita (common→legendary), item level, staty, set bonusy, enchanty.
-- **Kosmetika (transmog/skiny)**: vizuální vrstva **oddělená od statů** — vlastní entita + ownership na účtu/postavě, nikdy nedává power. Připraveno na pozdější monetizaci.
-- **Inventář & měny**: zlato, bagy, banka.
-- **Content gating**: dungeony a raidy se odemykají na úrovních a podle questline; raid attunements.
-- **PVE**: Dungeony (SP, idle auto-resolve), Raidy (MP, párty, idle s rolemi).
-- **PVP**: Areny (MP, rated, idle auto-resolve souboj buildů), žebříčky.
-- **Filler / time-sink aktivity**: Questing (questlines, daily/repeatable), **Profese** (gathering: mining/herbalism/skinning; crafting: blacksmithing/alchemy/tailoring/... — dlouhé idle běhy za materiály, XP, zlato), reputace s frakcemi.
+- **Rasy** (dle D&D 5e / BG3): Human, Elf (High/Wood/Drow), Half-Elf, Dwarf (Hill/Mountain), Halfling, Gnome, Tiefling, Dragonborn, Half-Orc a další. Každá rasa = rasové schopnosti + atributové bonusy dle D&D.
+- **Classy & subclassy** (D&D 5e, 12 tříd): Barbarian, Bard, Cleric, Druid, Fighter, Monk, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard. Každá třída: D&D resource (spell sloty, Rage charges, Ki points, Superiority Dice), základní kit abilit, 2–3 subclass volby na příslušném levelu.
+- **Leveling**: lvl 1 – TBD (12/15/20), D&D XP křivka přizpůsobená idle long-haul tempu.
+- **Level-up odměny**: místo talent stromů → D&D systém (ASI: +2 do atributu / +1+1; nebo Feat; výběr subclass na daném levelu; nové spell sloty; nové spelly na spell list).
+- **Spell systém**: tiered spell sloty (1.–9. level kouzel dle D&D tabulky), spell listy dle třídy, D&D kouzla s reálnými efekty (damage dice, saving throw, conditions). Long Rest = full recharge.
+- **Staty**: D&D 6 atributů (STR/DEX/CON/INT/WIS/CHA) + odvozené (Armor Class, HP, saving throw bonusy, initiative, spell save DC, attack bonus).
+- **Combat**: turn-based s dice rollem — d20 attack roll vs AC (hit/miss), damage dice, saving throws. Idle auto-resolve (rotace/priority abilit, hráč nenastavuje jednotlivé tahy).
+- **Gear & equipment**: sloty (head, chest, weapon…), rarita (common→legendary), D&D-style enchanty.
+- **Backstory**: při tvorbě postavy hráč zvolí D&D Background (Acolyte, Criminal, Folk Hero, Noble, Outlander, Sage, Soldier apod.) — dává skill proficiencies + lore. **Veřejně viditelná** na profilu postavy.
+- **Kosmetika (skiny)**: vizuální vrstva **oddělená od statů** — vlastní entita + ownership na účtu/postavě, nikdy nedává power. Připraveno na pozdější monetizaci.
+- **Inventář & měny**: gold pieces, bagy, banka.
+- **Content gating**: dungeony a raidy dle levelu + quest attunement.
+- **PVE**: Dungeony (SP/group, idle turn-combat auto-resolve), Raidy (MP, párty, idle s rolemi).
+- **PVP**: Arény (MP, rated, idle auto-resolve), žebříčky.
+- **Filler aktivity**: Gone Questing (generická idle aktivita), Profese (gathering/crafting), daily/weekly cíle.
 - **Ekonomika**: Auction House (MP obchod mezi hráči), vendoři.
-- **Sociální**: friends, jednoduchý chat/guild (později).
-
+- **Sociální**: guilda (**přístupná od lvl 1**), friends, chat, mail. Žádné frakce.
 ---
 
 ## Repo struktura (cíl)
@@ -649,14 +652,16 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 > ℹ️ **Onboarding/tutoriál odložen do M11** (rozhodnutí PM) — viz níže.
 
-### M11 — Onboarding & tutoriál (odloženo)
+### M11 — Onboarding & tutoriál (odloženo → redesign v MR)
 
-- [ ] Tutoriál/onboarding nového hráče: provedení základní idle smyčkou
-      (vytvoř postavu → pošli questovat → claim odměn → equip gearu → talenty),
-      kontextové nápovědy, bez nové herní mechaniky (čistě UX vrstva).
+> Bude redesignováno v kontextu D&D character creation (MR-3: tvorba postavy + backstory flow).
+
+- [ ] Tutoriál/onboarding nového hráče: provedení základní idle smyčkou — redesign po MR (D&D character creation, backstory výběr, spell sloty).
 
 ### M12 — Content expansion: questy, lore, dungeony, raidy 🧑‍💼
 
+> ⚠️ **WoW naming/lore** (Ragefire Chasm, Deadmines, Molten Core, Northshire, Durotar…) bude přejmenováno v MR-8 (lore přejmenování). Engine a mechaniky zůstávají. Pending content položky jsou superseded MR content pasem.
+>
 > Navazuje na M9 quest narrative + combat overhaul (ADR 0024): engine je hotový,
 > tohle je **velká dávka obsahu**. Vše staví na existujících systémech (quest
 > steps/events, `DungeonDef.attunement`, `RaidAttunement`) — žádná nová mechanika,
@@ -730,8 +735,7 @@ lobby) a M8.5-D (P2P trade) — staví se první.
       přes `RAIDS`). Testy: shared `raid.test.ts` (+4). Detail: `docs/systems/raids.md`.
 - **Výstup:** hráč má napříč celým 1–60 dost příběhového obsahu, dungeonů i raidů;
   každá instance je odemykaná vlastní questline s lore.
-- **Zbývá rozhodnout (PM):** kolik zón/questů na bracket; témata nových zón 40–60;
-  konkrétní dungeony/raidy (vanilla-inspirace) a jejich úrovně; rozsah loot tabulek.
+- **Zbývá:** lore přejmenování zón/dungeonů/raidů → MR-8. Content balance → MR-10.
 
 ### M13 — Aktivní hráč: minihra / time-killer („The Gauntlet") — ✅ MVP hotovo
 
@@ -856,337 +860,123 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 ---
 
-## M10+ — Backlog & refinements (živý seznam)
+### MR — D&D Remaster (masivní refactor) 🚧
 
-> Sběrný, **priorizovatelný** seznam dalšího směřování (PM zadání + návrhy agenta).
-> Položky se časem přesouvají do vlastních milníků/ADR, jakmile se rozpracují.
-> Legenda: 🧑‍💼 = zadáno PM, 🤖 = návrh agenta.
+> Přechod hry od WoW-inspirace na D&D (Dungeons & Dragons 5e) / BG3 styl.
+> Největší architektonický zásah od spuštění projektu. Realizovat inkrementálně.
+> **Před startem MR je nutné rozhodnutí PM o level capu (12/15/20).**
 
-### FEAT — obsah & systémy
+#### Rozsah refaktoru
 
-- [x] 🧑‍💼 **Overhaul chatovací karty (Friends & chat)** ✅ (ADR 0026): chat bublina
-      přepsaná na **záložky Global / Guild / Whispers** (nepřečtené per-záložka,
-      whisper konverzace s reply + offline→Mail), `/social` převedená na design
-      system s **online tečkami přátel** (živě přes `social:presence`, online
-      první). Nový **guild chat kanál** (scoped na guildId, `chat_messages.scope_id`,
-      migrace `0029`, fan-out jen členům) + **online presence** vrstva
-      (`PresenceStore`: Redis + in-memory, refcount, multi-instance). Recykluje WS
-      Redis pub/sub z M7. Testy: shared `social.test.ts` (+2: guild/scoped kanál) +
-      API `chat.flow` (guild scope/oprávnění) + `social.flow` (presence v přehledu).
-      Detail: `docs/systems/social.md`. _Follow-up: guild ~~MOTD~~ ✅/perky, whisper
-      historie napříč sezeními._
-- [ ] 🧑‍💼 **Late-game obsah 40–60 (priorita po M9 balanc passu).** Progresní
-      křivka klade **64 % cesty** do pásma 40–60 (viz `docs/systems/progression.md`),
-      kde je dnes tenký obsah (dungeony končí Scarlet Monastery lvl 30–38, pak jen
-      repeatable questy + 2 raidy). Doplnit zóny/questlinky a **dungeony pro 40–60**,
-      ať dlouhý grind není na jednom questu. Závisí na cílové křivce jako kotvě tempa.
-  - [x] **Zóny + questy 40–60** (M12.1): Eastern Plaguelands / Felwood (story
-        questline 40/48/55 + `bracket_4` loot). Idle filler napříč levely teď nese
-        „Gone Questing" (ADR 0025).
-  - [x] **Dungeony a raidy 40–60** (M12.2/M12.3): +2 raidy (Zul'Gurub 50, Temple
-        of Ahn'Qiraj 58) + 4 dungeony (Zul'Farrak 42 / Maraudon 46 / Blackrock
-        Depths 52 / Stratholme 58). Content gap 40–60 zaplněn.
-- [ ] 🧑‍💼 **Více a kvalitnějších questů napříč úrovněmi.**
-  - [x] **Repeatable questy nahrazeny „Gone Questing"** (ADR 0025): generická idle
-        aktivita s hráčem volenou délkou (5 min–12 h), level flexuje s hráčem,
-        odměny/loot podle času. Fixuje „na nízkých levelech jen krátké questy" a
-        odpadá nutnost psát hromady filler questů (count neovlivňuje tempo, to drží
-        XP křivka). Story questy zůstávají kurátorovaná páteř.
-  - [x] **Narrative engine + vícekrokové story questy s combatem** (M9, ADR 0024):
-        startovní zóny Northshire + Durotar přepsané jako příběh (beaty + auto-resolved
-        combaty + lore); repeatable = deterministicky generované náhodné události.
-  - [x] **Dopsat steps/lore pro zbylé zóny** (Westfall/Duskwood/Barrens/Thousand
-        Needles) — engine hotový, jde o obsah. Raid-attunement questy řešeny
-        samostatně (viz M12.4/M12.5 výše).
-  - [x] **Questy s reálným combat cílem** ✅ (M12.8): nový opt-in příznak
-        `QuestDef.combatObjective` — souboje uvnitř questu se při claimu vyhodnotí
-        **doopravdy** (engine bez no-fail clampu), takže slabá postava může
-        **prohrát**. Prohra ⇒ žádná odměna (XP/zlato/loot = 0), quest se nedokončí
-        a lze ho **opakovat** se silnějším gearem/levelem. Idle zachováno (jeden běh,
-        žádná nová interakce, determinismus přes seed); default `false` ⇒ stávající
-        flavor combat beze změny. Reward gating v `ActivityService.claim`
-        (`ClaimResult.questFailed`); web: „⚔️ Combat objective" badge + varování +
-        defeat výsledek v claim modalu. 4 ukázkové standalone challenge questy
-        (paralelní Alliance/Horde): Northshire/Durotar (~lvl 8) + Eastern
-        Plaguelands/Felwood (~lvl 55), odměny kalibrované jako ostatní questy.
-        Testy: shared `quest-run.test.ts` (fail/win/determinismus + katalog) + API
-        `activity.flow.test.ts` (prohra negranuje odměnu/dokončení, výhra ano).
-        _Follow-up (PM): případný XP/gold premium za riziko (zatím kalibrováno
-        rovně); víc challenge questů napříč brackety._
-  - [x] **Dungeon attunement questline** (M9 + M12.4 + M12.5): **každý dungeon** má
-        teď vlastní attunement questline. 40–60 dungeony 1-questový gate; nízkoúrovňové
-        (Deadmines/Wailing Caverns/SFK/Blackfathom Deeps/Scarlet Monastery) 2-questový
-        řetězec. Raidy dtto (viz „Attunement questlinky" v M12).
-- [x] 🧑‍💼 **Mounty** ✅ — velmi drahé, od vyššího levelu (vanilla styl). Zrychlují
-      questy a gathering (snižují `durationSec` aktivit). Kosmeticky oddělené
-      (skin) od bonusu (speed) → kompatibilní s monetizací. 2 tiery (basic
-      lvl 30/+30 %, epic lvl 50/+50 %), víc kosmetických variant per tier se
-      stejným bonusem; **speed odvozený z vlastněného mountu, ne z aktivního
-      vizuálu** → monetizace bez refaktoru. `@game/shared/data/mounts.ts`,
-      `MountModule`, tabulka `character_mounts` + `characters.active_mount_id`
-      (migrace `0021`), web `/characters/[id]/mounts`. Testy: shared (+10) +
-      API flow (+8). Detail: `docs/systems/mounts.md`, **ADR 0023**.
-- [x] 🧑‍💼 **Admin panel — drill-down** ✅: v seznamu účtů (`/dev`) rozkliknout
-      jejich postavy (▸/▾ toggle) → klik na postavu otevře inspector. Endpoint
-      `GET /dev/mod/accounts/:accountId/characters` (`DevModule`). Rozšiřuje
-      stávající `/dev/mod`. (PR #48.)
-- [x] 🧑‍💼 **Armor typy** (cloth / leather / mail / plate) ✅: `ItemDef.armorClass`
-      (naplněné z `ARMOR_CLASS_BY_ITEM`, jen armor sloty `ARMOR_SLOT_TYPES`) +
-      `CLASS_ARMOR_PROFICIENCY` (vanilla-style: warrior/paladin=plate↓,
-      hunter/shaman=mail↓, rogue/druid=leather↓, priest/mage/warlock=cloth).
-      Gate `canEquipArmor` vynucen v `InventoryService.equip`. Itemizace přes stat
-      afinitu (str/agi/int/stam/spirit). Doplněn základní cloth set pro cloth-only
-      classy. Testy: shared `data/armor.test.ts` (+6) + API inventory flow (+2).
-      Detail: `docs/systems/items.md`.
-  - [ ] **Více gearu** (zbývá): víc kusů napříč tiery/typy pro plnou itemizaci
-        (tank/melee-dps/caster-dps/heal). Mechanika hotová, jde o obsah/balanc.
-- [x] 🧑‍💼 **Omezený inventář + batohy** (WoW styl) ✅: konečný počet slotů
-      (`BASE_BACKPACK_SLOTS` 16) + `BAG_SLOT_COUNT` (4) bag slotů, do nichž se
-      vkládají batohy o N slotech (`bagSlots`). Stackování přes `itemMaxStack`
-      (gear/batoh 1, materiál/spotřebák `STACKABLE_MAX` 20); využité sloty se
-      dopočítávají (`usedSlots`/`planGrant`, `@game/shared/inventory.ts`). Tabulka
-      `character_bags` (migrace `0026`), `BagService`/`BagController`. **„Bag full"
-      → overflow do pošty** (rozhodnutí PM, vanilla): centrální `InventoryGrantService`
-      protáhne všechny reward/transfer cesty (quest/dungeon/raid loot, aukce,
-      trade); player-akce (vendor nákup, claim pošty) se při plném blokují.
-      `MailRepository` vyčleněn do leaf `MailDataModule` (bez DI cyklu). Web:
-      kapacita + bag sloty na `/inventory`. Testy: shared `inventory.test.ts` (+10)
-      + API `bag.flow.test.ts` (+5). Detail: `docs/systems/inventory-bags.md`.
-  - [x] **Craftovatelné batohy** ✅: nová dvojice profesí **Skinning** (gathering)
-        → **Leatherworking** (crafting). 3 tiery kůže (`light/medium/heavy_leather`,
-        vzácnější = větší batoh) → 3 kožené batohy (8/12/16 slotů, větší než
-        vendorové). Čistě data v `@game/shared` (PROFESSIONS/GATHERING_NODES/
-        RECIPES/MATERIALS/ITEMS) — profession panel je data-driven, žádná nová API
-        mechanika. Testy: shared `professions.test.ts` (+3).
-  - [x] **Banka** ✅ (úložiště mimo batoh): vlastní kapacita `BASE_BANK_SLOTS = 28`
-        (nezávislá na bag slotech) → uložení uvolní batoh. Deposit/withdraw přesouvá
-        itemy mezi inventářem a bankou (stack-aware přes `planGrant`/`usedSlots`);
-        withdraw při plném batohu blokuje (player-akce, žádný overflow do pošty).
-        Tabulka `character_bank` (migrace `0031`), `BankModule`, web
-        `/characters/[id]/bank`. Testy: API `bank.flow.test.ts` (+5). _Follow-up:
-        bankovní bag sloty (rozšíření kapacity)._
-- [x] 🧑‍💼 **„Živá" aukce — seedované nabídky od ne-hráčů.** ✅ Auction House (M8)
-      doplněn o **NPC listingy** generované **deterministicky přes `SeededRng`**
-      (ne `Math.random()`): rotace dle UTC okna (`NPC_AUCTION_WINDOW_HOURS = 6` h),
-      ceny v rozpětí `[3,7]×` vendor hodnoty itemu, omezené množství. Listingy se
-      **nepersistují** (počítají se z okna), jen **buyout** (NPC nesmlouvá) → nákup
-      = čistý gold sink; NPC nezasahují do reálných hráčských aukcí. Hráč koupí
-      listing jednou (`npc_auction_purchases`, migrace `0030`, dedup + skrytí).
-      `@game/shared/npc-auction.ts`, `NpcAuctionRepository`, browse vrací `isNpc`.
-      Web: „Merchant" badge + Buy now. Testy: shared `npc-auction.test.ts` (+5) +
-      API `auction.flow.test.ts` (+3). Detail: `docs/systems/auction-house.md`.
-- [x] 🤖 **Vendoři (NPC odkup/prodej) + „use" consumables/buffů** ✅ (zbytek z M6):
-      `VendorModule` (pevné ceny `vendorBuyPrice`=value×5 sink / `vendorSellPrice`
-      source; sortiment `VENDOR_STOCK` se startovním gearem napříč armor typy; BoP
-      lze prodat, na AH ne) + `ConsumableModule` (use → dočasný stat buff
-      `CONSUMABLE_BUFFS`, tabulka `character_buffs` migrace `0025`, přičítá se do
-      bojového profilu přes `getEquipmentStats`). Web `/vendor` + `/consumables`.
-      Testy: shared `vendor.test.ts` (+7) + API `vendor.flow` (+5) / `consumable.flow`
-      (+4). Detail: `docs/systems/vendor-consumables.md`.
-- [x] 🤖 **Reputace i z questů/dungeonů (retrofit)** ✅: dosud rep tekla jen z profesí
-      (M6). Nově dokončený **quest** i **Gone Questing** (`ActivityService.claim`) a
-      **vyčištěný dungeon** (`DungeonService`) dávají standing **Explorers' Guild**
-      (generalisté „odměňující veškerou poctivou práci"). Sdílené škálovací vzorce
-      `questReputationGain(level)` / `dungeonReputationGain(level)` v `@game/shared`
-      (`data/factions.ts`), `GENERALIST_FACTION` sjednoceno z `professions.ts`. Jen při
-      úspěchu (combat-objective prohra ani propadlý weekly lockout nic nedají). Surface:
-      claim banner (quest) + dungeon run view (`repGain`/`repFactionName`). Testy: shared
-      `data/factions.test.ts` (+5) + API asserce v `activity.flow`/`dungeon.flow`.
-- [ ] 🤖 40-player raid.
-- [x] 🤖 **2v2 aréna bracket** ✅: skupina o 2 → 2v2 (`arenaBracketForSize`,
-      `TEAM_BRACKETS`); engine/Elo/watch generické. Testy: shared + team-arena flow.
+1. **Nahradit WoW lore za D&D** — odstranit všechny zmínky o „Vanilla WoW" z kódu, dat i UI. Přejmenovat zóny/NPC/dungeony/raidy na D&D-neutrální nebo Forgotten Realms pojmenování (homebrew nebo FR dle rozhodnutí PM).
 
-### MIL — combat overhaul (WoW-like log + rotace/priority)
+2. **Přejít na D&D staty (STR/DEX/CON/INT/WIS/CHA + AC)** — nahradit WoW-flavored staty (Strength/Agility/Intellect/Spirit/Stamina) 6 D&D atributy s modifiery (+/-). Armor Class místo defense ratingů. Odvozené staty: saving throw bonusy, spell save DC, initiative, attack bonus. Vše v `packages/shared`, nový unit test kontrakt.
 
-> 🧑‍💼 Gigantický zásah do všech faktorů hry. Cíl: divácky zajímavý combat
-> (arény/dungeony/raidy) + hloubka pro min-max. **Mana zatím ne — jen cooldowny.**
+3. **Nahradit WoW spelly za D&D kouzla** — spell katalog `data/abilities.ts` přepsat na D&D kouzla (Fireball, Magic Missile, Cure Wounds, Eldritch Blast, Sneak Attack, Rage, Bardic Inspiration apod.) s reálnými D&D efekty. Damage dice, saving throws, conditions. Spell listy vázat na třídu.
 
-- [x] **WoW-like combat log** ✅ — `CombatEvent` rozšířen o typy `drain`/`dot`/
-      `absorb` + strukturovaný anglický text. Nové mechaniky v enginu: lifesteal
-      úder = `drain` („🩸 *X* drains *Y* for N, healed for M"), capstone DoT
-      ability (Pyroblast, Unstable Affliction) = úder + krvácení/hoření tiky
-      (`dot`, fixní → bez RNG perturbace = determinismus zachován), absorpční štít
-      (Ice Barrier, Holy Shield přes `SHIELD_TAGS`) pohlcuje příchozí poškození
-      (`absorb`). Kurátorovaný **ability katalog** s druhy (`data/abilities.ts`:
-      `AbilityKind` strike/drain/dot/heal/shield). Sdílené napříč raid/dungeon
-      (`fightBoss`) i PVP (`simulatePvpDuel`/`simulateTeamFight`) přes
-      `applyAbsorb` — žádná duplikace. Web log barevně rozlišuje nové typy ve
-      všech watch view (raid/dungeon/arena/team). Testy: `combat-overhaul.test.ts`
-      (+8). _Follow-up: DoT tiky i v PVP (zatím jen base úder); heal/shield
-      ability pro healery (zatím léčí passivně `healPower)._
-- [x] **Deklarativní rotace / spell priority** ✅ (idle-friendly, deterministické).
-      Rotace = seřazený seznam pravidel `{ ability → podmínka }` na postavě
-      (`@game/shared/rotation.ts`): podmínky nad levným deterministickým stavem
-      (HP% cíle / HP% sebe), priorita = pořadí, ability lze vypnout. Engine
-      (`fightBoss` v raid/dungeon + `simulatePvpDuel`/`simulateTeamFight`) při
-      „ready" ability vyhodnotí pravidlo (`shouldCastAbility`); **default = always
-      → chování beze změny** (zpětně kompatibilní, determinismus zachován).
-      Persistence per postava: `character_rotations` (migrace `0027`),
-      `RotationModule` (GET/PUT `/characters/:id/rotation`, sanitizace proti
-      odemčeným ability), zapojeno do snapshotu profilu ve všech 4 combat
-      službách (dungeon/raid/arena/team). Web editor `/characters/[id]/rotation`
-      (priorita, podmínky, prahy, enable/disable). Testy: shared `rotation.test.ts`
-      (+11) + API `rotation.flow.test.ts` (+5).
-- [x] **Ability kit per class (MIL)** ✅ — aby rotace nebyla prázdná: každá class má
-      **baseline kit ~3-4 abilit** odemčených **levelem** (`CLASS_BASELINE_ABILITIES`
-      v `data/abilities.ts`: Heroic Strike/Rend/Execute, Fireball/Scorch, Shadow
-      Bolt/Corruption/Drain Life, …) navrch capstone (talent). Sjednocený resolver
-      `resolveAbilities(klass, level, tags)` = jediný zdroj pravdy pro engine i
-      editor rotace. **Healerské heal-spelly** (Holy Light, Greater Heal/Renew,
-      Healing Wave/Chain Heal, Healing Touch/Rejuvenation) zapojené do enginu:
-      `fightBoss` routuje `member_ability` dle druhu — heal-kind jen healer (léčí
-      nejzraněnějšího), offensive na bosse; PVP heal/shield ability přeskakuje.
-      Testy: shared `combat-overhaul.test.ts` (+4: resolveAbilities + healer heal
-      ability). _Follow-up: víc podmínek rotace (ability ready/enemy count)._
-- [x] **Healer offensive/defensive režimy** ✅ — healer si přes rotaci (enable/
-      disable spellů) volí: **pure HPS** (vypne útočné → jen léčí), **hybrid**
-      (default, léčí + přihazuje slabý DPS), **pure DPS** (vypne heal spelly →
-      jen slabě útočí). Engine: basic swing healera respektuje rotaci přes
-      `isAbilityEnabled`. Netýká se tanků. Testy: `combat-overhaul.test.ts` (+3).
-- [x] **DPS/HPS metr** ✅ — web `CombatMeters.svelte` (defaultně sbalený
-      `<details>`) ve všech watch view (raid/dungeon/aréna/team-match): per-aktér
-      damage/healing z událostí logu (`attack`/`ability`/`dot`/`drain` → DPS,
-      `heal` → HPS), bary + řazení. Čistě klientské (okno = poslední odhalená událost).
-- [x] **Popisy abilit + execute mechanika** ✅ — každá hráčská ability (baseline +
-      capstone) má `description` (EN tooltip, viditelný v editoru rotace). Reálná
-      **execute** mechanika: `executeBelowPct` + `executeDamageMult` na ability →
-      vyšší poškození proti cíli pod prahem HP (Warrior Execute 220 % → **330 %**
-      pod 30 %, Rogue Eviscerate 190 % → 280 %). Sdílený `abilityDamageMult(ability,
-      targetHpPct)` aplikován v PVE (`fightBoss`, log „(execute!)") i PVP
-      (duel + team). Testy: shared `combat-overhaul.test.ts` (+3)._
-  - **Návrh řešení agenta (🤖):** rotace = **seřazený seznam pravidel** uložený na
-    postavě (per role/kontext): `{ podmínka → ability }`. Podmínky jen nad
-    levným, deterministickým stavem actora (self HP%, target HP%, ability ready
-    (cooldown), počet nepřátel, role). Combat tick (už event-driven + seeded)
-    místo fixních signature abilit **vyhodnotí první splněné pravidlo** → zvolí
-    ability/úder. Tím zůstává **plně deterministické a server-authoritative**
-    (lze přehrát ze snapshotu+seedu jako dnes) a zároveň konfigurovatelné.
-  - [x] **Kontextové rotace** ✅ — `isAbilityEnabled` (engine): healer s vypnutými
-        heal-spelly neléčí ani basic swingem (čistě dmg rotace), s vypnutými
-        útočnými spelly jen léčí; tank mitigation cooldowny (Shield Wall/Ardent
-        Defender) řízené stejnou deklarativní rotací.
-  - [x] **Rebalance talentů** ✅ — overhaul `data/talents.ts`: 9 class × 3 stromy ×
-        **9 nodů**, **kapacita ~34 bodů/strom** (3 stromy = 102). Na cap 60 = 59
-        bodů → **nelze naplnit vše**, vyjde **1 a 3/4 stromu** (rozhodnutí PM).
-        Mix: filler (staty/HP) + „zábavné" pasivní procy (crit/dmg/haste/lifesteal/
-        štít) + **capstone = nový spell** (tier 28). Doplněno **13 nových capstone
-        spellů** (Shield Slam, Holy Shock, Avenger's Shield, Explosive Shot,
-        Shadowstrike, Penance, Guardian Spirit, Mind Blast, Riptide, Arcane Power,
-        Frostfire Bolt, Demonbolt, Tranquility) — všechny stromy teď odemykají
-        reálnou ability. Žádné dead talenty (každý tag → reálný efekt). Testy:
-        shared `data/talents.test.ts` (+7: kapacita/1.75-strom/no-dead-tag).
-        _Follow-up: plný prerekvizitní graf (šipky) místo tier-gate — UX nice-to-have._
-  - [x] **Balanc síly specců + tank role** ✅ — deterministicky změřeno (sim přes
-        engine, DPS/HPS proti dummy) a vyladěno: spread DPS specců stažen z ~1,9×
-        na ~1,5× (hybridi ↑: feral/ret/balance/ele; čistí casteři/melee ↓: mage/
-        warrior). Healeři mezi sebou ~1,26×. **Tank** = méně DMG (`TANK_DAMAGE_MULT`
-        0.6→0.5, defenzivní prot stromy bez dmg nodů) + **mitigation cooldowny**:
-        nová `AbilityKind 'mitigation'` (Shield Wall −50 %/8s, Ardent Defender
-        −40 %/10s) jako prot capstony; engine aplikuje dočasné okno redukce
-        příchozího poškození na tanka. Testy: `combat-overhaul.test.ts` (+2:
-        mitigation snižuje utržené poškození). _Pozn.: spec≠role — prot talenty
-        dělají málo DMG i kdyby šly do dps role (posiluje identitu)._
-  - [x] **Balanc pass 2 — DPS rozptyl ~1,3×** ✅ (žádost PM): změřeno přes engine,
-        DPS specy staženy na **1,30×** (1020–1328, band 88–115 % průměru). Lift
-        hybridů přes offensive baseline (Lightning Bolt, Wrath, Smite, Crusader
-        Strike, Arcane Shot), trim špičky (Pyroblast/Frostfire/Mortal Strike/
-        Unstable Affliction). **Tanky v tank roli ~0,34–0,44×** DPS průměru,
-        **healeři při DPS rotaci ~0,5–0,65×** (heal-heavy kit přirozeně půlí
-        ofenzivu). Rozmanitost zachována (mage/warrior nahoře, hybridi níž).
-  - [x] **Drobná náhoda** ✅ do combatu — `computeHit` variance rozšířena z
-        0,85–1,15 na 0,8–1,2 (pořád seedovaně reprodukovatelné, symetrické
-        okolo 1,0 → balanc DPS pásem zůstává neporušen).
-  - [x] **Testovací target / sandbox dummy** ✅ — `simulateDummyFight` (shared,
-        recykluje `fightBoss` přes nový `maxClockSec` cutoff) + `RotationService.
-        testDummy` + `POST /characters/:id/rotation/test-dummy`. Stateless,
-        deterministické (seed), bez party/soupeře. UI: panel na stránce rotace
-        (role + délka → spustí test, zobrazí meters + log). Testy: shared
-        `raid.test.ts` (+5), API `rotation.flow.test.ts` (+3).
-- [ ] 🧑‍💼 **Email login** (potvrzení e-mailu).
-- [ ] 🧑‍💼 **Monetizace** (návrh připraven od M0 — kosmetika oddělená od statů):
-      skiny, profilové obrázky, zrychlení, gold, volitelné reklamy.
+4. **Vylepšit combat engine — rozmanitější nepřátelé, časté používání spellů** — enemy katalog obohatit o D&D bestiář (více typů s unikátními schopnostmi, resistancemi, zranitelnostmi). Spelly se používají dle dostupných spell slotů a priority (ne flat cooldown). Rozšířit `data/enemies.ts` o CR (Challenge Rating).
 
-### BALANCE
+5. **Převzít balance systém z D&D** — XP za combat/milníky dle D&D 5e tabulky (přizpůsobeno idle long-haul tempu). CR pro nepřátele. Spell slot progression dle D&D tabulky per třída/level. Nepoužívat vlastní vymyšlený balanc tam, kde D&D má fungující vzorec.
 
-- [x] 🧑‍💼 **Délka všech aktivit + rychlost progrese** ✅ (M9 balanc pass): XP křivka
-      přeladěna (`XP_CURVE` exponent 2.0 / scale 120.8) na **cap ≈ 2200 h
-      perfect-chain** s tvarem `čas-na-level ∝ L^1.5` (early rychlé, late pomalé;
-      lvl 10 ≈ 22 h, cap ≈ 3–5 měsíců kalendářně). Idle cadence: všechny questy
-      přeškálovány do **[5 min, 3 h]** (`ACTIVITY_DURATION_BOUNDS`) +
-      `activityEfficiency` (1.0 @ 5 min → 0.8 @ 3 h, mírný punish za dlouhý běh,
-      na XP i zlato). Quest odměny kalibrované na `referenceXpPerHour`; web ukazuje
-      efektivní (post-eff) odměnu. Testy: shared `progression.test.ts` (+12).
-      Detail + cílová křivka (podklad pro content): `docs/systems/progression.md`.
-  - [ ] 🧑‍💼 **Revize drop rate** (loot tabulky napříč zónami/dungeony/raidy) —
-        vědomě odloženo na samostatný pass (rozhodnutí PM).
-  - ⚠️ **Content gap 40–60** (64 % cesty) — late-game obsah doplnit samostatně (FEAT).
-- [ ] 🤖 PVP vs PVE balanc (společný `deriveCombatProfile` → samostatné ladění),
-      role tuning (tank/healer/dps), boss HP/AP, Elo K/rampage.
+6. **Nahradit WoW talent stromy D&D level-up systémem** — zrušit stávající talent stromy (9 class × 3 stromy × 9 nodů). Místo toho: při levelupu hráč volí z D&D level-up odměn (ASI: +2 do jednoho atributu nebo +1/+1 do dvou; nebo Feat ze seznamu; výběr subclass na specifickém levelu; nové spell sloty; nové spelly na spell list). Implementovat `packages/shared/data/feats.ts` s feat katalogem.
 
-### FIX
+7. **Kompletně odstranit systém frakcí** — smazat frakční data, logiku i UI (Aliance/Horda, frakční questy, frakční reputace). Questy, zóny a obsah přepsat jako neutrální. Případné D&D lore frakce (Harpers, Zhentarim, Order of the Gauntlet apod.) čistě kosmetické/lore.
 
-- [x] 🧑‍💼 Otočit combat log — **nejnovější události nahoře**. (dungeon/raid/arena/team-match)
-- [x] 🧑‍💼 **Equip bug**: jeden prsten lze nasadit do dvou slotů zároveň.
-  - [x] Item je vidět **buď** v inventáři **nebo** nasazený (ne oboje). Equip teď
-        kus z inventáře spotřebuje (consume→equip), unequip/swap ho vrátí; tentýž
-        kus nelze nasadit do dvou slotů. Testy v `inventory.flow.test.ts`.
-  - [x] Equip přes **drag & drop** ✅: tažení kusů mezi inventářem a equipment
-        sloty (`draggable`/`ondrop` na `/inventory`); tlačítka zůstávají jako
-        fallback. (commit `1941710`.)
-- [x] 🧑‍💼 Značení lockout instancí v UI (které jsou tento týden „saved").
-      Seznam dungeonů i raidů vystavuje `hasLockout`/`lockedOut`; web zobrazí
-      „🔒 Saved this week" badge u instancí vyčištěných tento UTC týden.
-- [x] 🧑‍💼 **Odstranit legacy** — single-actor `simulateDungeonRun`/`computeDungeonReward`/
-      `simulateDungeonFromParams`/`DungeonActivityParams`/`DungeonCombatResult` + privátní
-      `fightEncounter`/`easeActor` + jen-jimi-používané konstanty; větev `'dungeon'`
-      odstraněna z `ActivityType` i activity modelu (api scheduler/service, web). **Korekce
-      poznámky:** `easeActor` se NEsdílel (raid používá vlastní `easeBoss`) → odstraněn
-      spolu se `simulateDungeonRun`. **Zachováno** sdílené: `determinationFactor`,
-      `wipeRewardMultiplier`, `computeHit`, `round1`, `buildEnemyActor`. Ověřeno
-      typecheck/lint/testy (167 shared + 131 API zelené).
-- [x] 🧑‍💼 **Odstranit NPC backfill** — **finální rozhodnutí PM: úplně** (dungeony 3/5,
-      raidy 5/10/20 i raid lobby). Party se skládá jen z reálných hráčů z fronty/lobby;
-      chybí-li hráči, run se spustí s menší partou a boss/encountery se škálují její
-      velikostí (`scaleBoss`/`groupEncounters` dle `party.length`). Odstraněny i mrtvé
-      shared buildery (`COMPANION_NAMES`, `buildCompanionBase`, `buildDungeonCompanion`,
-      `RaidDef.companion`) a `isNpc` z run view. _Pozn.: mění idle-first rozhodnutí pro
-      group obsah — potvrzeno PM. Follow-up: doladit matchmaking (rating-window/čekání
-      na partu) pro plynulejší skládání bez NPC._
+8. **Předělat classy a subclassy dle D&D** — implementovat všech 12 D&D 5e tříd (Barbarian, Bard, Cleric, Druid, Fighter, Monk, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard). Každá třída: D&D resource (Rage charges, Ki points, Superiority Dice, spell sloty), 2–3 subclass volby na příslušném levelu. Race-class matice bez omezení (jakákoli rasa + jakákoli třída dle D&D 5e).
 
-### Známé follow-upy (konsolidace „zbývá doladit", 🤖)
+9. **Předělat tvorbu postavy na D&D styl (vč. veřejné backstory)** — character creation flow: výběr rasy (D&D rasy s rasovými bonusy a schopnostmi), výběr třídy, **výběr Background** (D&D Backgrounds: Acolyte, Criminal, Folk Hero, Noble, Outlander, Sage, Soldier apod. — každé dává skill proficiencies + lore). Backstory **veřejně viditelná** na profilu postavy (inspect). Point-buy nebo standard array pro rozložení atributů.
+
+10. **Inspirace BG3 tam, kde by D&D 5e bylo nevhodné** — idle formát neumožňuje plné D&D 5e (koncentrace, akce/bonusová akce, reakční kouzla, detailní podmínky). Adaptace dle BG3 přístupu: zjednodušit complex mechanics pro auto-resolve, zachovat flavor a feel. BG3 UI/UX inspirace pro zobrazení stavů (conditions), spell přehled, levelup screen.
+
+11. **Předělat combat na turn-based s dice rollem** — doplnit combat engine o: d20 attack roll vs AC (hit/miss), damage dice (1d8+STR pro longsword, 8d6 pro Fireball atp.), saving throws (CON save vs spell, DEX save vs AOE). Výsledky v logu zobrazovat jako „rolled 14 + 5 = 19 vs AC 16 → HIT". Turn pořadí dle initiative (d20 + DEX mod). Zachovat idle/auto-resolve charakter — hráč nenastavuje jednotlivé tahy, jen rotaci/priority abilit.
+
+12. **Maximální level: TBD (12/15/20)** — **nutné rozhodnutí PM před startem MR**. Doporučení: **level 20** (plný D&D cap, spell tier 1–9, nejvíc progression prostoru). Alternativy: 15 (spell tier 1–8, kratší grind) nebo 12 (spell tier 1–6, výrazně kratší). XP křivka: lvl 1 za den, lvl 3 za týden, max level za 3–5 měsíců reálného kalendářního času při idle hraní.
+
+13. **Guilda přístupná od lvl 1** — ověřit a odstranit případné level gaty na vstup do guildy. (Aktuálně guilda nemá level gate, spíše ověřit UI a tutoriál.)
+
+14. **Rotace zůstane, postupně se zpřehlední** — stávající deklarativní rotace (priority list abilit s podmínkami) zůstává jako základ idle combatu. V průběhu MR se obohatí o spell slot management (kdy použít slotové kouzlo vs cantrip, kdy šetřit sloty na boss), tracking concentration. Komplexnější podmínky rotace = follow-up po MR.
+
+15. **Tiered spell sloty** — implementovat D&D tabulku spell slotů (1.–9. level kouzel, počet slotů per level per třída dle D&D; Warlock = Pact Magic = méně ale silnějších slotů + Short Rest recharge). V idle modelu: aktivity spotřebovávají spell sloty dle obtížnosti; Long Rest = full recharge při claimu odměny/návratu.
+
+16. **Co nejblíže D&D** — průřezový princip: vždy upřednostnit D&D 5e pravidlo před vlastním vymyšleným řešením. Výjimky jen tam, kde idle formát vyžaduje zjednodušení (pak inspirace BG3).
+
+#### Pořadí realizace (doporučení)
+
+```
+MR-1 (staty STR/DEX/CON/INT/WIS/CHA + AC)
+→ MR-2 (classy 12 + subclassy)
+→ MR-3 (tvorba postavy + backstory)
+→ MR-4 (spell systém + tiered spell sloty)
+→ MR-5 (combat engine dice roll + turn order)
+→ MR-6 (level-up odměny: ASI/Feat/subclass výběr)
+→ MR-7 (nepřátelé: D&D bestiář + CR)
+→ MR-8 (lore přejmenování: zóny/NPC/dungeony/raidy)
+→ MR-9 (kompletní odstranění frakcí)
+→ MR-10 (balance pass: CR, XP tabulka, spell slot economy)
+→ MR-11 (level cap + XP křivka dle zvoleného capu)
+```
+
+#### Otevřená rozhodnutí PM (nutná před nebo v průběhu MR)
+
+- [ ] **Maximální level: 12 / 15 / 20?** — ovlivňuje spell tier progression, XP křivku, subclass count.
+- [ ] **D&D rasy:** PHB only, nebo Tasha's / Mordenkainen's / BG3 extra rasy?
+- [ ] **Subclassy:** kolik per třída v MVP (1 subclass na start, další přidat postupně)?
+- [ ] **Lore setting:** vlastní D&D-universum (homebrew) nebo zasazení do Forgotten Realms (BG3 setting)?
+
+---
+
+## Archiv — WoW-era milníky (pending položky superseded MR refaktorem)
+
+> Níže jsou pending ([ ]) položky z WoW-era backlogu a budoucích milníků, které byly
+> nahrazeny nebo přesunuty do MR. Hotové (✅) položky jsou zachovány v příslušných
+> dokončených milnících výše jako historický záznam.
+
+### Tech & infra follow-upy (stále relevantní, nezávisí na theming)
 
 - [ ] Auth: httpOnly cookie místo localStorage + refresh rotace/revokace (ADR 0005).
-- [ ] WS realtime tam, kde je teď REST polling: watch týmových arén, trade okno,
-      lobby pozvánky (recyklovat Redis pub/sub vrstvu z M7).
-- [ ] **Trade-window pro BoP loot** (výměna mezi účastníky téhož runu v okně) +
-      **BoE equip-bind tracking** (M8.6 follow-up).
-- [x] ~~Guild chat kanál~~ ✅ (ADR 0026) + ~~MOTD~~ ✅ (officer+ nastaví zprávu dne,
-      sloupec `guilds.motd`, migrace `0033`, sdílené `canEditMotd`/`sanitizeGuildMotd`
-      v `@game/shared/guild`, endpoint `POST /guild/motd`, web panel na guild page) +
-      (později) banka/perky.
-- [ ] Per-postavová push granularita, `docker compose up` ověřit s běžícím daemonem.
-      (PWA ikony 192/512 ✅ — viz M0.)
-- [ ] (Nepovinné) konvergence `RaidService`/`DungeonService` → `GroupRunService`.
+- [ ] Email login (potvrzení e-mailu).
+- [ ] WS realtime tam, kde je teď REST polling (watch týmových arén, trade okno, lobby pozvánky).
+- [ ] Per-postavová push granularita; `docker compose up` ověřit s běžícím daemonem.
+- [ ] Trade-window pro BoP loot (závisí na MR item redesign).
+- [ ] Monetizace: skiny, kosmetické tituly — připraveno od M0, implementace later.
+
+### Gameplay pending (superseded MR)
+
+- [ ] Late-game content 40–60 (WoW zóny/questy) → nahrazeno D&D content pasem po MR-8.
+- [ ] Více gearu napříč tiery/typy → redesign v MR (D&D itemizace + CR-based loot).
+- [ ] Revize drop rate (loot tabulky) → redesign v MR-10 (CR-based loot tables).
+- [ ] PVP vs PVE balanc → redesign v MR-10 (D&D balance pass).
+- [ ] 40-player raid → rozsah raidů redesignovat po MR (D&D encounter scaling).
+- [ ] Onboarding/tutoriál (M11) → redesign po MR-3 (D&D character creation flow).
 
 ---
 
 ## Rozhodnutí (potvrzeno PM)
 
-- ✅ **Level cap 60**, velmi pomalá XP křivka (long-haul meta).
-- ✅ **Frakce kosmetické** (architektura připravená na pozdější herní rozdělení).
+- ✅ **Přechod na D&D / BG3 inspiraci** — MR refaktor (viz MR milník).
+- ❓ **Level cap: TBD (12/15/20)**, velmi pomalá XP křivka — lvl 1 za den, max za 3–5 měsíců.
+- ✅ **Frakce odstraněny** — systém Aliance/Horda kompletně pryč (MR-9).
+- ✅ **Guilda přístupná od lvl 1**.
+- ✅ **Combat turn-based s dice rollem** (d20 vs AC, damage dice) — MR-5.
+- ✅ **Tiered spell sloty** dle D&D tabulky — MR-4.
 - ✅ **Monetizace later**: kosmetická vrstva oddělená od statů od začátku → pozdější prodej skinů bez refaktoru.
 - ✅ **Vývoj řízený AI** + **škálovatelnost** jako tvrdé průřezové požadavky.
 
-### Menší rozhodnutí do dalších fází
+### WoW-era rozhodnutí (historický kontext)
 
-- ~~Hloubka profesí v MVP. → M6~~ ✅ vyřešeno v M6: 2 gathering + 2 crafting (Mining→Blacksmithing, Herbalism→Alchemy) + 3 frakce s rep-gated recepty.
-- Síla PVP vs PVE balancu. → M5/**M9** (M7 používá společný `deriveCombatProfile`; samostatný PVP balanc + rampage tuning je v M9 balanc passu).
-- ~~Konkrétní rozsah questline a počet zón v MVP. → M2~~ ✅ vyřešeno v M2: 3 level brackety na frakci (Alliance + Horde paralelně, 1–10/10–25/25–40), lineární questline + repeatable.
-- ~~Sezónní model (reset ladderu) pro PVP. → M7~~ ✅ vyřešeno v M7: sezóny = data v shared, rating per sezóna (reset), lazy idempotentní rollover + sezónní odměny dle tieru.
-- ~~Rozsah Aren MVP (kolik bracketů, realtime watch). → M7~~ ✅ vyřešeno v M7: jen `1v1`, live watch přes WebSocket (Redis pub/sub).
-- ~~Velikost raid party a počet rolí v MVP. → M8~~ ✅ vyřešeno v M8: flex velikosti 5/10/20 (modern-WoW) + hráčem volená kompozice T/H/DPS, boss scaling dle velikosti, idle-first matchmaking s NPC backfillem.
-- ~~Kolik raidů/bossů + attunement model. → M8~~ ✅ vyřešeno v M8: 2 raidy × 3 bossy, attunement = level + dokončený questline.
-- ~~AH model (aukce vs buyout, poplatky/expirace). → M8~~ ✅ vyřešeno v M8: buyout + bidding s depositem a 5 % cut (gold sinky) + expirace; vypořádání lazy + BullMQ.
+- ~~Level cap 60~~ → nahrazeno: TBD 12/15/20 (MR-11).
+- ~~Frakce kosmetické~~ → nahrazeno: frakce odstraněny (MR-9).
+- ~~WoW-like talent stromy~~ → nahrazeno: D&D ASI/Feat/Subclass systém (MR-6).
+- ~~WoW staty (STR/AGI/INT/SPI/STA)~~ → nahrazeno: D&D atributy STR/DEX/CON/INT/WIS/CHA + AC (MR-1).
+
+### Menší rozhodnutí do dalších fází (historický kontext, platná)
+
+- ~~Hloubka profesí v MVP. → M6~~ ✅ vyřešeno v M6: 2 gathering + 2 crafting + 3 frakce rep-gated recepty.
+- ~~Sezónní model (reset ladderu) pro PVP. → M7~~ ✅ vyřešeno v M7: sezóny = data v shared, rating per sezóna.
+- ~~Rozsah Aren MVP. → M7~~ ✅ vyřešeno v M7: `1v1`, live watch přes WebSocket.
+- ~~Velikost raid party a počet rolí v MVP. → M8~~ ✅ vyřešeno v M8: flex 5/10/20 + T/H/DPS kompozice.
+- ~~Kolik raidů/bossů + attunement model. → M8~~ ✅ vyřešeno v M8: 2 raidy × 3 bossy, level + questline gate.
+- ~~AH model. → M8~~ ✅ vyřešeno v M8: buyout + bidding s depositem a 5 % cut + expirace.
 
 ---
 
