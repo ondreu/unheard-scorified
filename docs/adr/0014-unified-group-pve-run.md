@@ -1,5 +1,9 @@
 # ADR 0014 — Sjednocený group PVE run model & group dungeony (M8.5-B + D)
 
+> ℹ️ **Částečně dotčeno ADR 0033 (2026-06-18):** raidy vyříznuty. Sjednocený run
+> model **zůstává**, ale obsluhuje **už jen dungeony** (`GroupContentType =
+> 'dungeon'`). Engine/tabulky/helpery jsou nadále sdílené (legacy `raid_*` názvy).
+
 - Status: Accepted
 - Datum: 2026-06-15
 - Kontext milníku: **M8.5 — část B (skupinové PVE módy) + D (personal loot)**

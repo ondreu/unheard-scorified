@@ -20,7 +20,6 @@ import { ProfessionModule } from './profession/profession.module';
 import { ProgressionModule } from './progression/progression.module';
 import { PushModule } from './push/push.module';
 import { QuestModule } from './quest/quest.module';
-import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
 import { RotationModule } from './rotation/rotation.module';
 import { SocialModule } from './social/social.module';
@@ -53,7 +52,6 @@ const devModules =
     DungeonModule,
     ProfessionModule,
     ArenaModule,
-    RaidModule,
     AuctionModule,
     SocialModule,
     TradeModule,

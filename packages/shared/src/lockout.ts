@@ -1,8 +1,9 @@
 /**
- * Weekly lockout / raid ID (M8.6, ekonomika). Loot z raidů (a vyšších dungeonů)
- * je limitován **týdenním lockoutem per postava** — opakované idle farmení tak
- * nezaplaví Auction House a drží progresi. Reset je **deterministický dle UTC
- * týdne** (žádný per-process stav, server-authoritative). Viz ADR 0015.
+ * Weekly lockout (M8.6, ekonomika). Loot z vyšších dungeonů je limitován
+ * **týdenním lockoutem per postava** — opakované idle farmení tak nezaplaví
+ * Auction House a drží progresi. Reset je **deterministický dle UTC týdne**
+ * (žádný per-process stav, server-authoritative). Viz ADR 0015. (Raidy, které
+ * lockout dříve používaly plošně, byly vyříznuty — ADR 0033.)
  *
  * Tady žijí jen čisté vzorce (id období, čas resetu, mapování obsahu → lockout).
  * Persistenci (`character_lockouts`) a kontrolu při grantu řeší API.
@@ -41,21 +42,19 @@ export function lockoutResetAt(nowMs: number): number {
 }
 
 /**
- * Má daný obsah týdenní lockout? Všechny **raidy** ano; **dungeony** jen ty
- * označené `weeklyLockout` (vyšší instance s epic lootem).
+ * Má daný obsah týdenní lockout? **Dungeony** jen ty označené `weeklyLockout`
+ * (vyšší instance s epic lootem).
  */
 export function contentHasWeeklyLockout(
-  contentType: GroupContentType,
+  _contentType: GroupContentType,
   contentId: string,
 ): boolean {
-  if (contentType === 'raid') return true;
   return DUNGEONS[contentId]?.weeklyLockout === true;
 }
 
 /**
  * Lockout id obsahu (klíč v `character_lockouts`) — `"<typ>:<contentId>"`, nebo
- * `null` pokud obsah lockoutu nepodléhá (volně farmitelný). Raid i dungeon mají
- * oddělený namespace, takže se vzájemně neovlivní.
+ * `null` pokud obsah lockoutu nepodléhá (volně farmitelný).
  */
 export function lockoutIdForContent(
   contentType: GroupContentType,

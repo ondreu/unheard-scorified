@@ -93,10 +93,9 @@ export class ProgressionService {
 
   /** Aktuální hodnoty všech metrik pro postavu. */
   private async metrics(char: Character): Promise<Record<AchievementMetric, number>> {
-    const [questsCompleted, dungeonClears, raidClears, arenaWins, friends] = await Promise.all([
+    const [questsCompleted, dungeonClears, arenaWins, friends] = await Promise.all([
       this.repo.questsCompleted(char.id),
       this.repo.clears(char.id, 'dungeon'),
-      this.repo.clears(char.id, 'raid'),
       this.repo.arenaWins(char.id),
       this.repo.friends(char.id),
     ]);
@@ -105,7 +104,6 @@ export class ProgressionService {
       gold: char.gold,
       questsCompleted,
       dungeonClears,
-      raidClears,
       arenaWins,
       friends,
     };
@@ -153,8 +151,6 @@ export class ProgressionService {
         return this.repo.questsCompletedSince(characterId, since);
       case 'dungeonClears':
         return this.repo.clearsSince(characterId, 'dungeon', since);
-      case 'raidClears':
-        return this.repo.clearsSince(characterId, 'raid', since);
     }
   }
 

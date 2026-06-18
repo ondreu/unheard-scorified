@@ -96,10 +96,10 @@ Celkové XP 1→20 = **4 856 506**.
 
 > ⚠️ **Content gap 14–20.** Pásmo 14–20 je **~52 % celé cesty**, ale je tam
 > tenčí obsah (linear rescale MR-11 zkomprimoval WoW frontier 40–60 do levelů
-> 14–20: frontier zóny Blighted Marches/Witherwood, dungeony Zarfarai→Pyrehold,
-> raidy). Křivka je záměrně tímto směrem nastavená (cap = long-haul meta), ale
-> **late-game obsah (14–20) je potřeba zahustit**, ať to není grind na jednom
-> questu. Samostatný content task (viz ROADMAP).
+> 14–20: frontier zóny Blighted Marches/Witherwood, dungeony Zarfarai→Pyrehold).
+> Křivka je záměrně tímto směrem nastavená (cap = long-haul meta), ale **late-game
+> obsah (14–20) je potřeba zahustit** (o to víc po vyříznutí raidů — ADR 0033),
+> ať to není grind na jednom questu. Samostatný content task (viz ROADMAP).
 
 ## Mimo rozsah tohoto passu
 

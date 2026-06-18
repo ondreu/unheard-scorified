@@ -7,7 +7,7 @@
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
     title: 'Activity History',
-    sub: 'Results of your completed quests, dungeons, raids and arena matches.',
+    sub: 'Results of your completed quests, dungeons and arena matches.',
     empty: 'No activity yet. Go earn some glory!',
     loading: 'Loading…',
   };

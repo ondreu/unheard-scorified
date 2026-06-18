@@ -123,7 +123,7 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 
 ## Combat & obsah — overhaul
 
-- [ ] **Raidy úplně vyříznout** — odstranit raid systém (kód `raid.ts`/služby, data `data/raids.ts`, UI, weekly lockout vázaný na raidy, attunement questy jen-pro-raid). Rozhodnout osud raid lootu/achievementů (přemapovat na dungeony, nebo retire). ADR.
+- [x] **Raidy úplně vyříznout** ✅ _(ADR 0033)_ — raid systém odstraněn: API (controller/service/gateway/events), data `data/raids.ts`, web UI (routy/nav/group launch/overview/scény), `RAID_LOOT_TABLES`, raid achievementy + metrika `raidClears`, raid větev group launch (`GROUP_ACTIVITY_TYPES` = dungeon/arena). **Minimální řez** (rozhodnutí PM): sdílený group-run **engine** (`simulateRaidRun`, `RaidActor`/role, wipe/retry) + run tabulky (`raid_runs`) + matchmaking fronta **přežívají** pod legacy názvy `raid_*` a obsluhují už jen **dungeony**; `RaidModule` osekán na repo+frontu. **Loot i achievementy = retire** (rozhodnutí PM): raid-exkluzivní item **definice zůstávají** (vlastněné kusy se nedropují, jen neobtainable), odemčené achievementy zůstávají jako historická data. Weekly lockout nově jen pro dungeony. Attunement questy ponechány jako běžný obsah. **Žádná DB migrace** (sdílené tabulky zůstávají; stará raid data inertní). Build/test/lint/typecheck zelené.
 - [ ] **Dungeon overhaul → tahové, 3 velikosti** (nahrazuje idle auto-resolve group PVE run interaktivním tahovým bojem — navázat na tahový engine Gauntletu):
   - [ ] **Solo** — tahové.
   - [ ] **3-player** — ručně složené **nebo autofill s AI**; AI parťáci **mimikují hráče** (rotace/role/spell sloty), tahové.

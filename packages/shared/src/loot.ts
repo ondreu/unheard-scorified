@@ -215,51 +215,9 @@ export const DUNGEON_LOOT_TABLES: Record<string, LootTable> = {
   ]),
 };
 
-/**
- * Raid loot tabulky per raid (M8). Nejvyšší `anyDropChance` + epic/legendary
- * raid-only itemy. Relativní šance dle rarity (MR-10c) → legendary „chase" drop.
- * Klíč = raidId. Loot se rolluje per účastník při vítězství (deterministicky,
- * seed odvozený z runu + postavy).
- */
-export const RAID_LOOT_TABLES: Record<string, LootTable> = {
-  molten_core: rarityTable(0.95, [
-    'earthshaker',
-    'robe_of_volatile_power',
-    'aged_core_leather_gloves',
-    'sabatons_of_the_flamewalker',
-    'choker_of_enlightenment',
-    'arcane_robes',
-  ]),
-  blackwing_lair: rarityTable(1.0, [
-    'netherwind_crown',
-    'drake_talon_pauldrons',
-    'ringo_drakefire',
-    'cloak_of_draconic_might',
-    'earthshaker',
-    'robe_of_volatile_power',
-    'ashkandi',
-  ]),
-  // M12 tier 1.5 raid (Zul'Gurub) — most mezi Molten Core a Blackwing Lair.
-  zulgurub: rarityTable(0.97, [
-    'zg_halberd_of_smiting',
-    'zg_bloodlords_chestplate',
-    'zg_primalist_belt',
-    'zg_overlord_helmet',
-    'zg_jindo_mantle',
-    'zg_zanzils_seal',
-    'choker_of_enlightenment',
-  ]),
-  // M12 tier 3 raid (Temple of Ahn'Qiraj) — top-end nad Blackwing Lair.
-  ahnqiraj: rarityTable(1.0, [
-    'aq_silithid_carapace',
-    'aq_qiraji_bindings',
-    'aq_gloves_of_the_immortal',
-    'aq_ring_of_emperors',
-    'aq_cloak_of_the_golden_hive',
-    'ringo_drakefire',
-    'aq_scepter_shifting_sands',
-  ]),
-};
+// Raid loot tabulky (`RAID_LOOT_TABLES`) byly odstraněny s vyříznutím raidů
+// (ADR 0033). Definice raid-exkluzivních itemů zůstávají v `data/items.ts`, aby
+// se nerozbily kusy, které hráči už vlastní — jen je nelze nově získat.
 
 /**
  * Roluje loot z tabulky. Vrátí pole itemId (obvykle 0 nebo 1 item).

@@ -589,7 +589,7 @@ export function getArenaMatch(characterId: string, matchId: string): Promise<Are
   return request<ArenaMatchView>(`/characters/${characterId}/arena/match/${matchId}`);
 }
 
-// ── Raids (M8, MP PVE) ───────────────────────────────────────────────────────
+// ── Group PVE roles (sdílené dungeon + group; raidy vyříznuty — ADR 0033) ─────
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -597,100 +597,6 @@ export interface RaidComposition {
   tank: number;
   healer: number;
   dps: number;
-}
-
-export interface RaidListItem {
-  id: string;
-  name: string;
-  description: string;
-  requiredLevel: number;
-  attunementQuests: string[];
-  bossNames: string[];
-  sizes: number[];
-  defaultComposition: Record<number, RaidComposition>;
-  unlocked: boolean;
-  queuedRole: RaidRole | null;
-  hasLockout: boolean;
-  lockedOut: boolean;
-}
-
-export interface RaidReward {
-  xp: number;
-  gold: number;
-  items: string[];
-}
-
-export interface RaidRunView {
-  runId: string;
-  raidId: string;
-  raidName: string;
-  startAt: string;
-  durationSec: number;
-  progress: ActivityProgress;
-  party: { name: string; role: RaidRole; maxHealth: number }[];
-  bosses: { name: string }[];
-  events: CombatEvent[];
-  victory: boolean | null;
-  wipes: number | null;
-  myReward: RaidReward | null;
-  myRole: RaidRole | null;
-  /** Vítězství proběhlo, ale odměna propadla weekly lockoutem (M8.6). */
-  myLockedOut: boolean;
-}
-
-export interface RaidRunSummary {
-  runId: string;
-  raidId: string;
-  raidName: string;
-  role: RaidRole;
-  victory: boolean;
-  reward: RaidReward;
-  createdAt: string;
-}
-
-export function listRaids(characterId: string): Promise<RaidListItem[]> {
-  return request<RaidListItem[]>(`/characters/${characterId}/raids`);
-}
-
-export function recentRaidRuns(characterId: string): Promise<RaidRunSummary[]> {
-  return request<RaidRunSummary[]>(`/characters/${characterId}/raids/runs`);
-}
-
-export function getRaidRun(characterId: string, runId: string): Promise<RaidRunView> {
-  return request<RaidRunView>(`/characters/${characterId}/raids/run/${runId}`);
-}
-
-export function enterRaid(
-  characterId: string,
-  raidId: string,
-  role: RaidRole,
-  size?: number,
-  composition?: RaidComposition,
-): Promise<RaidRunView> {
-  return request<RaidRunView>(`/characters/${characterId}/raids/${raidId}/enter`, {
-    method: 'POST',
-    body: JSON.stringify({ role, size, composition }),
-  });
-}
-
-export function queueRaid(
-  characterId: string,
-  raidId: string,
-  role: RaidRole,
-): Promise<{ queued: true; role: RaidRole }> {
-  return request<{ queued: true; role: RaidRole }>(
-    `/characters/${characterId}/raids/${raidId}/queue`,
-    { method: 'POST', body: JSON.stringify({ role }) },
-  );
-}
-
-export function leaveRaidQueue(
-  characterId: string,
-  raidId: string,
-): Promise<{ left: boolean }> {
-  return request<{ left: boolean }>(`/characters/${characterId}/raids/${raidId}/leave`, {
-    method: 'POST',
-  });
 }
 
 // ── Auction House (M8, economy) ──────────────────────────────────────────────
@@ -1190,7 +1096,6 @@ export interface GroupState {
 
 export type GroupLaunchResult =
   | { activityType: 'dungeon'; runId: string }
-  | { activityType: 'raid'; runId: string }
   | { activityType: 'arena'; bracket: '1v1' | '2v2' | '3v3' | '5v5'; status: 'queued' | 'matched'; matchId?: string };
 
 export function getGroup(characterId: string): Promise<GroupState> {

@@ -10,9 +10,7 @@
     getGroup,
     getArena,
     getDungeonRun,
-    getRaidRun,
     recentDungeonRuns,
-    recentRaidRuns,
     type ActivityView,
     type CharacterView,
     type ClaimResult,
@@ -50,7 +48,7 @@
     gained: 'Gained',
     offlineFor: 'Away for',
     group: 'Your group',
-    soloHint: 'Not in a group — party up for dungeons, raids and arena.',
+    soloHint: 'Not in a group — party up for dungeons and arena.',
     formGroup: 'Form a group →',
     questStory: 'What happened',
     hpLeft: 'HP left',
@@ -59,7 +57,6 @@
       'You were defeated and earned no reward. Grow stronger and try this challenge again.',
     ongoing: 'In progress elsewhere',
     inDungeon: '⚔️ Dungeon',
-    inRaid: '🐉 Raid',
     inArenaQueue: '⚔️ In the arena queue',
     watch: 'Watch →',
     open: 'Open →',
@@ -75,12 +72,11 @@
   let now = $state(Date.now());
 
   // Other activities running in parallel (server-authoritative, idle): an
-  // in-progress dungeon/raid run or an arena queue. Surfaced here so you can
+  // in-progress dungeon run or an arena queue. Surfaced here so you can
   // leave the run watch page without losing track of it — progress never stops.
   let ongoingDungeon = $state<{ runId: string; name: string } | null>(null);
-  let ongoingRaid = $state<{ runId: string; name: string } | null>(null);
   let arenaQueued = $state(false);
-  const hasOngoing = $derived(!!ongoingDungeon || !!ongoingRaid || arenaQueued);
+  const hasOngoing = $derived(!!ongoingDungeon || arenaQueued);
 
   const characterId = $derived($page.params.id ?? '');
   let ticker: ReturnType<typeof setInterval> | undefined;
@@ -142,7 +138,7 @@
     claimResult = null;
   }
 
-  // Detect parallel activities (best-effort). The newest dungeon/raid run row
+  // Detect parallel activities (best-effort). The newest dungeon run row
   // may still be in progress; arena exposes a queued flag. Runs are lazy on the
   // server, so checking the newest run's completion is enough.
   async function loadOngoing(): Promise<void> {
@@ -154,16 +150,6 @@
         ongoingDungeon = view.progress.completed
           ? null
           : { runId: newest.runId, name: view.dungeonName };
-      }
-    } catch {
-      /* best-effort */
-    }
-    try {
-      const rRuns = await recentRaidRuns(characterId);
-      const newest = rRuns[0];
-      if (newest) {
-        const view = await getRaidRun(characterId, newest.runId);
-        ongoingRaid = view.progress.completed ? null : { runId: newest.runId, name: view.raidName };
       }
     } catch {
       /* best-effort */
@@ -328,7 +314,7 @@
         >
       {/if}
 
-      <!-- Parallel activities: dungeon/raid runs + arena queue run server-side
+      <!-- Parallel activities: dungeon runs + arena queue run server-side
            (idle), so you can navigate away from their watch pages freely. -->
       {#if hasOngoing}
         <div class="mt-4 border-t border-[var(--border)]/60 pt-3">
@@ -341,15 +327,6 @@
                 <span class="min-w-0 truncate">{ui.inDungeon}: {ongoingDungeon.name}</span>
                 <a
                   href={`/characters/${characterId}/dungeon/${ongoingDungeon.runId}`}
-                  class="btn btn-sm shrink-0">{ui.watch}</a
-                >
-              </li>
-            {/if}
-            {#if ongoingRaid}
-              <li class="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2">
-                <span class="min-w-0 truncate">{ui.inRaid}: {ongoingRaid.name}</span>
-                <a
-                  href={`/characters/${characterId}/raid/${ongoingRaid.runId}`}
                   class="btn btn-sm shrink-0">{ui.watch}</a
                 >
               </li>

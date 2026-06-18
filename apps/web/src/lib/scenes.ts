@@ -2,7 +2,7 @@
  * Scene theme catalog (M9 vizuální refresh — PixiJS pixel scénky).
  *
  * Čistě kosmetická vrstva (viz ROADMAP princip „cosmetic odděleno od statů"):
- * mapuje id zóny / dungeonu / raidu na DATOVÝ popis procedurální pixel-art
+ * mapuje id zóny / dungeonu na DATOVÝ popis procedurální pixel-art
  * scénky (paleta + vrstvy + propy). Renderer (`PixiScene.svelte`) je generický
  * a data-driven — přidání další scény = jen záznam zde, žádná změna rendereru.
  *
@@ -64,8 +64,8 @@ const GROUND_GREEN = 0x4a7a3a;
 const FOLIAGE_GREEN = 0x3c6b3a;
 
 /**
- * Katalog scén. Klíč = id zóny (`data/zones.ts`), dungeonu (`data/dungeons.ts`)
- * nebo raidu (`data/raids.ts`). Chybějící id → fallback dle frakce (`themeForScene`).
+ * Katalog scén. Klíč = id zóny (`data/zones.ts`) nebo dungeonu
+ * (`data/dungeons.ts`). Chybějící id → neutrální fallback (`themeForScene`).
  */
 export const SCENE_THEMES: Record<string, SceneTheme> = {
   // ── Zóny: Aliance ──────────────────────────────────────────────────────
@@ -347,76 +347,13 @@ export const SCENE_THEMES: Record<string, SceneTheme> = {
     glow: 0xff8a40,
   },
 
-  // ── Raidy ──────────────────────────────────────────────────────────────
-  molten_core: {
-    skyTop: 0x2a0e08,
-    skyBottom: 0x5a1e0e,
-    celestial: 'none',
-    celestialColor: 0x000000,
-    ridges: [{ color: 0x3a140c, rel: 0.54 }],
-    ground: 0x2a0e08,
-    groundAccent: 0x3e160c,
-    props: ['lavapool', 'stalactite', 'lavapool'],
-    foliage: 0x000000,
-    stone: 0x4a221a,
-    particle: 'ember',
-    glow: 0xff5a20,
-  },
-  blackwing_lair: {
-    skyTop: 0x1e0e0e,
-    skyBottom: 0x3a1414,
-    celestial: 'none',
-    celestialColor: 0x000000,
-    ridges: [{ color: 0x2a1212, rel: 0.56 }],
-    ground: 0x1e0e0e,
-    groundAccent: 0x2c1212,
-    props: ['crystal', 'tower', 'stalactite'],
-    foliage: 0x000000,
-    stone: 0x4a2424,
-    particle: 'ember',
-    glow: 0xe04030,
-  },
-  zulgurub: {
-    skyTop: 0x1e3320,
-    skyBottom: 0x3a5a2e,
-    celestial: 'sun',
-    celestialColor: 0xe8f0a0,
-    ridges: [
-      { color: 0x244026, rel: 0.5 },
-      { color: 0x1a3020, rel: 0.64 },
-    ],
-    ground: 0x2a4a26,
-    groundAccent: 0x1e3a1c,
-    props: ['tree', 'ruin', 'mushroom'],
-    foliage: 0x3c7a3a,
-    stone: 0x6a7a4a,
-    particle: 'spore',
-    glow: 0x8ad24a,
-  },
-  ahnqiraj: {
-    skyTop: 0xc98a4a,
-    skyBottom: 0xe6c060,
-    celestial: 'sun',
-    celestialColor: 0xfff0c0,
-    ridges: [
-      { color: 0xa97a3e, rel: 0.52 },
-      { color: 0x8a5e2e, rel: 0.66 },
-    ],
-    ground: 0xc99a4a,
-    groundAccent: 0xab8038,
-    props: ['ruin', 'tower', 'ruin'],
-    foliage: 0x9a7a3a,
-    stone: 0xc8a868,
-    particle: 'dust',
-    glow: 0xf0c870,
-  },
 };
 
 /** Neutrální fallback scéna, když id není v katalogu. */
 const FALLBACK_SCENE = SCENE_THEMES.northshire as SceneTheme;
 
 /**
- * Vrátí téma scény pro dané id (zóna/dungeon/raid). Neznámé id → neutrální
+ * Vrátí téma scény pro dané id (zóna/dungeon). Neznámé id → neutrální
  * fallback (frakce odstraněny v MR deWoWčení).
  */
 export function themeForScene(id: string | null | undefined): SceneTheme {

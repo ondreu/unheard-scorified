@@ -21,7 +21,7 @@
     title: 'Combat Rotation',
     intro:
       'Set the priority and conditions for your unlocked abilities. Higher rules fire first; ' +
-      'when a rule is held back, you fall back to auto-attacks. Applies to dungeons, raids and arenas.',
+      'when a rule is held back, you fall back to auto-attacks. Applies to dungeons and arenas.',
     healerNote:
       'Healers: disable your damage spells to focus purely on healing (HPS), keep both for a ' +
       'hybrid that also helps with damage, or disable your heals for a niche damage rotation.',

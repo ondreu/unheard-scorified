@@ -1,8 +1,8 @@
 # Systém: Skupina / party (M9)
 
-Trvalá skupina, se kterou se jde na **dungeon, raid i arénu**. Jeden formační
-systém, který nahradil raid lobby (M8.5-B) i ruční team arénu (M8.5-C).
-Rozhodnutí a důsledky: **ADR 0022**.
+Trvalá skupina, se kterou se jde na **dungeon i arénu**. Jeden formační systém,
+který nahradil ruční team arénu (M8.5-C). Rozhodnutí a důsledky: **ADR 0022**.
+(Raidy vyříznuty — **ADR 0033**.)
 
 ## Model
 
@@ -26,7 +26,6 @@ předá vedení nejstaršímu, jinak rozpustí) · `kick` · `promote` · `disba
 | activityType | obsah | engine |
 | --- | --- | --- |
 | `dungeon` | dungeon id | `DungeonService.runForGroup` → group PVE run |
-| `raid` | raid id (attunement dle leadera) | `RaidService.runForGroup` → `finalizeRun` |
 | `arena` | — (bracket z velikosti) | 1→`ArenaService.queue`, 3/5→`TeamArenaService.launchForGroup` |
 
 **Aréna bracket = velikost skupiny** (`arenaBracketForSize`: 1→1v1, 3→3v3, 5→5v5;

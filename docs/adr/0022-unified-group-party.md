@@ -1,5 +1,8 @@
 # ADR 0022 — Trvalá skupina (party) sjednocující formaci pro dungeon/raid/arénu
 
+> ℹ️ **Částečně dotčeno ADR 0033 (2026-06-18):** raidy vyříznuty. Party **zůstává**
+> jako formační systém pro **dungeon + arénu** (raid launch odebrán).
+
 Status: Accepted · M9
 
 ## Kontext
