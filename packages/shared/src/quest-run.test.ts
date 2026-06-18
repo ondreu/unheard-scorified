@@ -64,6 +64,43 @@ describe('simulateQuestEncounter (no-fail)', () => {
     expect(a.events.length).toBe(b.events.length);
     expect(a.playerHpPct).toBe(b.playerHpPct);
   });
+
+  // ── MR-5: dice-roll combat ────────────────────────────────────────────────
+  it('logs d20 attack rolls vs AC, hits/misses and initiative', () => {
+    const player = makeProfile(20);
+    const foe = questFoeStats({ name: 'Wolf', tier: 'standard' }, 18);
+    const out = simulateQuestEncounter(player, foe, new SeededRng(13), 0);
+    // initiative ve startovní hlášce
+    expect(out.events[0]!.message).toContain('Initiative');
+    const joined = out.events.map((e) => e.message).join('\n');
+    // formát „rolls N + M = T vs AC X → HIT/MISS"
+    expect(joined).toMatch(/rolls \d+ [+−] \d+ = \d+ vs AC \d+ → (HIT|MISS)/);
+    expect(out.events.some((e) => e.message.includes('→ HIT'))).toBe(true);
+  });
+
+  it('a wizard spends spell slots on leveled spells (slot note in log)', () => {
+    const wiz = deriveCombatProfile({
+      name: 'Mage',
+      level: 14,
+      klass: 'wizard',
+      primary: baseStatsFor('human', 'wizard', 14),
+      equipment: {},
+      progression: EMPTY_PROGRESSION,
+    });
+    // dlouhý boj proti silnému nepříteli → projeví se sloty + fallback
+    const foe = questFoeStats({ name: 'Ancient Wyrm', tier: 'boss' }, 30);
+    const out = simulateQuestEncounter(wiz, foe, new SeededRng(99), 0);
+    const joined = out.events.map((e) => e.message).join('\n');
+    expect(joined).toMatch(/-level slot\)/);
+  });
+
+  it('bosses trigger DEX saving throws (half damage on success)', () => {
+    const player = makeProfile(10);
+    const boss = questFoeStats({ name: 'Dread Lord', tier: 'boss' }, 30);
+    const out = simulateQuestEncounter(player, boss, new SeededRng(4), 0, true);
+    const joined = out.events.map((e) => e.message).join('\n');
+    expect(joined).toMatch(/rolls a DEX save: \d+ [+−] \d+ = \d+ vs DC \d+/);
+  });
 });
 
 describe('simulateQuestRun', () => {

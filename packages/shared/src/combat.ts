@@ -14,8 +14,9 @@
  * Veškerá náhoda jen přes `SeededRng` (anti-cheat, reprodukovatelnost).
  */
 import { SeededRng } from './rng';
-import type { AbilityScore, AbilityScores } from './character';
+import { abilityModifier, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
 import { CLASSES, type ClassId, type SubclassId } from './data/classes';
+import { spellSlotsFor, type SpellSlots } from './data/spell-slots';
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
 import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
@@ -125,6 +126,19 @@ export interface CombatActor {
   lifestealSource?: string;
   /** Absorpční štít (pohlcuje příchozí poškození, než se vyčerpá). 0 = bez štítu. */
   shield: number;
+  // ── D&D dice-roll combat (MR-5) — volitelné, doplňují continuous model ──────
+  /** Armor Class — cíl hodu na zásah (d20 + attackBonus vs AC). */
+  armorClass?: number;
+  /** Útočný bonus k d20 hodu na zásah (proficiency + atribut). */
+  attackBonus?: number;
+  /** Flat bonus k poškození (modifikátor primárního atributu). */
+  damageBonus?: number;
+  /** Save modifikátory per atribut (záchranné hody). */
+  saveMods?: Partial<Record<AbilityScore, number>>;
+  /** Spell save DC — DC záchranných hodů proti kouzlům tohoto aktéra. */
+  spellSaveDc?: number;
+  /** Max spell sloty (MR-4) — rozpočet kouzel v rámci jednoho běhu (snapshot). */
+  spellSlots?: SpellSlots;
   signatureAbilities: SignatureAbility[];
   /**
    * Deklarativní rotace (MIL) — řídí, zda/kdy se signature ability sešle.
@@ -257,6 +271,22 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     40 + effStamina * 8 + level * 6 + progression.healthBonus + healthFlat,
   );
 
+  // D&D dice-roll staty (MR-5) — odvozené z efektivních atributů dle D&D 5e.
+  const prof = proficiencyBonus(level);
+  const dexMod = abilityModifier(stat('dexterity'));
+  const primaryMod = abilityModifier(effPrimary);
+  const castingMod = abilityModifier(stat(CLASSES[klass].spellcastingAbility));
+  // Gear armor → drobný AC bonus (plný AC redesign = MR-10).
+  const armorAcBonus = Math.floor((equipment.armor ?? 0) / 50);
+  const saveMods: Partial<Record<AbilityScore, number>> = {
+    strength: abilityModifier(stat('strength')),
+    dexterity: dexMod,
+    constitution: abilityModifier(stat('constitution')),
+    intelligence: abilityModifier(stat('intelligence')),
+    wisdom: abilityModifier(stat('wisdom')),
+    charisma: abilityModifier(stat('charisma')),
+  };
+
   return {
     name: input.name,
     maxHealth,
@@ -268,6 +298,12 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     lifesteal,
     lifestealSource,
     shield: Math.round(shieldMult * (level * 6 + effStamina * 2)),
+    armorClass: 10 + dexMod + armorAcBonus,
+    attackBonus: prof + primaryMod,
+    damageBonus: Math.max(0, primaryMod),
+    saveMods,
+    spellSaveDc: 8 + prof + castingMod,
+    spellSlots: spellSlotsFor(klass, level),
     signatureAbilities: abilities,
   };
 }
@@ -280,6 +316,15 @@ export interface EnemyStats {
   swingInterval: number;
   armor?: number;
   isBoss?: boolean;
+  // ── D&D dice-roll combat (MR-5) — volitelné ────────────────────────────────
+  /** Armor Class nepřítele. */
+  armorClass?: number;
+  /** Útočný bonus k d20 hodu na zásah. */
+  attackBonus?: number;
+  /** Flat bonus k poškození. */
+  damageBonus?: number;
+  /** Spell save DC speciálních útoků (saving throw cíle). */
+  spellSaveDc?: number;
 }
 
 /** Postaví `CombatActor` nepřítele (bez talentů/lifestealu). */
@@ -294,6 +339,10 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     armor: def.armor ?? 0,
     lifesteal: 0,
     shield: 0,
+    armorClass: def.armorClass,
+    attackBonus: def.attackBonus,
+    damageBonus: def.damageBonus,
+    spellSaveDc: def.spellSaveDc,
     signatureAbilities: [],
     isBoss: def.isBoss ?? false,
   };

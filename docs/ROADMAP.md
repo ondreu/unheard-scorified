@@ -1009,15 +1009,38 @@ MR-1 (staty STR/DEX/CON/INT/WIS/CHA + AC)
         `docs/systems/spells.md`.
       - _Pozn.: per-encounter depletion řídící boj = MR-5 (dice combat); spotřeba u
         dungeonů/raidů/arén/Gauntletu + Short Rest granularita = MR-5+; balanc = MR-10._
+- [~] **MR-5 — dice-roll combat** 🚧 (increment 1 hotový):
+      - **Sdílená dice primitiva**: `dice.ts` (d20, NdX, attack roll s nat 20/nat 1,
+        saving throws, notace) + `dnd-combat.ts` (`resolveAttack` = d20 + attackBonus
+        vs AC → hit/miss/crit + damage dice × abilityMult; `savingThrow`,
+        `rollInitiative`, log-buildery). Deterministické (jen `SeededRng`).
+      - **`CombatActor` + D&D pole** (volitelná): `armorClass`/`attackBonus`/
+        `damageBonus`/`saveMods`/`spellSaveDc`/`spellSlots`, počítané v
+        `deriveCombatProfile` z D&D atributů. Ostatní simulátory je ignorují → beze
+        změny chování (continuous `computeHit`).
+      - **Quest combat = první adoptér** (`simulateQuestEncounter`): initiative
+        (d20+DEX), hod na zásah vs AC (log `rolls 14 + 6 = 20 vs AC 13 → HIT for 28
+        damage`), saving throws (hráčova spell → enemy CON save; boss special → hráč
+        DEX save), **spotřeba spell slotů z MR-4** (kouzla čerpají rozpočet běhu,
+        fallback na zbraň/cantrip → `casts Fireball (3rd-level slot)`). Enemy
+        AC/attackBonus škálují ~level/2 → reálný kontest; combat-objective gated
+        buildem zachován. Damage dice kalibrované (průměr ≈ attackPower) → balanc
+        stabilní.
+      - Testy: shared `dice.test.ts` (+11), `dnd-combat.test.ts` (+11), quest-run
+        (+3). Build/test/lint/typecheck zelené (406 shared + 192 API). **ADR 0030**,
+        `docs/systems/dnd-combat.md`.
+      - _Increment 2 (zbývá MR-5): migrace dungeon/raid/PVP/aréna/Gauntlet z continuous
+        `computeHit` na `resolveAttack` (recalibrace encounterů, Elo/wipe). Plný
+        damage-dice redesign (1d8+STR, 8d6) + save-heavy kouzla = MR-7/MR-10._
 
-> 🔜 **Handoff pro další session:** hotovo **MR-1, MR-2 (+MR-6), MR-3, MR-4**.
-> Pokračovat **MR-5** (dice-roll combat: d20 attack roll vs AC → hit/miss, damage
-> dice, saving throws, initiative; log „rolled 14 + 5 = 19 vs AC 16 → HIT"; navázat
-> **spotřebu spell slotů z MR-4** na per-encounter combat). Pak MR-7 (D&D bestiář +
-> CR), MR-8 (lore přejmenování zón/dungeonů/raidů — WoW → homebrew D&D), MR-9
-> (odstranění frakcí), MR-10 (balance pass), MR-11 (level cap 20 + XP křivka). Pozn.:
-> rasy jsou stále WoW sada namapovaná na D&D atributy — PHB rasy přijdou s lore
-> přejmenováním (MR-8/MR-9).
+> 🔜 **Handoff pro další session:** hotovo **MR-1, MR-2 (+MR-6), MR-3, MR-4** a
+> **MR-5 increment 1** (dice-roll combat v questech). Pokračovat **MR-5 increment 2**
+> (migrace dungeon/raid/PVP/aréna/Gauntlet z `computeHit` na `resolveAttack` —
+> recalibrace tuned encounterů + Elo/wipe). Pak MR-7 (D&D bestiář + CR), MR-8 (lore
+> přejmenování zón/dungeonů/raidů — WoW → homebrew D&D), MR-9 (odstranění frakcí),
+> MR-10 (balance pass: plný damage-dice redesign 1d8+STR/8d6, CR, XP, spell economy),
+> MR-11 (level cap 20 + XP křivka). Pozn.: rasy jsou stále WoW sada namapovaná na D&D
+> atributy — PHB rasy přijdou s lore přejmenováním (MR-8/MR-9).
 
 ---
 
