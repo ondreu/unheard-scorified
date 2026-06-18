@@ -21,6 +21,12 @@ import { attackHits, diceNotation, rollAttack, rollDice, type AttackRoll, type D
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
 import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
+import {
+  applyDamageInteraction,
+  damageInteraction,
+  type DamageInteraction,
+  type DamageType,
+} from './data/damage';
 import type { CharacterRotation } from './rotation';
 
 export type { AbilityKind, SignatureAbility, BaselineAbility } from './data/abilities';
@@ -136,6 +142,15 @@ export interface CombatActor {
   saveMods?: Partial<Record<AbilityScore, number>>;
   /** Spell save DC — DC záchranných hodů proti kouzlům tohoto aktéra. */
   spellSaveDc?: number;
+  // ── D&D bestiář (MR-7) — typové poškození a obrany ─────────────────────────
+  /** Typ poškození základního útoku aktéra. `undefined` = fyzické (bludgeoning). */
+  damageType?: DamageType;
+  /** Typy poškození, vůči kterým má aktér resistance (×0.5). */
+  resistances?: readonly DamageType[];
+  /** Typy poškození, vůči kterým je aktér vulnerable (×2). */
+  vulnerabilities?: readonly DamageType[];
+  /** Typy poškození, vůči kterým je aktér immune (×0). */
+  immunities?: readonly DamageType[];
   /** Max spell sloty (MR-4) — rozpočet kouzel v rámci jednoho běhu (snapshot). */
   spellSlots?: SpellSlots;
   signatureAbilities: SignatureAbility[];
@@ -329,6 +344,15 @@ export interface EnemyStats {
   damageBonus?: number;
   /** Spell save DC speciálních útoků (saving throw cíle). */
   spellSaveDc?: number;
+  // ── D&D bestiář (MR-7) — typové poškození a obrany ─────────────────────────
+  /** Typ poškození základního útoku. `undefined` = fyzické (bludgeoning). */
+  damageType?: DamageType;
+  /** Resistance vůči typům poškození (×0.5). */
+  resistances?: readonly DamageType[];
+  /** Vulnerability vůči typům poškození (×2). */
+  vulnerabilities?: readonly DamageType[];
+  /** Immunity vůči typům poškození (×0). */
+  immunities?: readonly DamageType[];
 }
 
 /**
@@ -364,6 +388,10 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     attackBonus: def.attackBonus ?? enemyAttackBonusForLevel(lvl, isBoss),
     damageBonus: def.damageBonus,
     spellSaveDc: def.spellSaveDc ?? 8 + enemyAttackBonusForLevel(lvl, isBoss),
+    damageType: def.damageType,
+    resistances: def.resistances,
+    vulnerabilities: def.vulnerabilities,
+    immunities: def.immunities,
     signatureAbilities: [],
     isBoss,
   };
@@ -421,9 +449,23 @@ export interface HitResult {
   damage?: DiceRoll;
   /** Notace kostek poškození pro log (např. `5d6+18`). */
   damageNotation?: string;
+  // ── D&D bestiář (MR-7) — typové poškození (engine je vždy nastaví) ──────────
+  /** Typ poškození tohoto útoku (fyzické default = bludgeoning). */
+  damageType?: DamageType;
+  /** Interakce s obranami cíle (resist/vuln/immune) — řídí finální `amount`. */
+  damageInteraction?: DamageInteraction;
 }
 
-/** Společné jádro hodu na zásah (d20 + attackBonus vs AC → damage dice). */
+/**
+ * Damage typ útoku: explicitní override (ability) → jinak default útok aktéra
+ * → jinak fyzické (bludgeoning). Bestiář (MR-7) tak může mít typové útoky a
+ * cíle resistance/vulnerability/immunity.
+ */
+function attackDamageType(attacker: CombatActor, override?: DamageType): DamageType {
+  return override ?? attacker.damageType ?? 'bludgeoning';
+}
+
+/** Společné jádro hodu na zásah (d20 + attackBonus vs AC → damage dice → obrany). */
 function rollHit(
   attacker: CombatActor,
   defender: CombatActor,
@@ -431,19 +473,36 @@ function rollHit(
   abilityMult: number,
   autoHit: boolean,
   enraged: boolean,
+  damageTypeOverride?: DamageType,
 ): HitResult {
   const targetAc = actorAc(defender);
+  const damageType = attackDamageType(attacker, damageTypeOverride);
   const roll = rollAttack(rng, actorAttackBonus(attacker));
   const hit = autoHit || attackHits(roll, targetAc);
-  if (!hit) return { amount: 0, crit: false, hit: false, roll, targetAc };
+  if (!hit) {
+    return { amount: 0, crit: false, hit: false, roll, targetAc, damageType, damageInteraction: 'normal' };
+  }
   const crit = roll.isCrit;
   const spec = weaponDamageSpec(attacker, crit);
   const damage = rollDice(rng, spec.count, spec.sides);
-  const amount = Math.max(
-    1,
-    Math.round((damage.total + spec.bonus) * abilityMult * (enraged ? 3 : 1)),
-  );
-  return { amount, crit, hit: true, roll, targetAc, damage, damageNotation: diceNotation(spec) };
+  const raw = Math.round((damage.total + spec.bonus) * abilityMult * (enraged ? 3 : 1));
+  // Resistance / vulnerability / immunity (MR-7): immune ruší poškození úplně,
+  // jinak min. 1 (chip damage). Mechanika je živá ve všech simulátorech (sdílené
+  // jádro rollHit).
+  const interaction = damageInteraction(damageType, defender);
+  const modified = applyDamageInteraction(Math.max(1, raw), interaction);
+  const amount = interaction === 'immune' ? 0 : Math.max(1, modified);
+  return {
+    amount,
+    crit,
+    hit: true,
+    roll,
+    targetAc,
+    damage,
+    damageNotation: diceNotation(spec),
+    damageType,
+    damageInteraction: interaction,
+  };
 }
 
 /**
@@ -459,8 +518,9 @@ export function computeHit(
   rng: SeededRng,
   abilityMult: number,
   enraged: boolean,
+  damageType?: DamageType,
 ): HitResult {
-  return rollHit(attacker, defender, rng, abilityMult, false, enraged);
+  return rollHit(attacker, defender, rng, abilityMult, false, enraged, damageType);
 }
 
 export interface ResolveAttackOpts {
@@ -468,11 +528,13 @@ export interface ResolveAttackOpts {
   abilityMult?: number;
   /** Automatický zásah (ignoruje hod na AC) — pro „nelze minout" efekty. */
   autoHit?: boolean;
+  /** Typ poškození útoku (ability) — přepíše default útok aktéra (MR-7). */
+  damageType?: DamageType;
 }
 
 /**
- * Vyřeší jeden útok s volbami (abilityMult, autoHit). Tenký wrapper nad sdíleným
- * jádrem `rollHit` — používá ho quest combat (MR-5). Vrací stejný `HitResult`.
+ * Vyřeší jeden útok s volbami (abilityMult, autoHit, damageType). Tenký wrapper
+ * nad sdíleným jádrem `rollHit` — používá ho quest combat (MR-5). Vrací `HitResult`.
  */
 export function resolveAttack(
   attacker: CombatActor,
@@ -480,7 +542,15 @@ export function resolveAttack(
   rng: SeededRng,
   opts: ResolveAttackOpts = {},
 ): HitResult {
-  return rollHit(attacker, defender, rng, opts.abilityMult ?? 1, opts.autoHit ?? false, false);
+  return rollHit(
+    attacker,
+    defender,
+    rng,
+    opts.abilityMult ?? 1,
+    opts.autoHit ?? false,
+    false,
+    opts.damageType,
+  );
 }
 
 export function round1(n: number): number {

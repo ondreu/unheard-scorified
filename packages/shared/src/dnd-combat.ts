@@ -7,6 +7,7 @@
  */
 import type { AbilityScore } from './character';
 import { actorSaveMod, type CombatActor, type HitResult } from './combat';
+import { damageInteractionNote } from './data/damage';
 import { rollD20, rollSave, type SaveRoll } from './dice';
 import { SeededRng } from './rng';
 
@@ -59,10 +60,14 @@ export function buildDndAttackMessage(input: DndAttackMessageInput): string {
   const tail = suffix ?? '';
   if (!result.hit) return `${head} → MISS.${tail}`;
   const healNote = healed && healed > 0 ? `, healing for ${healed}` : '';
+  // Resistance/vulnerability/immunity note (MR-7) — jen když není `normal`.
+  const typeNote = result.damageInteraction
+    ? damageInteractionNote(result.damageInteraction)
+    : '';
   if (result.crit) {
-    return `🩸 ${head} → CRITICAL HIT for ${result.amount} damage${healNote}!${tail}`;
+    return `🩸 ${head} → CRITICAL HIT for ${result.amount} damage${typeNote}${healNote}!${tail}`;
   }
-  return `${head} → HIT for ${result.amount} damage${healNote}.${tail}`;
+  return `${head} → HIT for ${result.amount} damage${typeNote}${healNote}.${tail}`;
 }
 
 /** Kompaktní tag hodu na zásah pro hutné logy: `[d20: 14 + 6 = 20 vs AC 13]`. */
