@@ -281,6 +281,13 @@
       "when": 1781785121718,
       "tag": "0039_phb_race_remap",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1781797484866,
+      "tag": "0040_dnd_class_remap",
+      "breakpoints": true
     }
   ]
 }

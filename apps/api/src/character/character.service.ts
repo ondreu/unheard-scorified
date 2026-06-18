@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -71,6 +72,8 @@ export interface InspectView {
 
 @Injectable()
 export class CharacterService {
+  private readonly logger = new Logger(CharacterService.name);
+
   constructor(
     private readonly repo: CharacterRepository,
     // Volitelné kvůli jednoduchému instancování v unit/flow testech (1 arg).
@@ -153,7 +156,20 @@ export class CharacterService {
 
   async list(accountId: string): Promise<CharacterView[]> {
     const rows = await this.repo.listByAccount(accountId);
-    return rows.map((r) => this.toView(r));
+    // Odolnost: jediný řádek se starým/neznámým race/class id (např. prostředí,
+    // kde ještě neproběhly remap migrace) nesmí shodit celý seznam účtu. Takovou
+    // postavu zalogujeme a přeskočíme místo 500 na celém endpointu.
+    const views: CharacterView[] = [];
+    for (const r of rows) {
+      try {
+        views.push(this.toView(r));
+      } catch (err) {
+        this.logger.error(
+          `Skipping character ${r.id} (${r.race}/${r.class}) in list: ${(err as Error).message}`,
+        );
+      }
+    }
+    return views;
   }
 
   async getOwned(accountId: string, id: string): Promise<CharacterView> {

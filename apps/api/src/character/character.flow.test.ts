@@ -152,6 +152,27 @@ describe('M1 flow: účet + postava', () => {
     expect(geared.itemLevel).toBe(5);
   });
 
+  it('legacy class id (pre-MR-2) v DB neshodí celý list účtu', async () => {
+    const accountId = await registerAndGetId('legacy');
+    // Validní postava + „stará" postava se zrušeným WoW class id ('warrior'),
+    // vložená přímo přes repo (obchází validaci create) — simuluje prostředí,
+    // kde ještě neproběhla remap migrace. list() ji musí přeskočit, ne 500.
+    const ok = await characters.create(accountId, { name: 'Valid', race: 'human', class: 'fighter' });
+    await charRepo.create({
+      accountId,
+      name: 'Oldwarrior',
+      race: 'human',
+      class: 'warrior' as never,
+      background: null,
+      baseScores: null,
+      backstory: null,
+    });
+
+    const list = await characters.list(accountId);
+    expect(list).toHaveLength(1);
+    expect(list[0]!.id).toBe(ok.id);
+  });
+
   it('smaže vlastní postavu; cizí účet ji smazat nemůže', async () => {
     const owner = await registerAndGetId('henry');
     const other = await registerAndGetId('iris');
