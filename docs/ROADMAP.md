@@ -137,6 +137,9 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 
 - [ ] **Spell sloty všude** — zavést D&D spell sloty do všech bojových režimů (dungeony/Gauntlet/…); **scrap mana** = odstranit zjednodušený `ResourceType` (mana/energy/rage proxy), sjednotit na D&D spell sloty (+ class resources Rage/Ki/Pact Magic). ADR.
 - [ ] **Fix kouzla nesedící na D&D** — narovnat ability, které neodpovídají D&D mechanice (např. **Hunter's Mark** = momentálně jen weapon strike; v D&D je to concentration buff +1d6 na zásah). Audit celého katalogu `abilities.ts` proti D&D 5e.
+- [ ] **Kniha kouzel — hráč si volí aktivní spelly** — místo fixního kitu (`resolveAbilities` = class+subclass+level) si hráč **vybere aktivní kouzla**, která má v boji k dispozici. Pool nabídky = **+- všechna kouzla, ke kterým by měl v D&D přístup** (spell list dané classy do jeho úrovně). Navazuje na rotaci (`CharacterRotation`) a spell sloty.
+  - **❓ k rozhodnutí — model Wizarda.** V D&D má wizard **spellbook** (učí se kouzla → velký „known" pool, z něj denně **připravuje** podmnožinu), ostatní classy mají „known spells". Vymyslet, jak to namodelovat: učení kouzel wizardem (level-up + scrolls/scribování?), prepared vs known, a sjednocení s ostatními classami.
+  - **❓ k rozhodnutí — omezení přehazování.** Swap aktivních kouzel bude **omezený** — kandidáti: **gold cost** za přehození, nebo vázané na Long Rest / downtime / level-up. Vybrat mechaniku (gold sink vs. časové gate).
 
 ## Enemy systém
 
