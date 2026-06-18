@@ -53,13 +53,21 @@ export interface DungeonDef {
   weeklyLockout?: boolean;
 }
 
+/** Volitelné staty nepřítele nad rámec pozičních argumentů (`enemy`). */
+type EnemyOpts = Partial<
+  Pick<
+    EnemyStats,
+    'armor' | 'isBoss' | 'damageType' | 'resistances' | 'vulnerabilities' | 'immunities'
+  >
+>;
+
 function enemy(
   id: string,
   name: string,
   maxHealth: number,
   attackPower: number,
   swingInterval: number,
-  opts: { armor?: number; isBoss?: boolean } = {},
+  opts: EnemyOpts = {},
 ): EnemyDef {
   return { id, name, maxHealth, attackPower, swingInterval, ...opts };
 }
@@ -191,11 +199,25 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseXp: 6500,
     baseGold: 200,
     goldVariance: 0.2,
+    // Bestiář (MR-10d): trollí hoodoo = nekrotická magie, hadí bůh = jed; krvavý
+    // chief je zranitelný radiant (holy smite). Aktivuje typové obrany (MR-7/10b).
     encounters: [
-      enemy('zf_axethrower', 'Dunescale Axe Thrower', 560, 44, 2.5),
-      enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 600, 47, 2.6),
-      enemy('zf_gahzrilla', "Gazrilla", 980, 52, 2.3, { armor: 80 }),
-      enemy('zf_ukorz', 'Chief Ukor Dunescalp', 1300, 56, 2.4, { armor: 90, isBoss: true }),
+      enemy('zf_axethrower', 'Dunescale Axe Thrower', 560, 44, 2.5, { damageType: 'slashing' }),
+      enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 600, 47, 2.6, {
+        damageType: 'necrotic',
+        resistances: ['necrotic'],
+      }),
+      enemy('zf_gahzrilla', 'Gazrilla', 980, 52, 2.3, {
+        armor: 80,
+        damageType: 'poison',
+        resistances: ['poison'],
+      }),
+      enemy('zf_ukorz', 'Chief Ukor Dunescalp', 1300, 56, 2.4, {
+        armor: 90,
+        isBoss: true,
+        damageType: 'slashing',
+        vulnerabilities: ['radiant'],
+      }),
     ],
   },
 
@@ -210,11 +232,30 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseXp: 8200,
     baseGold: 250,
     goldVariance: 0.2,
+    // Bestiář (MR-10d): nature/earth téma — treant i elementál odolávají fyzickému
+    // poškození (martiali si škrtnou), ale hoří (caster fire excels). „Bring a caster."
     encounters: [
-      enemy('mar_noxxion', 'Noxxion Spawn', 700, 50, 2.5),
-      enemy('mar_treant', 'Corrupted Treant', 760, 54, 2.6),
-      enemy('mar_landslide', 'Landslide', 1150, 58, 2.3, { armor: 100 }),
-      enemy('mar_theradras', 'Princess Theradris', 1600, 62, 2.4, { armor: 90, isBoss: true }),
+      enemy('mar_noxxion', 'Noxxion Spawn', 700, 50, 2.5, {
+        damageType: 'poison',
+        resistances: ['poison'],
+        vulnerabilities: ['fire'],
+      }),
+      enemy('mar_treant', 'Corrupted Treant', 760, 54, 2.6, {
+        damageType: 'bludgeoning',
+        resistances: ['bludgeoning', 'piercing'],
+        vulnerabilities: ['fire'],
+      }),
+      enemy('mar_landslide', 'Landslide', 1150, 58, 2.3, {
+        armor: 100,
+        damageType: 'bludgeoning',
+        resistances: ['slashing', 'piercing', 'bludgeoning'],
+      }),
+      enemy('mar_theradras', 'Princess Theradris', 1600, 62, 2.4, {
+        armor: 90,
+        isBoss: true,
+        damageType: 'poison',
+        vulnerabilities: ['fire'],
+      }),
     ],
   },
 
@@ -230,11 +271,25 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 320,
     goldVariance: 0.2,
     weeklyLockout: true,
+    // Bestiář (MR-10d): forge/fire téma — obyvatelé jsou žárovzdorní (resist fire),
+    // takže fire casteři tu nezáří; martiali a ostatní normálně.
     encounters: [
-      enemy('brd_guard', 'Anvilrage Guardsman', 900, 60, 2.5, { armor: 80 }),
-      enemy('brd_geologist', 'Cinderforge Geologist', 950, 64, 2.6),
-      enemy('brd_angerforge', 'General Emberforge', 1500, 70, 2.3, { armor: 110 }),
-      enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2100, 74, 2.4, { armor: 120, isBoss: true }),
+      enemy('brd_guard', 'Anvilrage Guardsman', 900, 60, 2.5, { armor: 80, damageType: 'slashing' }),
+      enemy('brd_geologist', 'Cinderforge Geologist', 950, 64, 2.6, {
+        damageType: 'bludgeoning',
+        resistances: ['fire'],
+      }),
+      enemy('brd_angerforge', 'General Emberforge', 1500, 70, 2.3, {
+        armor: 110,
+        damageType: 'fire',
+        resistances: ['fire'],
+      }),
+      enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2100, 74, 2.4, {
+        armor: 120,
+        isBoss: true,
+        damageType: 'fire',
+        resistances: ['fire'],
+      }),
     ],
   },
 
@@ -252,11 +307,35 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 400,
     goldVariance: 0.2,
     weeklyLockout: true,
+    // Bestiář (MR-10d): undead capstone — vše zranitelné radiant (immune jedu,
+    // resist nekrotice). Holy classy (Cleric/Paladin = radiant) tu DOMINUJÍ; dreadlord
+    // Baron navíc odolá ohni (fiend). Vrchol „class counter" identity 14–20.
     encounters: [
-      enemy('strat_zombie', 'Plagued Zombie', 1100, 72, 2.5),
-      enemy('strat_cryptfiend', 'Crypt Fiend', 1180, 76, 2.6, { armor: 70 }),
-      enemy('strat_ramstein', 'Ramstein the Gorger', 1900, 82, 2.3, { armor: 120 }),
-      enemy('strat_baron', 'Baron Ravendere', 2600, 88, 2.4, { armor: 130, isBoss: true }),
+      enemy('strat_zombie', 'Plagued Zombie', 1100, 72, 2.5, {
+        damageType: 'necrotic',
+        resistances: ['necrotic'],
+        immunities: ['poison'],
+        vulnerabilities: ['radiant'],
+      }),
+      enemy('strat_cryptfiend', 'Crypt Fiend', 1180, 76, 2.6, {
+        armor: 70,
+        damageType: 'piercing',
+        resistances: ['necrotic'],
+        vulnerabilities: ['radiant'],
+      }),
+      enemy('strat_ramstein', 'Ramstein the Gorger', 1900, 82, 2.3, {
+        armor: 120,
+        damageType: 'bludgeoning',
+        resistances: ['necrotic'],
+        vulnerabilities: ['radiant', 'fire'],
+      }),
+      enemy('strat_baron', 'Baron Ravendere', 2600, 88, 2.4, {
+        armor: 130,
+        isBoss: true,
+        damageType: 'necrotic',
+        resistances: ['necrotic', 'fire'],
+        vulnerabilities: ['radiant'],
+      }),
     ],
   },
 };

@@ -30,6 +30,7 @@ import {
 } from './combat';
 import { isAbilityEnabled, shouldCastAbility } from './rotation';
 import { missMessage, rollTag } from './dnd-combat';
+import { applyDamageInteraction, damageInteraction } from './data/damage';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -230,6 +231,7 @@ interface RaidTimer {
 function scheduleDot(
   timers: RaidTimer[],
   source: CombatActor,
+  target: CombatActor,
   ability: SignatureAbility,
   clock: number,
 ): void {
@@ -237,7 +239,13 @@ function scheduleDot(
   const duration = ability.dotDurationSec ?? 0;
   if (ticks <= 0 || duration <= 0) return;
   const interval = duration / ticks;
-  const dmg = Math.max(1, Math.round(source.attackPower * (ability.dotTickMult ?? 0)));
+  // DoT tik nese typ kouzla (MR-10d) → respektuje resistance/immunity cíle stejně
+  // jako přímý zásah (jinak by fire DoT „protekl" fire-immune cílem). Cíl je
+  // statický, tak interakci spočítáme jednou při scheduleru.
+  const dotType = ability.damageType ?? source.damageType ?? 'bludgeoning';
+  const raw = Math.round(source.attackPower * (ability.dotTickMult ?? 0));
+  const interaction = damageInteraction(dotType, target);
+  const dmg = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
   timers.push({
     next: clock + interval,
     interval,
@@ -497,12 +505,12 @@ function fightBoss(
       const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
       const mult = abilityDamageMult(ability, bossHpPct);
       const executing = mult > ability.damageMult;
-      const hit = computeHit(member, boss, rng, mult, false);
+      const hit = computeHit(member, boss, rng, mult, false, ability.damageType);
       bossHp = Math.max(0, bossHp - hit.amount);
       const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
       const healed = hit.hit && healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
       if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
-      if (hit.hit && ability.kind === 'dot') scheduleDot(timers, member, ability, clock);
+      if (hit.hit && ability.kind === 'dot') scheduleDot(timers, member, boss, ability, clock);
       const exec = executing ? ' (execute!)' : '';
       events.push({
         t: round1(clock),

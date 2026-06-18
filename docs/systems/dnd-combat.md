@@ -67,6 +67,25 @@ miss = `amount: 0` s miss-aware logem (`missMessage` + kompaktní `rollTag`
 `EnemyStats.level` přes `crForContentLevel` (+boss) → `crStatGuide` (DMG tabulka)
 v `buildEnemyActor`. Explicitní `armorClass`/`attackBonus`/`spellSaveDc` mají přednost.
 
+## MR-10d — per-ability typy + typovaný late-game obsah ✅
+
+**Per-ability damage typy.** `SignatureAbility.damageType` přebíjí typ classy pro
+konkrétní kouzlo → caster **není type-locked**: Wizard hází Magic Missile (force),
+Fireball (fire); Druid Produce Flame (fire) / Moonbeam (radiant) / Call Lightning
+(lightning); Warlock Hex/Drain Life (necrotic); Bard Vicious Mockery (psychic).
+Martial techniky `damageType` nemají → zdědí typ zbraně (fyzické). Engine bere
+`ability.damageType ?? attacker.damageType` na **přímém zásahu** (quest/raid/gauntlet/
+PVP — `computeHit`/`resolveAttack` override) **i na DoT tikách** (raid/gauntlet
+spočítají interakci s obranami cíle při scheduleru → fire DoT „neproteče" fire-immune
+cílem).
+
+**Typovaný late-game obsah (14–20).** Dungeony i raidy 14+ dostaly thematické
+obrany (bestiář/MR-7): Pyrehold (undead) = vuln radiant → Cleric/Paladin DOMINUJÍ;
+Maradoth (nature/earth) = resist physical + vuln fire → „bring a caster"; Cinderdeep
+& Cinderforge (fire) = resist fire; Flamelord Ignaroth = **immune fire** (fér: každý
+caster má ne-fire kouzlo). Vytváří class-counter dynamiku + aktivuje typový systém
+v obsahu, kde na hloubce záleží. _Magnitudy (HP/AP) nedotčené._
+
 ## MR-10b — per-class weapon dice + typed útoky ✅
 
 Damage dice dostaly **per-class tvar** (`ClassDef.attackDie` → `CombatActor.attackDie`
