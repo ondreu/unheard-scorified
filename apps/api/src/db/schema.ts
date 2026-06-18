@@ -41,6 +41,7 @@ import type {
   GuildRank,
   ProfessionId,
   RaceId,
+  SpellSlots,
   RaidActor,
   RaidRole,
   RotationRule,
@@ -81,6 +82,10 @@ export const characters = pgTable('characters', {
   baseScores: jsonb('base_scores').$type<AbilityScores>(),
   // Veřejná volná backstory (MR-3).
   backstory: varchar('backstory', { length: 500 }),
+  // Vyčerpané spell sloty (MR-4) — řídká mapa tier→počet. Aktivita je při startu
+  // spotřebuje, Long Rest při claimu/návratu dobije (reset na {}). Available =
+  // max (z třídy/levelu, viz @game/shared) − spent.
+  spentSpellSlots: jsonb('spent_spell_slots').$type<SpellSlots>().notNull().default({}),
   faction: varchar('faction', { length: 16 }).$type<Faction>().notNull(),
   totalXp: integer('total_xp').notNull().default(0),
   gold: integer('gold').notNull().default(0),

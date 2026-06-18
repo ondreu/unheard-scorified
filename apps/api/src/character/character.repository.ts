@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import type { SpellSlots } from '@game/shared';
 import { DB, type Database } from '../db/db.module';
 import { characters, type Character, type NewCharacter } from '../db/schema';
 
@@ -88,6 +89,19 @@ export class CharacterRepository {
       .update(characters)
       .set({ gold: sql`${characters.gold} + ${amount}` })
       .where(eq(characters.id, id));
+  }
+
+  /**
+   * Nastaví vyčerpané spell sloty (MR-4). Aktivita při startu spotřebuje
+   * (spend), Long Rest při claimu/návratu dobije (`{}`). Vrací aktualizovaný řádek.
+   */
+  async setSpentSpellSlots(id: string, spent: SpellSlots): Promise<Character> {
+    const [row] = await this.db
+      .update(characters)
+      .set({ spentSpellSlots: spent })
+      .where(eq(characters.id, id))
+      .returning();
+    return row!;
   }
 
   /** Smaže postavu (cascade FK smaže i inventář/aktivity/guild membership atd.). */

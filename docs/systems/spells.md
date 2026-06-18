@@ -1,0 +1,67 @@
+# Spell sloty & spellbook (MR-4)
+
+D&D 5e tiered spell sloty napasované na idle model. Viz **ADR 0029**.
+
+## Model
+
+- **Maximální sloty** = funkce třídy + levelu (`spellSlotsFor(klass, level)` v
+  `@game/shared/data/spell-slots.ts`). Žádný mutable stav, čistá derivace z D&D
+  tabulky. Řídká mapa `tier (1..9) → počet`.
+- **Vyčerpané sloty** (`characters.spent_spell_slots`, jediný mutable stav) —
+  aktivita je při startu spotřebuje, Long Rest dobije. **Available = max − spent**
+  (`availableSlots`).
+
+## Typy sesilatelů (`CASTER_TYPE`)
+
+| Typ    | Třídy                                   | Sloty                                  |
+| ------ | --------------------------------------- | -------------------------------------- |
+| `full` | Bard, Cleric, Druid, Sorcerer, Wizard   | Plná tabulka 1.–9. tier                |
+| `half` | Paladin, Ranger                         | 1.–5. tier, progrese od lvl 2          |
+| `pact` | Warlock                                 | Pact Magic — málo slotů na 1 tieru     |
+| `none` | Barbarian, Fighter, Monk, Rogue         | Žádné (bojové resources)               |
+
+## Spotřeba & odpočinek
+
+- **Start aktivity** (`ActivityService`): `activitySlotCost(durationSec)` slotů
+  (~1 / 30 min, strop 6) se sešle od **nejvyššího dostupného tieru** dolů
+  (`spendHighestSlots`). Non-caster → no-op.
+- **Long Rest** = plné dobití (reset `spent → {}`):
+  - automaticky při **claimu** aktivity (návrat z dobrodružství),
+  - manuálně `POST /characters/:id/spells/long-rest`.
+- **Short Rest** (Warlock) zatím splývá s Long Restem (idle) — granularita = MR-5+.
+
+## Spellbook
+
+`spellbookFor(klass, subclass, level)` → cantripy (tier 0, at-will) + známá kouzla
+seskupená po tieru. Vychází z `resolveAbilities` (gated levelem/subclassem); každé
+kouzlo nese `spellTier` z katalogu `data/abilities.ts`. Martial classy mají
+prázdný spellbook (jejich kit = bojové techniky → panel Rotation). Class features
+bez `spellTier` (Wild Shape) se nezobrazují.
+
+## API
+
+- `GET /characters/:id/spells` → `SpellView`: `casterType`, `level`,
+  `spellcastingAbility`, `spellSaveDc`/`spellAttackBonus`, `slots[]`
+  (`tier`/`max`/`available`), `totalMax`/`totalAvailable`, `rested`, `spellbook`.
+- `POST /characters/:id/spells/long-rest` → Long Rest (idempotentní), vrací
+  aktualizovaný `SpellView`.
+
+## Web
+
+`/characters/[id]/spells` — caster meta (typ / casting atribut / save DC / atk),
+sloty per tier (pips available/max), Long Rest tlačítko, spellbook (cantripy +
+kouzla po tieru s procedurálními ikonami `PixelAbilityIcon`). Nav: Character →
+Spellbook.
+
+## Character sheet
+
+`DerivedStats.casterType` + `DerivedStats.spellSlots` (max) → spell sloty jsou
+součástí sheetu (overview/inspect) bez extra dotazu.
+
+## Follow-up (MR-5+)
+
+- Per-encounter depletion řídící **dice-roll combat** (slabší rotace bez slotů,
+  „šetři sloty na bosse").
+- Spotřeba u dungeonů/raidů/arén/Gauntletu (mimo `ActivityService`).
+- Short Rest časová granularita (Warlock).
+- Balanc spotřeby a dopadu (MR-10).

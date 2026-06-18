@@ -6,6 +6,7 @@ export * from './activity';
 export * from './inventory';
 export * from './data/races';
 export * from './data/classes';
+export * from './data/spell-slots';
 export * from './data/zones';
 export * from './data/quests';
 export * from './loot';

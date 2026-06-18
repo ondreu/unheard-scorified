@@ -8,10 +8,14 @@ import {
 import {
   activityProgress,
   activitySeed,
+  activitySlotCost,
   applyMountSpeed,
   applyXpGain,
   buildCharacterSheet,
   computeActivityReward,
+  longRest,
+  spellSlotsFor,
+  spendHighestSlots,
   FACTIONS,
   GATHERING_NODES,
   GRIND,
@@ -201,7 +205,25 @@ export class ActivityService {
     });
 
     await this.scheduler.schedule(row.id, characterId, durationSec * 1000);
+    await this.spendActivitySlots(character, level, durationSec);
     return this.toActivityView(row, Date.now());
+  }
+
+  /**
+   * MR-4: aktivita při startu spotřebuje spell sloty (caster sešle nejlepší
+   * dostupná kouzla). Non-caster nemá sloty → no-op. Long Rest při claimu je
+   * dobije zpět. Best-effort: případné selhání zápisu nesmí shodit start.
+   */
+  private async spendActivitySlots(
+    character: Character,
+    level: number,
+    durationSec: number,
+  ): Promise<void> {
+    const cost = activitySlotCost(durationSec);
+    if (cost <= 0) return;
+    const max = spellSlotsFor(character.class, level);
+    const spent = spendHighestSlots(max, character.spentSpellSlots ?? {}, cost);
+    await this.characters.setSpentSpellSlots(character.id, spent);
   }
 
   /**
@@ -232,6 +254,7 @@ export class ActivityService {
     });
 
     await this.scheduler.schedule(row.id, character.id, durationSec * 1000);
+    await this.spendActivitySlots(character, level, durationSec);
     return this.toActivityView(row, Date.now());
   }
 
@@ -298,6 +321,9 @@ export class ActivityService {
 
     const gain = applyXpGain(character.totalXp, reward.xp);
     const updated = await this.characters.addRewards(character.id, reward.xp, reward.gold);
+
+    // Long Rest (MR-4): návrat z aktivity plně dobije spell sloty (reset spent).
+    await this.characters.setSpentSpellSlots(character.id, longRest());
 
     // Přidá loot/materiály/output do inventáře (přebytek nad kapacitu → pošta).
     const grantedItems: string[] = [...reward.items];
