@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  abilityScoresFor,
   aggregateProgression,
   baseStatsFor,
   defaultRotation,
@@ -146,7 +147,9 @@ export class RotationService {
   async buildCombatProfile(character: Character, level: number): Promise<CombatActor> {
     const klass = character.class as ClassId;
     const subclass = character.subclass as SubclassId | null;
-    const primary = baseStatsFor(character.race as RaceId, klass, level);
+    const primary = character.baseScores
+      ? abilityScoresFor(character.baseScores, character.race as RaceId, level)
+      : baseStatsFor(character.race as RaceId, klass, level);
     const equipment = await this.inventory.getEquipmentStats(character.id);
     const rotation = await this.rotationForCombat(character.id, klass, subclass, level);
     const choices = await this.levelup.listChoices(character.id);

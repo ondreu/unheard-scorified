@@ -27,6 +27,8 @@ import type {
   AuctionStatus,
   ClassId,
   SubclassId,
+  BackgroundId,
+  AbilityScores,
   LevelUpChoice,
   CombatActor,
   ActivityType,
@@ -73,6 +75,12 @@ export const characters = pgTable('characters', {
   class: varchar('class', { length: 16 }).$type<ClassId>().notNull(),
   // Zvolená subclass (D&D, MR-2). Null dokud postava nedosáhne subclass levelu / nezvolí.
   subclass: varchar('subclass', { length: 64 }).$type<SubclassId>(),
+  // D&D Background (MR-3) — skill proficiencies + lore, veřejně na profilu.
+  background: varchar('background', { length: 32 }).$type<BackgroundId>(),
+  // Přiřazený standard array (MR-3) — base atributy před rasovými mody.
+  baseScores: jsonb('base_scores').$type<AbilityScores>(),
+  // Veřejná volná backstory (MR-3).
+  backstory: varchar('backstory', { length: 500 }),
   faction: varchar('faction', { length: 16 }).$type<Faction>().notNull(),
   totalXp: integer('total_xp').notNull().default(0),
   gold: integer('gold').notNull().default(0),

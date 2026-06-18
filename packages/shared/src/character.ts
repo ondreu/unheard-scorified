@@ -47,8 +47,21 @@ export const ABILITY_ABBREV: Record<AbilityScore, string> = {
   charisma: 'CHA',
 };
 
-/** Baseline atributu na lvl 1 (před rasou/classou). */
+/** Baseline atributu na lvl 1 (před rasou/classou) — legacy default (bez standard array). */
 export const BASELINE_SCORE = 15;
+
+/**
+ * D&D standard array — hodnoty, které hráč rozdělí mezi 6 atributů při tvorbě
+ * postavy (MR-3). Point-buy je možný follow-up.
+ */
+export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
+
+/** Validuje, že přiřazené skóre jsou přesně permutací standard array. */
+export function isValidStandardArray(scores: AbilityScores): boolean {
+  const got = ABILITY_SCORES.map((k) => scores[k]).sort((a, b) => a - b);
+  const want = [...STANDARD_ARRAY].sort((a, b) => a - b);
+  return got.length === want.length && got.every((v, i) => v === want[i]);
+}
 
 /** Přírůstek atributu na level (jednoduchý lineární růst; D&D ASI přijde v MR-6). */
 const PER_LEVEL_GROWTH = 1;
@@ -96,6 +109,26 @@ export function baseStatsFor(race: RaceId, klass: ClassId, level = 1): AbilitySc
   stats.constitution += 1;
 
   return stats;
+}
+
+/**
+ * Atributy postavy z jí **přiřazeného standard array** (MR-3): assigned base
+ * skóre + rasové modifikátory + růst za level. Na rozdíl od `baseStatsFor` třída
+ * nepřidává ke skóre (D&D — atributy plynou z array + rasy; primární výkon classy
+ * řeší combat engine). Použij, když má postava uložené `baseScores`.
+ */
+export function abilityScoresFor(
+  baseScores: AbilityScores,
+  race: RaceId,
+  level = 1,
+): AbilityScores {
+  const raceDef = RACES[race];
+  const growth = (level - 1) * PER_LEVEL_GROWTH;
+  const out = {} as AbilityScores;
+  for (const k of ABILITY_SCORES) {
+    out[k] = baseScores[k] + raceDef.statMods[k] + growth;
+  }
+  return out;
 }
 
 /** Spočítá modifikátory pro všech 6 atributů. */
@@ -190,9 +223,12 @@ export function buildCharacterSheet(
   klass: ClassId,
   totalXp: number,
   equippedItemStats?: ItemStats,
+  baseScores?: AbilityScores | null,
 ): CharacterSheet {
   const { level, xpIntoLevel, xpForNext } = levelFromTotalXp(totalXp);
-  const primary = baseStatsFor(race, klass, level);
+  const primary = baseScores
+    ? abilityScoresFor(baseScores, race, level)
+    : baseStatsFor(race, klass, level);
   return {
     level,
     xpIntoLevel,

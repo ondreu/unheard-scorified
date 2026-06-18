@@ -7,6 +7,8 @@ export interface CharacterView {
   race: string;
   class: string;
   faction: string;
+  background: string | null;
+  backstory: string | null;
   gold: number;
   sheet: CharacterSheet;
 }
@@ -254,6 +256,9 @@ export function createCharacter(input: {
   name: string;
   race: string;
   class: string;
+  background?: string;
+  abilityScores?: Record<string, number>;
+  backstory?: string;
 }): Promise<CharacterView> {
   return request<CharacterView>('/characters', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -276,6 +281,8 @@ export interface InspectView {
   itemLevel: number;
   inGroup: boolean;
   guild: { name: string; rank: string } | null;
+  background: string | null;
+  backstory: string | null;
   sheet: CharacterView['sheet'];
   equipment: InspectItemView[];
 }

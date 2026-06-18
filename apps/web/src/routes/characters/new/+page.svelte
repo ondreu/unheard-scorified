@@ -4,10 +4,17 @@
     RACE_IDS,
     RACES,
     CLASSES,
+    ABILITY_SCORES,
+    ABILITY_ABBREV,
+    BACKGROUNDS,
+    BACKGROUND_IDS,
+    STANDARD_ARRAY,
     isValidRaceClass,
     isValidCharacterName,
     type RaceId,
     type ClassId,
+    type AbilityScore,
+    type BackgroundId,
   } from '@game/shared';
   import { createCharacter } from '$lib/api';
   import { factionLabel } from '$lib/cosmetics';
@@ -17,26 +24,53 @@
   let name = $state('');
   let race = $state<RaceId>('human');
   let klass = $state<ClassId | null>(null);
+  let background = $state<BackgroundId>('soldier');
+  let backstory = $state('');
   let error = $state<string | null>(null);
   let busy = $state(false);
 
-  // Classy dostupné pro vybranou rasu (vanilla omezení ze sdílených dat).
+  // Standard array assignment: ability → array value (null = nepřiřazeno).
+  let assign = $state<Record<AbilityScore, number | null>>({
+    strength: null, dexterity: null, constitution: null,
+    intelligence: null, wisdom: null, charisma: null,
+  });
+
   const allowedClasses = $derived(RACES[race].allowedClasses);
 
-  // Pokud po změně rasy zvolená classa nesedí, zrušíme výběr.
   $effect(() => {
     if (klass && !isValidRaceClass(race, klass)) klass = null;
   });
 
-  const canSubmit = $derived(isValidCharacterName(name) && klass !== null);
+  // Kolikrát je daná hodnota arraye už použita (pro disable v selectu).
+  function usedCount(value: number): number {
+    return ABILITY_SCORES.filter((k) => assign[k] === value).length;
+  }
+  // Kolikrát hodnota smí být použita (standard array má každou hodnotu 1×).
+  function availCount(value: number): number {
+    return STANDARD_ARRAY.filter((v) => v === value).length;
+  }
+
+  const allAssigned = $derived(ABILITY_SCORES.every((k) => assign[k] !== null));
+
+  const canSubmit = $derived(isValidCharacterName(name) && klass !== null && allAssigned);
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
-    if (!klass) return;
+    if (!klass || !allAssigned) return;
     error = null;
     busy = true;
     try {
-      const char = await createCharacter({ name, race, class: klass });
+      const abilityScores = Object.fromEntries(
+        ABILITY_SCORES.map((k) => [k, assign[k] as number]),
+      );
+      const char = await createCharacter({
+        name,
+        race,
+        class: klass,
+        background,
+        abilityScores,
+        backstory: backstory.trim() || undefined,
+      });
       await goto(`/characters/${char.id}`);
     } catch (err) {
       error = (err as Error).message;
@@ -107,6 +141,45 @@
         {/each}
       </div>
     </div>
+
+    <div>
+      <span class="field-label">Ability Scores (standard array: {STANDARD_ARRAY.join(', ')})</span>
+      <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {#each ABILITY_SCORES as ab (ab)}
+          <label class="card flex-col !items-start !gap-1 !p-2">
+            <span class="text-xs text-[var(--text-faint)]">{ABILITY_ABBREV[ab]}</span>
+            <select bind:value={assign[ab]} class="input w-full">
+              <option value={null}>—</option>
+              {#each STANDARD_ARRAY as v}
+                <option value={v} disabled={assign[ab] !== v && usedCount(v) >= availCount(v)}>{v}</option>
+              {/each}
+            </select>
+          </label>
+        {/each}
+      </div>
+      {#if !allAssigned}
+        <p class="mt-1 text-xs text-[var(--text-faint)]">Assign each value exactly once.</p>
+      {/if}
+    </div>
+
+    <div>
+      <span class="field-label">Background</span>
+      <select bind:value={background} class="input mt-1 w-full">
+        {#each BACKGROUND_IDS as b (b)}
+          <option value={b}>{BACKGROUNDS[b].name}</option>
+        {/each}
+      </select>
+      <p class="mt-1 text-xs text-[var(--text-dim)]">{BACKGROUNDS[background].description}</p>
+      <p class="mt-1 text-xs text-[var(--text-faint)]">
+        Proficiencies: {BACKGROUNDS[background].skillProficiencies.join(', ')}
+      </p>
+    </div>
+
+    <label class="block">
+      <span class="field-label">Backstory (optional, public)</span>
+      <textarea bind:value={backstory} maxlength="500" rows="3" class="input mt-1 w-full"
+        placeholder="A few lines about your hero — visible on your public profile."></textarea>
+    </label>
 
     {#if error}<p class="text-sm text-[var(--danger)]">{error}</p>{/if}
 

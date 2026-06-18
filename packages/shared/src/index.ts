@@ -10,6 +10,7 @@ export * from './data/zones';
 export * from './data/quests';
 export * from './loot';
 export * from './data/items';
+export * from './data/backgrounds';
 export * from './data/feats';
 export * from './levelup';
 export * from './rotation';

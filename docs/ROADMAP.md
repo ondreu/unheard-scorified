@@ -967,7 +967,33 @@ MR-1 (staty STR/DEX/CON/INT/WIS/CHA + AC)
       - Build/test/lint/typecheck zelené (357 shared + 185 API).
       - _Pozn.: plné D&D spell sloty + tiered kouzla = MR-4; dice-roll combat = MR-5;
         D&D bestiář/CR = MR-7; lore přejmenování = MR-8._
-- [ ] MR-3 — tvorba postavy + backstory (D&D Background, point-buy/standard array).
+- [x] **MR-3 — tvorba postavy + backstory (D&D)** ✅:
+      - **D&D Backgrounds** (`data/backgrounds.ts`): 12 backgroundů (Acolyte,
+        Charlatan, Criminal, Entertainer, Folk Hero, Guild Artisan, Hermit, Noble,
+        Outlander, Sage, Sailor, Soldier) — skill proficiencies + lore.
+      - **Standard array** (`STANDARD_ARRAY` = 15/14/13/12/10/8, `isValidStandardArray`):
+        hráč při tvorbě přiřadí hodnoty 6 atributům. Uloženo jako `characters.base_scores`
+        (jsonb); `abilityScoresFor(baseScores, race, level)` = array + rasové mody + růst
+        (třída ke skóre nepřidává — D&D). `buildCharacterSheet` + `RotationService.
+        buildCombatProfile` použijí base_scores, když existují (jinak legacy `baseStatsFor`).
+      - **Veřejná backstory**: volný text `characters.backstory` (≤500), zobrazený na
+        profilu (inspect modal `PlayerProfile`) spolu s backgroundem.
+      - DB migrace `0036` (background / base_scores / backstory). Web `/characters/new`
+        rozšířen o array assignment + background picker + backstory.
+      - Testy: shared `dnd-stats`/`levelup` + API `character.flow` (background + array +
+        validace). Build/test/lint/typecheck zelené (357 shared + 187 API).
+      - _Pozn.: zvoleno **standard array** (rozhodnutí PM); **point-buy** = follow-up.
+        Background skill proficiencies jsou zatím jen lore/zobrazení (skill checky D&D
+        se v idle modelu neřeší) — případné napojení na mechaniky = pozdější._
+- [ ] MR-4 — spell systém + tiered spell sloty (D&D tabulka, Long Rest recharge).
+
+> 🔜 **Handoff pro další session:** hotovo **MR-1, MR-2 (+MR-6), MR-3**. Pokračovat
+> **MR-4** (spell sloty: D&D tabulka per třída/level, aktivity je spotřebovávají,
+> Long Rest = full recharge při claimu; spell list per třída). Pak MR-5 (dice-roll
+> combat: d20 vs AC, damage dice, saving throws), MR-7 (D&D bestiář + CR), MR-8 (lore
+> přejmenování zón/dungeonů/raidů — WoW → homebrew D&D), MR-9 (odstranění frakcí),
+> MR-10 (balance pass), MR-11 (level cap 20 + XP křivka). Pozn.: rasy jsou stále WoW
+> sada namapovaná na D&D atributy — PHB rasy přijdou s lore přejmenováním (MR-8/MR-9).
 
 ---
 
