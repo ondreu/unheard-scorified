@@ -33,8 +33,12 @@ převzetí (per-zbraň/kouzlo dice, CR-based AC/HP/damage) = balanc MR-10.
 | `spellSaveDc` | 8 + proficiency + casting mod             |
 | `spellSlots`  | max spell sloty (MR-4)                     |
 
-**Damage dice** (`weaponDamageSpec`) = `N`d6 + bonus kalibrované tak, aby průměr
-≈ `attackPower` (magnitudy zachovány; plný NdX redesign 1d8+STR / 8d6 = MR-10).
+**Damage dice** (`weaponDamageSpec`) = `N`d`sides` + bonus kalibrované tak, aby
+průměr ≈ `attackPower`. `sides` = **per-class kostka zbraně/cantripu** (`attackDie`):
+Barbarian d12, martial d8 (Fighter/Paladin/Ranger/Bard), d6 (Rogue/Monk/Cleric/Druid),
+caster d10 (Sorcerer/Warlock/Wizard); nepřátelé default d6. Větší kostka = méně
+kostek + vyšší variance, **magnitudu drží `attackPower`** (MR-10b). Plný literal
+redesign (8d6 Fireball nezávisle na attackPower) + CR-based magnitudy = další MR-10.
 
 ## Quest combat (increment 1)
 
@@ -62,6 +66,18 @@ miss = `amount: 0` s miss-aware logem (`missMessage` + kompaktní `rollTag`
 **Challenge Ratingu**: `EnemyStats.challengeRating` (explicitní) → jinak z
 `EnemyStats.level` přes `crForContentLevel` (+boss) → `crStatGuide` (DMG tabulka)
 v `buildEnemyActor`. Explicitní `armorClass`/`attackBonus`/`spellSaveDc` mají přednost.
+
+## MR-10b — per-class weapon dice + typed útoky ✅
+
+Damage dice dostaly **per-class tvar** (`ClassDef.attackDie` → `CombatActor.attackDie`
+→ `weaponDamageSpec`): místo generického d6 hází Barbarian d12, casteři d10 atd.
+Magnitudu pořád drží `attackPower` (balanc-neutrální, mění se jen variance + log
+notace `5d12+32`). Hráčské útoky navíc dostaly **typ poškození** (`attackDamageType`):
+martial = fyzické (slashing/piercing/bludgeoning), casteři = signature element
+(fire / force / radiant) → **resistance/vulnerability/immunity (MR-7) je teď živá i
+pro hráče**. Pro existující obsah je to inertní (dungeon/raid/quest nepřátelé nemají
+obrany), aktivuje se s bestiářem (MR-10d). Spelly zatím sdílí typ classy; literal
+per-spell dice/typy (Fireball = 8d6 fire) = závěrečný MR-10 slice.
 
 ## MR-10a — CR-based enemy staty ✅
 

@@ -145,6 +145,12 @@ export interface CombatActor {
   saveMods?: Partial<Record<AbilityScore, number>>;
   /** Spell save DC — DC záchranných hodů proti kouzlům tohoto aktéra. */
   spellSaveDc?: number;
+  /**
+   * Strana kostky poškození základního útoku (d6/d8/d10/d12) — řídí *tvar* damage
+   * dice ve `weaponDamageSpec`. Postavy ji dědí z classy (MR-10b), nepřátelé ji
+   * nechávají `undefined` → default d6. Magnitudu drží `attackPower`.
+   */
+  attackDie?: number;
   // ── D&D bestiář (MR-7) — typové poškození a obrany ─────────────────────────
   /** Typ poškození základního útoku aktéra. `undefined` = fyzické (bludgeoning). */
   damageType?: DamageType;
@@ -318,6 +324,10 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     armorClass: 10 + dexMod + armorAcBonus,
     attackBonus: prof + primaryMod,
     damageBonus: Math.max(0, primaryMod),
+    // Per-class weapon/cantrip dice + damage type (MR-10b) — tvar a typové
+    // poškození hráčova útoku (magnitudu drží `attackPower`).
+    attackDie: CLASSES[klass].attackDie,
+    damageType: CLASSES[klass].attackDamageType,
     saveMods,
     spellSaveDc: 8 + prof + castingMod,
     spellSlots: spellSlotsFor(klass, level),
@@ -428,15 +438,19 @@ export function actorSpellSaveDc(actor: CombatActor): number {
 }
 
 /**
- * Damage dice aktéra — `count`d6 + `bonus` kalibrované tak, aby **průměr ≈
- * `attackPower`** (NdX redesign per zbraň/kouzlo = MR-10). Crit zdvojnásobí
- * `count` (D&D: kostky, ne bonus).
+ * Damage dice aktéra — `count`d`sides` + `bonus`, kde `sides` je per-class
+ * kostka zbraně/cantripu (`attackDie`, default d6 pro nepřátele) a `count`/`bonus`
+ * jsou kalibrované tak, aby **průměr ≈ `attackPower`** (magnitudu drží continuous
+ * model, MR-10b mění jen *tvar*: větší kostka = méně kostek + vyšší variance).
+ * Crit zdvojnásobí `count` (D&D: kostky, ne bonus).
  */
 export function weaponDamageSpec(actor: CombatActor, crit = false): DiceSpec {
   const ap = Math.max(1, actor.attackPower);
-  const count = Math.max(1, Math.min(12, Math.round(ap / 7)));
-  const bonus = Math.max(0, Math.round(ap - count * 3.5));
-  return { count: crit ? count * 2 : count, sides: 6, bonus };
+  const sides = actor.attackDie ?? 6;
+  const dieAvg = (sides + 1) / 2;
+  const count = Math.max(1, Math.min(20, Math.round(ap / sides)));
+  const bonus = Math.max(0, Math.round(ap - count * dieAvg));
+  return { count: crit ? count * 2 : count, sides, bonus };
 }
 
 /** Výsledek jednoho hodu na zásah + poškození (D&D dice-roll). */

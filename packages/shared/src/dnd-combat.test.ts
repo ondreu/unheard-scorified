@@ -59,6 +59,59 @@ describe('weaponDamageSpec calibration', () => {
     expect(crit.count).toBe(normal.count * 2);
     expect(crit.bonus).toBe(normal.bonus);
   });
+
+  it('uses the per-class weapon die (barbarian d12, wizard d10, rogue d6)', () => {
+    expect(weaponDamageSpec(hero(20, 'barbarian')).sides).toBe(12);
+    expect(weaponDamageSpec(hero(20, 'wizard')).sides).toBe(10);
+    expect(weaponDamageSpec(hero(20, 'rogue')).sides).toBe(6);
+  });
+
+  it('a bigger die yields fewer dice at the same magnitude (preserved average)', () => {
+    const barb = hero(20, 'barbarian'); // d12
+    const rogue = hero(20, 'rogue'); // d6
+    // Stejná postava-level magnitude → větší kostka = méně kostek.
+    const barbSpec = weaponDamageSpec(barb);
+    const rogueSpec = weaponDamageSpec(rogue);
+    expect(barbSpec.sides).toBeGreaterThan(rogueSpec.sides);
+    // Průměr drží attackPower (≈), ne počet kostek.
+    expect(Math.abs(diceAverage(barbSpec) - barb.attackPower) / barb.attackPower).toBeLessThan(0.15);
+    expect(Math.abs(diceAverage(rogueSpec) - rogue.attackPower) / rogue.attackPower).toBeLessThan(0.15);
+  });
+
+  it('enemies fall back to a generic d6 (no attackDie)', () => {
+    const goblin = buildEnemyActor({ name: 'Goblin', maxHealth: 100, attackPower: 20, swingInterval: 2.4 });
+    expect(weaponDamageSpec(goblin).sides).toBe(6);
+  });
+});
+
+describe('per-class damage type (MR-10b)', () => {
+  it('martials deal physical damage, casters their signature element', () => {
+    expect(hero(10, 'fighter').damageType).toBe('slashing');
+    expect(hero(10, 'rogue').damageType).toBe('piercing');
+    expect(hero(10, 'monk').damageType).toBe('bludgeoning');
+    expect(hero(10, 'wizard').damageType).toBe('fire');
+    expect(hero(10, 'warlock').damageType).toBe('force');
+    expect(hero(10, 'cleric').damageType).toBe('radiant');
+  });
+
+  it("a player's typed attack interacts with enemy resistances (MR-7 live for players)", () => {
+    const wizard = hero(10, 'wizard'); // fire
+    const fireResistant = buildEnemyActor({
+      name: 'Salamander', maxHealth: 100000, attackPower: 1, swingInterval: 99,
+      resistances: ['fire'],
+    });
+    const normalFoe = buildEnemyActor({
+      name: 'Bandit', maxHealth: 100000, attackPower: 1, swingInterval: 99,
+    });
+    let resisted = 0;
+    let normal = 0;
+    for (let s = 0; s < 200; s++) {
+      resisted += resolveAttack(wizard, fireResistant, new SeededRng(s), { autoHit: true }).amount;
+      normal += resolveAttack(wizard, normalFoe, new SeededRng(s), { autoHit: true }).amount;
+    }
+    // Resistance ≈ poloviční celkové poškození.
+    expect(resisted).toBeLessThan(normal);
+  });
 });
 
 describe('resolveAttack', () => {
