@@ -78,7 +78,7 @@ const QUEST_ENCOUNTER_MAX_SEC = 90;
  * „proving fight" questy jsou záměrně smrtelné na holém requiredLevel; připravený
  * hráč (gear / vyšší level) je zvládne. Laditelné (čísla, ne model).
  */
-const COMBAT_OBJECTIVE_LEVEL_BUMP = 3;
+const COMBAT_OBJECTIVE_LEVEL_BUMP = 6;
 /** Pauza mezi kroky v timeline logu (s). */
 const STEP_GAP_SEC = 2;
 
