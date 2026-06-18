@@ -14,9 +14,9 @@
  * Veškerá náhoda jen přes `SeededRng` (anti-cheat, reprodukovatelnost).
  */
 import { SeededRng } from './rng';
-import { abilityModifier, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
+import { abilityModifier, dndMaxHp, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
 import { CLASSES, type ClassId, type SubclassId } from './data/classes';
-import { spellSlotsFor, type SpellSlots } from './data/spell-slots';
+import { casterTypeOf, spellSlotsFor, type SpellSlots } from './data/spell-slots';
 import { attackHits, diceNotation, rollAttack, rollDice, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
@@ -45,6 +45,49 @@ const BASE_CRIT_CHANCE = 0.05;
 const CRIT_MULTIPLIER = 2;
 /** Strop crit šance. */
 const MAX_CRIT_CHANCE = 0.6;
+
+// ── Literal D&D magnitudy (ADR 0032) ─────────────────────────────────────────
+/**
+ * Idle 1v1 kalibrace (ADR 0032): CR tabulka (HP i `damagePerRound`) je laděná proti
+ * **4členné družině**, která útok rozkládá a má 4× HP pool. Idle base encounter je
+ * 1 hráč vs 1 nepřítel a hráč má většinu vyhrát → CR magnitudy se škálují na **1-PC
+ * rozpočet**: nepřítel má zlomek CR HP i CR `damagePerRound` za úder, aby on-level
+ * boj trval ~6–12 úderů a skončil hráčovým vítězstvím se ztrátou části HP. **Group
+ * obsah (raid/dungeon size>1) tyto base hodnoty násobí velikostí party** (scaleBoss/
+ * scaleActor) → 4-PC rozpočet ≈ literal CR. Boss je tvrdší (víc HP, tvrdší zásah).
+ * Laditelné konstanty (čísla, ne model).
+ */
+const ENEMY_HP_FACTOR_TRASH = 0.3;
+const ENEMY_HP_FACTOR_BOSS = 0.45;
+const ENEMY_DPR_TO_SWING_TRASH = 0.1;
+const ENEMY_DPR_TO_SWING_BOSS = 0.13;
+
+/**
+ * Počet kostek/útoků základního útoku dle levelu (D&D Extra Attack u martialů /
+ * cantrip scaling u casterů: 1 → 2 → 3 → 4). Řídí magnitudu základního útoku.
+ */
+export function basicAttackDiceCount(level: number, caster: boolean): number {
+  if (caster) return level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1;
+  return level >= 20 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1;
+}
+
+/**
+ * Literal D&D magnituda nepřítele z Challenge Ratingu (ADR 0032): HP = `hitPoints`,
+ * poškození za úder = `damagePerRound × ENEMY_DPR_TO_SWING` (idle 1v1 faktor; boss
+ * bije tvrději). Sdílené `buildEnemyActor` i gauntlet (D&D-kotvené škálování vln).
+ */
+export function crEnemyMagnitude(
+  cr: ChallengeRating,
+  isBoss: boolean,
+): { maxHealth: number; attackPower: number } {
+  const guide = crStatGuide(cr);
+  const hpFactor = isBoss ? ENEMY_HP_FACTOR_BOSS : ENEMY_HP_FACTOR_TRASH;
+  const dprFactor = isBoss ? ENEMY_DPR_TO_SWING_BOSS : ENEMY_DPR_TO_SWING_TRASH;
+  return {
+    maxHealth: Math.max(1, Math.round(guide.hitPoints * hpFactor)),
+    attackPower: Math.max(1, Math.round(guide.damagePerRound * dprFactor)),
+  };
+}
 
 // ── Iterativní wipe/retry (M8.5-A) — sdílená křivka obtížnosti s raid enginem ─
 /** Pokles obtížnosti za wipe (po prvním „zdarma" wipu) až k podlaze. */
@@ -289,16 +332,27 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
   // Abilit kit = class kit (level) + subclass signature — jediný zdroj pravdy.
   const abilities = resolveAbilities(klass, subclass, level);
 
-  const attackPower = (4 + effPrimary * 0.9 + level * 0.8 + weaponPower) * damageMult;
-  const maxHealth = Math.round(
-    40 + effStamina * 8 + level * 6 + progression.healthBonus + healthFlat,
-  );
-
   // D&D dice-roll staty (MR-5) — odvozené z efektivních atributů dle D&D 5e.
   const prof = proficiencyBonus(level);
   const dexMod = abilityModifier(stat('dexterity'));
   const primaryMod = abilityModifier(effPrimary);
+  const conMod = abilityModifier(effStamina);
   const castingMod = abilityModifier(stat(CLASSES[klass].spellcastingAbility));
+
+  // Magnitudy = literal D&D (ADR 0032). HP z hit dice; základní útok = počet
+  // útoků/kostek dle levelu × průměr weapon die + damage modifikátor (caster =
+  // casting mod, martial = primární mod), škálováno damage tagy. `attackPower`
+  // nese tuto magnitudu (variance/tvar/literal kostky kouzel řeší engine).
+  const ct = casterTypeOf(klass);
+  const caster = ct === 'full' || ct === 'pact';
+  const dmgMod = caster ? castingMod : primaryMod;
+  const attackCount = basicAttackDiceCount(level, caster);
+  const dieAvg = (CLASSES[klass].attackDie + 1) / 2;
+  const attackPower =
+    (attackCount * dieAvg + Math.max(0, dmgMod) + weaponPower) * damageMult;
+  const maxHealth = Math.round(
+    dndMaxHp(CLASSES[klass].hitDie, level, conMod) + progression.healthBonus + healthFlat,
+  );
   // Gear armor → drobný AC bonus (plný AC redesign = MR-10).
   const armorAcBonus = Math.floor((equipment.armor ?? 0) / 50);
   const saveMods: Partial<Record<AbilityScore, number>> = {
@@ -338,8 +392,17 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
 /** Staty nepřítele (statická data dungeonu). */
 export interface EnemyStats {
   name: string;
-  maxHealth: number;
-  attackPower: number;
+  /**
+   * Max HP. **Volitelné** (ADR 0032): když chybí, odvodí se z Challenge Ratingu
+   * (`crStatGuide(cr).hitPoints`). Explicitní hodnota přebíjí (gauntlet vlny,
+   * trénovací terč, ad-hoc encountery).
+   */
+  maxHealth?: number;
+  /**
+   * Poškození za úder. **Volitelné** (ADR 0032): když chybí, odvodí se z CR
+   * `damagePerRound × ENEMY_DPR_TO_SWING` (idle 1v1 kalibrace). Explicitní přebíjí.
+   */
+  attackPower?: number;
   swingInterval: number;
   armor?: number;
   isBoss?: boolean;
@@ -389,11 +452,15 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
   const isBoss = def.isBoss ?? false;
   // AC/attackBonus/save DC: explicitní → jinak z Challenge Ratingu (DMG tabulka,
   // `crStatGuide`). CR se odvodí z `challengeRating` nebo `level` (MR-10).
-  const guide = crStatGuide(enemyChallengeRating(def, isBoss));
+  const cr = enemyChallengeRating(def, isBoss);
+  const guide = crStatGuide(cr);
+  // Literal D&D magnitudy (ADR 0032): HP = CR `hitPoints`, poškození = CR
+  // `damagePerRound` × idle 1v1 faktor. Explicitní `def.*` přebíjí (gauntlet/dummy).
+  const mag = crEnemyMagnitude(cr, isBoss);
   return {
     name: def.name,
-    maxHealth: def.maxHealth,
-    attackPower: def.attackPower,
+    maxHealth: def.maxHealth ?? mag.maxHealth,
+    attackPower: def.attackPower ?? mag.attackPower,
     swingInterval: def.swingInterval,
     critChance: BASE_CRIT_CHANCE,
     critMultiplier: CRIT_MULTIPLIER,
@@ -453,6 +520,25 @@ export function weaponDamageSpec(actor: CombatActor, crit = false): DiceSpec {
   return { count: crit ? count * 2 : count, sides, bonus };
 }
 
+/**
+ * Literal D&D damage dice kouzla (ADR 0032) — `ability.dice` (Fireball 8d6) +
+ * **upcast** (`dicePerSlotAbove` kostek za každý tier nad `spellTier`, dle slotu,
+ * kterým bylo kouzlo sesláno). Nezávislé na `attackPower`. Vrací `undefined` pro
+ * ability bez literal kostek (martial techniky/drainy/healy → škálují přes
+ * `attackPower`). Crit doubling řeší `rollHit` (po hodu na zásah).
+ */
+export function abilityDamageSpec(
+  ability: SignatureAbility,
+  slotTier: number | null,
+): DiceSpec | undefined {
+  if (!ability.dice) return undefined;
+  const base = ability.dice;
+  const minTier = ability.spellTier ?? 0;
+  const perSlot = ability.dicePerSlotAbove ?? 0;
+  const above = perSlot > 0 && slotTier != null ? Math.max(0, slotTier - minTier) : 0;
+  return { count: base.count + above * perSlot, sides: base.sides, bonus: base.bonus };
+}
+
 /** Výsledek jednoho hodu na zásah + poškození (D&D dice-roll). */
 export interface HitResult {
   /** Výsledné poškození (0 při miss). */
@@ -494,6 +580,7 @@ function rollHit(
   autoHit: boolean,
   enraged: boolean,
   damageTypeOverride?: DamageType,
+  damageSpecOverride?: DiceSpec,
 ): HitResult {
   const targetAc = actorAc(defender);
   const damageType = attackDamageType(attacker, damageTypeOverride);
@@ -503,7 +590,10 @@ function rollHit(
     return { amount: 0, crit: false, hit: false, roll, targetAc, damageType, damageInteraction: 'normal' };
   }
   const crit = roll.isCrit;
-  const spec = weaponDamageSpec(attacker, crit);
+  // Literal spell dice (ADR 0032) přebijí weapon dice; crit zdvojí počet kostek.
+  const spec = damageSpecOverride
+    ? { ...damageSpecOverride, count: crit ? damageSpecOverride.count * 2 : damageSpecOverride.count }
+    : weaponDamageSpec(attacker, crit);
   const damage = rollDice(rng, spec.count, spec.sides);
   const raw = Math.round((damage.total + spec.bonus) * abilityMult * (enraged ? 3 : 1));
   // Resistance / vulnerability / immunity (MR-7): immune ruší poškození úplně,
@@ -539,8 +629,9 @@ export function computeHit(
   abilityMult: number,
   enraged: boolean,
   damageType?: DamageType,
+  damageSpec?: DiceSpec,
 ): HitResult {
-  return rollHit(attacker, defender, rng, abilityMult, false, enraged, damageType);
+  return rollHit(attacker, defender, rng, abilityMult, false, enraged, damageType, damageSpec);
 }
 
 export interface ResolveAttackOpts {
@@ -550,6 +641,8 @@ export interface ResolveAttackOpts {
   autoHit?: boolean;
   /** Typ poškození útoku (ability) — přepíše default útok aktéra (MR-7). */
   damageType?: DamageType;
+  /** Literal damage dice kouzla (ADR 0032) — přebije weapon dice (8d6 Fireball). */
+  damageSpec?: DiceSpec;
 }
 
 /**
@@ -570,6 +663,7 @@ export function resolveAttack(
     opts.autoHit ?? false,
     false,
     opts.damageType,
+    opts.damageSpec,
   );
 }
 

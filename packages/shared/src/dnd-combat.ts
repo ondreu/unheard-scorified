@@ -6,7 +6,8 @@
  * Veškerá náhoda jen přes `SeededRng` (anti-cheat, reprodukovatelnost).
  */
 import type { AbilityScore } from './character';
-import { actorSaveMod, type CombatActor, type HitResult } from './combat';
+import { actorSaveMod, actorSpellSaveDc, type CombatActor, type HitResult } from './combat';
+import type { SignatureAbility } from './data/abilities';
 import { damageInteractionNote } from './data/damage';
 import { rollD20, rollSave, type SaveRoll } from './dice';
 import { SeededRng } from './rng';
@@ -19,6 +20,38 @@ export function savingThrow(
   dc: number,
 ): SaveRoll {
   return rollSave(rng, actorSaveMod(defender, ability), dc);
+}
+
+/** Výsledek aplikace per-spell saving throwu (ADR 0032). */
+export interface SpellSaveOutcome {
+  /** Poškození po aplikaci save (beze změny, když ability nemá `save`). */
+  amount: number;
+  /** Log řádek záchranného hodu (jen když ability má `save` a útok zasáhl). */
+  message?: string;
+}
+
+/**
+ * Aplikuje per-spell saving throw (ADR 0032): pokud má `ability.save`, cíl si hodí
+ * záchranný hod proti spell save DC útočníka. `effect: 'half'` → úspěch půlí
+ * poškození, `'negate'` → úspěch ho ruší (min. 1 při zásahu, aby šel poznat dopad
+ * = ne, negate dává 0). Bez `save` vrací poškození beze změny. Sdílený zdroj pravdy
+ * pro všechny simulátory (quest/raid/gauntlet) — žádná duplikace save vzorců.
+ */
+export function applySpellSave(
+  ability: SignatureAbility,
+  attacker: CombatActor,
+  defender: CombatActor,
+  rng: SeededRng,
+  amount: number,
+): SpellSaveOutcome {
+  const spec = ability.save;
+  if (!spec) return { amount };
+  const save = savingThrow(defender, rng, spec.ability, actorSpellSaveDc(attacker));
+  let result = amount;
+  if (save.success) {
+    result = spec.effect === 'negate' ? 0 : Math.max(1, Math.floor(amount / 2));
+  }
+  return { amount: result, message: buildSaveMessage(defender.name, spec.ability, save, spec.effect === 'half') };
 }
 
 /** Initiative aktéra: d20 + DEX modifikátor. */

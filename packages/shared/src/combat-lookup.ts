@@ -9,6 +9,8 @@
  */
 import { DUNGEONS } from './data/dungeons';
 import { RAIDS } from './data/raids';
+import { crEnemyMagnitude } from './combat';
+import { crForContentLevel } from './data/damage';
 import {
   SIGNATURE_ABILITIES,
   CLASS_BASELINE_ABILITIES,
@@ -43,13 +45,18 @@ function buildEnemyIndex(): Map<string, NpcInfo> {
   for (const d of Object.values(DUNGEONS)) {
     for (const e of d.encounters) {
       if (index.has(e.name)) continue;
+      // HP/poškození se odvozují z Challenge Ratingu (ADR 0032) — stejně jako v
+      // boji (`buildEnemyActor`). Explicitní CR přebíjí, jinak z levelu (+boss).
+      const isBoss = e.isBoss ?? false;
+      const cr = e.challengeRating ?? crForContentLevel(e.level ?? d.requiredLevel, isBoss);
+      const mag = crEnemyMagnitude(cr, isBoss);
       index.set(e.name, {
         name: e.name,
-        maxHealth: e.maxHealth,
-        attackPower: e.attackPower,
+        maxHealth: mag.maxHealth,
+        attackPower: mag.attackPower,
         swingInterval: e.swingInterval,
         armor: e.armor ?? 0,
-        isBoss: e.isBoss ?? false,
+        isBoss,
         source: d.name,
         abilities: [],
       });
@@ -58,10 +65,13 @@ function buildEnemyIndex(): Map<string, NpcInfo> {
   for (const r of Object.values(RAIDS)) {
     for (const b of r.bosses) {
       if (index.has(b.name)) continue;
+      // Raid boss: CR-odvozené magnitudy (ADR 0032), boss flag vždy true.
+      const cr = b.challengeRating ?? crForContentLevel(b.level ?? r.attunement.requiredLevel, true);
+      const mag = crEnemyMagnitude(cr, true);
       index.set(b.name, {
         name: b.name,
-        maxHealth: b.maxHealth,
-        attackPower: b.attackPower,
+        maxHealth: mag.maxHealth,
+        attackPower: mag.attackPower,
         swingInterval: b.swingInterval,
         armor: b.armor ?? 0,
         isBoss: true,

@@ -144,6 +144,16 @@ export function spellcastingAbility(klass: ClassId): AbilityScore {
   return CLASSES[klass].spellcastingAbility;
 }
 
+/**
+ * D&D 5e maximální HP (ADR 0032): hit die (na 1. levelu max) + (level−1)·(průměr
+ * hit die + CON modifikátor). Min 1. Sjednocený zdroj pravdy pro `deriveStats`
+ * (character sheet) i `deriveCombatProfile` (combat engine) — nemůžou se rozejít.
+ */
+export function dndMaxHp(hitDie: number, level: number, conMod: number): number {
+  const dieAvg = Math.floor(hitDie / 2) + 1;
+  return Math.max(1, hitDie + Math.max(0, level - 1) * (dieAvg + conMod));
+}
+
 export interface DerivedStats {
   health: number;
   resource: { type: ResourceType; max: number };
@@ -176,8 +186,8 @@ export function deriveStats(primary: AbilityScores, level: number, klass: ClassI
   const prof = proficiencyBonus(level);
   const castingMod = mods[CLASSES[klass].spellcastingAbility];
 
-  // HP: hit die avg + CON mod per level (D&D-style; přesné hit dice per class v MR-2).
-  const health = Math.max(1, 8 + (6 + mods.constitution) * level);
+  // HP: literal D&D hit dice (ADR 0032) — hit die (lvl 1 max) + (level−1)·(avg + CON mod).
+  const health = dndMaxHp(CLASSES[klass].hitDie, level, mods.constitution);
 
   let max: number;
   switch (resourceType) {

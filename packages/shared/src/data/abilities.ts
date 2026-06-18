@@ -12,11 +12,24 @@
  * `COMBAT_TAG_EFFECTS` (v `combat.ts`) se recyklují. `SIGNATURE_ABILITIES` zůstává
  * jako draftovatelný pool kouzel pro Gauntlet (M13) a combat-lookup.
  */
+import type { AbilityScore } from '../character';
+import type { DiceSpec } from '../dice';
 import type { ClassId, SubclassId } from './classes';
 import type { DamageType } from './damage';
 
 /** Druh abilit — řídí log i mechaniku v enginu. */
 export type AbilityKind = 'strike' | 'drain' | 'dot' | 'heal' | 'shield' | 'mitigation';
+
+/**
+ * Per-spell saving throw (MR-10 / ADR 0032). Cíl si hodí záchranný hod proti spell
+ * save DC útočníka; `effect` určí, co úspěch znamená:
+ *  - `'half'`   — úspěch = poloviční poškození (Fireball, Moonbeam, …).
+ *  - `'negate'` — úspěch = žádné poškození (save-or-nothing).
+ */
+export interface SpellSave {
+  ability: AbilityScore;
+  effect: 'half' | 'negate';
+}
 
 /**
  * Signature ability. Plně serializovatelná (součást snapshotu bojového profilu).
@@ -64,6 +77,22 @@ export interface SignatureAbility {
    * vulnerability/immunity per kouzlo.
    */
   damageType?: DamageType;
+  /**
+   * Literal D&D damage dice (ADR 0032). Když je vyplněné, engine hodí **přímo
+   * tyto kostky** (Fireball 8d6, nezávisle na `attackPower`/`damageMult`) místo
+   * `damageMult × attackPower`. `undefined` = stará cesta (martial techniky,
+   * drainy, healy bez literal kostek) → škáluje přes `attackPower`.
+   */
+  dice?: DiceSpec;
+  /**
+   * Upcast (ADR 0032): počet kostek navíc za **každý tier nad** `spellTier`, kterým
+   * je kouzlo sesláno (Fireball +1d6/slot). Aplikuje se jen když má ability `dice`.
+   */
+  dicePerSlotAbove?: number;
+  /** Per-spell saving throw (ADR 0032) — cíl hází proti spell save DC útočníka. */
+  save?: SpellSave;
+  /** Automatický zásah (ignoruje hod na AC) — Magic Missile (ADR 0032). */
+  autoHit?: boolean;
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -84,6 +113,14 @@ interface BaselineOpts {
   spellTier?: number;
   /** Typ poškození (MR-10d) — přebíjí typ classy. `undefined` = zdědí (martial = zbraň). */
   damageType?: DamageType;
+  /** Literal D&D damage dice (ADR 0032) — hodí se přímo místo `damageMult × attackPower`. */
+  dice?: DiceSpec;
+  /** Upcast: kostek navíc za tier nad `spellTier` (ADR 0032). */
+  dicePerSlotAbove?: number;
+  /** Per-spell saving throw (ADR 0032). */
+  save?: SpellSave;
+  /** Automatický zásah (Magic Missile). */
+  autoHit?: boolean;
 }
 
 function ba(
@@ -110,6 +147,10 @@ function ba(
     ...(opts.mitigation ?? {}),
     ...(opts.spellTier !== undefined ? { spellTier: opts.spellTier } : {}),
     ...(opts.damageType !== undefined ? { damageType: opts.damageType } : {}),
+    ...(opts.dice !== undefined ? { dice: opts.dice } : {}),
+    ...(opts.dicePerSlotAbove !== undefined ? { dicePerSlotAbove: opts.dicePerSlotAbove } : {}),
+    ...(opts.save !== undefined ? { save: opts.save } : {}),
+    ...(opts.autoHit !== undefined ? { autoHit: opts.autoHit } : {}),
   };
 }
 
@@ -126,21 +167,21 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('barb_brutal_strike', 'Brutal Strike', 'A crushing 180% blow, rising to 280% against foes below 30% health.', 'strike', 8, 1.8, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.8 } }),
   ],
   bard: [
-    ba('bard_vicious_mockery', 'Vicious Mockery', 'Cutting insults sear the mind for 110% spell damage and 90% over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0, damageType: 'psychic' }),
+    ba('bard_vicious_mockery', 'Vicious Mockery', 'A WIS save or take 1d4 psychic damage and bleed over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0, damageType: 'psychic', save: { ability: 'wisdom', effect: 'negate' } }),
     ba('bard_healing_word', 'Healing Word', 'A word of power restores 200% of your healing power to a wounded ally.', 'heal', 5, 2.0, 1, { spellTier: 1 }),
-    ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 175% spell damage.', 'strike', 7, 1.75, 9, { spellTier: 1, damageType: 'psychic' }),
+    ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 3d6 psychic damage (WIS save halves). +1d6 per slot above 1st.', 'strike', 7, 1.75, 9, { spellTier: 1, damageType: 'psychic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' } }),
   ],
   cleric: [
-    ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame descends for 150% spell damage.', 'strike', 5, 1.5, 1, { spellTier: 0 }),
+    ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame for 1d8 (DEX save negates).', 'strike', 5, 1.5, 1, { spellTier: 0, dice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'dexterity', effect: 'negate' } }),
     ba('cleric_cure_wounds', 'Cure Wounds', 'Channels divine power to heal an ally for 230% of your healing power.', 'heal', 6, 2.3, 1, { spellTier: 1 }),
-    ba('cleric_guiding_bolt', 'Guiding Bolt', 'A bolt of light strikes for 210% spell damage.', 'strike', 7, 2.1, 8, { spellTier: 1 }),
-    ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians harry the enemy for 120% damage over 9s.', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 }, spellTier: 3 }),
+    ba('cleric_guiding_bolt', 'Guiding Bolt', 'A bolt of light strikes for 4d6 radiant. +1d6 per slot above 1st.', 'strike', 7, 2.1, 8, { spellTier: 1, dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians harry the enemy over 9s (WIS save halves).', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 }, spellTier: 3, save: { ability: 'wisdom', effect: 'half' } }),
   ],
   druid: [
-    ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 150% spell damage.', 'strike', 5, 1.5, 1, { spellTier: 0, damageType: 'fire' }),
+    ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 1d8.', 'strike', 5, 1.5, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 8, bonus: 0 } }),
     ba('druid_healing_word', 'Healing Word', 'Nature mends an ally for 220% of your healing power.', 'heal', 5, 2.2, 1, { spellTier: 1 }),
-    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears for 130% damage over 9s.', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.45 }, spellTier: 2, damageType: 'radiant' }),
-    ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 190% spell damage.', 'strike', 7, 1.9, 14, { spellTier: 3, damageType: 'lightning' }),
+    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears over 9s (CON save halves).', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.45 }, spellTier: 2, damageType: 'radiant', save: { ability: 'constitution', effect: 'half' } }),
+    ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 3d10 lightning (DEX save halves). +1d10 per slot above 3rd.', 'strike', 7, 1.9, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } }),
   ],
   fighter: [
     ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined 115% weapon-damage strike.', 'strike', 4, 1.15, 1),
@@ -171,22 +212,22 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('rogue_assassinate', 'Assassinate', 'A killing strike for 200% weapon damage, rising to 320% against foes below 35% health.', 'strike', 8, 2.0, 14, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
   ],
   sorcerer: [
-    ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 110% spell damage.', 'strike', 4, 1.1, 1, { spellTier: 0 }),
-    ba('sorc_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 165% spell damage.', 'strike', 6, 1.65, 5, { spellTier: 1, damageType: 'lightning' }),
+    ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.1, 1, { spellTier: 0, dice: { count: 1, sides: 10, bonus: 0 } }),
+    ba('sorc_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 3d8. +1d8 per slot above 1st.', 'strike', 6, 1.65, 5, { spellTier: 1, damageType: 'lightning', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
     ba('sorc_scorching_ray', 'Scorching Ray', 'Searing rays for 140% damage plus 90% over 6s.', 'dot', 8, 0.4, 9, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 2 }),
-    ba('sorc_fireball', 'Fireball', 'A roaring explosion for 220% spell damage.', 'strike', 9, 2.2, 14, { spellTier: 3 }),
+    ba('sorc_fireball', 'Fireball', 'A roaring explosion for 8d6 fire (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.2, 14, { spellTier: 3, dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } }),
   ],
   warlock: [
-    ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling energy for 145% spell damage.', 'strike', 4, 1.45, 1, { spellTier: 0 }),
+    ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling force for 1d10.', 'strike', 4, 1.45, 1, { spellTier: 0, dice: { count: 1, sides: 10, bonus: 0 } }),
     ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }, spellTier: 1, damageType: 'necrotic' }),
     ba('warlock_drain_life', 'Drain Life', 'Drains 100% damage, healing you for 50% of the damage dealt.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3, damageType: 'necrotic' }),
     ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'Void tendrils gnaw for 40% on impact and 110% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.27 }, spellTier: 3, damageType: 'necrotic' }),
   ],
   wizard: [
-    ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 105% spell damage.', 'strike', 4, 1.05, 1, { spellTier: 0 }),
-    ba('wiz_magic_missile', 'Magic Missile', 'Unerring darts of force for 130% spell damage.', 'strike', 4, 1.3, 1, { spellTier: 1, damageType: 'force' }),
+    ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.05, 1, { spellTier: 0, dice: { count: 1, sides: 10, bonus: 0 } }),
+    ba('wiz_magic_missile', 'Magic Missile', 'Three darts of force for 3d4+3 (auto-hit). +1d4+1 per slot above 1st.', 'strike', 4, 1.3, 1, { spellTier: 1, damageType: 'force', dice: { count: 3, sides: 4, bonus: 3 }, dicePerSlotAbove: 1, autoHit: true }),
     ba('wiz_scorching_ray', 'Scorching Ray', 'Searing rays for 40% on impact and 75% over 6s.', 'dot', 8, 0.4, 8, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.25 }, spellTier: 2 }),
-    ba('wiz_fireball', 'Fireball', 'A roaring explosion for 230% spell damage.', 'strike', 9, 2.3, 14, { spellTier: 3 }),
+    ba('wiz_fireball', 'Fireball', 'A roaring explosion for 8d6 fire (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.3, 14, { spellTier: 3, dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } }),
   ],
 };
 
@@ -212,11 +253,11 @@ export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
  * vázán na class progresi — Gauntlet z něj náhodně nabízí „nové kouzlo" do runu.
  */
 export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
-  fireball: { name: 'Fireball', description: 'A roaring explosion for 250% spell damage.', kind: 'strike', cooldownSec: 10, damageMult: 2.5, damageType: 'fire' },
-  lightning_bolt: { name: 'Lightning Bolt', description: 'A line of lightning for 240% spell damage.', kind: 'strike', cooldownSec: 9, damageMult: 2.4, damageType: 'lightning' },
+  fireball: { name: 'Fireball', description: 'A roaring explosion for 8d6 fire (DEX save halves).', kind: 'strike', cooldownSec: 10, damageMult: 2.5, damageType: 'fire', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } },
+  lightning_bolt: { name: 'Lightning Bolt', description: 'A line of lightning for 8d6 (DEX save halves).', kind: 'strike', cooldownSec: 9, damageMult: 2.4, damageType: 'lightning', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } },
   ice_storm: { name: 'Ice Storm', description: 'Battering ice for 175% damage plus 120% over 6s.', kind: 'dot', cooldownSec: 10, damageMult: 1.75, dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.4, damageType: 'cold' },
   inflict_wounds: { name: 'Inflict Wounds', description: 'Necrotic touch for 200% damage, healing you for 25% of the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 2.0, drainHealFraction: 0.25, damageType: 'necrotic' },
-  guiding_bolt: { name: 'Guiding Bolt', description: 'A bolt of light for 210% spell damage.', kind: 'strike', cooldownSec: 8, damageMult: 2.1, damageType: 'radiant' },
+  guiding_bolt: { name: 'Guiding Bolt', description: 'A bolt of light for 4d6 radiant.', kind: 'strike', cooldownSec: 8, damageMult: 2.1, damageType: 'radiant', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 },
   spiritual_weapon: { name: 'Spiritual Weapon', description: 'A floating blade strikes for 185% damage.', kind: 'strike', cooldownSec: 7, damageMult: 1.85, damageType: 'force' },
   mass_healing_word: { name: 'Mass Healing Word', description: 'Restores 280% of your healing power to a wounded ally.', kind: 'heal', cooldownSec: 9, damageMult: 2.8 },
   flame_blade: { name: 'Flame Blade', description: 'A blade of fire for 200% weapon damage.', kind: 'strike', cooldownSec: 8, damageMult: 2.0, damageType: 'fire' },

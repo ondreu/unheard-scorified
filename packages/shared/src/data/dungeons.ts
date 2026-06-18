@@ -57,19 +57,27 @@ export interface DungeonDef {
 type EnemyOpts = Partial<
   Pick<
     EnemyStats,
-    'armor' | 'isBoss' | 'damageType' | 'resistances' | 'vulnerabilities' | 'immunities'
+    | 'armor'
+    | 'isBoss'
+    | 'damageType'
+    | 'resistances'
+    | 'vulnerabilities'
+    | 'immunities'
+    | 'level'
+    | 'challengeRating'
   >
 >;
 
+// HP/poškození se NEzadávají ručně — odvodí je `buildEnemyActor` z Challenge
+// Ratingu (`crEnemyMagnitude`, ADR 0032). CR plyne z `level`/`challengeRating`
+// (per-nepřítel doladění), jinak z `dungeon.requiredLevel` (+boss flag).
 function enemy(
   id: string,
   name: string,
-  maxHealth: number,
-  attackPower: number,
   swingInterval: number,
   opts: EnemyOpts = {},
 ): EnemyDef {
-  return { id, name, maxHealth, attackPower, swingInterval, ...opts };
+  return { id, name, swingInterval, ...opts };
 }
 
 export const DUNGEONS: Record<string, DungeonDef> = {
@@ -86,9 +94,9 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 25,
     goldVariance: 0.25,
     encounters: [
-      enemy('rfc_cultist', 'Ember Cultist', 110, 9, 2.6),
-      enemy('rfc_warlock', 'Earthborer Warlock', 130, 11, 2.8),
-      enemy('rfc_taragaman', 'Tarrakal the Hungerer', 280, 14, 2.4, { armor: 40, isBoss: true }),
+      enemy('rfc_cultist', 'Ember Cultist', 2.6),
+      enemy('rfc_warlock', 'Earthborer Warlock', 2.8),
+      enemy('rfc_taragaman', 'Tarrakal the Hungerer', 2.4, { armor: 40, isBoss: true }),
     ],
   },
 
@@ -104,10 +112,10 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 45,
     goldVariance: 0.25,
     encounters: [
-      enemy('dm_miner', 'Ashen Hand Overseer', 200, 14, 2.5),
-      enemy('dm_evoker', 'Ashen Hand Evoker', 230, 17, 2.7),
-      enemy('dm_rhahkzor', 'Rahkzor', 380, 20, 2.4, { armor: 60 }),
-      enemy('dm_vancleef', 'Edmund Vance', 560, 24, 2.3, { armor: 80, isBoss: true }),
+      enemy('dm_miner', 'Ashen Hand Overseer', 2.5),
+      enemy('dm_evoker', 'Ashen Hand Evoker', 2.7),
+      enemy('dm_rhahkzor', 'Rahkzor', 2.4, { armor: 60 }),
+      enemy('dm_vancleef', 'Edmund Vance', 2.3, { armor: 80, isBoss: true }),
     ],
   },
 
@@ -123,10 +131,10 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 55,
     goldVariance: 0.25,
     encounters: [
-      enemy('wc_adder', 'Deviate Adder', 250, 16, 2.5),
-      enemy('wc_druid', 'Fang Warden', 280, 19, 2.6),
-      enemy('wc_serpent', 'Deviate Ravager', 360, 22, 2.4, { armor: 40 }),
-      enemy('wc_mutanus', 'Mutanis the Devourer', 640, 27, 2.3, { armor: 60, isBoss: true }),
+      enemy('wc_adder', 'Deviate Adder', 2.5),
+      enemy('wc_druid', 'Fang Warden', 2.6),
+      enemy('wc_serpent', 'Deviate Ravager', 2.4, { armor: 40 }),
+      enemy('wc_mutanus', 'Mutanis the Devourer', 2.3, { armor: 60, isBoss: true }),
     ],
   },
 
@@ -142,10 +150,10 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 70,
     goldVariance: 0.2,
     encounters: [
-      enemy('sfk_worgen', 'Shadowmaw Moonwalker', 300, 20, 2.5),
-      enemy('sfk_ghost', 'Tormented Officer', 340, 23, 2.6),
-      enemy('sfk_fenrus', 'Fenris the Devourer', 520, 27, 2.2, { armor: 70 }),
-      enemy('sfk_arugal', 'Archmage Argol', 720, 30, 2.4, { armor: 60, isBoss: true }),
+      enemy('sfk_worgen', 'Shadowmaw Moonwalker', 2.5),
+      enemy('sfk_ghost', 'Tormented Officer', 2.6),
+      enemy('sfk_fenrus', 'Fenris the Devourer', 2.2, { armor: 70 }),
+      enemy('sfk_arugal', 'Archmage Argol', 2.4, { armor: 60, isBoss: true }),
     ],
   },
 
@@ -161,10 +169,10 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 95,
     goldVariance: 0.2,
     encounters: [
-      enemy('bfd_acolyte', 'Dusk Acolyte', 380, 25, 2.5),
-      enemy('bfd_naga', 'Akhumai Servant', 420, 28, 2.6),
-      enemy('bfd_priestess', 'Dusk Priestess', 560, 31, 2.4, { armor: 50 }),
-      enemy('bfd_akumai', 'Akhumai', 880, 35, 2.3, { armor: 70, isBoss: true }),
+      enemy('bfd_acolyte', 'Dusk Acolyte', 2.5),
+      enemy('bfd_naga', 'Akhumai Servant', 2.6),
+      enemy('bfd_priestess', 'Dusk Priestess', 2.4, { armor: 50 }),
+      enemy('bfd_akumai', 'Akhumai', 2.3, { armor: 70, isBoss: true }),
     ],
   },
 
@@ -181,10 +189,10 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     goldVariance: 0.2,
     weeklyLockout: true,
     encounters: [
-      enemy('sm_zealot', 'Crimson Zealot', 460, 30, 2.5),
-      enemy('sm_monk', 'Crimson Monk', 500, 33, 2.6),
-      enemy('sm_herod', 'Herrod the Champion', 820, 38, 2.2, { armor: 90 }),
-      enemy('sm_whitemane', 'High Inquisitor Palevane', 1050, 42, 2.4, { armor: 70, isBoss: true }),
+      enemy('sm_zealot', 'Crimson Zealot', 2.5),
+      enemy('sm_monk', 'Crimson Monk', 2.6),
+      enemy('sm_herod', 'Herrod the Champion', 2.2, { armor: 90 }),
+      enemy('sm_whitemane', 'High Inquisitor Palevane', 2.4, { armor: 70, isBoss: true }),
     ],
   },
 
@@ -202,17 +210,17 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // Bestiář (MR-10d): trollí hoodoo = nekrotická magie, hadí bůh = jed; krvavý
     // chief je zranitelný radiant (holy smite). Aktivuje typové obrany (MR-7/10b).
     encounters: [
-      enemy('zf_axethrower', 'Dunescale Axe Thrower', 560, 44, 2.5, { damageType: 'slashing' }),
-      enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 600, 47, 2.6, {
+      enemy('zf_axethrower', 'Dunescale Axe Thrower', 2.5, { damageType: 'slashing' }),
+      enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 2.6, {
         damageType: 'necrotic',
         resistances: ['necrotic'],
       }),
-      enemy('zf_gahzrilla', 'Gazrilla', 980, 52, 2.3, {
+      enemy('zf_gahzrilla', 'Gazrilla', 2.3, {
         armor: 80,
         damageType: 'poison',
         resistances: ['poison'],
       }),
-      enemy('zf_ukorz', 'Chief Ukor Dunescalp', 1300, 56, 2.4, {
+      enemy('zf_ukorz', 'Chief Ukor Dunescalp', 2.4, {
         armor: 90,
         isBoss: true,
         damageType: 'slashing',
@@ -235,22 +243,22 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // Bestiář (MR-10d): nature/earth téma — treant i elementál odolávají fyzickému
     // poškození (martiali si škrtnou), ale hoří (caster fire excels). „Bring a caster."
     encounters: [
-      enemy('mar_noxxion', 'Noxxion Spawn', 700, 50, 2.5, {
+      enemy('mar_noxxion', 'Noxxion Spawn', 2.5, {
         damageType: 'poison',
         resistances: ['poison'],
         vulnerabilities: ['fire'],
       }),
-      enemy('mar_treant', 'Corrupted Treant', 760, 54, 2.6, {
+      enemy('mar_treant', 'Corrupted Treant', 2.6, {
         damageType: 'bludgeoning',
         resistances: ['bludgeoning', 'piercing'],
         vulnerabilities: ['fire'],
       }),
-      enemy('mar_landslide', 'Landslide', 1150, 58, 2.3, {
+      enemy('mar_landslide', 'Landslide', 2.3, {
         armor: 100,
         damageType: 'bludgeoning',
         resistances: ['slashing', 'piercing', 'bludgeoning'],
       }),
-      enemy('mar_theradras', 'Princess Theradris', 1600, 62, 2.4, {
+      enemy('mar_theradras', 'Princess Theradris', 2.4, {
         armor: 90,
         isBoss: true,
         damageType: 'poison',
@@ -274,17 +282,17 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // Bestiář (MR-10d): forge/fire téma — obyvatelé jsou žárovzdorní (resist fire),
     // takže fire casteři tu nezáří; martiali a ostatní normálně.
     encounters: [
-      enemy('brd_guard', 'Anvilrage Guardsman', 900, 60, 2.5, { armor: 80, damageType: 'slashing' }),
-      enemy('brd_geologist', 'Cinderforge Geologist', 950, 64, 2.6, {
+      enemy('brd_guard', 'Anvilrage Guardsman', 2.5, { armor: 80, damageType: 'slashing' }),
+      enemy('brd_geologist', 'Cinderforge Geologist', 2.6, {
         damageType: 'bludgeoning',
         resistances: ['fire'],
       }),
-      enemy('brd_angerforge', 'General Emberforge', 1500, 70, 2.3, {
+      enemy('brd_angerforge', 'General Emberforge', 2.3, {
         armor: 110,
         damageType: 'fire',
         resistances: ['fire'],
       }),
-      enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2100, 74, 2.4, {
+      enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2.4, {
         armor: 120,
         isBoss: true,
         damageType: 'fire',
@@ -311,25 +319,25 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // resist nekrotice). Holy classy (Cleric/Paladin = radiant) tu DOMINUJÍ; dreadlord
     // Baron navíc odolá ohni (fiend). Vrchol „class counter" identity 14–20.
     encounters: [
-      enemy('strat_zombie', 'Plagued Zombie', 1100, 72, 2.5, {
+      enemy('strat_zombie', 'Plagued Zombie', 2.5, {
         damageType: 'necrotic',
         resistances: ['necrotic'],
         immunities: ['poison'],
         vulnerabilities: ['radiant'],
       }),
-      enemy('strat_cryptfiend', 'Crypt Fiend', 1180, 76, 2.6, {
+      enemy('strat_cryptfiend', 'Crypt Fiend', 2.6, {
         armor: 70,
         damageType: 'piercing',
         resistances: ['necrotic'],
         vulnerabilities: ['radiant'],
       }),
-      enemy('strat_ramstein', 'Ramstein the Gorger', 1900, 82, 2.3, {
+      enemy('strat_ramstein', 'Ramstein the Gorger', 2.3, {
         armor: 120,
         damageType: 'bludgeoning',
         resistances: ['necrotic'],
         vulnerabilities: ['radiant', 'fire'],
       }),
-      enemy('strat_baron', 'Baron Ravendere', 2600, 88, 2.4, {
+      enemy('strat_baron', 'Baron Ravendere', 2.4, {
         armor: 130,
         isBoss: true,
         damageType: 'necrotic',

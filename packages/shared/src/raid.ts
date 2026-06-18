@@ -18,6 +18,7 @@
 import { SeededRng } from './rng';
 import {
   abilityDamageMult,
+  abilityDamageSpec,
   applyAbsorb,
   buildAttackMessage,
   buildEnemyActor,
@@ -29,7 +30,7 @@ import {
   type SignatureAbility,
 } from './combat';
 import { isAbilityEnabled, shouldCastAbility } from './rotation';
-import { missMessage, rollTag } from './dnd-combat';
+import { applySpellSave, missMessage, rollTag } from './dnd-combat';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
@@ -503,9 +504,19 @@ function fightBoss(
         continue;
       }
       const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
-      const mult = abilityDamageMult(ability, bossHpPct);
-      const executing = mult > ability.damageMult;
-      const hit = computeHit(member, boss, rng, mult, false, ability.damageType);
+      // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
+      // jinak škálují přes attackPower (damageMult + execute). Raid netrackuje slot
+      // tier → base dice bez upcastu.
+      const spec = abilityDamageSpec(ability, null);
+      const mult = spec ? 1 : abilityDamageMult(ability, bossHpPct);
+      const executing = !spec && mult > ability.damageMult;
+      const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec);
+      // Per-spell saving throw (ADR 0032) → boss si hodí proti spell save DC člena.
+      if (hit.hit && ability.save) {
+        const outcome = applySpellSave(ability, member, boss, rng, hit.amount);
+        hit.amount = outcome.amount;
+        if (outcome.message) events.push({ t: round1(clock), type: 'ability', source: boss.name, message: outcome.message });
+      }
       bossHp = Math.max(0, bossHp - hit.amount);
       const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
       const healed = hit.hit && healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;

@@ -112,3 +112,40 @@ HP/damage + per-zbraň/kouzlo dice = další MR-10 slice).
 
 - Plný damage-dice redesign per zbraň/kouzlo (1d8+STR, 8d6 Fireball) + save-heavy
   kouzla + CR-based HP/damage → **MR-10 (balance pass: převzetí D&D čísel)**.
+
+## MR-10e — literal D&D magnitudy + per-spell dice & saving throwy ✅ (ADR 0032)
+
+Závěrečný MR-10 slice: combat magnitudy přestaly být idle proxy a převzaly D&D 5e čísla.
+
+**HP (literal D&D hit dice).** Sjednocený vzorec `dndMaxHp(hitDie, level, conMod)` =
+`hitDie + (level−1)·(avg(hitDie) + CON mod)`. Sdílí ho `deriveStats` (character sheet)
+i `deriveCombatProfile` (combat engine) → nemůžou se rozejít. Nepřátelská HP = CR
+`hitPoints` (DMG tabulka) přes `crEnemyMagnitude`.
+
+**Poškození.** Hráčův základní útok = `basicAttackDiceCount(level, caster)` útoků/kostek
+(D&D Extra Attack u martialů 5/11/20, cantrip scaling u casterů 5/11/17) × průměr
+weapon die + damage modifikátor. Nepřátelské poškození za úder = CR `damagePerRound` ×
+`ENEMY_DPR_TO_SWING` (idle 1v1 kalibrace: D&D dpr je laděný proti družině, sólo idle
+nepřítel udeří zlomkem → encounter vyhratelný, ~6–12 úderů; boss tvrději). HP zůstává
+literal.
+
+**Kouzla = literal dice (nezávisle na `attackPower`).** `SignatureAbility.dice`
+(`DiceSpec`): Fireball 8d6, Magic Missile 3d4+3 (`autoHit`), Guiding Bolt 4d6, Sacred
+Flame 1d8, Fire Bolt 1d10, Call Lightning 3d10… Engine je hodí přímo přes
+`abilityDamageSpec` (crit zdvojí počet kostek). **Upcast** `dicePerSlotAbove` = kostek
+navíc za každý tier nad `spellTier` (Fireball +1d6/slot). Ability bez `dice` (martial
+techniky/drainy/healy) škálují dál přes `attackPower` (`damageMult` + execute).
+
+**Per-spell saving throwy.** `SignatureAbility.save` = `{ ability, effect }`; sdílený
+`applySpellSave` (dnd-combat.ts) hodí cíli záchranný hod proti spell save DC útočníka:
+`'half'` = úspěch půlí poškození (Fireball/Moonbeam/Call Lightning…), `'negate'` =
+úspěch ruší (Sacred Flame DEX, Vicious Mockery WIS). Nahrazuje natvrdo zadrátované
+DoT-CON / boss-DEX savy jednotným per-ability mechanismem ve všech simulátorech.
+
+**Nosiče magnitudy.** `attackPower`/`maxHealth` zůstávají serializovaná pole
+`CombatActor` (sim-knoby: raid role-mult, boss/size scaling, gauntlet wave growth,
+DoT/heal power) — jen re-derived z D&D. Dungeon/raid data převedena na CR-odvození
+(`enemy()`/`boss()` helpery už nenesou HP/AP, bossové gradují přes `challengeRating`).
+
+_Follow-up: rescale gear stat škály (attack_power/spell_power) vůči nové D&D magnitudě
++ finální tuning `ENEMY_DPR_TO_SWING` / upcast hodnot (čísla, ne model)._
