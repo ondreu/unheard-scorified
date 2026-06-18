@@ -6,6 +6,7 @@ import {
   MAGICAL_DAMAGE_TYPES,
   PHYSICAL_DAMAGE_TYPES,
   applyDamageInteraction,
+  crForContentLevel,
   crStatGuide,
   damageInteraction,
   damageInteractionNote,
@@ -117,5 +118,37 @@ describe('challenge rating', () => {
     expect(formatChallengeRating(0.25)).toBe('1/4');
     expect(formatChallengeRating(0.5)).toBe('1/2');
     expect(formatChallengeRating(7)).toBe('7');
+  });
+});
+
+describe('crForContentLevel (MR-10)', () => {
+  it('maps content level directly to CR for trash', () => {
+    expect(crForContentLevel(1)).toBe(1);
+    expect(crForContentLevel(10)).toBe(10);
+    expect(crForContentLevel(20)).toBe(20);
+  });
+
+  it('bumps bosses by +2 CR', () => {
+    expect(crForContentLevel(5, true)).toBe(7);
+    expect(crForContentLevel(18, true)).toBe(20);
+  });
+
+  it('clamps to the supported 0..30 range (e.g. Gauntlet effective levels)', () => {
+    expect(crForContentLevel(-3)).toBe(0);
+    expect(crForContentLevel(40)).toBe(30);
+    expect(crForContentLevel(30, true)).toBe(30);
+  });
+
+  it('rounds fractional levels', () => {
+    expect(crForContentLevel(4.4)).toBe(4);
+    expect(crForContentLevel(4.6)).toBe(5);
+  });
+
+  it('yields D&D CR-table combat stats via crStatGuide', () => {
+    // Level 5 boss → CR 7 → DMG row.
+    const guide = crStatGuide(crForContentLevel(5, true));
+    expect(guide).toEqual(crStatGuide(7));
+    expect(guide.armorClass).toBe(15);
+    expect(guide.attackBonus).toBe(6);
   });
 });

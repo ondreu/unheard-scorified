@@ -23,7 +23,10 @@ import type { ProgressionEffects } from './levelup';
 import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
 import {
   applyDamageInteraction,
+  crForContentLevel,
+  crStatGuide,
   damageInteraction,
+  type ChallengeRating,
   type DamageInteraction,
   type DamageType,
 } from './data/damage';
@@ -142,6 +145,12 @@ export interface CombatActor {
   saveMods?: Partial<Record<AbilityScore, number>>;
   /** Spell save DC — DC záchranných hodů proti kouzlům tohoto aktéra. */
   spellSaveDc?: number;
+  /**
+   * Strana kostky poškození základního útoku (d6/d8/d10/d12) — řídí *tvar* damage
+   * dice ve `weaponDamageSpec`. Postavy ji dědí z classy (MR-10b), nepřátelé ji
+   * nechávají `undefined` → default d6. Magnitudu drží `attackPower`.
+   */
+  attackDie?: number;
   // ── D&D bestiář (MR-7) — typové poškození a obrany ─────────────────────────
   /** Typ poškození základního útoku aktéra. `undefined` = fyzické (bludgeoning). */
   damageType?: DamageType;
@@ -315,6 +324,10 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     armorClass: 10 + dexMod + armorAcBonus,
     attackBonus: prof + primaryMod,
     damageBonus: Math.max(0, primaryMod),
+    // Per-class weapon/cantrip dice + damage type (MR-10b) — tvar a typové
+    // poškození hráčova útoku (magnitudu drží `attackPower`).
+    attackDie: CLASSES[klass].attackDie,
+    damageType: CLASSES[klass].attackDamageType,
     saveMods,
     spellSaveDc: 8 + prof + castingMod,
     spellSlots: spellSlotsFor(klass, level),
@@ -333,9 +346,15 @@ export interface EnemyStats {
   // ── D&D dice-roll combat (MR-5) — volitelné ────────────────────────────────
   /**
    * Úroveň obsahu (pro odvození AC/attackBonus, když nejsou dané explicitně).
-   * Placeholder škálování ~level/2 (CR-based čísla = MR-10).
+   * Mapuje se na Challenge Rating přes `crForContentLevel` (MR-10).
    */
   level?: number;
+  /**
+   * Explicitní Challenge Rating nepřítele (přebije odvození z `level`). Když
+   * chybí, odvodí se z `level` (+boss). Řídí AC/attackBonus/spell save DC z
+   * `crStatGuide` (DMG). HP/poškození (idle pacing) zůstávají autorská data.
+   */
+  challengeRating?: ChallengeRating;
   /** Armor Class nepřítele. */
   armorClass?: number;
   /** Útočný bonus k d20 hodu na zásah. */
@@ -356,24 +375,21 @@ export interface EnemyStats {
 }
 
 /**
- * Placeholder D&D AC pro nepřítele dané úrovně (drží krok s hráčovými D&D
- * modifikátory, které rostou ~level/2). Boss dostane +2. CR-based = MR-10.
+ * Odvodí Challenge Rating nepřítele: explicitní `challengeRating` → jinak z
+ * `level` (+boss) přes `crForContentLevel` → jinak konzervativní default
+ * (úroveň 5), aby dice-roll combat (MR-5) fungoval i pro legacy data bez levelu.
  */
-function enemyAcForLevel(level: number, isBoss: boolean): number {
-  return 10 + Math.round(Math.max(1, level) * 0.55) + (isBoss ? 2 : 0);
-}
-
-/** Placeholder D&D útočný bonus pro nepřítele dané úrovně. */
-function enemyAttackBonusForLevel(level: number, isBoss: boolean): number {
-  return 2 + Math.round(Math.max(1, level) * 0.55) + (isBoss ? 2 : 0);
+function enemyChallengeRating(def: EnemyStats, isBoss: boolean): ChallengeRating {
+  if (def.challengeRating != null) return def.challengeRating;
+  return crForContentLevel(def.level ?? 5, isBoss);
 }
 
 /** Postaví `CombatActor` nepřítele (bez talentů/lifestealu). */
 export function buildEnemyActor(def: EnemyStats): CombatActor {
   const isBoss = def.isBoss ?? false;
-  // AC/attackBonus: explicitní → jinak odvozené z `level` → jinak konzervativní
-  // default (úroveň 5), aby dice-roll combat (MR-5) fungoval i pro legacy data.
-  const lvl = def.level ?? 5;
+  // AC/attackBonus/save DC: explicitní → jinak z Challenge Ratingu (DMG tabulka,
+  // `crStatGuide`). CR se odvodí z `challengeRating` nebo `level` (MR-10).
+  const guide = crStatGuide(enemyChallengeRating(def, isBoss));
   return {
     name: def.name,
     maxHealth: def.maxHealth,
@@ -384,10 +400,10 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     armor: def.armor ?? 0,
     lifesteal: 0,
     shield: 0,
-    armorClass: def.armorClass ?? enemyAcForLevel(lvl, isBoss),
-    attackBonus: def.attackBonus ?? enemyAttackBonusForLevel(lvl, isBoss),
+    armorClass: def.armorClass ?? guide.armorClass,
+    attackBonus: def.attackBonus ?? guide.attackBonus,
     damageBonus: def.damageBonus,
-    spellSaveDc: def.spellSaveDc ?? 8 + enemyAttackBonusForLevel(lvl, isBoss),
+    spellSaveDc: def.spellSaveDc ?? guide.saveDc,
     damageType: def.damageType,
     resistances: def.resistances,
     vulnerabilities: def.vulnerabilities,
@@ -422,15 +438,19 @@ export function actorSpellSaveDc(actor: CombatActor): number {
 }
 
 /**
- * Damage dice aktéra — `count`d6 + `bonus` kalibrované tak, aby **průměr ≈
- * `attackPower`** (NdX redesign per zbraň/kouzlo = MR-10). Crit zdvojnásobí
- * `count` (D&D: kostky, ne bonus).
+ * Damage dice aktéra — `count`d`sides` + `bonus`, kde `sides` je per-class
+ * kostka zbraně/cantripu (`attackDie`, default d6 pro nepřátele) a `count`/`bonus`
+ * jsou kalibrované tak, aby **průměr ≈ `attackPower`** (magnitudu drží continuous
+ * model, MR-10b mění jen *tvar*: větší kostka = méně kostek + vyšší variance).
+ * Crit zdvojnásobí `count` (D&D: kostky, ne bonus).
  */
 export function weaponDamageSpec(actor: CombatActor, crit = false): DiceSpec {
   const ap = Math.max(1, actor.attackPower);
-  const count = Math.max(1, Math.min(12, Math.round(ap / 7)));
-  const bonus = Math.max(0, Math.round(ap - count * 3.5));
-  return { count: crit ? count * 2 : count, sides: 6, bonus };
+  const sides = actor.attackDie ?? 6;
+  const dieAvg = (sides + 1) / 2;
+  const count = Math.max(1, Math.min(20, Math.round(ap / sides)));
+  const bonus = Math.max(0, Math.round(ap - count * dieAvg));
+  return { count: crit ? count * 2 : count, sides, bonus };
 }
 
 /** Výsledek jednoho hodu na zásah + poškození (D&D dice-roll). */

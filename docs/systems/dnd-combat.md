@@ -33,8 +33,12 @@ převzetí (per-zbraň/kouzlo dice, CR-based AC/HP/damage) = balanc MR-10.
 | `spellSaveDc` | 8 + proficiency + casting mod             |
 | `spellSlots`  | max spell sloty (MR-4)                     |
 
-**Damage dice** (`weaponDamageSpec`) = `N`d6 + bonus kalibrované tak, aby průměr
-≈ `attackPower` (magnitudy zachovány; plný NdX redesign 1d8+STR / 8d6 = MR-10).
+**Damage dice** (`weaponDamageSpec`) = `N`d`sides` + bonus kalibrované tak, aby
+průměr ≈ `attackPower`. `sides` = **per-class kostka zbraně/cantripu** (`attackDie`):
+Barbarian d12, martial d8 (Fighter/Paladin/Ranger/Bard), d6 (Rogue/Monk/Cleric/Druid),
+caster d10 (Sorcerer/Warlock/Wizard); nepřátelé default d6. Větší kostka = méně
+kostek + vyšší variance, **magnitudu drží `attackPower`** (MR-10b). Plný literal
+redesign (8d6 Fireball nezávisle na attackPower) + CR-based magnitudy = další MR-10.
 
 ## Quest combat (increment 1)
 
@@ -47,8 +51,9 @@ převzetí (per-zbraň/kouzlo dice, CR-based AC/HP/damage) = balanc MR-10.
    = poloviční dmg); boss každý 3. tah sešle „special" (1.6×) → hráč DEX save.
 4. **Spell sloty (MR-4)**: kouzla (tier ≥ 1) čerpají snapshot slotů jako rozpočet
    běhu; po vyčerpání fallback na zbraň/cantrip. Log: `casts Fireball (3rd-level slot)`.
-5. **Enemy AC/attackBonus** škálují ~level/2 (`questFoeStats`) → reálný kontest;
-   combat-objective questy gated buildem (novice prohraje).
+5. **Enemy AC/attackBonus/save DC** se berou z **Challenge Ratingu** (DMG tabulka
+   `crStatGuide`): `questFoeStats` mapuje úroveň questu + tier na CR (MR-10a) →
+   reálný kontest; combat-objective questy gated buildem (novice prohraje).
 
 No-fail flavor combat i combat-objective (lze prohrát) zachovány; odměny netknuté.
 
@@ -57,10 +62,34 @@ No-fail flavor combat i combat-objective (lze prohrát) zachovány; odměny netk
 `computeHit` přepsán na dice (sdílené jádro `rollHit`) → **dungeon/raid/PVP/aréna/
 Gauntlet** běží na stejném D&D modelu. `HitResult` nese `hit`/`roll`/`targetAc`;
 miss = `amount: 0` s miss-aware logem (`missMessage` + kompaktní `rollTag`
-`[d20: 14 + 6 = 20 vs AC 13]`). Nepřátelé dostávají AC/attackBonus z úrovně obsahu
-(`EnemyStats.level` → `buildEnemyActor`).
+`[d20: 14 + 6 = 20 vs AC 13]`). Nepřátelé dostávají AC/attackBonus/save DC z
+**Challenge Ratingu**: `EnemyStats.challengeRating` (explicitní) → jinak z
+`EnemyStats.level` přes `crForContentLevel` (+boss) → `crStatGuide` (DMG tabulka)
+v `buildEnemyActor`. Explicitní `armorClass`/`attackBonus`/`spellSaveDc` mají přednost.
+
+## MR-10b — per-class weapon dice + typed útoky ✅
+
+Damage dice dostaly **per-class tvar** (`ClassDef.attackDie` → `CombatActor.attackDie`
+→ `weaponDamageSpec`): místo generického d6 hází Barbarian d12, casteři d10 atd.
+Magnitudu pořád drží `attackPower` (balanc-neutrální, mění se jen variance + log
+notace `5d12+32`). Hráčské útoky navíc dostaly **typ poškození** (`attackDamageType`):
+martial = fyzické (slashing/piercing/bludgeoning), casteři = signature element
+(fire / force / radiant) → **resistance/vulnerability/immunity (MR-7) je teď živá i
+pro hráče**. Pro existující obsah je to inertní (dungeon/raid/quest nepřátelé nemají
+obrany), aktivuje se s bestiářem (MR-10d). Spelly zatím sdílí typ classy; literal
+per-spell dice/typy (Fireball = 8d6 fire) = závěrečný MR-10 slice.
+
+## MR-10a — CR-based enemy staty ✅
+
+Ad-hoc `~level*0.55` placeholdery (AC/attackBonus) nahrazeny **D&D Challenge
+Ratingem**: `crForContentLevel(level, isBoss)` mapuje úroveň obsahu (1–20, MR-11) na
+CR (trash = CR level, boss +2 CR; clamp 0–30 i pro Gauntlet „efektivní" vlny nad
+cap), `crStatGuide` z toho dá AC/attackBonus/save DC z DMG tabulky. Sjednoceno
+napříč všemi simulátory (dungeon/raid/quest/Gauntlet) — `buildEnemyActor` i
+`questFoeStats`. **HP/poškození (idle pacing) zůstávají autorská data** (CR-based
+HP/damage + per-zbraň/kouzlo dice = další MR-10 slice).
 
 ## Follow-up
 
 - Plný damage-dice redesign per zbraň/kouzlo (1d8+STR, 8d6 Fireball) + save-heavy
-  kouzla → MR-7 (bestiář/CR) + **MR-10 (balance pass: převzetí D&D čísel)**.
+  kouzla + CR-based HP/damage → **MR-10 (balance pass: převzetí D&D čísel)**.

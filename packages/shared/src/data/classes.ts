@@ -11,6 +11,7 @@
  * - `subclass` — volby subclass + level, na kterém se volí (D&D subclass level).
  */
 import type { AbilityScore } from '../character';
+import type { DamageType } from './damage';
 
 export type ClassId =
   | 'barbarian'
@@ -62,6 +63,18 @@ export interface ClassDef {
   resource: ResourceType;
   /** D&D kostka životů (HP per level). */
   hitDie: number;
+  /**
+   * Strana kostky poškození základního útoku (D&D zbraň/cantrip): d6/d8/d10/d12.
+   * Řídí *tvar* damage dice (`weaponDamageSpec`) — magnitudu drží `attackPower`,
+   * takže větší kostka = méně kostek + vyšší variance, ne víc poškození (MR-10b).
+   */
+  attackDie: number;
+  /**
+   * Typ poškození základního útoku/kouzla classy (D&D). Aktivuje resistance/
+   * vulnerability/immunity (MR-7) i pro hráčské útoky. Martial = fyzické
+   * (slashing/piercing/bludgeoning), casteři = signature element (MR-10b).
+   */
+  attackDamageType: DamageType;
   /** Role, které classa typicky plní. */
   roles: Role[];
   /** Level, na kterém si hráč volí subclass (D&D subclass level). */
@@ -78,6 +91,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'strength',
     resource: 'rage',
     hitDie: 12,
+    attackDie: 12,
+    attackDamageType: 'slashing',
     roles: ['tank', 'dps'],
     subclassLevel: 3,
     subclasses: [
@@ -95,6 +110,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'charisma',
     resource: 'mana',
     hitDie: 8,
+    attackDie: 8,
+    attackDamageType: 'piercing',
     roles: ['healer', 'dps'],
     subclassLevel: 3,
     subclasses: [
@@ -112,6 +129,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'wisdom',
     resource: 'mana',
     hitDie: 8,
+    attackDie: 6,
+    attackDamageType: 'radiant',
     roles: ['healer', 'tank', 'dps'],
     subclassLevel: 1,
     subclasses: [
@@ -129,6 +148,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'wisdom',
     resource: 'mana',
     hitDie: 8,
+    attackDie: 6,
+    attackDamageType: 'bludgeoning',
     roles: ['healer', 'tank', 'dps'],
     subclassLevel: 2,
     subclasses: [
@@ -146,6 +167,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'intelligence',
     resource: 'energy',
     hitDie: 10,
+    attackDie: 8,
+    attackDamageType: 'slashing',
     roles: ['tank', 'dps'],
     subclassLevel: 3,
     subclasses: [
@@ -163,6 +186,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'wisdom',
     resource: 'energy',
     hitDie: 8,
+    attackDie: 6,
+    attackDamageType: 'bludgeoning',
     roles: ['dps', 'tank'],
     subclassLevel: 3,
     subclasses: [
@@ -180,6 +205,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'charisma',
     resource: 'mana',
     hitDie: 10,
+    attackDie: 8,
+    attackDamageType: 'radiant',
     roles: ['tank', 'healer', 'dps'],
     subclassLevel: 3,
     subclasses: [
@@ -197,6 +224,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'wisdom',
     resource: 'mana',
     hitDie: 10,
+    attackDie: 8,
+    attackDamageType: 'piercing',
     roles: ['dps'],
     subclassLevel: 3,
     subclasses: [
@@ -214,6 +243,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'intelligence',
     resource: 'energy',
     hitDie: 8,
+    attackDie: 6,
+    attackDamageType: 'piercing',
     roles: ['dps'],
     subclassLevel: 3,
     subclasses: [
@@ -231,6 +262,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'charisma',
     resource: 'mana',
     hitDie: 6,
+    attackDie: 10,
+    attackDamageType: 'fire',
     roles: ['dps'],
     subclassLevel: 1,
     subclasses: [
@@ -248,6 +281,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'charisma',
     resource: 'mana',
     hitDie: 8,
+    attackDie: 10,
+    attackDamageType: 'force',
     roles: ['dps'],
     subclassLevel: 1,
     subclasses: [
@@ -265,6 +300,8 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     spellcastingAbility: 'intelligence',
     resource: 'mana',
     hitDie: 6,
+    attackDie: 10,
+    attackDamageType: 'fire',
     roles: ['dps'],
     subclassLevel: 2,
     subclasses: [

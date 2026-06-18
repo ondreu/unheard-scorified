@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateProgression,
   baseStatsFor,
+  buildEnemyActor,
+  crStatGuide,
   deriveCombatProfile,
   wipeRewardMultiplier,
   EMPTY_PROGRESSION,
@@ -68,6 +70,39 @@ describe('deriveCombatProfile', () => {
     expect(geared.maxHealth).toBeGreaterThan(naked.maxHealth);
     expect(geared.attackPower).toBeGreaterThan(naked.attackPower);
     expect(geared.armor).toBe(50);
+  });
+});
+
+describe('buildEnemyActor — CR-based stats (MR-10)', () => {
+  it('derives AC / attackBonus / save DC from content level via the CR table', () => {
+    const e = buildEnemyActor({ name: 'Brigand', maxHealth: 100, attackPower: 10, swingInterval: 2.4, level: 5 });
+    const guide = crStatGuide(5);
+    expect(e.armorClass).toBe(guide.armorClass);
+    expect(e.attackBonus).toBe(guide.attackBonus);
+    expect(e.spellSaveDc).toBe(guide.saveDc);
+  });
+
+  it('bumps a boss to a higher CR (+2)', () => {
+    const trash = buildEnemyActor({ name: 'Mook', maxHealth: 100, attackPower: 10, swingInterval: 2.4, level: 10 });
+    const boss = buildEnemyActor({ name: 'Warlord', maxHealth: 100, attackPower: 10, swingInterval: 2.4, level: 10, isBoss: true });
+    expect(boss.armorClass!).toBeGreaterThanOrEqual(trash.armorClass!);
+    expect(boss.armorClass).toBe(crStatGuide(12).armorClass);
+  });
+
+  it('an explicit challengeRating overrides level', () => {
+    const e = buildEnemyActor({ name: 'Wyrm', maxHealth: 100, attackPower: 10, swingInterval: 2.4, level: 1, challengeRating: 17 });
+    expect(e.armorClass).toBe(crStatGuide(17).armorClass);
+  });
+
+  it('explicit AC / attackBonus still win over CR derivation', () => {
+    const e = buildEnemyActor({ name: 'Custom', maxHealth: 100, attackPower: 10, swingInterval: 2.4, level: 20, armorClass: 11, attackBonus: 1 });
+    expect(e.armorClass).toBe(11);
+    expect(e.attackBonus).toBe(1);
+  });
+
+  it('falls back to a sane default (CR 5) for legacy data without level', () => {
+    const e = buildEnemyActor({ name: 'Legacy', maxHealth: 100, attackPower: 10, swingInterval: 2.4 });
+    expect(e.armorClass).toBe(crStatGuide(5).armorClass);
   });
 });
 
