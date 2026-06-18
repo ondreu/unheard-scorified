@@ -206,7 +206,9 @@ export function simulateQuestEncounter(
         break;
       }
       const mult = chosen ? abilityDamageMult(chosen, enemyHp / enemy.maxHealth) : 1;
-      const result = resolveAttack(player, enemy, rng, { abilityMult: mult });
+      // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy (Magic
+      // Missile = force…); undefined → zdědí typ zbraně/classy útočníka.
+      const result = resolveAttack(player, enemy, rng, { abilityMult: mult, damageType: chosen?.damageType });
 
       // Damaging spell (DoT/area) → nepřítel si hodí CON save (úspěch = poloviční dmg).
       let saveMessage: string | undefined;

@@ -9,6 +9,7 @@ import {
   type CombatActor,
 } from './combat';
 import { buildDndAttackMessage, rollInitiative } from './dnd-combat';
+import { CLASS_BASELINE_ABILITIES } from './data/abilities';
 import { diceAverage } from './dice';
 import { baseStatsFor } from './character';
 import { EMPTY_PROGRESSION } from './levelup';
@@ -92,6 +93,30 @@ describe('per-class damage type (MR-10b)', () => {
     expect(hero(10, 'wizard').damageType).toBe('fire');
     expect(hero(10, 'warlock').damageType).toBe('force');
     expect(hero(10, 'cleric').damageType).toBe('radiant');
+  });
+
+  it('per-ability damage type overrides the class type (MR-10d): Magic Missile = force', () => {
+    const wizard = CLASS_BASELINE_ABILITIES.wizard;
+    const magicMissile = wizard.find((a) => a.id === 'wiz_magic_missile')!;
+    const fireBolt = wizard.find((a) => a.id === 'wiz_fire_bolt')!;
+    expect(magicMissile.damageType).toBe('force');
+    // Fire Bolt sdílí typ classy (fire) → damageType nedefinováno (zdědí).
+    expect(fireBolt.damageType).toBeUndefined();
+
+    // Proti fire-immune cíli: ability typovaná force projde, fire (class) je 0.
+    const fireImmune = buildEnemyActor({
+      name: 'Flamelord', maxHealth: 1_000_000, attackPower: 1, swingInterval: 99,
+      immunities: ['fire'],
+    });
+    const a = hero(20, 'wizard');
+    let forceDmg = 0;
+    let fireDmg = 0;
+    for (let s = 0; s < 100; s++) {
+      forceDmg += resolveAttack(a, fireImmune, new SeededRng(s), { autoHit: true, damageType: magicMissile.damageType }).amount;
+      fireDmg += resolveAttack(a, fireImmune, new SeededRng(s), { autoHit: true, damageType: fireBolt.damageType ?? a.damageType }).amount;
+    }
+    expect(forceDmg).toBeGreaterThan(0);
+    expect(fireDmg).toBe(0);
   });
 
   it("a player's typed attack interacts with enemy resistances (MR-7 live for players)", () => {

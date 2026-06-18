@@ -21,6 +21,7 @@ import {
 } from './combat';
 import { shouldCastAbility } from './rotation';
 import { missMessage } from './dnd-combat';
+import type { DamageType } from './data/damage';
 import {
   ARENA_SEASONS,
   ARENA_TIERS,
@@ -60,6 +61,8 @@ interface DuelTimer {
   abilityMult?: number;
   executeBelowPct?: number;
   executeDamageMult?: number;
+  /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
+  abilityDamageType?: DamageType;
 }
 
 /**
@@ -97,6 +100,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityMult: ab.damageMult,
       executeBelowPct: ab.executeBelowPct,
       executeDamageMult: ab.executeDamageMult,
+      abilityDamageType: ab.damageType,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -108,6 +112,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityMult: ab.damageMult,
       executeBelowPct: ab.executeBelowPct,
       executeDamageMult: ab.executeDamageMult,
+      abilityDamageType: ab.damageType,
     })),
   ];
 
@@ -146,7 +151,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
       effMult = timer.executeDamageMult ?? effMult;
     }
-    const hit = computeHit(attacker, defender, rng, effMult, enraged);
+    const hit = computeHit(attacker, defender, rng, effMult, enraged, timer.abilityDamageType);
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide] > 0) {
@@ -245,6 +250,8 @@ interface TeamTimer {
   abilityMult?: number;
   executeBelowPct?: number;
   executeDamageMult?: number;
+  /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
+  abilityDamageType?: DamageType;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -303,6 +310,7 @@ export function simulateTeamFight(
           abilityMult: ab.damageMult,
           executeBelowPct: ab.executeBelowPct,
           executeDamageMult: ab.executeDamageMult,
+      abilityDamageType: ab.damageType,
         });
       }
     });
@@ -349,7 +357,7 @@ export function simulateTeamFight(
     if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
       effMult = timer.executeDamageMult ?? effMult;
     }
-    const hit = computeHit(attacker, defender, rng, effMult, enraged);
+    const hit = computeHit(attacker, defender, rng, effMult, enraged, timer.abilityDamageType);
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide][targetIdx]! > 0) {

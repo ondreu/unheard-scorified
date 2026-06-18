@@ -1,13 +1,19 @@
 /**
  * Loot tabulky a roll logika. Používá SeededRng → deterministické výsledky.
- * M4: loot z questů (per zone bracket). M5+ rozšíří o boss loot.
+ * M4: loot z questů (per zone bracket). M5+ boss loot (dungeony/raidy).
+ *
+ * **MR-10c — rarity-driven drop rate.** Relativní váha každého dropu se odvozuje
+ * z **rarity itemu** (`RARITY_DROP_WEIGHT`), ne z ad-hoc čísel per záznam: vzácnější
+ * item = nižší váha = méně častý drop. `anyDropChance` per tabulka řídí, zda vůbec
+ * něco padne (= celková štědrost / pacing, beze změny). `rollLoot` váhy normalizuje,
+ * takže záleží jen na poměrech. Level-range pásma srovnaná na cap 20 (MR-11).
  */
 import { SeededRng } from './rng';
-import type { ItemId } from './data/items';
+import { ITEMS, type ItemId, type ItemRarity } from './data/items';
 
 export interface LootEntry {
   itemId: ItemId;
-  /** Šance na drop (0–1). */
+  /** Relativní váha dropu (z rarity itemu). Normalizuje se ve `rollLoot`. */
   dropChance: number;
 }
 
@@ -17,89 +23,100 @@ export interface LootTable {
   entries: LootEntry[];
 }
 
+/**
+ * Relativní váha dropu dle rarity itemu (MR-10c). Common nejčastější, legendary
+ * „chase" drop. Hodnoty jsou relativní (normalizují se per tabulka ve `rollLoot`).
+ */
+export const RARITY_DROP_WEIGHT: Record<ItemRarity, number> = {
+  common: 1,
+  uncommon: 0.6,
+  rare: 0.35,
+  epic: 0.15,
+  legendary: 0.05,
+};
+
+/**
+ * Postaví loot tabulku s váhami odvozenými z rarity itemů (MR-10c). Autor řeší jen
+ * `anyDropChance` (štědrost) + seznam itemů; relativní šance vyplyne z rarity.
+ */
+function rarityTable(anyDropChance: number, itemIds: readonly ItemId[]): LootTable {
+  return {
+    anyDropChance,
+    entries: itemIds.map((itemId) => {
+      const item = ITEMS[itemId];
+      if (!item) throw new Error(`Loot table references unknown item: ${itemId}`);
+      return { itemId, dropChance: RARITY_DROP_WEIGHT[item.rarity] };
+    }),
+  };
+}
+
 /** Loot tabulky per zone bracket (klíč = zoneId prefix nebo bracket). */
 export const ZONE_LOOT_TABLES: Record<string, LootTable> = {
-  // Alliance/Horde Tier 1 zóny (level 1–10)
-  bracket_1: {
-    anyDropChance: 0.25,
-    entries: [
-      { itemId: 'iron_shortsword', dropChance: 0.20 },
-      { itemId: 'leather_cap', dropChance: 0.20 },
-      { itemId: 'worn_robe', dropChance: 0.15 },
-      { itemId: 'simple_bracers', dropChance: 0.15 },
-      { itemId: 'traveler_boots', dropChance: 0.15 },
-      { itemId: 'copper_amulet', dropChance: 0.10 },
-      { itemId: 'initiate_cloak', dropChance: 0.05 },
-      // Uncommon
-      { itemId: 'scout_vest', dropChance: 0.08 },
-      { itemId: 'runed_staff', dropChance: 0.08 },
-      { itemId: 'adventurer_ring', dropChance: 0.08 },
-      { itemId: 'oak_buckler', dropChance: 0.12 },
-    ],
-  },
-  // Alliance/Horde Tier 2 zóny (level 10–25)
-  bracket_2: {
-    anyDropChance: 0.25,
-    entries: [
-      { itemId: 'scout_vest', dropChance: 0.10 },
-      { itemId: 'runed_staff', dropChance: 0.10 },
-      { itemId: 'adventurer_ring', dropChance: 0.10 },
-      { itemId: 'soldier_helm', dropChance: 0.15 },
-      { itemId: 'chain_leggings', dropChance: 0.12 },
-      { itemId: 'amber_necklace', dropChance: 0.12 },
-      { itemId: 'marauder_shoulders', dropChance: 0.10 },
-      { itemId: 'ranger_gloves', dropChance: 0.10 },
-      { itemId: 'crusader_belt', dropChance: 0.10 },
-      // Rare
-      { itemId: 'stormfury_blade', dropChance: 0.05 },
-      { itemId: 'spellweave_robe', dropChance: 0.05 },
-      { itemId: 'defender_shield', dropChance: 0.07 },
-      { itemId: 'mage_trinket', dropChance: 0.07 },
-      { itemId: 'huntsman_cloak', dropChance: 0.10 },
-    ],
-  },
-  // Alliance/Horde Tier 3 zóny (level 25–40)
-  bracket_3: {
-    anyDropChance: 0.30,
-    entries: [
-      { itemId: 'soldier_helm', dropChance: 0.05 },
-      { itemId: 'stormfury_blade', dropChance: 0.08 },
-      { itemId: 'spellweave_robe', dropChance: 0.06 },
-      { itemId: 'warlord_plate', dropChance: 0.12 },
-      { itemId: 'shadow_cowl', dropChance: 0.12 },
-      { itemId: 'crusader_blade', dropChance: 0.10 },
-      { itemId: 'dragonscale_belt', dropChance: 0.10 },
-      { itemId: 'jade_ring', dropChance: 0.10 },
-      { itemId: 'titan_boots', dropChance: 0.10 },
-      { itemId: 'shadow_vambraces', dropChance: 0.08 },
-      { itemId: 'moonfire_cloak', dropChance: 0.08 },
-      { itemId: 'emerald_trinket', dropChance: 0.10 },
-      { itemId: 'sentinel_legguards', dropChance: 0.10 },
-      // Epic
-      { itemId: 'arcane_robes', dropChance: 0.03 },
-    ],
-  },
-  // Alliance/Horde Tier 4 zóny (level 40–60) — M12 frontier (EPL / Felwood)
-  bracket_4: {
-    anyDropChance: 0.32,
-    entries: [
-      { itemId: 'plaguebloom_circlet', dropChance: 0.10 },
-      { itemId: 'runecloth_robe', dropChance: 0.10 },
-      { itemId: 'girdle_of_the_mendicant', dropChance: 0.10 },
-      { itemId: 'wildheart_spaulders', dropChance: 0.10 },
-      { itemId: 'feltracker_boots', dropChance: 0.10 },
-      { itemId: 'chromatic_chainmail', dropChance: 0.10 },
-      { itemId: 'plaguehound_leggings', dropChance: 0.10 },
-      { itemId: 'gauntlets_of_the_fallen', dropChance: 0.10 },
-      { itemId: 'bracers_of_undeath', dropChance: 0.10 },
-      { itemId: 'bonereaver_greatsword', dropChance: 0.08 },
-      { itemId: 'wardens_bulwark', dropChance: 0.08 },
-      { itemId: 'corruptors_cloak', dropChance: 0.10 },
-      { itemId: 'cenarion_signet', dropChance: 0.10 },
-      // Epic (vzácný)
-      { itemId: 'nightmare_band', dropChance: 0.03 },
-    ],
-  },
+  // Tier 1 zóny (level 1–4: Dawnhollow / Durotar)
+  bracket_1: rarityTable(0.25, [
+    'iron_shortsword',
+    'leather_cap',
+    'worn_robe',
+    'simple_bracers',
+    'traveler_boots',
+    'copper_amulet',
+    'initiate_cloak',
+    'scout_vest',
+    'runed_staff',
+    'adventurer_ring',
+    'oak_buckler',
+  ]),
+  // Tier 2 zóny (level 4–9: Westfall / Barrens)
+  bracket_2: rarityTable(0.25, [
+    'scout_vest',
+    'runed_staff',
+    'adventurer_ring',
+    'soldier_helm',
+    'chain_leggings',
+    'amber_necklace',
+    'marauder_shoulders',
+    'ranger_gloves',
+    'crusader_belt',
+    'stormfury_blade',
+    'spellweave_robe',
+    'defender_shield',
+    'mage_trinket',
+    'huntsman_cloak',
+  ]),
+  // Tier 3 zóny (level 9–14: Duskwood / Thousand Needles)
+  bracket_3: rarityTable(0.3, [
+    'soldier_helm',
+    'stormfury_blade',
+    'spellweave_robe',
+    'warlord_plate',
+    'shadow_cowl',
+    'crusader_blade',
+    'dragonscale_belt',
+    'jade_ring',
+    'titan_boots',
+    'shadow_vambraces',
+    'moonfire_cloak',
+    'emerald_trinket',
+    'sentinel_legguards',
+    'arcane_robes',
+  ]),
+  // Tier 4 zóny (level 14–20: EPL / Felwood frontier)
+  bracket_4: rarityTable(0.32, [
+    'plaguebloom_circlet',
+    'runecloth_robe',
+    'girdle_of_the_mendicant',
+    'wildheart_spaulders',
+    'feltracker_boots',
+    'chromatic_chainmail',
+    'plaguehound_leggings',
+    'gauntlets_of_the_fallen',
+    'bracers_of_undeath',
+    'bonereaver_greatsword',
+    'wardens_bulwark',
+    'corruptors_cloak',
+    'cenarion_signet',
+    'nightmare_band',
+  ]),
 };
 
 /** Zone → loot bracket mapping (z quests.ts zoneId). */
@@ -115,182 +132,133 @@ export const ZONE_TO_BRACKET: Record<string, string> = {
 };
 
 /**
- * Boss loot tabulky per dungeon (M5). Vyšší šance na drop než questy +
- * dungeon-only itemy. Klíč = dungeonId.
+ * Boss loot tabulky per dungeon (M5). Vyšší `anyDropChance` než questy + dungeon-only
+ * itemy. Relativní šance dle rarity (MR-10c). Klíč = dungeonId.
  */
 export const DUNGEON_LOOT_TABLES: Record<string, LootTable> = {
-  ragefire_chasm: {
-    anyDropChance: 0.8,
-    entries: [
-      { itemId: 'taragaman_hammer', dropChance: 0.25 },
-      { itemId: 'iron_shortsword', dropChance: 0.15 },
-      { itemId: 'scout_vest', dropChance: 0.2 },
-      { itemId: 'adventurer_ring', dropChance: 0.2 },
-      { itemId: 'runed_staff', dropChance: 0.2 },
-    ],
-  },
-  deadmines: {
-    anyDropChance: 0.85,
-    entries: [
-      { itemId: 'smites_mace', dropChance: 0.18 },
-      { itemId: 'cookies_stirring_rod', dropChance: 0.18 },
-      { itemId: 'soldier_helm', dropChance: 0.16 },
-      { itemId: 'chain_leggings', dropChance: 0.16 },
-      { itemId: 'stormfury_blade', dropChance: 0.16 },
-      { itemId: 'defender_shield', dropChance: 0.16 },
-    ],
-  },
-  shadowfang_keep: {
-    anyDropChance: 0.9,
-    entries: [
-      { itemId: 'fang_of_the_deeps', dropChance: 0.16 },
-      { itemId: 'belremil_band', dropChance: 0.16 },
-      { itemId: 'spellweave_robe', dropChance: 0.18 },
-      { itemId: 'marauder_shoulders', dropChance: 0.16 },
-      { itemId: 'ranger_gloves', dropChance: 0.16 },
-      { itemId: 'crusader_belt', dropChance: 0.18 },
-    ],
-  },
-  scarlet_monastery: {
-    anyDropChance: 0.95,
-    entries: [
-      { itemId: 'commanders_crest', dropChance: 0.1 },
-      { itemId: 'whitemane_chapeau', dropChance: 0.1 },
-      { itemId: 'herod_shoulder', dropChance: 0.1 },
-      { itemId: 'warlord_plate', dropChance: 0.16 },
-      { itemId: 'shadow_cowl', dropChance: 0.16 },
-      { itemId: 'crusader_blade', dropChance: 0.16 },
-      { itemId: 'titan_boots', dropChance: 0.16 },
-      { itemId: 'arcane_robes', dropChance: 0.06 },
-    ],
-  },
+  ragefire_chasm: rarityTable(0.8, [
+    'taragaman_hammer',
+    'iron_shortsword',
+    'scout_vest',
+    'adventurer_ring',
+    'runed_staff',
+  ]),
+  deadmines: rarityTable(0.85, [
+    'smites_mace',
+    'cookies_stirring_rod',
+    'soldier_helm',
+    'chain_leggings',
+    'stormfury_blade',
+    'defender_shield',
+  ]),
+  shadowfang_keep: rarityTable(0.9, [
+    'fang_of_the_deeps',
+    'belremil_band',
+    'spellweave_robe',
+    'marauder_shoulders',
+    'ranger_gloves',
+    'crusader_belt',
+  ]),
+  scarlet_monastery: rarityTable(0.95, [
+    'commanders_crest',
+    'whitemane_chapeau',
+    'herod_shoulder',
+    'warlord_plate',
+    'shadow_cowl',
+    'crusader_blade',
+    'titan_boots',
+    'arcane_robes',
+  ]),
   // ── M12: nízkoúrovňové dungeony ─────────────────────────────────────────────
-  wailing_caverns: {
-    anyDropChance: 0.82,
-    entries: [
-      { itemId: 'wc_serpentine_band', dropChance: 0.2 },
-      { itemId: 'wc_deviate_hide_pauldrons', dropChance: 0.2 },
-      // bracket_2 doplněk
-      { itemId: 'ranger_gloves', dropChance: 0.2 },
-      { itemId: 'huntsman_cloak', dropChance: 0.2 },
-      { itemId: 'amber_necklace', dropChance: 0.2 },
-    ],
-  },
-  blackfathom_deeps: {
-    anyDropChance: 0.85,
-    entries: [
-      { itemId: 'bfd_rod_of_the_sleeper', dropChance: 0.2 },
-      { itemId: 'bfd_gaze_dreamer_robes', dropChance: 0.2 },
-      { itemId: 'marauder_shoulders', dropChance: 0.18 },
-      { itemId: 'crusader_belt', dropChance: 0.18 },
-      { itemId: 'mage_trinket', dropChance: 0.18 },
-    ],
-  },
-  // ── M12: 40–60 dungeony ─────────────────────────────────────────────────────
-  zulfarrak: {
-    anyDropChance: 0.88,
-    entries: [
-      { itemId: 'zf_sandstalker_ankleguards', dropChance: 0.18 },
-      { itemId: 'zf_jinxed_hoodoo_staff', dropChance: 0.18 },
-      { itemId: 'zf_bloodmail_gauntlets', dropChance: 0.18 },
-      // bracket_4 frontier gear jako doplněk
-      { itemId: 'feltracker_boots', dropChance: 0.12 },
-      { itemId: 'bracers_of_undeath', dropChance: 0.12 },
-    ],
-  },
-  maraudon: {
-    anyDropChance: 0.9,
-    entries: [
-      { itemId: 'mar_theradras_scepter', dropChance: 0.18 },
-      { itemId: 'mar_elemental_girdle', dropChance: 0.18 },
-      { itemId: 'mar_lifegiving_gem', dropChance: 0.18 },
-      { itemId: 'plaguehound_leggings', dropChance: 0.12 },
-      { itemId: 'cenarion_signet', dropChance: 0.12 },
-    ],
-  },
-  blackrock_depths: {
-    anyDropChance: 0.92,
-    entries: [
-      { itemId: 'brd_ironfoe', dropChance: 0.15 },
-      { itemId: 'brd_emperors_seal', dropChance: 0.18 },
-      { itemId: 'brd_flameweave_cuffs', dropChance: 0.18 },
-      { itemId: 'chromatic_chainmail', dropChance: 0.12 },
-      { itemId: 'gauntlets_of_the_fallen', dropChance: 0.12 },
-    ],
-  },
-  stratholme: {
-    anyDropChance: 0.95,
-    entries: [
-      { itemId: 'strat_runeblade_rivendare', dropChance: 0.14 },
-      { itemId: 'strat_deathbone_legguards', dropChance: 0.16 },
-      { itemId: 'strat_skul_cap', dropChance: 0.18 },
-      { itemId: 'corruptors_cloak', dropChance: 0.12 },
-      // Epic (vzácný)
-      { itemId: 'nightmare_band', dropChance: 0.05 },
-    ],
-  },
+  wailing_caverns: rarityTable(0.82, [
+    'wc_serpentine_band',
+    'wc_deviate_hide_pauldrons',
+    'ranger_gloves',
+    'huntsman_cloak',
+    'amber_necklace',
+  ]),
+  blackfathom_deeps: rarityTable(0.85, [
+    'bfd_rod_of_the_sleeper',
+    'bfd_gaze_dreamer_robes',
+    'marauder_shoulders',
+    'crusader_belt',
+    'mage_trinket',
+  ]),
+  // ── M12: vyšší dungeony (~15–20) ────────────────────────────────────────────
+  zulfarrak: rarityTable(0.88, [
+    'zf_sandstalker_ankleguards',
+    'zf_jinxed_hoodoo_staff',
+    'zf_bloodmail_gauntlets',
+    'feltracker_boots',
+    'bracers_of_undeath',
+  ]),
+  maraudon: rarityTable(0.9, [
+    'mar_theradras_scepter',
+    'mar_elemental_girdle',
+    'mar_lifegiving_gem',
+    'plaguehound_leggings',
+    'cenarion_signet',
+  ]),
+  blackrock_depths: rarityTable(0.92, [
+    'brd_ironfoe',
+    'brd_emperors_seal',
+    'brd_flameweave_cuffs',
+    'chromatic_chainmail',
+    'gauntlets_of_the_fallen',
+  ]),
+  stratholme: rarityTable(0.95, [
+    'strat_runeblade_rivendare',
+    'strat_deathbone_legguards',
+    'strat_skul_cap',
+    'corruptors_cloak',
+    'nightmare_band',
+  ]),
 };
 
 /**
- * Raid loot tabulky per raid (M8). Vyšší šance na drop než dungeony + epic/
- * legendary raid-only itemy. Klíč = raidId. Loot se rolluje per účastník při
- * vítězství (deterministicky, seed odvozený z runu + postavy).
+ * Raid loot tabulky per raid (M8). Nejvyšší `anyDropChance` + epic/legendary
+ * raid-only itemy. Relativní šance dle rarity (MR-10c) → legendary „chase" drop.
+ * Klíč = raidId. Loot se rolluje per účastník při vítězství (deterministicky,
+ * seed odvozený z runu + postavy).
  */
 export const RAID_LOOT_TABLES: Record<string, LootTable> = {
-  molten_core: {
-    anyDropChance: 0.95,
-    entries: [
-      { itemId: 'earthshaker', dropChance: 0.16 },
-      { itemId: 'robe_of_volatile_power', dropChance: 0.16 },
-      { itemId: 'aged_core_leather_gloves', dropChance: 0.18 },
-      { itemId: 'sabatons_of_the_flamewalker', dropChance: 0.18 },
-      { itemId: 'choker_of_enlightenment', dropChance: 0.18 },
-      // Vyšší ilvl gear ze základních tier 3 zón jako „útěcha"
-      { itemId: 'arcane_robes', dropChance: 0.07 },
-    ],
-  },
-  blackwing_lair: {
-    anyDropChance: 1.0,
-    entries: [
-      { itemId: 'netherwind_crown', dropChance: 0.16 },
-      { itemId: 'drake_talon_pauldrons', dropChance: 0.18 },
-      { itemId: 'ringo_drakefire', dropChance: 0.18 },
-      { itemId: 'cloak_of_draconic_might', dropChance: 0.18 },
-      { itemId: 'earthshaker', dropChance: 0.1 },
-      { itemId: 'robe_of_volatile_power', dropChance: 0.1 },
-      // Legendary (vzácný)
-      { itemId: 'ashkandi', dropChance: 0.04 },
-    ],
-  },
-  // M12 tier 1.5 raid (Zul'Gurub, ~lvl 50) — most mezi Molten Core a Blackwing Lair.
-  zulgurub: {
-    anyDropChance: 0.97,
-    entries: [
-      { itemId: 'zg_halberd_of_smiting', dropChance: 0.16 },
-      { itemId: 'zg_bloodlords_chestplate', dropChance: 0.16 },
-      { itemId: 'zg_primalist_belt', dropChance: 0.16 },
-      { itemId: 'zg_overlord_helmet', dropChance: 0.16 },
-      { itemId: 'zg_jindo_mantle', dropChance: 0.16 },
-      { itemId: 'zg_zanzils_seal', dropChance: 0.16 },
-      // Útěcha z Molten Core (nižší šance)
-      { itemId: 'choker_of_enlightenment', dropChance: 0.08 },
-    ],
-  },
-  // M12 tier 3 raid (Temple of Ahn'Qiraj, ~lvl 58) — nový top-end nad Blackwing Lair.
-  ahnqiraj: {
-    anyDropChance: 1.0,
-    entries: [
-      { itemId: 'aq_silithid_carapace', dropChance: 0.17 },
-      { itemId: 'aq_qiraji_bindings', dropChance: 0.17 },
-      { itemId: 'aq_gloves_of_the_immortal', dropChance: 0.17 },
-      { itemId: 'aq_ring_of_emperors', dropChance: 0.17 },
-      { itemId: 'aq_cloak_of_the_golden_hive', dropChance: 0.17 },
-      // Útěcha z Blackwing Lair
-      { itemId: 'ringo_drakefire', dropChance: 0.1 },
-      // Legendary (velmi vzácný) — C'Thun
-      { itemId: 'aq_scepter_shifting_sands', dropChance: 0.04 },
-    ],
-  },
+  molten_core: rarityTable(0.95, [
+    'earthshaker',
+    'robe_of_volatile_power',
+    'aged_core_leather_gloves',
+    'sabatons_of_the_flamewalker',
+    'choker_of_enlightenment',
+    'arcane_robes',
+  ]),
+  blackwing_lair: rarityTable(1.0, [
+    'netherwind_crown',
+    'drake_talon_pauldrons',
+    'ringo_drakefire',
+    'cloak_of_draconic_might',
+    'earthshaker',
+    'robe_of_volatile_power',
+    'ashkandi',
+  ]),
+  // M12 tier 1.5 raid (Zul'Gurub) — most mezi Molten Core a Blackwing Lair.
+  zulgurub: rarityTable(0.97, [
+    'zg_halberd_of_smiting',
+    'zg_bloodlords_chestplate',
+    'zg_primalist_belt',
+    'zg_overlord_helmet',
+    'zg_jindo_mantle',
+    'zg_zanzils_seal',
+    'choker_of_enlightenment',
+  ]),
+  // M12 tier 3 raid (Temple of Ahn'Qiraj) — top-end nad Blackwing Lair.
+  ahnqiraj: rarityTable(1.0, [
+    'aq_silithid_carapace',
+    'aq_qiraji_bindings',
+    'aq_gloves_of_the_immortal',
+    'aq_ring_of_emperors',
+    'aq_cloak_of_the_golden_hive',
+    'ringo_drakefire',
+    'aq_scepter_shifting_sands',
+  ]),
 };
 
 /**
@@ -305,7 +273,7 @@ export function rollLoot(table: LootTable, rng: SeededRng, dropChanceMult = 1): 
   // Náhodně rozhodne, zda vůbec padne item
   if (rng.next() > table.anyDropChance * dropChanceMult) return [];
 
-  // Zvolí konkrétní item váhovaným rollem
+  // Zvolí konkrétní item váhovaným rollem (váhy = rarity, normalizované)
   const roll = rng.next();
   let cumulative = 0;
   const total = table.entries.reduce((s, e) => s + e.dropChance, 0);

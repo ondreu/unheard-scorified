@@ -61,8 +61,11 @@ export const STARTING_RATING = 1500;
 export const ELO_K_FACTOR = 32;
 /** Spodní strop ratingu (nemůže klesnout pod). */
 export const MIN_RATING = 0;
-/** Minimální level postavy pro vstup do arény. */
-export const ARENA_MIN_LEVEL = 10;
+/**
+ * Minimální level postavy pro vstup do arény. Přeškálováno na cap 20 (MR-10c):
+ * původní 10/60 (~17 % progrese) → **3** (PVP přístupné brzy, jako guilda od lvl 1).
+ */
+export const ARENA_MIN_LEVEL = 3;
 
 /** PVP tier (vanilla-inspired tituly). Odvozený z ratingu. */
 export type ArenaTier = 'unranked' | 'combatant' | 'rival' | 'duelist' | 'gladiator';

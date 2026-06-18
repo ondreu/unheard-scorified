@@ -49,15 +49,21 @@ export interface RaidDef {
   goldVariance: number;
 }
 
+/** Volitelné staty bosse nad rámec pozičních argumentů (`boss`). */
+type BossOpts = Partial<
+  Pick<EnemyStats, 'armor' | 'damageType' | 'resistances' | 'vulnerabilities' | 'immunities'>
+> & { abilities?: RaidBossDef['abilities'] };
+
 function boss(
   id: string,
   name: string,
   maxHealth: number,
   attackPower: number,
   swingInterval: number,
-  opts: { armor?: number; abilities?: RaidBossDef['abilities'] } = {},
+  opts: BossOpts = {},
 ): RaidBossDef {
-  return { id, name, maxHealth, attackPower, swingInterval, isBoss: true, armor: opts.armor, abilities: opts.abilities };
+  const { abilities, ...stats } = opts;
+  return { id, name, maxHealth, attackPower, swingInterval, isBoss: true, ...stats, abilities };
 }
 
 export const RAIDS: Record<string, RaidDef> = {
@@ -71,14 +77,21 @@ export const RAIDS: Record<string, RaidDef> = {
     baseXp: 9000,
     baseGold: 300,
     goldVariance: 0.2,
+    // Bestiář (MR-10d): fire raid — obyvatelé žárovzdorní (resist fire), Flamelord
+    // ohni IMUNNÍ. Díky per-ability typům (MR-10d) má i fire caster ne-fire kouzlo
+    // (Magic Missile = force, Chromatic Orb = lightning…) → puzzle, ne dead-weight.
     bosses: [
-      boss('mc_lucifron', 'Pyrothul', 4200, 44, 2.4, { armor: 80 }),
+      boss('mc_lucifron', 'Pyrothul', 4200, 44, 2.4, { armor: 80, damageType: 'fire', resistances: ['fire'] }),
       boss('mc_magmadar', 'Cindermaw', 5200, 50, 2.6, {
         armor: 90,
+        damageType: 'fire',
+        resistances: ['fire'],
         abilities: [{ name: 'Lava Breath', cooldownSec: 12, damageMult: 2.2 }],
       }),
       boss('mc_ragnaros', 'Ignaroth the Flamelord', 7800, 60, 2.5, {
         armor: 120,
+        damageType: 'fire',
+        immunities: ['fire'],
         abilities: [{ name: 'Wrath of Ignaroth', cooldownSec: 14, damageMult: 2.6 }],
       }),
     ],
@@ -94,14 +107,24 @@ export const RAIDS: Record<string, RaidDef> = {
     baseXp: 18000,
     baseGold: 520,
     goldVariance: 0.2,
+    // Bestiář (MR-10d): draci — žárovzdorní (resist fire); Nefarius (shadowflame)
+    // navíc odolá nekrotice. Fyzické útoky beze změny.
     bosses: [
-      boss('bwl_razorgore', 'Razorwing the Untamed', 7200, 64, 2.4, { armor: 120 }),
+      boss('bwl_razorgore', 'Razorwing the Untamed', 7200, 64, 2.4, {
+        armor: 120,
+        damageType: 'fire',
+        resistances: ['fire'],
+      }),
       boss('bwl_vaelastrasz', 'Vaelorin the Corrupt', 9000, 72, 2.5, {
         armor: 130,
+        damageType: 'fire',
+        resistances: ['fire'],
         abilities: [{ name: 'Flame Breath', cooldownSec: 12, damageMult: 2.4 }],
       }),
       boss('bwl_nefarian', 'Nefarius', 12500, 84, 2.4, {
         armor: 160,
+        damageType: 'fire',
+        resistances: ['fire', 'necrotic'],
         abilities: [{ name: 'Shadow Flame', cooldownSec: 13, damageMult: 2.8 }],
       }),
     ],
@@ -120,14 +143,24 @@ export const RAIDS: Record<string, RaidDef> = {
     baseXp: 13500,
     baseGold: 430,
     goldVariance: 0.2,
+    // Bestiář (MR-10d): blood-cult trollové — jed/nekrotická magie (resist), krvavý
+    // bůh Hazkar zranitelný radiant (holy vs jeho rouhání).
     bosses: [
-      boss('zg_venoxis', 'High Priest Venox', 6000, 54, 2.4, { armor: 100 }),
+      boss('zg_venoxis', 'High Priest Venox', 6000, 54, 2.4, {
+        armor: 100,
+        damageType: 'poison',
+        resistances: ['poison'],
+      }),
       boss('zg_mandokir', 'Bloodlord Mandok', 7600, 62, 2.5, {
         armor: 110,
+        damageType: 'slashing',
         abilities: [{ name: 'Bloodletting', cooldownSec: 12, damageMult: 2.3 }],
       }),
       boss('zg_hakkar', 'Hazkar the Soulflayer', 10800, 76, 2.4, {
         armor: 140,
+        damageType: 'necrotic',
+        resistances: ['necrotic'],
+        vulnerabilities: ['radiant'],
         abilities: [{ name: 'Blood Siphon', cooldownSec: 13, damageMult: 2.6 }],
       }),
     ],
@@ -146,17 +179,26 @@ export const RAIDS: Record<string, RaidDef> = {
     baseXp: 22000,
     baseGold: 640,
     goldVariance: 0.2,
+    // Bestiář (MR-10d): chitin-spawn úl + Elder Horror — odolávají psychice (cizí
+    // mysl), Xathun zranitelný radiant (holy vyhání prastarou hrůzu).
     bosses: [
       boss('aq_skeram', 'The Prophet Shakram', 13500, 90, 2.4, {
         armor: 150,
+        damageType: 'psychic',
+        resistances: ['psychic'],
         abilities: [{ name: 'Arcane Explosion', cooldownSec: 12, damageMult: 2.5 }],
       }),
       boss('aq_sartura', 'Warden Sartha', 15500, 98, 2.2, {
         armor: 160,
+        damageType: 'slashing',
+        resistances: ['poison'],
         abilities: [{ name: 'Whirlwind', cooldownSec: 11, damageMult: 2.4 }],
       }),
-      boss('aq_cthun', "Xathun", 21000, 112, 2.4, {
+      boss('aq_cthun', 'Xathun', 21000, 112, 2.4, {
         armor: 180,
+        damageType: 'psychic',
+        resistances: ['psychic'],
+        vulnerabilities: ['radiant'],
         abilities: [{ name: 'Eye Beam', cooldownSec: 13, damageMult: 2.9 }],
       }),
     ],

@@ -13,6 +13,7 @@
  * jako draftovatelný pool kouzel pro Gauntlet (M13) a combat-lookup.
  */
 import type { ClassId, SubclassId } from './classes';
+import type { DamageType } from './damage';
 
 /** Druh abilit — řídí log i mechaniku v enginu. */
 export type AbilityKind = 'strike' | 'drain' | 'dot' | 'heal' | 'shield' | 'mitigation';
@@ -55,6 +56,14 @@ export interface SignatureAbility {
    * `spellTier` nedefinováno (nepatří do spellbooku, viz `casterTypeOf`).
    */
   spellTier?: number;
+  /**
+   * Typ poškození kouzla/techniky (MR-10d). Přebíjí `attackDamageType` classy pro
+   * tento konkrétní útok → caster není „type-locked" (Magic Missile = force,
+   * Fireball = fire, Sacred Flame = radiant…). `undefined` = zdědí typ zbraně/classy
+   * (typicky martial techniky = fyzické dle zbraně). Aktivuje MR-7 resistance/
+   * vulnerability/immunity per kouzlo.
+   */
+  damageType?: DamageType;
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -73,6 +82,8 @@ interface BaselineOpts {
   mitigation?: { mitigationPct: number; mitigationDurationSec: number };
   /** D&D spell tier (0 = cantrip, 1..9 = kouzlo). Jen pro caster classy. */
   spellTier?: number;
+  /** Typ poškození (MR-10d) — přebíjí typ classy. `undefined` = zdědí (martial = zbraň). */
+  damageType?: DamageType;
 }
 
 function ba(
@@ -98,6 +109,7 @@ function ba(
     ...(opts.execute ?? {}),
     ...(opts.mitigation ?? {}),
     ...(opts.spellTier !== undefined ? { spellTier: opts.spellTier } : {}),
+    ...(opts.damageType !== undefined ? { damageType: opts.damageType } : {}),
   };
 }
 
@@ -114,9 +126,9 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('barb_brutal_strike', 'Brutal Strike', 'A crushing 180% blow, rising to 280% against foes below 30% health.', 'strike', 8, 1.8, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.8 } }),
   ],
   bard: [
-    ba('bard_vicious_mockery', 'Vicious Mockery', 'Cutting insults sear the mind for 110% spell damage and 90% over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0 }),
+    ba('bard_vicious_mockery', 'Vicious Mockery', 'Cutting insults sear the mind for 110% spell damage and 90% over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0, damageType: 'psychic' }),
     ba('bard_healing_word', 'Healing Word', 'A word of power restores 200% of your healing power to a wounded ally.', 'heal', 5, 2.0, 1, { spellTier: 1 }),
-    ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 175% spell damage.', 'strike', 7, 1.75, 9, { spellTier: 1 }),
+    ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 175% spell damage.', 'strike', 7, 1.75, 9, { spellTier: 1, damageType: 'psychic' }),
   ],
   cleric: [
     ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame descends for 150% spell damage.', 'strike', 5, 1.5, 1, { spellTier: 0 }),
@@ -125,10 +137,10 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians harry the enemy for 120% damage over 9s.', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 }, spellTier: 3 }),
   ],
   druid: [
-    ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 150% spell damage.', 'strike', 5, 1.5, 1, { spellTier: 0 }),
+    ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 150% spell damage.', 'strike', 5, 1.5, 1, { spellTier: 0, damageType: 'fire' }),
     ba('druid_healing_word', 'Healing Word', 'Nature mends an ally for 220% of your healing power.', 'heal', 5, 2.2, 1, { spellTier: 1 }),
-    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears for 130% damage over 9s.', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.45 }, spellTier: 2 }),
-    ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 190% spell damage.', 'strike', 7, 1.9, 14, { spellTier: 3 }),
+    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears for 130% damage over 9s.', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.45 }, spellTier: 2, damageType: 'radiant' }),
+    ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 190% spell damage.', 'strike', 7, 1.9, 14, { spellTier: 3, damageType: 'lightning' }),
   ],
   fighter: [
     ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined 115% weapon-damage strike.', 'strike', 4, 1.15, 1),
@@ -149,7 +161,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   ranger: [
     ba('ranger_hunters_mark', "Hunter's Mark", 'A marked-prey shot for 155% weapon damage.', 'strike', 5, 1.55, 1, { spellTier: 1 }),
-    ba('ranger_serpent_arrow', 'Serpent Arrow', 'A venomed arrow for 40% on impact and 125% over 10s.', 'dot', 9, 0.4, 6, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0.25 }, spellTier: 1 }),
+    ba('ranger_serpent_arrow', 'Serpent Arrow', 'A venomed arrow for 40% on impact and 125% over 10s.', 'dot', 9, 0.4, 6, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0.25 }, spellTier: 1, damageType: 'poison' }),
     ba('ranger_volley', 'Volley', 'A rain of arrows dealing 185% weapon damage.', 'strike', 8, 1.85, 14, { spellTier: 2 }),
     ba('ranger_cure_wounds', 'Cure Wounds', 'Restores 170% of your healing power to a wounded ally.', 'heal', 6, 1.7, 9, { spellTier: 1 }),
   ],
@@ -160,19 +172,19 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   sorcerer: [
     ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 110% spell damage.', 'strike', 4, 1.1, 1, { spellTier: 0 }),
-    ba('sorc_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 165% spell damage.', 'strike', 6, 1.65, 5, { spellTier: 1 }),
+    ba('sorc_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 165% spell damage.', 'strike', 6, 1.65, 5, { spellTier: 1, damageType: 'lightning' }),
     ba('sorc_scorching_ray', 'Scorching Ray', 'Searing rays for 140% damage plus 90% over 6s.', 'dot', 8, 0.4, 9, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 2 }),
     ba('sorc_fireball', 'Fireball', 'A roaring explosion for 220% spell damage.', 'strike', 9, 2.2, 14, { spellTier: 3 }),
   ],
   warlock: [
     ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling energy for 145% spell damage.', 'strike', 4, 1.45, 1, { spellTier: 0 }),
-    ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }, spellTier: 1 }),
-    ba('warlock_drain_life', 'Drain Life', 'Drains 100% damage, healing you for 50% of the damage dealt.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3 }),
-    ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'Void tendrils gnaw for 40% on impact and 110% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.27 }, spellTier: 3 }),
+    ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }, spellTier: 1, damageType: 'necrotic' }),
+    ba('warlock_drain_life', 'Drain Life', 'Drains 100% damage, healing you for 50% of the damage dealt.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3, damageType: 'necrotic' }),
+    ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'Void tendrils gnaw for 40% on impact and 110% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.27 }, spellTier: 3, damageType: 'necrotic' }),
   ],
   wizard: [
     ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 105% spell damage.', 'strike', 4, 1.05, 1, { spellTier: 0 }),
-    ba('wiz_magic_missile', 'Magic Missile', 'Unerring darts of force for 130% spell damage.', 'strike', 4, 1.3, 1, { spellTier: 1 }),
+    ba('wiz_magic_missile', 'Magic Missile', 'Unerring darts of force for 130% spell damage.', 'strike', 4, 1.3, 1, { spellTier: 1, damageType: 'force' }),
     ba('wiz_scorching_ray', 'Scorching Ray', 'Searing rays for 40% on impact and 75% over 6s.', 'dot', 8, 0.4, 8, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.25 }, spellTier: 2 }),
     ba('wiz_fireball', 'Fireball', 'A roaring explosion for 230% spell damage.', 'strike', 9, 2.3, 14, { spellTier: 3 }),
   ],
@@ -200,15 +212,15 @@ export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
  * vázán na class progresi — Gauntlet z něj náhodně nabízí „nové kouzlo" do runu.
  */
 export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
-  fireball: { name: 'Fireball', description: 'A roaring explosion for 250% spell damage.', kind: 'strike', cooldownSec: 10, damageMult: 2.5 },
-  lightning_bolt: { name: 'Lightning Bolt', description: 'A line of lightning for 240% spell damage.', kind: 'strike', cooldownSec: 9, damageMult: 2.4 },
-  ice_storm: { name: 'Ice Storm', description: 'Battering ice for 175% damage plus 120% over 6s.', kind: 'dot', cooldownSec: 10, damageMult: 1.75, dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.4 },
-  inflict_wounds: { name: 'Inflict Wounds', description: 'Necrotic touch for 200% damage, healing you for 25% of the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 2.0, drainHealFraction: 0.25 },
-  guiding_bolt: { name: 'Guiding Bolt', description: 'A bolt of light for 210% spell damage.', kind: 'strike', cooldownSec: 8, damageMult: 2.1 },
-  spiritual_weapon: { name: 'Spiritual Weapon', description: 'A floating blade strikes for 185% damage.', kind: 'strike', cooldownSec: 7, damageMult: 1.85 },
+  fireball: { name: 'Fireball', description: 'A roaring explosion for 250% spell damage.', kind: 'strike', cooldownSec: 10, damageMult: 2.5, damageType: 'fire' },
+  lightning_bolt: { name: 'Lightning Bolt', description: 'A line of lightning for 240% spell damage.', kind: 'strike', cooldownSec: 9, damageMult: 2.4, damageType: 'lightning' },
+  ice_storm: { name: 'Ice Storm', description: 'Battering ice for 175% damage plus 120% over 6s.', kind: 'dot', cooldownSec: 10, damageMult: 1.75, dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.4, damageType: 'cold' },
+  inflict_wounds: { name: 'Inflict Wounds', description: 'Necrotic touch for 200% damage, healing you for 25% of the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 2.0, drainHealFraction: 0.25, damageType: 'necrotic' },
+  guiding_bolt: { name: 'Guiding Bolt', description: 'A bolt of light for 210% spell damage.', kind: 'strike', cooldownSec: 8, damageMult: 2.1, damageType: 'radiant' },
+  spiritual_weapon: { name: 'Spiritual Weapon', description: 'A floating blade strikes for 185% damage.', kind: 'strike', cooldownSec: 7, damageMult: 1.85, damageType: 'force' },
   mass_healing_word: { name: 'Mass Healing Word', description: 'Restores 280% of your healing power to a wounded ally.', kind: 'heal', cooldownSec: 9, damageMult: 2.8 },
-  flame_blade: { name: 'Flame Blade', description: 'A blade of fire for 200% weapon damage.', kind: 'strike', cooldownSec: 8, damageMult: 2.0 },
-  vampiric_touch: { name: 'Vampiric Touch', description: 'Drains 160% damage, healing you for 40% of the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 1.6, drainHealFraction: 0.4 },
+  flame_blade: { name: 'Flame Blade', description: 'A blade of fire for 200% weapon damage.', kind: 'strike', cooldownSec: 8, damageMult: 2.0, damageType: 'fire' },
+  vampiric_touch: { name: 'Vampiric Touch', description: 'Drains 160% damage, healing you for 40% of the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 1.6, drainHealFraction: 0.4, damageType: 'necrotic' },
   shield_of_faith: { name: 'Shield of Faith', description: 'A shimmering field reduces damage taken by 40% for 10s.', kind: 'mitigation', cooldownSec: 22, damageMult: 0, mitigationPct: 0.4, mitigationDurationSec: 10 },
 };
 

@@ -32,6 +32,7 @@ import {
   type SignatureAbility,
 } from './combat';
 import { missMessage } from './dnd-combat';
+import { applyDamageInteraction, damageInteraction } from './data/damage';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
 
@@ -428,7 +429,8 @@ export function resolveGauntletTurn(
     // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
     const targetHpPct = enemy.currentHealth / enemy.maxHealth;
     const mult = abilityDamageMult(ability, targetHpPct);
-    const hit = computeHit(player, enemyAsActor, rng, mult, false);
+    // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
+    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType);
     enemy.currentHealth -= hit.amount;
 
     let healed = hit.hit ? Math.round(hit.amount * player.lifesteal) : 0;
@@ -438,9 +440,14 @@ export function resolveGauntletTurn(
     }
 
     if (hit.hit && ability.kind === 'dot' && ability.dotTicks && ability.dotTickMult) {
+      // DoT tik respektuje typ + obrany cíle (MR-10d), stejně jako přímý zásah.
+      const dotType = ability.damageType ?? player.damageType ?? 'bludgeoning';
+      const interaction = damageInteraction(dotType, enemyAsActor);
+      const raw = Math.round(player.attackPower * ability.dotTickMult);
+      const tickDamage = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
       enemy.dots.push({
         remainingTicks: ability.dotTicks,
-        tickDamage: Math.max(1, Math.round(player.attackPower * ability.dotTickMult)),
+        tickDamage,
         sourceName: player.name,
         abilityName: ability.name,
       });
