@@ -8,7 +8,6 @@ import {
   ABILITY_SCORES,
   BACKSTORY_MAX_LENGTH,
   buildCharacterSheet,
-  factionOf,
   isBackgroundId,
   isClassId,
   isRaceId,
@@ -33,7 +32,6 @@ export interface CharacterView {
   name: string;
   race: string;
   class: string;
-  faction: string;
   /** D&D Background (MR-3) — null pro starší/neúplné postavy. */
   background: string | null;
   /** Veřejná backstory (MR-3). */
@@ -57,7 +55,6 @@ export interface InspectView {
   name: string;
   race: string;
   class: string;
-  faction: string;
   /** Průměrný item level equipnutého gearu (0 = nic nemá oblečeno). */
   itemLevel: number;
   /** Je postava aktuálně v nějaké skupině (pro „request to join group" v UI)? */
@@ -140,7 +137,6 @@ export class CharacterService {
         name,
         race,
         class: klass,
-        faction: factionOf(race),
         background,
         baseScores,
         backstory,
@@ -222,7 +218,6 @@ export class CharacterService {
       name: row.name,
       race: row.race,
       class: row.class,
-      faction: row.faction,
       itemLevel,
       inGroup,
       guild,
@@ -239,7 +234,6 @@ export class CharacterService {
       name: c.name,
       race: c.race,
       class: c.class,
-      faction: c.faction,
       background: c.background ?? null,
       backstory: c.backstory ?? null,
       gold: c.gold,

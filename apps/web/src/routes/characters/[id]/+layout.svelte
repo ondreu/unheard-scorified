@@ -17,7 +17,6 @@
   } from '$lib/api';
   import { connectSocial, subscribeSocial } from '$lib/social-socket';
   import { backdropStyle } from '$lib/pixelart/backdrop';
-  import type { Faction } from '@game/shared';
   import { getPushState, isPushSupported, subscribePush, unsubscribePush } from '$lib/push';
   import { RACES, CLASSES } from '@game/shared';
   import { CLASS_COLOR, ROLE_META } from '$lib/cosmetics';
@@ -223,11 +222,8 @@
   const c = $derived(character);
   const members = $derived((group?.group?.members ?? []).filter((m) => m.status === 'joined'));
 
-  // Procedurální pozadí appky laděné dle frakce postavy (browser-only).
-  const faction = $derived(
-    (RACES[(c?.race ?? '') as keyof typeof RACES]?.faction ?? 'alliance') as Faction,
-  );
-  const backdrop = $derived(browser ? backdropStyle(faction) : '');
+  // Procedurální (neutrální) pozadí appky (browser-only; frakce odstraněny).
+  const backdrop = $derived(browser ? backdropStyle() : '');
 </script>
 
 <div class="app-backdrop" style={backdrop}></div>

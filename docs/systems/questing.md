@@ -41,25 +41,26 @@ finishesAt }`.
 
 ## Zóny & questy (`packages/shared/src/data/{zones,quests}.ts`)
 
-- **4 level brackety na frakci** (frakce kosmetická — paralelní obsah, stejný balanc):
-  - Alliance: Northshire Valley (1–10), Westfall (10–25), Duskwood (25–40),
-    Eastern Plaguelands (40–60).
-  - Horde: Durotar (1–10), The Barrens (10–25), Thousand Needles (25–40),
-    Felwood (40–60).
+- **8 neutrálních zón** (MR deWoWčení — frakce odstraněny; dvě zóny na bracket,
+  sdílený leveling track, stejný balanc):
+  - Bracket 1 (1–10): Northshire Valley, Durotar.
+  - Bracket 2 (10–25): Westfall, The Barrens.
+  - Bracket 3 (25–40): Duskwood, Thousand Needles.
+  - Bracket 4 (40–60): Eastern Plaguelands, Felwood.
   - Loot per bracket: `bracket_1`…`bracket_4` (`loot.ts → ZONE_TO_BRACKET`).
-- Zóna má `faction`; frakce questu se odvozuje ze zóny (`questFaction` /
-  `ZONES[zoneId].faction`). Postava vidí jen questy své frakce.
+- Zóna už nemá `faction`; postava vidí **všechny** questy (gating jen levelem,
+  zónou a story prerekvizitami). Lore názvy se narovnají na homebrew D&D později.
 - **Questy**: `story` (lineární chain přes `requiresQuest`, jednorázové). Balanc
   (doba, odměny) se ladí v datech.
 - **Gone Questing** (generický grind, ADR 0025): místo repeatable questů jediná
   idle aktivita s **hráčem volenou délkou** (5 min–6 h). Level flexuje s postavou,
-  zóna (loot bracket + flavor) se auto-odvodí (`questingZoneForLevel`), odměny =
+  zóna (loot bracket + flavor) se auto-odvodí (`questingZoneForLevel(level)`), odměny =
   čas × `referenceXpPerHour(level)` × efektivita; loot 1 roll / hod běhu škálovaný
   `GRIND.lootChanceMult` (skoupější než aktivní obsah — ~0.5 itemu za 6h).
   Interní `ActivityType 'grind'`; engine náhodných událostí (`quest.events`)
   zůstává dostupný, ale data repeatable questů byla odebrána.
-- `availableQuests(level, completedIds, faction)` / `isQuestAvailable(..., faction)` — gating.
-- `zonesForFaction(faction)` — zóny dané frakce (pro UI).
+- `availableQuests(level, completedIds)` / `isQuestAvailable(quest, level, completedIds)` — gating.
+- `allZones()` — všechny zóny seřazené dle minLevel (neutrální track, pro UI).
 
 ## API moduly
 

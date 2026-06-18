@@ -83,7 +83,6 @@ export interface CharacterStateView {
   name: string;
   race: string;
   class: string;
-  faction: string;
   gold: number;
   sheet: CharacterSheet;
 }
@@ -186,7 +185,7 @@ export class ActivityService {
     const quest = QUESTS[input.questId]!;
     const level = levelFromXp(character.totalXp);
     const completedIds = await this.completed.completedIds(characterId);
-    if (!isQuestAvailable(quest, level, completedIds, character.faction)) {
+    if (!isQuestAvailable(quest, level, completedIds)) {
       throw new BadRequestException('Quest is not available for this character');
     }
 
@@ -240,7 +239,7 @@ export class ActivityService {
     const durationSec = Math.round(Math.max(GRIND.minSec, Math.min(GRIND.maxSec, requested)));
 
     const level = levelFromXp(character.totalXp);
-    const zoneId = questingZoneForLevel(character.faction, level);
+    const zoneId = questingZoneForLevel(level);
     const startAt = new Date();
     const seed = activitySeed(character.id, 'grind', startAt.getTime());
     const params: GrindActivityParams = { zoneId, level };
@@ -525,7 +524,6 @@ function toCharacterStateView(c: Character): CharacterStateView {
     name: c.name,
     race: c.race,
     class: c.class,
-    faction: c.faction,
     gold: c.gold,
     sheet: buildCharacterSheet(c.race, c.class, c.totalXp),
   };

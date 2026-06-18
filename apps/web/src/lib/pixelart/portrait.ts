@@ -1,12 +1,12 @@
 /**
  * Procedurální pixel-art portréty (M14). Deterministicky vykreslí bystu hrdiny
- * podle rasy (silueta/kůže/uši/rohy/kly), classy (barva brnění) a frakce (tón
- * pozadí). Čistě kosmetické — žádná herní logika, žádné staty.
+ * podle rasy (silueta/kůže/uši/rohy/kly) a classy (barva brnění). Pozadí je
+ * neutrální tmavý gradient deterministicky odvozený ze seedu (frakce odstraněny
+ * v MR deWoWčení). Čistě kosmetické — žádná herní logika, žádné staty.
  *
  * Katalogy `RACE_LOOK` / `CLASS_LOOK` jsou jediný zdroj pravdy vzhledu; přidání
  * varianty = úprava dat, ne rendereru.
  */
-import type { Faction } from '@game/shared';
 import { Painter, SeededRng, mix, seedFromString, shade, type RGB } from './core';
 
 interface RaceLook {
@@ -50,17 +50,29 @@ export const RACE_LOOK: Record<string, RaceLook> = {
     headH: 0.96,
     beard: 'always',
   },
-  nightelf: {
-    skin: 0x9a7ac0,
-    hair: [0x2a4a6a, 0x6a2a6a, 0xb0b0d0, 0x3a6a5a],
-    eye: 0xeae0a0,
-    eyeGlow: true,
+  elf: {
+    skin: 0xe8d2b0,
+    hair: [0x2a4a6a, 0x6a2a6a, 0xb0b0d0, 0xc8a04a],
+    eye: 0x3a8a7a,
+    eyeGlow: false,
     ears: 'long',
     horns: false,
     tusks: false,
     headW: 0.96,
     headH: 1.08,
     beard: 'none',
+  },
+  halfling: {
+    skin: 0xe0b088,
+    hair: [0x6b4a28, 0x3a2a18, 0xc8a04a, 0x8a3a1a],
+    eye: 0x5a3a1a,
+    eyeGlow: false,
+    ears: 'short',
+    horns: false,
+    tusks: false,
+    headW: 0.94,
+    headH: 0.94,
+    beard: 'maybe',
   },
   gnome: {
     skin: 0xe8b890,
@@ -74,7 +86,19 @@ export const RACE_LOOK: Record<string, RaceLook> = {
     headH: 0.92,
     beard: 'none',
   },
-  orc: {
+  half_elf: {
+    skin: 0xdcb088,
+    hair: [0x3a2a18, 0x6b4a28, 0x2a4a6a, 0xc8a04a],
+    eye: 0x4a6a5a,
+    eyeGlow: false,
+    ears: 'long',
+    horns: false,
+    tusks: false,
+    headW: 0.98,
+    headH: 1.04,
+    beard: 'maybe',
+  },
+  half_orc: {
     skin: 0x6a9a4a,
     hair: [0x231a12, 0x3a2a18, 0x6a3a2a, 0x111111],
     eye: 0xd86a2a,
@@ -86,40 +110,28 @@ export const RACE_LOOK: Record<string, RaceLook> = {
     headH: 1.02,
     beard: 'maybe',
   },
-  tauren: {
-    skin: 0x8a6a4a,
-    hair: [0x3a2a18, 0x6b4a28, 0xddddcc, 0x231a12],
-    eye: 0x201608,
+  tiefling: {
+    skin: 0xc05a4a,
+    hair: [0x1a1a1a, 0x55555a, 0x6a2a2a, 0x2a1a2a],
+    eye: 0xf0d030,
+    eyeGlow: true,
+    ears: 'short',
+    horns: true,
+    tusks: false,
+    headW: 0.98,
+    headH: 1.04,
+    beard: 'none',
+  },
+  dragonborn: {
+    skin: 0x6a8a5a,
+    hair: [0x3a5a3a, 0x2a4a4a, 0x5a6a3a, 0x4a5a4a],
+    eye: 0xf0a030,
     eyeGlow: false,
     ears: 'short',
     horns: true,
     tusks: false,
-    headW: 1.22,
+    headW: 1.18,
     headH: 1.04,
-    beard: 'none',
-  },
-  troll: {
-    skin: 0x4a8a8a,
-    hair: [0xd83a3a, 0xf06a2a, 0x6a3a9a, 0x3a8a4a],
-    eye: 0xf0d030,
-    eyeGlow: false,
-    ears: 'long',
-    horns: false,
-    tusks: true,
-    headW: 0.98,
-    headH: 1.1,
-    beard: 'none',
-  },
-  undead: {
-    skin: 0x9aa890,
-    hair: [0x1a1a1a, 0x55555a, 0x6a3a3a, 0x2a3a2a],
-    eye: 0x9af030,
-    eyeGlow: true,
-    ears: 'short',
-    horns: false,
-    tusks: false,
-    headW: 0.96,
-    headH: 1.02,
     beard: 'none',
   },
 };
@@ -145,10 +157,13 @@ export const CLASS_LOOK: Record<string, ClassLook> = {
   wizard: { armor: 0x3a3a8a, trim: 0x9a7ad0 },
 };
 
-const FACTION_BG: Record<Faction, [RGB, RGB]> = {
-  alliance: [0x223a5a, 0x0e1626],
-  horde: [0x4a1a1a, 0x180c0c],
-};
+/** Neutrální tmavé gradienty pozadí (deterministický výběr ze seedu). */
+const BG_VARIANTS: [RGB, RGB][] = [
+  [0x223a5a, 0x0e1626], // chladná modrá
+  [0x2a2a42, 0x10101e], // indigo
+  [0x1f3a32, 0x0c1814], // tmavě zelená
+  [0x3a2a42, 0x180c1e], // fialová
+];
 
 function pick<T>(arr: T[], rng: SeededRng): T {
   return arr[rng.int(0, arr.length - 1)] as T;
@@ -159,15 +174,19 @@ function pick<T>(arr: T[], rng: SeededRng): T {
  */
 export function drawPortrait(
   p: Painter,
-  opts: { race: string; klass: string; faction: Faction; seedKey: string },
+  opts: { race: string; klass: string; seedKey: string },
 ): void {
   const D = p.dim;
   const race = RACE_LOOK[opts.race] ?? (RACE_LOOK.human as RaceLook);
   const klass = CLASS_LOOK[opts.klass] ?? (CLASS_LOOK.fighter as ClassLook);
   const rng = new SeededRng(seedFromString(`${opts.seedKey}:${opts.race}:${opts.klass}`));
 
-  // 1) Pozadí (frakční vinětový gradient).
-  const [bgTop, bgBot] = FACTION_BG[opts.faction];
+  // 1) Pozadí (neutrální vinětový gradient). Vybráno z odděleného seedu, ať
+  //    výběr neposune RNG sekvenci rysů portrétu.
+  const [bgTop, bgBot] = pick(
+    BG_VARIANTS,
+    new SeededRng(seedFromString(`bg:${opts.seedKey}:${opts.race}`)),
+  );
   for (let y = 0; y < D; y++) {
     p.rect(0, y, D, 1, mix(bgTop, bgBot, y / D));
   }
@@ -194,7 +213,7 @@ export function drawPortrait(
   // Krk.
   p.rect(cx - rx * 0.42, jawY - 2, rx * 0.84, D * 0.12, skinShadow);
 
-  // 3) Rohy (tauren) — za hlavu.
+  // 3) Rohy (tiefling/dragonborn) — za hlavu.
   if (race.horns) {
     const hcol = 0xe8e0c8;
     for (let i = 0; i < 5; i++) {

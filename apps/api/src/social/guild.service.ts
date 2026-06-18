@@ -17,7 +17,6 @@ import {
   MAX_GUILD_MEMBERS,
   sanitizeGuildMotd,
   type ClassId,
-  type Faction,
   type GuildRank,
   type RaceId,
 } from '@game/shared';
@@ -32,7 +31,6 @@ export interface GuildMemberView {
   level: number;
   race: RaceId;
   class: ClassId;
-  faction: Faction;
   rank: GuildRank;
   joinedAt: string;
 }
@@ -199,7 +197,6 @@ export class GuildService {
         level: levelFromXp(c.totalXp),
         race: c.race,
         class: c.class,
-        faction: c.faction,
         rank: m.rank,
         joinedAt: m.joinedAt.toISOString(),
       });

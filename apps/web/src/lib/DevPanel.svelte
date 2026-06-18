@@ -250,7 +250,7 @@
           <div class="dev-row">
             <select bind:value={selectedQuest} class="dev-select">
               {#each quests as q}
-                <option value={q.id}>[{q.faction}/{q.zone}] {q.name}</option>
+                <option value={q.id}>[{q.zone}] {q.name}</option>
               {/each}
             </select>
           </div>

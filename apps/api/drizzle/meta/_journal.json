@@ -267,6 +267,20 @@
       "when": 1781758766420,
       "tag": "0037_messy_timeslip",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1781784134763,
+      "tag": "0038_common_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1781785121718,
+      "tag": "0039_phb_race_remap",
+      "breakpoints": true
     }
   ]
 }

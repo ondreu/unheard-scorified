@@ -9,13 +9,13 @@
  * attack bonus. Balanc (přesné magnitudy / dice combat) se ladí v MR-5/MR-10.
  */
 import { CLASSES, type ClassId, type ResourceType } from './data/classes';
-import { RACES, type Faction, type RaceId } from './data/races';
+import { RACES, type RaceId } from './data/races';
 import { levelFromTotalXp } from './leveling';
 import { casterTypeOf, spellSlotsFor, type CasterType, type SpellSlots } from './data/spell-slots';
 import type { ItemStats } from './data/items';
 
 export type { ClassId, ResourceType, Role } from './data/classes';
-export type { Faction, RaceId } from './data/races';
+export type { RaceId } from './data/races';
 
 /** Šest D&D atributů (ability scores). */
 export type AbilityScore =
@@ -80,11 +80,6 @@ export function proficiencyBonus(level: number): number {
 /** Je kombinace rasy a classy povolená? */
 export function isValidRaceClass(race: RaceId, klass: ClassId): boolean {
   return RACES[race]?.allowedClasses.includes(klass) ?? false;
-}
-
-/** Frakce dané rasy (zatím kosmetická; odstraní se v MR-9). */
-export function factionOf(race: RaceId): Faction {
-  return RACES[race].faction;
 }
 
 /**
@@ -218,7 +213,6 @@ export interface CharacterSheet {
   level: number;
   xpIntoLevel: number;
   xpForNext: number;
-  faction: Faction;
   primary: AbilityScores;
   derived: DerivedStats;
   equipmentStats: ItemStats;
@@ -240,7 +234,6 @@ export function buildCharacterSheet(
     level,
     xpIntoLevel,
     xpForNext,
-    faction: factionOf(race),
     primary,
     derived: deriveStats(primary, level, klass),
     equipmentStats: equippedItemStats ?? {},

@@ -6,9 +6,9 @@
  *               `requiresQuest`); po dokončení už nejsou dostupné.
  * - `repeatable` = filler aktivity, lze opakovat libovolně (gated jen levelem/zónou).
  *
- * Frakce questu se ODVOZUJE z jeho zóny (`ZONES[zoneId].faction`) — žádná
- * duplicita. Aliance a horda mají paralelní questline se stejnými level reqy,
- * dobami i odměnami (frakce kosmetická, viz ADR 0003).
+ * MR (deWoWčení): frakce odstraněny — všechny questy (dříve paralelní
+ * Alliance/Horda questline) jsou dostupné každé postavě, gated jen levelem,
+ * zónou a story prerekvizitami. Lore názvy se narovnají na homebrew D&D později.
  *
  * Balanc (M9 pass): `durationSec` ∈ [5 min, 3 h] (idle cadence) a `baseXp`/
  * `baseGold` jsou kalibrované jako odměna při efektivitě 1.0 =
@@ -17,8 +17,7 @@
  * a zlato navíc variancí přes SeededRng. Viz `activity.ts → computeQuestReward`
  * a `docs/systems/progression.md`.
  */
-import type { Faction } from './races';
-import { ZONES, type ZoneId } from './zones';
+import { type ZoneId } from './zones';
 
 export type QuestKind = 'story' | 'repeatable';
 
@@ -2347,14 +2346,8 @@ export function isQuestId(value: string): value is string {
   return value in QUESTS;
 }
 
-/** Frakce questu — odvozená z jeho zóny (jediný zdroj pravdy). */
-export function questFaction(quest: QuestDef): Faction {
-  return ZONES[quest.zoneId].faction;
-}
-
 /**
- * Je quest dostupný pro danou frakci, level a sadu dokončených story questů?
- *  - quest patří frakci postavy (kosmetické dělení)
+ * Je quest dostupný pro daný level a sadu dokončených story questů?
  *  - level >= requiredLevel
  *  - story prerekvizita (pokud je) je dokončená
  *  - story quest už není dokončený (jednorázový); repeatable je vždy dostupný
@@ -2363,9 +2356,7 @@ export function isQuestAvailable(
   quest: QuestDef,
   level: number,
   completedQuestIds: ReadonlySet<string> | readonly string[],
-  faction: Faction,
 ): boolean {
-  if (questFaction(quest) !== faction) return false;
   const completed =
     completedQuestIds instanceof Set ? completedQuestIds : new Set(completedQuestIds);
   if (level < quest.requiredLevel) return false;
@@ -2374,15 +2365,14 @@ export function isQuestAvailable(
   return true;
 }
 
-/** Seznam dostupných questů pro frakci (seřazený podle requiredLevel). */
+/** Seznam dostupných questů (seřazený podle requiredLevel). */
 export function availableQuests(
   level: number,
   completedQuestIds: ReadonlySet<string> | readonly string[],
-  faction: Faction,
 ): QuestDef[] {
   const completed =
     completedQuestIds instanceof Set ? completedQuestIds : new Set(completedQuestIds);
   return QUEST_IDS.map((id) => QUESTS[id]!)
-    .filter((q) => isQuestAvailable(q, level, completed, faction))
+    .filter((q) => isQuestAvailable(q, level, completed))
     .sort((a, b) => a.requiredLevel - b.requiredLevel);
 }

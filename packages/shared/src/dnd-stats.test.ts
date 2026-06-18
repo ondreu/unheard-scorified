@@ -53,8 +53,8 @@ describe('baseStatsFor', () => {
 
   it('classa zvedá svůj primární atribut (mage → intelligence +3)', () => {
     const mage = baseStatsFor('human', 'wizard', 1);
-    const noBonus = 15 + 0; // human intelligence mod 0, +0 growth
-    expect(mage.intelligence).toBe(noBonus + 3);
+    const base = 15 + 1; // human (PHB) +1 intelligence, +0 growth
+    expect(mage.intelligence).toBe(base + 3);
   });
 });
 

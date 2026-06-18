@@ -10,13 +10,11 @@
     type InspectView,
     type RaidRole,
   } from '$lib/api';
-  import { RACES, CLASSES, BACKGROUNDS, type Faction } from '@game/shared';
+  import { RACES, CLASSES, BACKGROUNDS } from '@game/shared';
   import {
     CLASS_COLOR,
-    FACTION_COLOR,
     RARITY_COLOR,
     ROLE_META,
-    factionLabel,
     raceName,
     className,
   } from '$lib/cosmetics';
@@ -198,13 +196,7 @@
         {:else if data}
           {@const d = data}
           <div class="flex items-start gap-4">
-            <PortraitShowcase
-              name={d.name}
-              race={d.race}
-              klass={d.class}
-              faction={(d.faction === 'horde' ? 'horde' : 'alliance') as Faction}
-              size={84}
-            />
+            <PortraitShowcase name={d.name} race={d.race} klass={d.class} size={84} />
             <div class="min-w-0 flex-1">
               <h2 class="truncate text-2xl font-bold text-[var(--gold-bright)]">{d.name}</h2>
               <p class="mt-0.5 text-sm text-[var(--text-dim)]">
@@ -220,9 +212,6 @@
                 </p>
               {/if}
               <div class="mt-2 flex flex-wrap gap-1.5">
-                <Badge color={FACTION_COLOR[d.faction as 'alliance' | 'horde'] ?? 'var(--gold)'}>
-                  {factionLabel(d.faction)}
-                </Badge>
                 <Badge color="var(--gold-bright)" icon="🛡️">{ui.itemLevel} {d.itemLevel}</Badge>
               </div>
             </div>

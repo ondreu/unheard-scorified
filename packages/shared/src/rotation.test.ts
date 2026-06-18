@@ -86,7 +86,7 @@ describe('rotation in the engine', () => {
       name: 'Exec',
       level: 50,
       klass: 'fighter',
-      primary: baseStatsFor('orc', 'fighter', 50),
+      primary: baseStatsFor('half_orc', 'fighter', 50),
       equipment: { attack_power: 60, strength: 40 },
       progression: EMPTY_PROGRESSION,
     });

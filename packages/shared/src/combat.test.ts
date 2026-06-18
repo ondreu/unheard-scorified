@@ -21,7 +21,7 @@ function profile(level: number, progression: ProgressionEffects = EMPTY_PROGRESS
     name: 'Hero',
     level,
     klass: 'fighter',
-    primary: baseStatsFor('orc', 'fighter', level),
+    primary: baseStatsFor('half_orc', 'fighter', level),
     equipment: {},
     progression,
   });
@@ -47,7 +47,7 @@ describe('deriveCombatProfile', () => {
   it('subclass odemkne signature ability', () => {
     const p = deriveCombatProfile({
       name: 'Hero', level: 20, klass: 'fighter', subclass: 'champion',
-      primary: baseStatsFor('orc', 'fighter', 20), equipment: {},
+      primary: baseStatsFor('half_orc', 'fighter', 20), equipment: {},
       progression: EMPTY_PROGRESSION,
     });
     expect(p.signatureAbilities.map((a) => a.id)).toContain('champion_heroic_surge');
@@ -56,12 +56,12 @@ describe('deriveCombatProfile', () => {
   it('gear staty zvyšují HP a attack power', () => {
     const naked = deriveCombatProfile({
       name: 'A', level: 10, klass: 'fighter',
-      primary: baseStatsFor('orc', 'fighter', 10), equipment: {},
+      primary: baseStatsFor('half_orc', 'fighter', 10), equipment: {},
       progression: EMPTY_PROGRESSION,
     });
     const geared = deriveCombatProfile({
       name: 'A', level: 10, klass: 'fighter',
-      primary: baseStatsFor('orc', 'fighter', 10),
+      primary: baseStatsFor('half_orc', 'fighter', 10),
       equipment: { strength: 20, constitution: 20, attack_power: 15, armor: 50 },
       progression: EMPTY_PROGRESSION,
     });

@@ -6,7 +6,6 @@ export interface CharacterView {
   name: string;
   race: string;
   class: string;
-  faction: string;
   background: string | null;
   backstory: string | null;
   gold: number;
@@ -277,7 +276,6 @@ export interface InspectView {
   name: string;
   race: string;
   class: string;
-  faction: string;
   itemLevel: number;
   inGroup: boolean;
   guild: { name: string; rank: string } | null;
@@ -895,7 +893,6 @@ export interface FriendView {
   level: number;
   race: string;
   class: string;
-  faction: string;
   online: boolean;
   since: string;
 }
@@ -907,7 +904,6 @@ export interface FriendRequestView {
   level: number;
   race: string;
   class: string;
-  faction: string;
   sentAt: string;
 }
 
@@ -1006,7 +1002,6 @@ export interface GuildMemberView {
   level: number;
   race: string;
   class: string;
-  faction: string;
   rank: GuildRankName;
   joinedAt: string;
 }
@@ -1653,7 +1648,6 @@ export interface DevQuestDef {
   id: string;
   name: string;
   zone: string;
-  faction: string;
 }
 
 export interface DevCharacterInspect {
@@ -1661,7 +1655,6 @@ export interface DevCharacterInspect {
   name: string;
   race: string;
   class: string;
-  faction: string;
   level: number;
   totalXp: number;
   gold: number;

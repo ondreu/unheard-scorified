@@ -256,23 +256,23 @@ describe('M2 flow: leveling & idle smyčka', () => {
     expect(ids).not.toContain(CHALLENGE.id);
   });
 
-  it('frakce vidí jen své questy (Horde ≠ Alliance)', async () => {
+  it('frakce odstraněny — postava vidí všechny questline (dříve A i H)', async () => {
     const tokens = await auth.register('m2h', 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const horde = await characters.create(accountId, {
+    const char = await characters.create(accountId, {
       name: 'Grommash',
-      race: 'orc',
+      race: 'half_orc',
       class: 'druid',
     });
 
-    const ids = (await quests.listAvailable(accountId, horde.id)).map((q) => q.id);
-    expect(ids).toContain('dt_scorpid_sting'); // Durotar (horde)
-    expect(ids.every((id) => !id.startsWith('ns_'))).toBe(true);
+    const ids = (await quests.listAvailable(accountId, char.id)).map((q) => q.id);
+    expect(ids).toContain('dt_scorpid_sting'); // dříve Horde
+    expect(ids).toContain('ns_kobold_culling'); // dříve Alliance — teď taky dostupné
 
-    // Hordák nemůže spustit alliance quest.
+    // A dříve „alliance" quest jde i spustit.
     await expect(
-      activity.start(accountId, horde.id, { activityType: 'quest', questId: KOBOLD.id }),
-    ).rejects.toThrow();
+      activity.start(accountId, char.id, { activityType: 'quest', questId: KOBOLD.id }),
+    ).resolves.toBeTruthy();
   });
 
   it('cizí účet nemůže manipulovat s aktivitou postavy', async () => {

@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { ApiError, deleteCharacter, listCharacters, logout, type CharacterView } from '$lib/api';
   import { RACES, CLASSES } from '@game/shared';
-  import { CLASS_COLOR, FACTION_COLOR, factionLabel } from '$lib/cosmetics';
+  import { CLASS_COLOR } from '$lib/cosmetics';
   import Avatar from '$lib/components/Avatar.svelte';
   import Badge from '$lib/components/Badge.svelte';
 
@@ -71,11 +71,6 @@
                 <span style={`color:${CLASS_COLOR[c.class] ?? 'inherit'}`}
                   >{CLASSES[c.class as keyof typeof CLASSES]?.name}</span
                 >
-              </span>
-              <span class="mt-1.5 flex">
-                <Badge color={FACTION_COLOR[c.faction as 'alliance' | 'horde'] ?? 'var(--gold)'}>
-                  {factionLabel(c.faction)}
-                </Badge>
               </span>
             </span>
           </a>

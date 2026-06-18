@@ -100,15 +100,15 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 ## Zbývá (seskupeno; pořadí mezi clustery = doladit s PM)
 
 - [ ] **Rasy, frakce & homebrew lore** _(slučuje MR-8 + MR-9 + PHB rasy — „odWoWčení" světa, patří k sobě)_:
-  - [ ] **PHB rasy** — nahradit WoW sadu (8 ras) za 9 D&D PHB ras (Human, Elf, Dwarf, Halfling, Gnome, Half-Elf, Half-Orc, Tiefling, Dragonborn) + **rasové schopnosti** + atributové bonusy +2/+1. _(Bonusy už jsou na D&D atributech od MR-1, ale sada ras i magnitudy jsou pořád WoW — tady se to narovná.)_
-  - [ ] **Odstranění frakcí** — smazat `faction` (Alliance/Horda) z ras/dat/UI, paralelní A/H obsah sjednotit na neutrální. D&D lore frakce jen kosmetické.
+  - [x] **PHB rasy** ✅ — WoW sada (8 ras) nahrazena **9 D&D PHB rasami** (Human, Elf, Dwarf, Halfling, Gnome, Half-Elf, Half-Orc, Tiefling, Dragonborn) s narovnanými atributovými bonusy **+2/+1** a **rasovými schopnostmi** (`RaceTrait[]`, popisné — mechanická integrace do combatu = follow-up, čísla = MR-10). Data migrace `0039` přemapuje staré race id (nightelf→elf, orc→half_orc, tauren→dragonborn, troll→half_elf, undead→tiefling). UI: race picker ukazuje popis/bonusy/traits, karta postavy sekci „traits". Pixel-art `RACE_LOOK` rekeyed na nové rasy.
+  - [x] **Odstranění frakcí** ✅ — `Faction` (Alliance/Horda) smazán z `@game/shared` (races/zones/quests/character), z DB (`characters.faction` drop, migrace `0038`), API views (character/inspect/social/guild/dev) i webu (frakční badge/emblém/portrétové pozadí/backdrop nahrazeny neutrálními). Všech **8 zón sjednoceno na jeden neutrální leveling track** (paralelní A/H questline teď vidí každá postava, gating jen levelem/prereqy). Reputační frakce (`FactionId`: Miners'/Herbalist/Explorers) zůstávají. Lore názvy (Northshire/Durotar…) se narovnají v „Lore přejmenování".
   - [ ] **Lore přejmenování** — zóny/NPC/dungeony/raidy (Ragefire Chasm, Northshire, Molten Core…) → homebrew D&D. Engine/mechaniky beze změny, jen data + texty.
 - [ ] **MR-7 — D&D bestiář + CR** — enemy katalog `data/enemies.ts`: víc typů s unikátními schopnostmi, **resistance/vulnerability**, **Challenge Rating**. Rozšíří dice-roll combat z MR-5.
 - [ ] **MR-10 — Balance pass (převzetí D&D čísel)** _(rozhodnutí PM: až nakonec)_ — místo vlastních čísel převzít D&D 5e: **damage dice per zbraň/kouzlo** (1d8+STR, 8d6 Fireball), **CR-based** AC/HP/damage/XP, spell slot economy, rasové bonusy, recalibrace Elo/wipe/loot drop rate. Sem spadají všechny dosud odložené „balanc = MR-10" položky.
 - [ ] **MR-11 — Level cap 20 + XP křivka** — finální cap, long-haul XP křivka (lvl 1 za den, max za 3–5 měsíců) jako laditelný parametr.
 - [ ] **Onboarding / tutoriál** _(byl M11, odloženo)_ — provedení idle smyčkou, redesignované po D&D char creation (rasa/class/background/spell sloty).
 
-> 🔜 **Handoff:** hotovo **MR-1 → MR-5**. Přirozený další velký krok = cluster **Rasy, frakce & lore** (deWoWčení) nebo **MR-7 bestiář**. Balanc (MR-10) záměrně až nakonec. Pozn.: rasové bonusy běží na D&D atributech, ale roster ras + frakce jsou stále WoW.
+> 🔜 **Handoff:** hotovo **MR-1 → MR-5** + cluster deWoWčení z větší části: **odstranění frakcí** ✅ a **PHB rasy** ✅. Zbývá poslední krok clusteru: **Lore přejmenování** (zóny/NPC/dungeony/raidy: Northshire/Durotar/Molten Core/Defias… → homebrew D&D; engine beze změny, jen data + texty). Pak **MR-7 bestiář**. Balanc (MR-10) záměrně až nakonec.
 
 ---
 

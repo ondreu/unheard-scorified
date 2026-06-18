@@ -1,14 +1,13 @@
 <script lang="ts">
   /**
-   * Procedurální pixel-art emblém (M14): class crest / frakční znak / role ikona.
+   * Procedurální pixel-art emblém (M14): class crest / role ikona.
    * Deterministický geometrický glyf na 2D canvas (viz `$lib/pixelart/emblems`).
-   * Nahrazuje emoji v UI. Čistě kosmetické.
+   * Nahrazuje emoji v UI. Čistě kosmetické. (Frakční znak odstraněn v MR deWoWčení.)
    */
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
-  import type { Faction } from '@game/shared';
   import { Painter } from '$lib/pixelart/core';
-  import { drawClassEmblem, drawFactionEmblem, drawRoleEmblem } from '$lib/pixelart/emblems';
+  import { drawClassEmblem, drawRoleEmblem } from '$lib/pixelart/emblems';
 
   let {
     kind,
@@ -17,8 +16,8 @@
     dim = 16,
   }: {
     /** Druh emblému. */
-    kind: 'class' | 'faction' | 'role';
-    /** classId / faction / role (dle `kind`). */
+    kind: 'class' | 'role';
+    /** classId / role (dle `kind`). */
     id: string;
     size?: number;
     dim?: number;
@@ -34,7 +33,6 @@
     const p = new Painter(ctx, dim);
     p.clear();
     if (kind === 'class') drawClassEmblem(p, id);
-    else if (kind === 'faction') drawFactionEmblem(p, id as Faction);
     else drawRoleEmblem(p, id);
   }
 

@@ -388,7 +388,7 @@
             <div class="row">
               <select bind:value={selectedQuest} class="field">
                 {#each quests as q}
-                  <option value={q.id}>[{q.faction}/{q.zone}] {q.name}</option>
+                  <option value={q.id}>[{q.zone}] {q.name}</option>
                 {/each}
               </select>
               <button class="btn" disabled={busy || !selectedQuest} onclick={() => charAct((id) => devCompleteQuest(id, selectedQuest), (r) => r.alreadyDone ? `${r.questId} already done` : `Completed: ${r.questId}`)}>Complete</button>
@@ -495,7 +495,7 @@
             <div class="inspect-card">
               <div class="inspect-title">
                 <strong>{inspected.name}</strong>
-                <span class="muted">Lv{inspected.level} {inspected.race} {inspected.class} · {inspected.faction}</span>
+                <span class="muted">Lv{inspected.level} {inspected.race} {inspected.class}</span>
               </div>
               <div class="inspect-stats">
                 <span>{inspected.gold.toLocaleString()} gold</span>

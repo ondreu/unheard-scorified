@@ -1,21 +1,18 @@
 /**
- * Definice zón. Zóna gateuje dostupné questy podle levelu a FRAKCE postavy
- * (idle smyčka M2). Statická data = jediný zdroj pravdy pro API i web.
- * Balanc (level ranges) se ladí ZDE.
+ * Definice zón. Zóna gateuje dostupné questy podle levelu postavy (idle smyčka
+ * M2). Statická data = jediný zdroj pravdy pro API i web. Balanc (level ranges)
+ * se ladí ZDE.
  *
- * Frakce je zatím kosmetická (viz ADR 0003): aliance i horda mají PARALELNÍ
- * zóny se stejnými level brackety a odměnami — liší se jen lore/názvy a tím,
- * kterou sadu která frakce vidí. Žádný herní (power) rozdíl mezi frakcemi.
+ * MR (deWoWčení): frakce odstraněny — všech 8 zón je NEUTRÁLNÍCH a sdílí je
+ * každá postava. Dřívější paralelní Alliance/Horda zóny se stejnými brackety teď
+ * tvoří jeden společný leveling track (víc obsahu na bracket). Lore názvy se
+ * narovnají na homebrew D&D v navazujícím přírůstku.
  */
-import type { Faction } from './races';
-
 export type ZoneId =
-  // Alliance
   | 'northshire'
   | 'westfall'
   | 'duskwood'
   | 'eastern_plaguelands'
-  // Horde
   | 'durotar'
   | 'barrens'
   | 'thousand_needles'
@@ -27,8 +24,6 @@ export interface ZoneDef {
   name: string;
   /** Krátký flavor popis (anglicky). */
   description: string;
-  /** Frakce, které zóna patří (kosmetické — lore/vizuál). */
-  faction: Faction;
   /** Minimální level pro vstup do zóny (questy mají vlastní requiredLevel). */
   minLevel: number;
   /** Doporučený horní level zóny — jen pro UI hint. */
@@ -36,12 +31,10 @@ export interface ZoneDef {
 }
 
 export const ZONES: Record<ZoneId, ZoneDef> = {
-  // ── Alliance ─────────────────────────────────────────────────────────────
   northshire: {
     id: 'northshire',
     name: 'Northshire Valley',
-    description: 'A peaceful starting vale where every Alliance recruit takes their first steps.',
-    faction: 'alliance',
+    description: 'A peaceful starting vale where every new adventurer takes their first steps.',
     minLevel: 1,
     maxLevel: 10,
   },
@@ -49,7 +42,6 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'westfall',
     name: 'Westfall',
     description: 'Windswept farmlands overrun by the Defias Brotherhood.',
-    faction: 'alliance',
     minLevel: 10,
     maxLevel: 25,
   },
@@ -57,7 +49,6 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'duskwood',
     name: 'Duskwood',
     description: 'A shadowed forest where the dead refuse to rest.',
-    faction: 'alliance',
     minLevel: 25,
     maxLevel: 40,
   },
@@ -66,17 +57,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     name: 'Eastern Plaguelands',
     description:
       'Blighted heartlands of the fallen kingdom, where the Argent Dawn holds the line against the Scourge.',
-    faction: 'alliance',
     minLevel: 40,
     maxLevel: 60,
   },
-
-  // ── Horde ────────────────────────────────────────────────────────────────
   durotar: {
     id: 'durotar',
     name: 'Durotar',
-    description: 'A harsh red desert where every Horde recruit proves their worth.',
-    faction: 'horde',
+    description: 'A harsh red desert where every wanderer proves their worth.',
     minLevel: 1,
     maxLevel: 10,
   },
@@ -84,7 +71,6 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'barrens',
     name: 'The Barrens',
     description: 'Vast golden savanna crossed by caravans, quilboar, and roaming centaur.',
-    faction: 'horde',
     minLevel: 10,
     maxLevel: 25,
   },
@@ -92,7 +78,6 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     id: 'thousand_needles',
     name: 'Thousand Needles',
     description: 'A canyon of towering mesas held by the Grimtotem and Galak ogres.',
-    faction: 'horde',
     minLevel: 25,
     maxLevel: 40,
   },
@@ -101,7 +86,6 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     name: 'Felwood',
     description:
       'A once-emerald forest rotted by fel corruption, prowled by Shadow Council satyrs and tainted furbolgs.',
-    faction: 'horde',
     minLevel: 40,
     maxLevel: 60,
   },
@@ -118,7 +102,7 @@ export function isZoneUnlocked(zone: ZoneId, level: number): boolean {
   return level >= ZONES[zone].minLevel;
 }
 
-/** Zóny dané frakce (kosmetické dělení). */
-export function zonesForFaction(faction: Faction): ZoneDef[] {
-  return ZONE_IDS.map((id) => ZONES[id]).filter((z) => z.faction === faction);
+/** Všechny zóny seřazené podle minLevel (neutrální leveling track). */
+export function allZones(): ZoneDef[] {
+  return ZONE_IDS.map((id) => ZONES[id]).sort((a, b) => a.minLevel - b.minLevel);
 }

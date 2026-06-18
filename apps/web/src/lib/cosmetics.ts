@@ -12,17 +12,6 @@
  */
 import { CLASSES, RACES, type Role } from '@game/shared';
 
-export type FactionId = 'alliance' | 'horde';
-
-export const FACTION_COLOR: Record<FactionId, string> = {
-  alliance: 'var(--alliance)',
-  horde: 'var(--horde)',
-};
-
-export function factionLabel(faction: string): string {
-  return faction === 'horde' ? 'Horde' : 'Alliance';
-}
-
 /** Class emblem (placeholder, dokud nepřijde pixel art) — sjednocené napříč UI. */
 export const CLASS_EMBLEM: Record<string, string> = {
   barbarian: '🪓',
@@ -83,7 +72,6 @@ export interface AvatarLook {
   gradient: string;
   initial: string;
   emblem: string;
-  faction: FactionId;
 }
 
 /**
@@ -96,7 +84,6 @@ export const SHOWCASE_PORTRAITS: Record<string, string> = {
 };
 
 export function avatarLook(name: string, race: string, klass: string): AvatarLook {
-  const faction = (RACES[race as keyof typeof RACES]?.faction ?? 'alliance') as FactionId;
   const hue = hashHue(name + race);
   const c2 = CLASS_COLOR[klass] ?? 'var(--gold)';
   const gradient = `linear-gradient(150deg, hsl(${hue} 45% 28%), hsl(${(hue + 40) % 360} 38% 16%))`;
@@ -107,7 +94,6 @@ export function avatarLook(name: string, race: string, klass: string): AvatarLoo
     gradient: `${gradient}, ${c2}`,
     initial: (name[0] ?? '?').toUpperCase(),
     emblem: CLASS_EMBLEM[klass] ?? '🛡️',
-    faction,
   };
 }
 

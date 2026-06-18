@@ -50,7 +50,7 @@ describe('M9 flow: guild', () => {
   async function player(name: string): Promise<{ accountId: string; id: string; name: string }> {
     const tokens = await auth.register(`g_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name, race: 'half_orc', class: 'fighter' });
     return { accountId, id: char.id, name: char.name };
   }
 

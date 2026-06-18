@@ -5,7 +5,7 @@ Stav: implementováno v M1. Zdroj pravdy pro data i vzorce: `packages/shared`.
 ## Datový model (Postgres / Drizzle — `apps/api/src/db/schema.ts`)
 
 - **accounts**: `id` (uuid), `username` (unique), `email?`, `password_hash`, `created_at`.
-- **characters**: `id` (uuid), `account_id` (fk→accounts, cascade), `name` (unique), `race`, `class`, `faction`, `total_xp` (default 0), `created_at`.
+- **characters**: `id` (uuid), `account_id` (fk→accounts, cascade), `name` (unique), `race`, `class`, `total_xp` (default 0), `created_at`. _(MR deWoWčení: sloupec `faction` odstraněn — migrace `0038`.)_
 
 Perzistuje se jen minimum (rasa, classa, totalXp). Level a staty se **dopočítávají** deterministicky ze `shared` → žádná denormalizace, konzistence FE/BE.
 

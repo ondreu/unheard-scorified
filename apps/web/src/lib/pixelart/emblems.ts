@@ -1,11 +1,11 @@
 /**
- * Procedurální pixel-art emblémy (M14): class crest, frakční znak, role ikona.
+ * Procedurální pixel-art emblémy (M14): class crest, role ikona.
  * Deterministické geometrické glyfy kreslené v kódu (žádné PNG, žádná náhoda) —
- * nahrazují emoji v `cosmetics.ts`. Čistě kosmetické.
+ * nahrazují emoji v `cosmetics.ts`. Čistě kosmetické. (Frakční znak odstraněn
+ * v MR deWoWčení.)
  *
  * Glyfy se kreslí na malý čtverec (dim ~ 16) a CSS se upscaluje (pixel-art look).
  */
-import type { Faction } from '@game/shared';
 import { Painter, shade, type RGB } from './core';
 
 /** Barva glyfu per class (vanilla-style akcenty). */
@@ -124,31 +124,6 @@ export function drawClassEmblem(p: Painter, classId: string): void {
     }
     default:
       p.disc(m, m, D * 0.28, c);
-  }
-}
-
-const FACTION_GLYPH: Record<Faction, { base: RGB; accent: RGB }> = {
-  alliance: { base: 0x2f6ad0, accent: 0xf0c860 },
-  horde: { base: 0xc0392b, accent: 0x1a1a1a },
-};
-
-/** Vykreslí frakční znak (štít s akcentem). */
-export function drawFactionEmblem(p: Painter, faction: Faction): void {
-  const D = p.dim;
-  const { base, accent } = FACTION_GLYPH[faction] ?? FACTION_GLYPH.alliance;
-  const m = D / 2;
-  // Štít: obdélník nahoře + špička dole.
-  p.rect(D * 0.2, D * 0.14, D * 0.6, D * 0.46, base);
-  p.triangle(D * 0.2, D * 0.58, D * 0.8, D * 0.58, m, D * 0.9, base);
-  if (faction === 'alliance') {
-    // Svislý zlatý pruh + příčka (heraldický kříž).
-    p.rect(m - 1, D * 0.18, 2, D * 0.56, accent);
-    p.rect(D * 0.3, D * 0.3, D * 0.4, 2, accent);
-  } else {
-    // Horda: úhlový dráp/znak.
-    p.line(D * 0.34, D * 0.26, D * 0.66, D * 0.5, accent);
-    p.line(D * 0.66, D * 0.5, D * 0.4, D * 0.7, accent);
-    p.line(D * 0.34, D * 0.26, D * 0.42, D * 0.34, accent);
   }
 }
 

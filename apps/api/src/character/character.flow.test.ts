@@ -60,10 +60,9 @@ describe('M1 flow: účet + postava', () => {
     const accountId = await registerAndGetId('carol');
     const char = await characters.create(accountId, {
       name: 'Thrall',
-      race: 'orc',
+      race: 'half_orc',
       class: 'druid',
     });
-    expect(char.faction).toBe('horde');
     expect(char.sheet.level).toBe(1);
     expect(char.sheet.derived.resource.type).toBe('mana');
 
@@ -78,7 +77,7 @@ describe('M1 flow: účet + postava', () => {
     const accountId = await registerAndGetId('mr3');
     const char = await characters.create(accountId, {
       name: 'Bjorn',
-      race: 'orc',
+      race: 'half_orc',
       class: 'barbarian',
       background: 'soldier',
       abilityScores: {
@@ -89,9 +88,9 @@ describe('M1 flow: účet + postava', () => {
     });
     expect(char.background).toBe('soldier');
     expect(char.backstory).toBe('Sworn to the warsong.');
-    // STR 15 (array) + orc +3 = 18 → modifier +4.
-    expect(char.sheet.primary.strength).toBe(18);
-    expect(char.sheet.derived.modifiers.strength).toBe(4);
+    // STR 15 (array) + half-orc +2 = 17 → modifier +3.
+    expect(char.sheet.primary.strength).toBe(17);
+    expect(char.sheet.derived.modifiers.strength).toBe(3);
   });
 
   it('MR-3: odmítne nevalidní standard array', async () => {
@@ -134,7 +133,7 @@ describe('M1 flow: účet + postava', () => {
     const owner = await registerAndGetId('grace');
     const char = await characters.create(owner, {
       name: 'Garrosh',
-      race: 'orc',
+      race: 'half_orc',
       class: 'fighter',
     });
 

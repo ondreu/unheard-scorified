@@ -34,7 +34,6 @@ import type {
   ActivityType,
   DuelSide,
   ChatChannel,
-  Faction,
   FactionId,
   FriendRequestStatus,
   GroupMemberStatus,
@@ -86,7 +85,6 @@ export const characters = pgTable('characters', {
   // spotřebuje, Long Rest při claimu/návratu dobije (reset na {}). Available =
   // max (z třídy/levelu, viz @game/shared) − spent.
   spentSpellSlots: jsonb('spent_spell_slots').$type<SpellSlots>().notNull().default({}),
-  faction: varchar('faction', { length: 16 }).$type<Faction>().notNull(),
   totalXp: integer('total_xp').notNull().default(0),
   gold: integer('gold').notNull().default(0),
   // Kosmeticky zvolený („active") mount (M10+). Power je odvozený z vlastněných

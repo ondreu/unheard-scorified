@@ -359,13 +359,6 @@ h3,
   user-select: none;
 }
 
-.frame-alliance {
-  border-color: var(--alliance);
-}
-
-.frame-horde {
-  border-color: var(--horde);
-}
 
 /* ── Modal / overlay ────────────────────────────────────────────────────── */
 

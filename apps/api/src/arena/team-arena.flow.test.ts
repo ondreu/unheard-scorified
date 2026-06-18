@@ -62,7 +62,7 @@ describe('M9 flow: team arena (launchForGroup)', () => {
   async function player(name: string): Promise<Character> {
     const tokens = await auth.register(`ta_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name, race: 'half_orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 10_000_000, 0); // nad ARENA_MIN_LEVEL
     return (await charRepo.findById(char.id))!;
   }

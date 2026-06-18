@@ -17,7 +17,6 @@
     type BackgroundId,
   } from '@game/shared';
   import { createCharacter } from '$lib/api';
-  import { factionLabel } from '$lib/cosmetics';
   import Avatar from '$lib/components/Avatar.svelte';
   import PixelEmblem from '$lib/components/PixelEmblem.svelte';
 
@@ -84,9 +83,11 @@
   <a href="/characters" class="text-sm text-[var(--gold)] hover:underline">← Back to characters</a>
 
   <div class="mt-4 mb-6 text-center">
-    <div class="flex justify-center" aria-hidden="true">
-      <PixelEmblem kind="faction" id={RACES[race].faction} size={48} dim={24} />
-    </div>
+    {#if klass}
+      <div class="flex justify-center" aria-hidden="true">
+        <PixelEmblem kind="class" id={klass} size={48} dim={24} />
+      </div>
+    {/if}
     <h1 class="mt-2 font-display text-3xl font-bold text-[var(--gold-bright)]">Create your hero</h1>
     <p class="mt-1 text-sm text-[var(--text-dim)]">Choose a race, a class and a name to begin.</p>
   </div>
@@ -120,9 +121,27 @@
           >
             <Avatar name={RACES[r].name} race={r} klass={klass ?? 'warrior'} size={40} showEmblem={false} />
             <span class="block text-sm">{RACES[r].name}</span>
-            <span class="block text-xs text-[var(--text-faint)]">{factionLabel(RACES[r].faction)}</span>
           </button>
         {/each}
+      </div>
+
+      <!-- Race detail: popis, ability bonusy a rasové schopnosti zvolené rasy. -->
+      <div class="card mt-2 !block !p-3 text-left">
+        <p class="text-sm text-[var(--text-dim)]">{RACES[race].description}</p>
+        <p class="mt-2 text-xs">
+          <span class="text-[var(--text-faint)]">Ability bonuses:</span>
+          {#each ABILITY_SCORES.filter((a) => RACES[race].statMods[a] !== 0) as a (a)}
+            <span class="ml-1 text-[var(--gold)]">+{RACES[race].statMods[a]} {ABILITY_ABBREV[a]}</span>
+          {/each}
+        </p>
+        <ul class="mt-2 space-y-1">
+          {#each RACES[race].traits as t (t.name)}
+            <li class="text-xs">
+              <span class="font-semibold text-[var(--gold-bright)]">{t.name}</span>
+              <span class="text-[var(--text-dim)]"> — {t.description}</span>
+            </li>
+          {/each}
+        </ul>
       </div>
     </div>
 
