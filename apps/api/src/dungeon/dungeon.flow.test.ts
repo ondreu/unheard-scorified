@@ -110,7 +110,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
     const list = await dungeons.listDungeons(low.accountId, low.id);
     const rfc = list.find((d) => d.id === 'ragefire_chasm');
     expect(rfc?.unlocked).toBe(false);
-    expect(rfc?.bossName).toBe('Taragaman the Hungerer');
+    expect(rfc?.bossName).toBe('Tarrakal the Hungerer');
     expect(rfc?.sizes).toEqual([1, 3, 5]);
 
     const high = await strongCharacter('d2', 'Bigboss');

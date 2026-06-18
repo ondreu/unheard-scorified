@@ -6,8 +6,8 @@
  * rozhodnutí PM). Party se skládá jen z reálných hráčů (NPC backfill odebrán).
  * Loot tabulky žijí v `loot.ts` (`RAID_LOOT_TABLES`).
  *
- * Raidy jsou PVE neutrální (obě frakce vidí stejnou sadu); attunement questline
- * je per-frakce (paralelní questy se stejným efektem — frakce kosmetická).
+ * Raidy jsou PVE neutrální (frakce odstraněny v MR); attunement questline je
+ * sdílený. Lore názvy jsou homebrew (setting „The Caldmoor Reaches").
  */
 import { SeededRng } from '../rng';
 import { buildEnemyActor, wipeRewardMultiplier, type CombatActor, type EnemyStats } from '../combat';
@@ -61,101 +61,101 @@ function boss(
 }
 
 export const RAIDS: Record<string, RaidDef> = {
-  // ── Molten Core (tier 1 raid, ~lvl 40) ──────────────────────────────────────
+  // ── Cinderforge Depths (tier 1 raid, ~lvl 40) ──────────────────────────────────────
   molten_core: {
     id: 'molten_core',
-    name: 'Molten Core',
-    description: 'The molten heart of Blackrock Mountain, where Ragnaros the Firelord smolders in his throne.',
+    name: 'Cinderforge Depths',
+    description: 'The molten heart of Cinderpeak, where Ignaroth the Flamelord smolders in his throne.',
     attunement: { requiredLevel: 40, questAnyOf: ['dw_morbent_fel', 'tn_galak_ogres'] },
     sizes: [5, 10, 20],
     baseXp: 9000,
     baseGold: 300,
     goldVariance: 0.2,
     bosses: [
-      boss('mc_lucifron', 'Lucifron', 4200, 44, 2.4, { armor: 80 }),
-      boss('mc_magmadar', 'Magmadar', 5200, 50, 2.6, {
+      boss('mc_lucifron', 'Pyrothul', 4200, 44, 2.4, { armor: 80 }),
+      boss('mc_magmadar', 'Cindermaw', 5200, 50, 2.6, {
         armor: 90,
         abilities: [{ name: 'Lava Breath', cooldownSec: 12, damageMult: 2.2 }],
       }),
-      boss('mc_ragnaros', 'Ragnaros the Firelord', 7800, 60, 2.5, {
+      boss('mc_ragnaros', 'Ignaroth the Flamelord', 7800, 60, 2.5, {
         armor: 120,
-        abilities: [{ name: 'Wrath of Ragnaros', cooldownSec: 14, damageMult: 2.6 }],
+        abilities: [{ name: 'Wrath of Ignaroth', cooldownSec: 14, damageMult: 2.6 }],
       }),
     ],
   },
 
-  // ── Blackwing Lair (tier 2 raid, ~lvl 55) ───────────────────────────────────
+  // ── Drakefell Spire (tier 2 raid, ~lvl 55) ───────────────────────────────────
   blackwing_lair: {
     id: 'blackwing_lair',
-    name: 'Blackwing Lair',
-    description: 'Nefarian\'s dread fortress atop Blackrock Spire, home to his twisted chromatic experiments.',
+    name: 'Drakefell Spire',
+    description: 'Nefarius\'s dread fortress atop Cinderpeak Spire, home to his twisted prismatic experiments.',
     attunement: { requiredLevel: 55, questAnyOf: ['al_drakefire_attunement', 'ho_drakefire_attunement'] },
     sizes: [10, 20],
     baseXp: 18000,
     baseGold: 520,
     goldVariance: 0.2,
     bosses: [
-      boss('bwl_razorgore', 'Razorgore the Untamed', 7200, 64, 2.4, { armor: 120 }),
-      boss('bwl_vaelastrasz', 'Vaelastrasz the Corrupt', 9000, 72, 2.5, {
+      boss('bwl_razorgore', 'Razorwing the Untamed', 7200, 64, 2.4, { armor: 120 }),
+      boss('bwl_vaelastrasz', 'Vaelorin the Corrupt', 9000, 72, 2.5, {
         armor: 130,
         abilities: [{ name: 'Flame Breath', cooldownSec: 12, damageMult: 2.4 }],
       }),
-      boss('bwl_nefarian', 'Nefarian', 12500, 84, 2.4, {
+      boss('bwl_nefarian', 'Nefarius', 12500, 84, 2.4, {
         armor: 160,
         abilities: [{ name: 'Shadow Flame', cooldownSec: 13, damageMult: 2.8 }],
       }),
     ],
   },
 
-  // ── Zul'Gurub (tier 1.5 raid, ~lvl 50, M12) ─────────────────────────────────
-  // Progresní most mezi Molten Core (40) a Blackwing Lair (55): troll-říše
-  // Gurubashi a krvavý bůh Hakkar.
+  // ── Zargubai (tier 1.5 raid, ~lvl 50, M12) ─────────────────────────────────
+  // Progresní most mezi Cinderforge Depths (40) a Drakefell Spire (55): troll-říše
+  // Gurubai a krvavý bůh Hazkar.
   zulgurub: {
     id: 'zulgurub',
-    name: "Zul'Gurub",
+    name: "Zargubai",
     description:
-      'The ruined jungle city of the Gurubashi trolls, where the priests of Hakkar the Soulflayer bleed the living to call their blood god into the world.',
+      'The ruined jungle city of the Gurubai trolls, where the priests of Hazkar the Soulflayer bleed the living to call their blood god into the world.',
     attunement: { requiredLevel: 50, questAnyOf: ['al_paragons_of_power', 'ho_paragons_of_power'] },
     sizes: [10, 20],
     baseXp: 13500,
     baseGold: 430,
     goldVariance: 0.2,
     bosses: [
-      boss('zg_venoxis', 'High Priest Venoxis', 6000, 54, 2.4, { armor: 100 }),
-      boss('zg_mandokir', 'Bloodlord Mandokir', 7600, 62, 2.5, {
+      boss('zg_venoxis', 'High Priest Venox', 6000, 54, 2.4, { armor: 100 }),
+      boss('zg_mandokir', 'Bloodlord Mandok', 7600, 62, 2.5, {
         armor: 110,
         abilities: [{ name: 'Bloodletting', cooldownSec: 12, damageMult: 2.3 }],
       }),
-      boss('zg_hakkar', 'Hakkar the Soulflayer', 10800, 76, 2.4, {
+      boss('zg_hakkar', 'Hazkar the Soulflayer', 10800, 76, 2.4, {
         armor: 140,
         abilities: [{ name: 'Blood Siphon', cooldownSec: 13, damageMult: 2.6 }],
       }),
     ],
   },
 
-  // ── Temple of Ahn'Qiraj (tier 3 raid, ~lvl 58, M12) ─────────────────────────
-  // Nový top-end nad Blackwing Lair: silithidí úl pod pouští a spící Prastarý bůh
-  // C'Thun.
+  // ── Hollow Temple of Ankhareth (tier 3 raid, ~lvl 58, M12) ─────────────────────────
+  // Nový top-end nad Drakefell Spire: chitin-spawní úl pod pouští a spící Prastarý bůh
+  // Xathun.
   ahnqiraj: {
     id: 'ahnqiraj',
-    name: "Temple of Ahn'Qiraj",
+    name: "Hollow Temple of Ankhareth",
     description:
-      'Beneath the silithid hive of Ahn\'Qiraj coils C\'Thun, an Old God dreaming of devouring the world. The Qiraji legions stand between you and its slumbering eye.',
+      'Beneath the chitin-spawn hive of Ankhareth coils Xathun, an Elder Horror dreaming of devouring the world. The Khareth legions stand between you and its slumbering eye.',
     attunement: { requiredLevel: 58, questAnyOf: ['al_scepter_of_the_sands', 'ho_scepter_of_the_sands'] },
     sizes: [10, 20],
     baseXp: 22000,
     baseGold: 640,
     goldVariance: 0.2,
     bosses: [
-      boss('aq_skeram', 'The Prophet Skeram', 13500, 90, 2.4, {
+      boss('aq_skeram', 'The Prophet Shakram', 13500, 90, 2.4, {
         armor: 150,
         abilities: [{ name: 'Arcane Explosion', cooldownSec: 12, damageMult: 2.5 }],
       }),
-      boss('aq_sartura', 'Battleguard Sartura', 15500, 98, 2.2, {
+      boss('aq_sartura', 'Warden Sartha', 15500, 98, 2.2, {
         armor: 160,
         abilities: [{ name: 'Whirlwind', cooldownSec: 11, damageMult: 2.4 }],
       }),
-      boss('aq_cthun', "C'Thun", 21000, 112, 2.4, {
+      boss('aq_cthun', "Xathun", 21000, 112, 2.4, {
         armor: 180,
         abilities: [{ name: 'Eye Beam', cooldownSec: 13, damageMult: 2.9 }],
       }),

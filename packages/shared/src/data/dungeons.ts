@@ -5,8 +5,9 @@
  *
  * Dungeon = sekvence nepřátel (`EnemyDef`: trash + boss) + odměny + odkaz na
  * boss loot tabulku (`DUNGEON_LOOT_TABLES` v `loot.ts`). Dungeony jsou PVE
- * neutrální (obě frakce vidí stejnou sadu), gated `requiredLevel` (content
- * gating, viz ADR 0008). Combat z `combat.ts` z nich postaví `CombatActor`y.
+ * neutrální (frakce odstraněny v MR), gated `requiredLevel` (content gating,
+ * viz ADR 0008). Lore názvy jsou homebrew. Combat z `combat.ts` z nich postaví
+ * `CombatActor`y.
  */
 import type { EnemyStats } from '../combat';
 
@@ -17,7 +18,7 @@ export interface EnemyDef extends EnemyStats {
 
 /**
  * Attunement dungeonu (M9): kromě levelu vyžaduje dokončený questline. `questAnyOf`
- * = stačí JEDEN z uvedených questů (typicky paralelní Alliance/Horde varianty).
+ * = stačí JEDEN z uvedených questů (typicky paralelní Coalition/Warband varianty).
  * Chybí ⇒ dungeon gated jen levelem (jako dosud). Mirroruje `RaidAttunement`.
  */
 export interface DungeonAttunement {
@@ -64,30 +65,30 @@ function enemy(
 }
 
 export const DUNGEONS: Record<string, DungeonDef> = {
-  // ── Ragefire Chasm (8–13) ──────────────────────────────────────────────────
+  // ── Emberfire Chasm (8–13) ──────────────────────────────────────────────────
   ragefire_chasm: {
     id: 'ragefire_chasm',
-    name: 'Ragefire Chasm',
-    description: 'A volcanic warren beneath Orgrimmar crawling with Searing Blade cultists.',
+    name: 'Emberfire Chasm',
+    description: 'A volcanic warren beneath Karngar crawling with Ember Cult cultists.',
     requiredLevel: 8,
-    // Attunement (M9): vyžaduje dokončený startovní questline (Alliance/Horde paralelně).
+    // Attunement (M9): vyžaduje dokončený startovní questline (Coalition/Warband paralelně).
     attunement: { questAnyOf: ['al_ragefire_attunement', 'ho_ragefire_attunement'] },
     recommendedLevel: 13,
     baseXp: 320,
     baseGold: 25,
     goldVariance: 0.25,
     encounters: [
-      enemy('rfc_cultist', 'Searing Blade Cultist', 110, 9, 2.6),
+      enemy('rfc_cultist', 'Ember Cultist', 110, 9, 2.6),
       enemy('rfc_warlock', 'Earthborer Warlock', 130, 11, 2.8),
-      enemy('rfc_taragaman', 'Taragaman the Hungerer', 280, 14, 2.4, { armor: 40, isBoss: true }),
+      enemy('rfc_taragaman', 'Tarrakal the Hungerer', 280, 14, 2.4, { armor: 40, isBoss: true }),
     ],
   },
 
-  // ── The Deadmines (15–20) ──────────────────────────────────────────────────
+  // ── The Drowned Mines (15–20) ──────────────────────────────────────────────────
   deadmines: {
     id: 'deadmines',
-    name: 'The Deadmines',
-    description: 'The Defias Brotherhood\'s hidden goblin shipyard carved into the Westfall cliffs.',
+    name: 'The Drowned Mines',
+    description: 'The Ashen Hand\'s hidden goblin shipyard carved into the Harrowfield cliffs.',
     requiredLevel: 15,
     attunement: { questAnyOf: ['al_dm_attune_2', 'ho_dm_attune_2'] },
     recommendedLevel: 20,
@@ -95,18 +96,18 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 45,
     goldVariance: 0.25,
     encounters: [
-      enemy('dm_miner', 'Defias Overseer', 200, 14, 2.5),
-      enemy('dm_evoker', 'Defias Evoker', 230, 17, 2.7),
-      enemy('dm_rhahkzor', 'Rhahk\'Zor', 380, 20, 2.4, { armor: 60 }),
-      enemy('dm_vancleef', 'Edwin VanCleef', 560, 24, 2.3, { armor: 80, isBoss: true }),
+      enemy('dm_miner', 'Ashen Hand Overseer', 200, 14, 2.5),
+      enemy('dm_evoker', 'Ashen Hand Evoker', 230, 17, 2.7),
+      enemy('dm_rhahkzor', 'Rahkzor', 380, 20, 2.4, { armor: 60 }),
+      enemy('dm_vancleef', 'Edmund Vance', 560, 24, 2.3, { armor: 80, isBoss: true }),
     ],
   },
 
-  // ── Wailing Caverns (17–24, M12) ────────────────────────────────────────────
+  // ── Wailing Hollows (17–24, M12) ────────────────────────────────────────────
   wailing_caverns: {
     id: 'wailing_caverns',
-    name: 'Wailing Caverns',
-    description: 'A humid network of vine-choked tunnels beneath the Barrens, where the druid Naralex dreams a nightmare into the world.',
+    name: 'Wailing Hollows',
+    description: 'A humid network of vine-choked tunnels beneath the Goldgrass Plains, where the druid Naralen dreams a nightmare into the world.',
     requiredLevel: 17,
     attunement: { questAnyOf: ['al_wc_attune_2', 'ho_wc_attune_2'] },
     recommendedLevel: 24,
@@ -115,17 +116,17 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     goldVariance: 0.25,
     encounters: [
       enemy('wc_adder', 'Deviate Adder', 250, 16, 2.5),
-      enemy('wc_druid', 'Druid of the Fang', 280, 19, 2.6),
+      enemy('wc_druid', 'Fang Warden', 280, 19, 2.6),
       enemy('wc_serpent', 'Deviate Ravager', 360, 22, 2.4, { armor: 40 }),
-      enemy('wc_mutanus', 'Mutanus the Devourer', 640, 27, 2.3, { armor: 60, isBoss: true }),
+      enemy('wc_mutanus', 'Mutanis the Devourer', 640, 27, 2.3, { armor: 60, isBoss: true }),
     ],
   },
 
-  // ── Shadowfang Keep (20–26) ────────────────────────────────────────────────
+  // ── Shadowmaw Keep (20–26) ────────────────────────────────────────────────
   shadowfang_keep: {
     id: 'shadowfang_keep',
-    name: 'Shadowfang Keep',
-    description: 'A cursed fortress where Archmage Arugal\'s worgen prowl the moonlit halls.',
+    name: 'Shadowmaw Keep',
+    description: 'A cursed fortress where Archmage Argol\'s lycan prowl the moonlit halls.',
     requiredLevel: 20,
     attunement: { questAnyOf: ['al_sfk_attune_2', 'ho_sfk_attune_2'] },
     recommendedLevel: 26,
@@ -133,18 +134,18 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 70,
     goldVariance: 0.2,
     encounters: [
-      enemy('sfk_worgen', 'Shadowfang Moonwalker', 300, 20, 2.5),
+      enemy('sfk_worgen', 'Shadowmaw Moonwalker', 300, 20, 2.5),
       enemy('sfk_ghost', 'Tormented Officer', 340, 23, 2.6),
-      enemy('sfk_fenrus', 'Fenrus the Devourer', 520, 27, 2.2, { armor: 70 }),
-      enemy('sfk_arugal', 'Archmage Arugal', 720, 30, 2.4, { armor: 60, isBoss: true }),
+      enemy('sfk_fenrus', 'Fenris the Devourer', 520, 27, 2.2, { armor: 70 }),
+      enemy('sfk_arugal', 'Archmage Argol', 720, 30, 2.4, { armor: 60, isBoss: true }),
     ],
   },
 
-  // ── Blackfathom Deeps (24–29, M12) ──────────────────────────────────────────
+  // ── Drownfathom Deeps (24–29, M12) ──────────────────────────────────────────
   blackfathom_deeps: {
     id: 'blackfathom_deeps',
-    name: 'Blackfathom Deeps',
-    description: 'A sunken temple of the moon goddess off the Ashenvale coast, now a flooded lair where naga and the Twilight\'s Hammer rouse the beast Aku\'mai.',
+    name: 'Drownfathom Deeps',
+    description: 'A sunken temple of the moon goddess off the Greywood coast, now a flooded lair where naga and the Duskhammer rouse the beast Akhumai.',
     requiredLevel: 24,
     attunement: { questAnyOf: ['al_bfd_attune_2', 'ho_bfd_attune_2'] },
     recommendedLevel: 29,
@@ -152,18 +153,18 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 95,
     goldVariance: 0.2,
     encounters: [
-      enemy('bfd_acolyte', 'Twilight Acolyte', 380, 25, 2.5),
-      enemy('bfd_naga', 'Aku\'mai Servant', 420, 28, 2.6),
-      enemy('bfd_priestess', 'Twilight Priestess', 560, 31, 2.4, { armor: 50 }),
-      enemy('bfd_akumai', 'Aku\'mai', 880, 35, 2.3, { armor: 70, isBoss: true }),
+      enemy('bfd_acolyte', 'Dusk Acolyte', 380, 25, 2.5),
+      enemy('bfd_naga', 'Akhumai Servant', 420, 28, 2.6),
+      enemy('bfd_priestess', 'Dusk Priestess', 560, 31, 2.4, { armor: 50 }),
+      enemy('bfd_akumai', 'Akhumai', 880, 35, 2.3, { armor: 70, isBoss: true }),
     ],
   },
 
-  // ── Scarlet Monastery (30–38) ──────────────────────────────────────────────
+  // ── Crimson Cloister (30–38) ──────────────────────────────────────────────
   scarlet_monastery: {
     id: 'scarlet_monastery',
-    name: 'Scarlet Monastery',
-    description: 'The fanatical Scarlet Crusade\'s stronghold, led by the zealot Herod and High Inquisitor Whitemane.',
+    name: 'Crimson Cloister',
+    description: 'The fanatical Crimson Tribunal\'s stronghold, led by the zealot Herrod and High Inquisitor Palevane.',
     requiredLevel: 30,
     attunement: { questAnyOf: ['al_sm_attune_2', 'ho_sm_attune_2'] },
     recommendedLevel: 38,
@@ -172,18 +173,18 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     goldVariance: 0.2,
     weeklyLockout: true,
     encounters: [
-      enemy('sm_zealot', 'Scarlet Zealot', 460, 30, 2.5),
-      enemy('sm_monk', 'Scarlet Monk', 500, 33, 2.6),
-      enemy('sm_herod', 'Herod the Champion', 820, 38, 2.2, { armor: 90 }),
-      enemy('sm_whitemane', 'High Inquisitor Whitemane', 1050, 42, 2.4, { armor: 70, isBoss: true }),
+      enemy('sm_zealot', 'Crimson Zealot', 460, 30, 2.5),
+      enemy('sm_monk', 'Crimson Monk', 500, 33, 2.6),
+      enemy('sm_herod', 'Herrod the Champion', 820, 38, 2.2, { armor: 90 }),
+      enemy('sm_whitemane', 'High Inquisitor Palevane', 1050, 42, 2.4, { armor: 70, isBoss: true }),
     ],
   },
 
-  // ── Zul'Farrak (42–47, M12) ─────────────────────────────────────────────────
+  // ── Zarfarai (42–47, M12) ─────────────────────────────────────────────────
   zulfarrak: {
     id: 'zulfarrak',
-    name: "Zul'Farrak",
-    description: 'A Sandfury troll city baking in the Tanaris desert, where blood rituals call a serpent god from the sacred pool.',
+    name: "Zarfarai",
+    description: 'A Dunescale troll city baking in the Sunscar desert, where blood rituals call a serpent god from the sacred pool.',
     requiredLevel: 42,
     attunement: { questAnyOf: ['al_zf_attunement', 'ho_zf_attunement'] },
     recommendedLevel: 47,
@@ -191,18 +192,18 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 200,
     goldVariance: 0.2,
     encounters: [
-      enemy('zf_axethrower', 'Sandfury Axe Thrower', 560, 44, 2.5),
-      enemy('zf_hoodoo', 'Sandfury Hoodoo Priest', 600, 47, 2.6),
-      enemy('zf_gahzrilla', "Gahz'rilla", 980, 52, 2.3, { armor: 80 }),
-      enemy('zf_ukorz', 'Chief Ukorz Sandscalp', 1300, 56, 2.4, { armor: 90, isBoss: true }),
+      enemy('zf_axethrower', 'Dunescale Axe Thrower', 560, 44, 2.5),
+      enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 600, 47, 2.6),
+      enemy('zf_gahzrilla', "Gazrilla", 980, 52, 2.3, { armor: 80 }),
+      enemy('zf_ukorz', 'Chief Ukor Dunescalp', 1300, 56, 2.4, { armor: 90, isBoss: true }),
     ],
   },
 
-  // ── Maraudon (46–52, M12) ───────────────────────────────────────────────────
+  // ── Maradoth (46–52, M12) ───────────────────────────────────────────────────
   maraudon: {
     id: 'maraudon',
-    name: 'Maraudon',
-    description: 'A crystalline cavern poisoned by the union of an earth elemental and the demigod Zaetar, ruled now by their daughter Princess Theradras.',
+    name: 'Maradoth',
+    description: 'A crystalline cavern poisoned by the union of an earth elemental and the demigod Zaethar, ruled now by their daughter Princess Theradris.',
     requiredLevel: 46,
     attunement: { questAnyOf: ['al_mar_attunement', 'ho_mar_attunement'] },
     recommendedLevel: 52,
@@ -213,15 +214,15 @@ export const DUNGEONS: Record<string, DungeonDef> = {
       enemy('mar_noxxion', 'Noxxion Spawn', 700, 50, 2.5),
       enemy('mar_treant', 'Corrupted Treant', 760, 54, 2.6),
       enemy('mar_landslide', 'Landslide', 1150, 58, 2.3, { armor: 100 }),
-      enemy('mar_theradras', 'Princess Theradras', 1600, 62, 2.4, { armor: 90, isBoss: true }),
+      enemy('mar_theradras', 'Princess Theradris', 1600, 62, 2.4, { armor: 90, isBoss: true }),
     ],
   },
 
-  // ── Blackrock Depths (52–58, M12) ───────────────────────────────────────────
+  // ── Cinderdeep Halls (52–58, M12) ───────────────────────────────────────────
   blackrock_depths: {
     id: 'blackrock_depths',
-    name: 'Blackrock Depths',
-    description: 'The vast Dark Iron dwarf city deep in the mountain, where Emperor Dagran Thaurissan rules over forge, arena, and prison.',
+    name: 'Cinderdeep Halls',
+    description: 'The vast Cinderforge dwarf city deep in the mountain, where Emperor Dagran Embermane rules over forge, arena, and prison.',
     requiredLevel: 52,
     attunement: { questAnyOf: ['al_brd_attunement', 'ho_brd_attunement'] },
     recommendedLevel: 58,
@@ -231,20 +232,20 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     weeklyLockout: true,
     encounters: [
       enemy('brd_guard', 'Anvilrage Guardsman', 900, 60, 2.5, { armor: 80 }),
-      enemy('brd_geologist', 'Dark Iron Geologist', 950, 64, 2.6),
-      enemy('brd_angerforge', 'General Angerforge', 1500, 70, 2.3, { armor: 110 }),
-      enemy('brd_thaurissan', 'Emperor Dagran Thaurissan', 2100, 74, 2.4, { armor: 120, isBoss: true }),
+      enemy('brd_geologist', 'Cinderforge Geologist', 950, 64, 2.6),
+      enemy('brd_angerforge', 'General Emberforge', 1500, 70, 2.3, { armor: 110 }),
+      enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2100, 74, 2.4, { armor: 120, isBoss: true }),
     ],
   },
 
-  // ── Stratholme (58–60, M12) ─────────────────────────────────────────────────
+  // ── Pyrehold (58–60, M12) ─────────────────────────────────────────────────
   stratholme: {
     id: 'stratholme',
-    name: 'Stratholme',
-    description: 'The plagued city of Lordaeron, half claimed by the Scarlet Crusade and half by the Scourge under the dreadlord-served Baron Rivendare.',
+    name: 'Pyrehold',
+    description: 'The plagued city of Caldmoor, half claimed by the Crimson Tribunal and half by the Pale Legion under the dreadlord-served Baron Ravendere.',
     requiredLevel: 58,
     // Attunement (M12): capstone dungeon gated vlastní questline navazující na
-    // frontier zóny (Eastern Plaguelands / Felwood).
+    // frontier zóny (Blighted Marches / Witherwood).
     attunement: { questAnyOf: ['al_culling_stratholme', 'ho_culling_stratholme'] },
     recommendedLevel: 60,
     baseXp: 14500,
@@ -255,7 +256,7 @@ export const DUNGEONS: Record<string, DungeonDef> = {
       enemy('strat_zombie', 'Plagued Zombie', 1100, 72, 2.5),
       enemy('strat_cryptfiend', 'Crypt Fiend', 1180, 76, 2.6, { armor: 70 }),
       enemy('strat_ramstein', 'Ramstein the Gorger', 1900, 82, 2.3, { armor: 120 }),
-      enemy('strat_baron', 'Baron Rivendare', 2600, 88, 2.4, { armor: 130, isBoss: true }),
+      enemy('strat_baron', 'Baron Ravendere', 2600, 88, 2.4, { armor: 130, isBoss: true }),
     ],
   },
 };
