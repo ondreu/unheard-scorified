@@ -4,19 +4,16 @@
    * Procedurální PixiJS scénka (`PixiScene`) + tmavnoucí overlay kvůli čitelnosti
    * textu + titulek/podtitulek. Čistě kosmetické, žádná herní logika.
    */
-  import type { Faction } from '@game/shared';
   import PixiScene from '$lib/components/PixiScene.svelte';
 
   let {
     sceneId,
-    faction = 'alliance',
     title,
     subtitle = '',
     height = 150,
     children,
   }: {
     sceneId: string;
-    faction?: Faction;
     title: string;
     subtitle?: string;
     height?: number;
@@ -25,7 +22,7 @@
 </script>
 
 <div class="scene-banner" style={`height:${height}px`}>
-  <PixiScene {sceneId} {faction} {height} />
+  <PixiScene {sceneId} {height} />
   <div class="scene-overlay"></div>
   <div class="scene-text">
     <h1 class="scene-title">{title}</h1>

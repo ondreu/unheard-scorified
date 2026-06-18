@@ -13,7 +13,7 @@
    */
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
-  import { SeededRng, seedFromString, type Faction } from '@game/shared';
+  import { SeededRng, seedFromString } from '@game/shared';
   import type * as Pixi from 'pixi.js';
   import {
     themeForScene,
@@ -24,17 +24,15 @@
 
   let {
     sceneId,
-    faction = 'alliance',
     height = 160,
     class: klass = '',
   }: {
     sceneId: string;
-    faction?: Faction;
     height?: number;
     class?: string;
   } = $props();
 
-  const theme = $derived(themeForScene(sceneId, faction));
+  const theme = $derived(themeForScene(sceneId));
   const cssBg = $derived(sceneCssGradient(theme));
 
   // Interní (nízké) rozlišení → CSS upscale = pixel-art look.

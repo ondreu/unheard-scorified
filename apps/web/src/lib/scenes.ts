@@ -11,7 +11,6 @@
  * scenérie místo plochého CSS placeholderu. Determinismus zajistí `SeededRng`
  * seedovaný z id scény (stejná scéna = vždy stejný obraz).
  */
-import type { Faction } from '@game/shared';
 
 /** Nebeské těleso ve scéně. */
 export type Celestial = 'sun' | 'moon' | 'none';
@@ -413,30 +412,21 @@ export const SCENE_THEMES: Record<string, SceneTheme> = {
   },
 };
 
-/** Fallback scéna dle frakce (kosmetické), když id není v katalogu. */
-const FALLBACK: Record<Faction, SceneTheme> = {
-  alliance: SCENE_THEMES.northshire as SceneTheme,
-  horde: SCENE_THEMES.durotar as SceneTheme,
-};
+/** Neutrální fallback scéna, když id není v katalogu. */
+const FALLBACK_SCENE = SCENE_THEMES.northshire as SceneTheme;
 
 /**
- * Vrátí téma scény pro dané id (zóna/dungeon/raid). Neznámé id → fallback dle
- * frakce (default alliance). Frakce je jen kosmetická volba fallbacku.
+ * Vrátí téma scény pro dané id (zóna/dungeon/raid). Neznámé id → neutrální
+ * fallback (frakce odstraněny v MR deWoWčení).
  */
-export function themeForScene(
-  id: string | null | undefined,
-  faction: Faction = 'alliance',
-): SceneTheme {
+export function themeForScene(id: string | null | undefined): SceneTheme {
   if (id && SCENE_THEMES[id]) return SCENE_THEMES[id] as SceneTheme;
-  return FALLBACK[faction] ?? (SCENE_THEMES.northshire as SceneTheme);
+  return FALLBACK_SCENE;
 }
 
 /** Akcentová barva scény (glow → nebeské těleso → zlatá) pro hover efekty. */
-export function sceneAccentColor(
-  id: string | null | undefined,
-  faction: Faction = 'alliance',
-): number {
-  const t = themeForScene(id, faction);
+export function sceneAccentColor(id: string | null | undefined): number {
+  const t = themeForScene(id);
   return t.glow ?? (t.celestial !== 'none' ? t.celestialColor : 0xf0c870);
 }
 

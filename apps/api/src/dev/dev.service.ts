@@ -13,7 +13,6 @@ import {
   MOUNT_LIST,
   PROFESSIONS,
   QUESTS,
-  questFaction,
   reputationTier,
   totalXpForLevel,
   MAX_LEVEL,
@@ -65,7 +64,6 @@ export interface DevCharacterInspect {
   name: string;
   race: string;
   class: string;
-  faction: string;
   level: number;
   totalXp: number;
   gold: number;
@@ -210,12 +208,11 @@ export class DevService {
     return Object.values(PROFESSIONS).map((p) => ({ id: p.id, name: p.name }));
   }
 
-  listQuests(): { id: string; name: string; zone: string; faction: string }[] {
+  listQuests(): { id: string; name: string; zone: string }[] {
     return Object.values(QUESTS).map((q) => ({
       id: q.id,
       name: q.name,
       zone: q.zoneId,
-      faction: questFaction(q),
     }));
   }
 
@@ -366,7 +363,6 @@ export class DevService {
       name: char.name,
       race: char.race,
       class: char.class,
-      faction: char.faction,
       level: sheet.level,
       totalXp: char.totalXp,
       gold: char.gold,

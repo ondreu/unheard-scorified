@@ -63,7 +63,6 @@ describe('M1 flow: účet + postava', () => {
       race: 'orc',
       class: 'druid',
     });
-    expect(char.faction).toBe('horde');
     expect(char.sheet.level).toBe(1);
     expect(char.sheet.derived.resource.type).toBe('mana');
 

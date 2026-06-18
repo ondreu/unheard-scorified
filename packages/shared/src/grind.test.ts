@@ -18,18 +18,16 @@ function makeProfile(level: number): CombatActor {
 }
 
 describe('questingZoneForLevel', () => {
-  it('vybere zónu frakce dle levelu (a jen své frakce)', () => {
-    expect(questingZoneForLevel('alliance', 1)).toBe('northshire');
-    expect(questingZoneForLevel('alliance', 30)).toBe('duskwood');
-    expect(questingZoneForLevel('alliance', 55)).toBe('eastern_plaguelands');
-    expect(questingZoneForLevel('horde', 5)).toBe('durotar');
-    expect(questingZoneForLevel('horde', 20)).toBe('barrens');
-    expect(questingZoneForLevel('horde', 50)).toBe('felwood');
+  it('vybere zónu dle levelu (neutrální track, první v pořadí pro bracket)', () => {
+    expect(questingZoneForLevel(1)).toBe('northshire');
+    expect(questingZoneForLevel(5)).toBe('northshire');
+    expect(questingZoneForLevel(20)).toBe('westfall');
+    expect(questingZoneForLevel(30)).toBe('duskwood');
+    expect(questingZoneForLevel(55)).toBe('eastern_plaguelands');
   });
 
-  it('level nad rozsah → nejvyšší zóna frakce', () => {
-    expect(questingZoneForLevel('alliance', 60)).toBe('eastern_plaguelands');
-    expect(questingZoneForLevel('horde', 60)).toBe('felwood');
+  it('level nad rozsah → nejvyšší odemčená zóna', () => {
+    expect(questingZoneForLevel(60)).toBe('eastern_plaguelands');
   });
 });
 

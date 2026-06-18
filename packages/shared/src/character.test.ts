@@ -3,7 +3,6 @@ import {
   baseStatsFor,
   buildCharacterSheet,
   deriveStats,
-  factionOf,
   isValidCharacterName,
   isValidRaceClass,
 } from './character';
@@ -23,13 +22,6 @@ describe('isValidRaceClass', () => {
         expect(CLASSES[klass]).toBeDefined();
       }
     }
-  });
-});
-
-describe('factionOf', () => {
-  it('mapuje rasu na frakci', () => {
-    expect(factionOf('human')).toBe('alliance');
-    expect(factionOf('orc')).toBe('horde');
   });
 });
 
@@ -65,7 +57,6 @@ describe('buildCharacterSheet', () => {
   it('0 XP = level 1 a konzistentní sheet', () => {
     const sheet = buildCharacterSheet('orc', 'druid', 0);
     expect(sheet.level).toBe(1);
-    expect(sheet.faction).toBe('horde');
     expect(sheet.derived.health).toBeGreaterThan(0);
   });
 });

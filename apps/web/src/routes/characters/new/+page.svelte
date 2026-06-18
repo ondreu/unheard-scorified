@@ -17,7 +17,6 @@
     type BackgroundId,
   } from '@game/shared';
   import { createCharacter } from '$lib/api';
-  import { factionLabel } from '$lib/cosmetics';
   import Avatar from '$lib/components/Avatar.svelte';
   import PixelEmblem from '$lib/components/PixelEmblem.svelte';
 
@@ -84,9 +83,11 @@
   <a href="/characters" class="text-sm text-[var(--gold)] hover:underline">← Back to characters</a>
 
   <div class="mt-4 mb-6 text-center">
-    <div class="flex justify-center" aria-hidden="true">
-      <PixelEmblem kind="faction" id={RACES[race].faction} size={48} dim={24} />
-    </div>
+    {#if klass}
+      <div class="flex justify-center" aria-hidden="true">
+        <PixelEmblem kind="class" id={klass} size={48} dim={24} />
+      </div>
+    {/if}
     <h1 class="mt-2 font-display text-3xl font-bold text-[var(--gold-bright)]">Create your hero</h1>
     <p class="mt-1 text-sm text-[var(--text-dim)]">Choose a race, a class and a name to begin.</p>
   </div>
@@ -120,7 +121,6 @@
           >
             <Avatar name={RACES[r].name} race={r} klass={klass ?? 'warrior'} size={40} showEmblem={false} />
             <span class="block text-sm">{RACES[r].name}</span>
-            <span class="block text-xs text-[var(--text-faint)]">{factionLabel(RACES[r].faction)}</span>
           </button>
         {/each}
       </div>

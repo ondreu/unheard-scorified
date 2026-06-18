@@ -18,13 +18,11 @@
     type ClaimResult,
     type GroupState,
   } from '$lib/api';
-  import { RACES, CLASSES, ITEMS, type Faction } from '@game/shared';
+  import { RACES, CLASSES, ITEMS } from '@game/shared';
   import {
     CLASS_COLOR,
-    FACTION_COLOR,
     ROLE_META,
     RARITY_COLOR,
-    factionLabel,
   } from '$lib/cosmetics';
   import { openProfile } from '$lib/ui-stores';
   import { QUICK_ACTIONS } from '$lib/nav';
@@ -218,13 +216,7 @@
     <!-- Character panel -->
     <section class="panel panel-pad lg:col-span-2">
       <div class="flex items-start gap-4">
-        <PortraitShowcase
-          name={c.name}
-          race={c.race}
-          klass={c.class}
-          faction={(c.faction === 'horde' ? 'horde' : 'alliance') as Faction}
-          size={96}
-        />
+        <PortraitShowcase name={c.name} race={c.race} klass={c.class} size={96} />
         <div class="min-w-0 flex-1">
           <h1 class="truncate text-2xl font-bold text-[var(--gold-bright)]">{c.name}</h1>
           <p class="mt-0.5 text-sm text-[var(--text-dim)]">
@@ -234,9 +226,6 @@
             >
           </p>
           <div class="mt-2 flex flex-wrap gap-1.5">
-            <Badge color={FACTION_COLOR[c.faction as 'alliance' | 'horde'] ?? 'var(--gold)'}>
-              {factionLabel(c.faction)}
-            </Badge>
             <Badge color="var(--gold-bright)" icon="💰">{c.gold} {ui.gold}</Badge>
           </div>
         </div>

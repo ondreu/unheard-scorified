@@ -1,12 +1,12 @@
 /**
  * Procedurální pixel-art portréty (M14). Deterministicky vykreslí bystu hrdiny
- * podle rasy (silueta/kůže/uši/rohy/kly), classy (barva brnění) a frakce (tón
- * pozadí). Čistě kosmetické — žádná herní logika, žádné staty.
+ * podle rasy (silueta/kůže/uši/rohy/kly) a classy (barva brnění). Pozadí je
+ * neutrální tmavý gradient deterministicky odvozený ze seedu (frakce odstraněny
+ * v MR deWoWčení). Čistě kosmetické — žádná herní logika, žádné staty.
  *
  * Katalogy `RACE_LOOK` / `CLASS_LOOK` jsou jediný zdroj pravdy vzhledu; přidání
  * varianty = úprava dat, ne rendereru.
  */
-import type { Faction } from '@game/shared';
 import { Painter, SeededRng, mix, seedFromString, shade, type RGB } from './core';
 
 interface RaceLook {
@@ -145,10 +145,13 @@ export const CLASS_LOOK: Record<string, ClassLook> = {
   wizard: { armor: 0x3a3a8a, trim: 0x9a7ad0 },
 };
 
-const FACTION_BG: Record<Faction, [RGB, RGB]> = {
-  alliance: [0x223a5a, 0x0e1626],
-  horde: [0x4a1a1a, 0x180c0c],
-};
+/** Neutrální tmavé gradienty pozadí (deterministický výběr ze seedu). */
+const BG_VARIANTS: [RGB, RGB][] = [
+  [0x223a5a, 0x0e1626], // chladná modrá
+  [0x2a2a42, 0x10101e], // indigo
+  [0x1f3a32, 0x0c1814], // tmavě zelená
+  [0x3a2a42, 0x180c1e], // fialová
+];
 
 function pick<T>(arr: T[], rng: SeededRng): T {
   return arr[rng.int(0, arr.length - 1)] as T;
@@ -159,15 +162,19 @@ function pick<T>(arr: T[], rng: SeededRng): T {
  */
 export function drawPortrait(
   p: Painter,
-  opts: { race: string; klass: string; faction: Faction; seedKey: string },
+  opts: { race: string; klass: string; seedKey: string },
 ): void {
   const D = p.dim;
   const race = RACE_LOOK[opts.race] ?? (RACE_LOOK.human as RaceLook);
   const klass = CLASS_LOOK[opts.klass] ?? (CLASS_LOOK.fighter as ClassLook);
   const rng = new SeededRng(seedFromString(`${opts.seedKey}:${opts.race}:${opts.klass}`));
 
-  // 1) Pozadí (frakční vinětový gradient).
-  const [bgTop, bgBot] = FACTION_BG[opts.faction];
+  // 1) Pozadí (neutrální vinětový gradient). Vybráno z odděleného seedu, ať
+  //    výběr neposune RNG sekvenci rysů portrétu.
+  const [bgTop, bgBot] = pick(
+    BG_VARIANTS,
+    new SeededRng(seedFromString(`bg:${opts.seedKey}:${opts.race}`)),
+  );
   for (let y = 0; y < D; y++) {
     p.rect(0, y, D, 1, mix(bgTop, bgBot, y / D));
   }

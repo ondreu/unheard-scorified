@@ -10,7 +10,6 @@ import {
   levelFromXp,
   MAX_FRIENDS,
   type ClassId,
-  type Faction,
   type RaceId,
 } from '@game/shared';
 import { Inject } from '@nestjs/common';
@@ -27,7 +26,6 @@ export interface FriendView {
   level: number;
   race: RaceId;
   class: ClassId;
-  faction: Faction;
   /** Je přítel právě online (otevřená appka / aktivní WS)? */
   online: boolean;
   /** Kdy přátelství vzniklo (ISO). */
@@ -43,7 +41,6 @@ export interface FriendRequestView {
   level: number;
   race: RaceId;
   class: ClassId;
-  faction: Faction;
   sentAt: string;
 }
 
@@ -113,7 +110,6 @@ export class SocialService {
         level: levelFromXp(other.totalXp),
         race: other.race,
         class: other.class,
-        faction: other.faction,
         online: false,
         since: (f.respondedAt ?? f.createdAt).toISOString(),
       });
@@ -139,7 +135,6 @@ export class SocialService {
         level: levelFromXp(other.totalXp),
         race: other.race,
         class: other.class,
-        faction: other.faction,
         sentAt: f.createdAt.toISOString(),
       };
     };

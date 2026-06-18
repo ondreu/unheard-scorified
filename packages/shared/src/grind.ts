@@ -12,8 +12,7 @@
  * Odměny řeší `activity.ts → computeGrindReward` (jediný zdroj pravdy balancu).
  */
 import type { CombatActor } from './combat';
-import { ZONES, zonesForFaction, type ZoneId } from './data/zones';
-import type { Faction } from './data/races';
+import { ZONES, allZones, type ZoneId } from './data/zones';
 import { questFoeStats, simulateQuestEncounter, type QuestRunResult } from './quest-run';
 import type { QuestEnemyTier } from './data/quests';
 import { SeededRng } from './rng';
@@ -22,13 +21,15 @@ import { SeededRng } from './rng';
 const STEP_GAP_SEC = 2;
 
 /**
- * Auto-odvození zóny pro questing z levelu postavy a frakce (hráč zónu nevolí —
- * level flexuje s ním). Vybere zónu dané frakce, do jejíhož rozsahu level spadá;
- * jinak nejvyšší odemčenou (level ≥ minLevel). Zóna určuje loot bracket + flavor
+ * Auto-odvození zóny pro questing z levelu postavy (hráč zónu nevolí — level
+ * flexuje s ním). Vybere zónu, do jejíhož rozsahu level spadá; jinak nejvyšší
+ * odemčenou (level ≥ minLevel). Zóny jsou neutrální a brackety se překrývají
+ * (dvě zóny na bracket) → deterministicky se bere první v pořadí `allZones`
+ * (seřazeno dle minLevel, pak dle ZONE_IDS). Zóna určuje loot bracket + flavor
  * nepřátele; level pro odměny zůstává surový (`params.level`).
  */
-export function questingZoneForLevel(faction: Faction, level: number): ZoneId {
-  const zones = zonesForFaction(faction).sort((a, b) => a.minLevel - b.minLevel);
+export function questingZoneForLevel(level: number): ZoneId {
+  const zones = allZones();
   let pick = zones[0]!;
   for (const z of zones) {
     if (level >= z.minLevel) pick = z; // nejvyšší odemčená
@@ -43,12 +44,10 @@ export function questingZoneForLevel(faction: Faction, level: number): ZoneId {
  * (content), ať `zones.ts` zůstane čistá definice zón.
  */
 export const GRIND_FOES: Record<ZoneId, string[]> = {
-  // Alliance
   northshire: ['Kobold Tunneler', 'Defias Thug', 'Timber Wolf', 'Riverpaw Gnoll'],
   westfall: ['Defias Bandit', 'Harvest Golem', 'Coastal Murloc', 'Riverpaw Brute'],
   duskwood: ['Nightbane Worgen', 'Skeletal Raider', 'Black Widow', 'Restless Dead'],
   eastern_plaguelands: ['Plagued Ghoul', 'Scarlet Zealot', 'Carrion Vulture', 'Diseased Bear'],
-  // Horde
   durotar: ['Valley Scorpid', 'Burning Blade Cultist', 'Razormane Boar', 'Mottled Raptor'],
   barrens: ['Bristleback Quilboar', 'Savannah Lion', 'Kolkar Centaur', 'Plainstrider'],
   thousand_needles: ['Grimtotem Brave', 'Galak Ogre', 'Screeching Harpy', 'Salt Flat Lizard'],

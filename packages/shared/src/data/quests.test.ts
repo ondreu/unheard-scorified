@@ -32,19 +32,15 @@ describe('katalog questů — integrita', () => {
 
 describe('isQuestAvailable', () => {
   it('gate na requiredLevel', () => {
-    expect(isQuestAvailable(QUESTS.ns_brotherhood_intel!, 3, [], 'alliance')).toBe(false);
+    expect(isQuestAvailable(QUESTS.ns_brotherhood_intel!, 3, [])).toBe(false);
     // má prerekvizitu, takže ani na správném levelu bez ní nepustí
-    expect(isQuestAvailable(QUESTS.ns_brotherhood_intel!, 4, [], 'alliance')).toBe(false);
-    expect(
-      isQuestAvailable(QUESTS.ns_brotherhood_intel!, 4, ['ns_kobold_culling'], 'alliance'),
-    ).toBe(true);
+    expect(isQuestAvailable(QUESTS.ns_brotherhood_intel!, 4, [])).toBe(false);
+    expect(isQuestAvailable(QUESTS.ns_brotherhood_intel!, 4, ['ns_kobold_culling'])).toBe(true);
   });
 
   it('story quest po dokončení už není dostupný', () => {
-    expect(isQuestAvailable(QUESTS.ns_kobold_culling!, 1, [], 'alliance')).toBe(true);
-    expect(isQuestAvailable(QUESTS.ns_kobold_culling!, 1, ['ns_kobold_culling'], 'alliance')).toBe(
-      false,
-    );
+    expect(isQuestAvailable(QUESTS.ns_kobold_culling!, 1, [])).toBe(true);
+    expect(isQuestAvailable(QUESTS.ns_kobold_culling!, 1, ['ns_kobold_culling'])).toBe(false);
   });
 
   it('repeatable je dostupný i opakovaně (engine, dormantní data)', () => {
@@ -62,52 +58,41 @@ describe('isQuestAvailable', () => {
       baseGold: 1,
       goldVariance: 0,
     };
-    expect(isQuestAvailable(rep, 1, ['rep_synthetic'], 'alliance')).toBe(true);
+    expect(isQuestAvailable(rep, 1, ['rep_synthetic'])).toBe(true);
   });
 
-  it('quest patří jen své frakci (kosmetické dělení)', () => {
-    // Alliance quest není dostupný hordě a naopak.
-    expect(isQuestAvailable(QUESTS.ns_kobold_culling!, 1, [], 'horde')).toBe(false);
-    expect(isQuestAvailable(QUESTS.dt_scorpid_sting!, 1, [], 'alliance')).toBe(false);
-    expect(isQuestAvailable(QUESTS.dt_scorpid_sting!, 1, [], 'horde')).toBe(true);
+  it('frakce odstraněny — questy z obou dřívějších sad jsou dostupné', () => {
+    // Po deWoWčení vidí každá postava všechny questline (gating jen levelem/prereqy).
+    expect(isQuestAvailable(QUESTS.ns_kobold_culling!, 1, [])).toBe(true);
+    expect(isQuestAvailable(QUESTS.dt_scorpid_sting!, 1, [])).toBe(true);
   });
 });
 
 describe('availableQuests', () => {
-  it('alliance lvl 1: jen northshire úvodní story quest', () => {
-    const ids = availableQuests(1, [], 'alliance').map((q) => q.id);
+  it('lvl 1: obě úvodní story questy z dřívějších frakcí, žádné gated', () => {
+    const ids = availableQuests(1, []).map((q) => q.id);
     expect(ids).toContain('ns_kobold_culling');
+    expect(ids).toContain('dt_scorpid_sting'); // dříve horde, teď taky dostupné
     expect(ids).not.toContain('ns_brotherhood_intel'); // chybí prerekvizita
     expect(ids).not.toContain('wf_defias_raid'); // moc nízký level
   });
 
-  it('horde lvl 1: jen durotar úvodní story quest, žádné alliance', () => {
-    const ids = availableQuests(1, [], 'horde').map((q) => q.id);
-    expect(ids).toContain('dt_scorpid_sting');
-    expect(ids.every((id) => !id.startsWith('ns_'))).toBe(true);
-  });
-
-  it('frakce vidí jen své zóny napříč levely', () => {
-    const allianceZones = new Set(availableQuests(60, [], 'alliance').map((q) => q.zoneId));
-    const hordeZones = new Set(availableQuests(60, [], 'horde').map((q) => q.zoneId));
-    for (const z of allianceZones)
-      expect(['northshire', 'westfall', 'duskwood', 'eastern_plaguelands']).toContain(z);
-    for (const z of hordeZones)
-      expect(['durotar', 'barrens', 'thousand_needles', 'felwood']).toContain(z);
+  it('na lvl 60 jsou dostupné zóny z celého neutrálního tracku', () => {
+    const zones = new Set(availableQuests(60, []).map((q) => q.zoneId));
+    for (const z of zones) expect(ZONE_IDS).toContain(z);
+    // viditelné questy z obou dřívějších paralelních sad (např. northshire i durotar bracket)
+    expect(zones.has('northshire')).toBe(true);
+    expect(zones.has('durotar')).toBe(true);
   });
 
   it('řadí podle requiredLevel vzestupně', () => {
-    const levels = availableQuests(
-      40,
-      [
-        'ns_kobold_culling',
-        'ns_brotherhood_intel',
-        'wf_defias_raid',
-        'wf_harvest_watchers',
-        'dw_nightbane',
-      ],
-      'alliance',
-    ).map((q) => q.requiredLevel);
+    const levels = availableQuests(40, [
+      'ns_kobold_culling',
+      'ns_brotherhood_intel',
+      'wf_defias_raid',
+      'wf_harvest_watchers',
+      'dw_nightbane',
+    ]).map((q) => q.requiredLevel);
     const sorted = [...levels].sort((a, b) => a - b);
     expect(levels).toEqual(sorted);
   });
@@ -137,14 +122,12 @@ describe('M12 — 40–60 frontier zóny (Eastern Plaguelands / Felwood)', () =>
 
   it('frontier story chain je gated předchozí zónou a levelem 40', () => {
     // Bez dokončené předchozí zóny ani na správném levelu nepustí.
-    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, [], 'alliance')).toBe(false);
-    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_shadow_of_tyrol'], 'alliance')).toBe(true);
-    expect(isQuestAvailable(QUESTS.fw_cenarion_aid!, 40, ['tn_highperch_aerie'], 'horde')).toBe(true);
-    // a patří jen své frakci
-    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_shadow_of_tyrol'], 'horde')).toBe(false);
+    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, [])).toBe(false);
+    expect(isQuestAvailable(QUESTS.epl_argent_dawn!, 40, ['dw_shadow_of_tyrol'])).toBe(true);
+    expect(isQuestAvailable(QUESTS.fw_cenarion_aid!, 40, ['tn_highperch_aerie'])).toBe(true);
   });
 
-  it('frontier zóny jsou paralelní (stejné levely/odměny napříč frakcemi)', () => {
+  it('frontier zóny jsou paralelní (stejné levely/odměny — sdílený track)', () => {
     const pairs: [string, string][] = [
       ['epl_argent_dawn', 'fw_cenarion_aid'],
       ['epl_scarlet_crusade', 'fw_shadow_council'],

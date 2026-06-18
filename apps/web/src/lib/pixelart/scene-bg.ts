@@ -11,7 +11,6 @@
  * Čistě kosmetické (ROADMAP: cosmetic odděleno od statů), bez `Math.random`
  * (variace přes `SeededRng` seedovaný id scény).
  */
-import type { Faction } from '@game/shared';
 import { SCENE_THEMES, themeForScene, type PropKind, type SceneTheme } from '$lib/scenes';
 import { Painter, SeededRng, seedFromString, mix, shade } from './core';
 
@@ -145,12 +144,12 @@ export function drawSceneThumb(
 const urlCache = new Map<string, string>();
 
 /** Vrátí (a nacachuje) data-URL miniatury scény pro dané id. Vyžaduje DOM. */
-export function sceneCardUrl(id: string | null | undefined, faction: Faction = 'alliance'): string {
-  // Známé id sdílí cache pod id; neznámé id sdílí fallback per frakce.
-  const key = id && id in SCENE_THEMES ? id : `__${faction}`;
+export function sceneCardUrl(id: string | null | undefined): string {
+  // Známé id sdílí cache pod id; neznámé id sdílí neutrální fallback.
+  const key = id && id in SCENE_THEMES ? id : '__fallback';
   const hit = urlCache.get(key);
   if (hit) return hit;
-  const theme = themeForScene(id, faction);
+  const theme = themeForScene(id);
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -165,12 +164,9 @@ export function sceneCardUrl(id: string | null | undefined, faction: Faction = '
 
 /**
  * CSS pro `.scene-card`: nastaví `--scene-bg` na data-URL scény. Volej jen v
- * prohlížeči (vyžaduje DOM). Prázdné id → fallback dle frakce.
+ * prohlížeči (vyžaduje DOM). Prázdné id → neutrální fallback.
  */
-export function sceneCardStyle(
-  id: string | null | undefined,
-  faction: Faction = 'alliance',
-): string {
-  const url = sceneCardUrl(id, faction);
+export function sceneCardStyle(id: string | null | undefined): string {
+  const url = sceneCardUrl(id);
   return url ? `--scene-bg:url("${url}")` : '';
 }

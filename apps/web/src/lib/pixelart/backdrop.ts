@@ -1,8 +1,8 @@
 /**
  * Jemné, dlaždicovatelné procedurální pozadí celé appky (M14 increment 4).
  *
- * Vykreslí malou **opakovatelnou** texturu (rozptýlené tečky + drobné jiskry)
- * laděnou dle frakce, nacachuje jako data-URL a aplikuje přes CSS proměnnou
+ * Vykreslí malou **opakovatelnou** texturu (rozptýlené tečky + drobné jiskry),
+ * nacachuje jako data-URL a aplikuje přes CSS proměnnou
  * `--backdrop` (viz `.app-backdrop` v app.css). Velmi nízký kontrast → jen
  * oživí jinak plochou plochu za panely; bez animace (respektuje
  * `prefers-reduced-motion` triviálně, protože je statická).
@@ -11,22 +11,18 @@
  * hrany), takže textura navazuje beze švů. Deterministické (`SeededRng`),
  * čistě kosmetické.
  */
-import type { Faction } from '@game/shared';
 import { Painter, SeededRng, seedFromString, type RGB } from './core';
 
 const T = 64;
 
-/** Odstín tečkování dle frakce (kosmetické). */
-const TINT: Record<Faction, RGB> = {
-  alliance: 0x6ea8e0,
-  horde: 0xe07a5a,
-};
+/** Neutrální odstín tečkování (kosmetické; frakce odstraněny v MR deWoWčení). */
+const TINT: RGB = 0x8a9ec0;
 
 /** Vykreslí jednu dlaždici pozadí na 2D kontext (T×T, průhledné pozadí). */
-export function drawBackdropTile(ctx: CanvasRenderingContext2D, faction: Faction): void {
+export function drawBackdropTile(ctx: CanvasRenderingContext2D): void {
   const p = new Painter(ctx, T);
-  const rng = new SeededRng(seedFromString(`backdrop:${faction}`));
-  const tint = TINT[faction] ?? TINT.alliance;
+  const rng = new SeededRng(seedFromString('backdrop:neutral'));
+  const tint = TINT;
 
   // Rozptýlené slabé tečky.
   for (let i = 0; i < 70; i++) {
@@ -49,26 +45,25 @@ export function drawBackdropTile(ctx: CanvasRenderingContext2D, faction: Faction
   }
 }
 
-const urlCache = new Map<string, string>();
+let urlCache: string | null = null;
 
-/** Vrátí (a nacachuje) data-URL dlaždice pozadí pro frakci. Vyžaduje DOM. */
-export function backdropDataUrl(faction: Faction = 'alliance'): string {
-  const hit = urlCache.get(faction);
-  if (hit) return hit;
+/** Vrátí (a nacachuje) data-URL dlaždice pozadí. Vyžaduje DOM. */
+export function backdropDataUrl(): string {
+  if (urlCache !== null) return urlCache;
   const canvas = document.createElement('canvas');
   canvas.width = T;
   canvas.height = T;
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
   ctx.imageSmoothingEnabled = false;
-  drawBackdropTile(ctx, faction);
+  drawBackdropTile(ctx);
   const url = canvas.toDataURL();
-  urlCache.set(faction, url);
+  urlCache = url;
   return url;
 }
 
 /** CSS pro `.app-backdrop`: nastaví `--backdrop`. Volej jen v prohlížeči. */
-export function backdropStyle(faction: Faction = 'alliance'): string {
-  const url = backdropDataUrl(faction);
+export function backdropStyle(): string {
+  const url = backdropDataUrl();
   return url ? `--backdrop:url("${url}")` : '';
 }

@@ -1,6 +1,9 @@
 /**
- * Definice vanilla-style ras. Frakce je zatím jen kosmetická (atribut rasy),
- * ne herní dělení — viz docs/adr/0003. Statická data = jediný zdroj pravdy.
+ * Definice ras. Statická data = jediný zdroj pravdy.
+ *
+ * MR (deWoWčení): frakce (Alliance/Horda) odstraněny — hra je homebrew D&D
+ * setting bez frakčního dělení. Sada ras je zatím ještě WoW-flavored (narovná se
+ * na 9 PHB ras v navazujícím přírůstku); tady mizí jen frakce.
  */
 import type { AbilityScores } from '../character';
 import { CLASS_IDS, type ClassId } from './classes';
@@ -15,12 +18,9 @@ export type RaceId =
   | 'troll'
   | 'undead';
 
-export type Faction = 'alliance' | 'horde';
-
 export interface RaceDef {
   id: RaceId;
   name: string;
-  faction: Faction;
   /** Modifikátory k baseline atributů (viz character.ts). */
   statMods: AbilityScores;
   /**
@@ -38,56 +38,48 @@ export const RACES: Record<RaceId, RaceDef> = {
   human: {
     id: 'human',
     name: 'Human',
-    faction: 'alliance',
     statMods: { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 1, charisma: 1 },
     allowedClasses: ALL_CLASSES,
   },
   dwarf: {
     id: 'dwarf',
     name: 'Dwarf',
-    faction: 'alliance',
     statMods: { strength: 2, dexterity: -1, constitution: 1, intelligence: -1, wisdom: -1, charisma: 0 },
     allowedClasses: ALL_CLASSES,
   },
   nightelf: {
     id: 'nightelf',
     name: 'Night Elf',
-    faction: 'alliance',
     statMods: { strength: -1, dexterity: 3, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 },
     allowedClasses: ALL_CLASSES,
   },
   gnome: {
     id: 'gnome',
     name: 'Gnome',
-    faction: 'alliance',
     statMods: { strength: -2, dexterity: 1, constitution: -1, intelligence: 3, wisdom: -1, charisma: 0 },
     allowedClasses: ALL_CLASSES,
   },
   orc: {
     id: 'orc',
     name: 'Orc',
-    faction: 'horde',
     statMods: { strength: 3, dexterity: -1, constitution: 1, intelligence: -2, wisdom: 1, charisma: -1 },
     allowedClasses: ALL_CLASSES,
   },
   tauren: {
     id: 'tauren',
     name: 'Tauren',
-    faction: 'horde',
     statMods: { strength: 4, dexterity: -2, constitution: 1, intelligence: -3, wisdom: 1, charisma: -1 },
     allowedClasses: ALL_CLASSES,
   },
   troll: {
     id: 'troll',
     name: 'Troll',
-    faction: 'horde',
     statMods: { strength: 1, dexterity: 2, constitution: 0, intelligence: -2, wisdom: -1, charisma: 0 },
     allowedClasses: ALL_CLASSES,
   },
   undead: {
     id: 'undead',
     name: 'Undead',
-    faction: 'horde',
     statMods: { strength: -1, dexterity: 0, constitution: 0, intelligence: -1, wisdom: 3, charisma: -1 },
     allowedClasses: ALL_CLASSES,
   },

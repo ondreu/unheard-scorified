@@ -33,7 +33,7 @@ export class QuestService {
 
     const level = levelFromXp(character.totalXp);
     const completedIds = await this.completed.completedIds(characterId);
-    return availableQuests(level, completedIds, character.faction).map(toView);
+    return availableQuests(level, completedIds).map(toView);
   }
 }
 
