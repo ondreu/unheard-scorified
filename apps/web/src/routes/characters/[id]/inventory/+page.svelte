@@ -269,10 +269,11 @@
   function statLabel(key: string): string {
     const labels: Record<string, string> = {
       strength: 'Strength',
-      agility: 'Agility',
-      stamina: 'Stamina',
-      intellect: 'Intellect',
-      spirit: 'Spirit',
+      dexterity: 'Dexterity',
+      constitution: 'Constitution',
+      intelligence: 'Intelligence',
+      wisdom: 'Wisdom',
+      charisma: 'Charisma',
       armor: 'Armor',
       attack_power: 'Attack Power',
       spell_power: 'Spell Power',

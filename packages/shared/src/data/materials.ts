@@ -102,9 +102,9 @@ export interface ConsumableBuff {
 }
 
 export const CONSUMABLE_BUFFS: Record<ConsumableId, ConsumableBuff> = {
-  minor_healing_potion: { stats: { stamina: 6 }, durationSec: 600 },
-  healing_potion: { stats: { stamina: 12 }, durationSec: 900 },
-  superior_healing_potion: { stats: { stamina: 20 }, durationSec: 1200 },
+  minor_healing_potion: { stats: { constitution: 6 }, durationSec: 600 },
+  healing_potion: { stats: { constitution: 12 }, durationSec: 900 },
+  superior_healing_potion: { stats: { constitution: 20 }, durationSec: 1200 },
   elixir_of_strength: { stats: { strength: 15 }, durationSec: 1800 },
 };
 

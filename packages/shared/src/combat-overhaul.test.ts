@@ -70,7 +70,7 @@ function profile(klass: Parameters<typeof aggregateTalentEffects>[0], allocation
     level,
     klass,
     primary: baseStatsFor('human', klass, level),
-    equipment: { attack_power: 60, stamina: 60, armor: 100 },
+    equipment: { attack_power: 60, constitution: 60, armor: 100 },
     talents: aggregateTalentEffects(klass, allocations),
   });
 }
@@ -194,7 +194,7 @@ describe('tank mitigation', () => {
       level: 60,
       klass: 'warrior',
       primary: baseStatsFor('human', 'warrior', 60),
-      equipment: { attack_power: 150, strength: 200, stamina: 400, armor: 200 },
+      equipment: { attack_power: 150, strength: 200, constitution: 400, armor: 200 },
       talents: aggregateTalentEffects('warrior', alloc),
     });
     return deriveRaidActor(base, 'tank');
@@ -234,7 +234,7 @@ describe('healer offensive vs defensive rotation modes', () => {
       level: 60,
       klass: 'priest',
       primary: baseStatsFor('human', 'priest', 60),
-      equipment: { spell_power: 150, intellect: 150, stamina: 150 },
+      equipment: { spell_power: 150, intelligence: 150, constitution: 150 },
       talents: aggregateTalentEffects('priest', {}),
     });
     return deriveRaidActor({ ...base, rotation }, 'healer');
@@ -243,7 +243,7 @@ describe('healer offensive vs defensive rotation modes', () => {
     const base = deriveCombatProfile({
       name: 'Tank', level: 60, klass: 'warrior',
       primary: baseStatsFor('human', 'warrior', 60),
-      equipment: { attack_power: 100, stamina: 300, armor: 200 },
+      equipment: { attack_power: 100, constitution: 300, armor: 200 },
       talents: aggregateTalentEffects('warrior', {}),
     });
     return deriveRaidActor(base, 'tank');

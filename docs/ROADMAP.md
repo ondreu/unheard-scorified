@@ -864,7 +864,8 @@ lobby) a M8.5-D (P2P trade) — staví se první.
 
 > Přechod hry od WoW-inspirace na D&D (Dungeons & Dragons 5e) / BG3 styl.
 > Největší architektonický zásah od spuštění projektu. Realizovat inkrementálně.
-> **Před startem MR je nutné rozhodnutí PM o level capu (12/15/20).**
+> **Rozhodnutí PM potvrzeno:** level cap **20**, **homebrew** D&D setting, **PHB** rasy,
+> **1 subclass/třída** v MVP (viz „Otevřená rozhodnutí PM" níže).
 
 #### Rozsah refaktoru
 
@@ -916,12 +917,30 @@ MR-1 (staty STR/DEX/CON/INT/WIS/CHA + AC)
 → MR-11 (level cap + XP křivka dle zvoleného capu)
 ```
 
-#### Otevřená rozhodnutí PM (nutná před nebo v průběhu MR)
+#### Otevřená rozhodnutí PM (nutná před nebo v průběhu MR) — ✅ vyřešeno
 
-- [ ] **Maximální level: 12 / 15 / 20?** — ovlivňuje spell tier progression, XP křivku, subclass count.
-- [ ] **D&D rasy:** PHB only, nebo Tasha's / Mordenkainen's / BG3 extra rasy?
-- [ ] **Subclassy:** kolik per třída v MVP (1 subclass na start, další přidat postupně)?
-- [ ] **Lore setting:** vlastní D&D-universum (homebrew) nebo zasazení do Forgotten Realms (BG3 setting)?
+- [x] **Maximální level: 20** (plný D&D cap, spell tier 1–9, nejvíc progression prostoru).
+- [x] **D&D rasy: PHB only** — Human, Elf, Dwarf, Halfling, Gnome, Half-Elf, Half-Orc, Tiefling, Dragonborn.
+- [x] **Subclassy: 1 per třída v MVP**, další přidávat postupně.
+- [x] **Lore setting: homebrew D&D** — vlastní D&D-neutrální universum (žádné licenční vazby).
+
+#### Postup MR
+
+- [x] **MR-1 — D&D staty (STR/DEX/CON/INT/WIS/CHA + AC)** ✅: WoW-flavored staty
+      (Strength/Agility/Intellect/Spirit/Stamina) nahrazeny 6 D&D atributy s
+      modifikátory (`abilityModifier` = `floor((score-10)/2)`). Přidán `proficiencyBonus`
+      (D&D 5e: `2 + floor((lvl-1)/4)`). Odvozené staty dle D&D: **Armor Class**
+      (10 + DEX mod), saving throw bonusy, **spell save DC** (8 + prof + casting mod),
+      **spell attack bonus**, **initiative** (DEX mod), **attack bonus** (prof + lepší
+      z STR/DEX). Classa má nově `spellcastingAbility` (D&D casting atribut: mage=INT,
+      cleric/druid/ranger=WIS, warlock/paladin=CHA). Vše v `packages/shared`
+      (`character.ts`), propagováno do `races`/`classes`/`items`/`materials`/`talents`/
+      `combat`/gauntlet/web/API. Nový test kontrakt `dnd-stats.test.ts` (+28).
+      Magnitudy skóre zatím zachované (combat balanc = MR-5/MR-10), dice-roll combat
+      = MR-5. Build/test/lint/typecheck zelené (353 shared + 193 API).
+      _Pozn.: rasy/classy zatím WoW sada (8/9) namapovaná na D&D atributy — plný
+      D&D class/race redesign (12 tříd, PHB rasy, subclassy) přijde v MR-2/MR-3/MR-9._
+- [ ] MR-2 — classy (12 D&D tříd) + subclassy (1 per třída v MVP).
 
 ---
 

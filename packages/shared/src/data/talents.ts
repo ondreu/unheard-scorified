@@ -9,12 +9,13 @@
  * Efekty: `statPerRank`/`healthPerRank` (M4) + `combatTags` (M5 engine — pasivní
  * efekt z `COMBAT_TAG_EFFECTS`/`SHIELD_TAGS`, nebo ability z `SIGNATURE_ABILITIES`).
  */
+import type { AbilityScore } from '../character';
 import type { ClassId } from './classes';
 
 /** Efekt talentu — část jsou přímé stat bonusy, část combat tagy pro M5. */
 export interface TalentEffect {
-  /** Flat bonus k primárnímu statu za každý rank. */
-  statPerRank?: Partial<Record<'strength' | 'agility' | 'stamina' | 'intellect' | 'spirit', number>>;
+  /** Flat bonus k atributu za každý rank. */
+  statPerRank?: Partial<Record<AbilityScore, number>>;
   /** Flat bonus k HP za každý rank. */
   healthPerRank?: number;
   /** Combat tagy pro engine v M5 (otevírá schopnosti / modifikuje rotaci). */
@@ -64,7 +65,7 @@ const WARRIOR_TALENTS: ClassTalents = [
     name: 'Arms',
     nodes: [
       n('warrior.arms.weapon_expertise', 'Weapon Expertise', 'Increases weapon damage by 2% per rank.', 0, 5, TAG('weapon_expertise')),
-      n('warrior.arms.tactical_mastery', 'Tactical Mastery', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
+      n('warrior.arms.tactical_mastery', 'Tactical Mastery', 'Increases Stamina by 1 per rank.', 0, 5, STAT('constitution')),
       n('warrior.arms.deflection', 'Deflection', D.crit, 5, 5, TAG('crit_minor')),
       n('warrior.arms.improved_rend', 'Improved Rend', 'Increases bleed damage by 1% per rank.', 10, 3, TAG('improved_rend')),
       n('warrior.arms.poleaxe_specialization', 'Poleaxe Specialization', D.dmg2, 10, 5, TAG('dmg_major')),
@@ -93,9 +94,9 @@ const WARRIOR_TALENTS: ClassTalents = [
     name: 'Protection',
     nodes: [
       n('warrior.prot.toughness', 'Toughness', D.hp, 0, 5, TAG('toughness')),
-      n('warrior.prot.anticipation', 'Anticipation', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
+      n('warrior.prot.anticipation', 'Anticipation', 'Increases Stamina by 1 per rank.', 0, 5, STAT('constitution')),
       n('warrior.prot.shield_specialization', 'Shield Specialization', D.hp, 5, 5, TAG('hp_minor')),
-      n('warrior.prot.vitality', 'Vitality', 'Increases Stamina by 1 per rank.', 10, 5, STAT('stamina')),
+      n('warrior.prot.vitality', 'Vitality', 'Increases Stamina by 1 per rank.', 10, 5, STAT('constitution')),
       n('warrior.prot.last_stand', 'Last Stand', D.shield, 10, 3, TAG('shield_minor')),
       n('warrior.prot.improved_defensive_stance', 'Improved Defensive Stance', D.hp, 15, 5, TAG('hp_minor')),
       n('warrior.prot.shield_slam', 'Shield Slam', 'Slams the enemy with your shield for 150% weapon damage (threat).', 20, 1, TAG('shield_slam')),
@@ -109,14 +110,14 @@ const PALADIN_TALENTS: ClassTalents = [
   {
     name: 'Holy',
     nodes: [
-      n('paladin.holy.divine_intellect', 'Divine Intellect', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
-      n('paladin.holy.spiritual_focus', 'Spiritual Focus', 'Increases Spirit by 1 per rank.', 0, 5, STAT('spirit')),
+      n('paladin.holy.divine_intellect', 'Divine Intellect', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
+      n('paladin.holy.spiritual_focus', 'Spiritual Focus', 'Increases Spirit by 1 per rank.', 0, 5, STAT('wisdom')),
       n('paladin.holy.healing_light', 'Healing Light', D.hp, 5, 5, TAG('hp_minor')),
       n('paladin.holy.illumination', 'Illumination', D.crit, 10, 5, TAG('crit_minor')),
       n('paladin.holy.divine_favor', 'Divine Favor', D.haste, 15, 3, TAG('haste_minor')),
       n('paladin.holy.holy_power', 'Holy Power', D.dmg1, 20, 5, TAG('dmg_minor')),
-      n('paladin.holy.sanctified_light', 'Sanctified Light', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intellect')),
-      n('paladin.holy.lights_grace', "Light's Grace", 'Increases Spirit by 1 per rank.', 25, 2, STAT('spirit')),
+      n('paladin.holy.sanctified_light', 'Sanctified Light', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intelligence')),
+      n('paladin.holy.lights_grace', "Light's Grace", 'Increases Spirit by 1 per rank.', 25, 2, STAT('wisdom')),
       n('paladin.holy.holy_shock', 'Holy Shock', 'Instantly restores 260% of your healing power to a wounded ally.', 28, 1, TAG('holy_shock')),
     ],
   },
@@ -125,9 +126,9 @@ const PALADIN_TALENTS: ClassTalents = [
     name: 'Protection',
     nodes: [
       n('paladin.prot.divinity', 'Divinity', D.hp, 0, 5, TAG('hp_minor')),
-      n('paladin.prot.stoicism', 'Stoicism', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
+      n('paladin.prot.stoicism', 'Stoicism', 'Increases Stamina by 1 per rank.', 0, 5, STAT('constitution')),
       n('paladin.prot.toughness', 'Toughness', D.hp, 5, 5, TAG('toughness')),
-      n('paladin.prot.sacred_duty', 'Sacred Duty', 'Increases Stamina by 1 per rank.', 10, 5, STAT('stamina')),
+      n('paladin.prot.sacred_duty', 'Sacred Duty', 'Increases Stamina by 1 per rank.', 10, 5, STAT('constitution')),
       n('paladin.prot.holy_shield', 'Holy Shield', D.shield, 10, 3, TAG('holy_shield')),
       n('paladin.prot.improved_devotion_aura', 'Improved Devotion Aura', D.hp, 15, 5, TAG('hp_minor')),
       n('paladin.prot.avengers_shield', "Avenger's Shield", 'Hurls a holy shield at the enemy for 180% damage (threat).', 20, 1, TAG('avengers_shield')),
@@ -155,14 +156,14 @@ const HUNTER_TALENTS: ClassTalents = [
   {
     name: 'Beast Mastery',
     nodes: [
-      n('hunter.bm.improved_aspect', 'Improved Aspect of the Hawk', 'Increases Agility by 1 per rank.', 0, 5, STAT('agility')),
-      n('hunter.bm.endurance_training', 'Endurance Training', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
+      n('hunter.bm.improved_aspect', 'Improved Aspect of the Hawk', 'Increases Agility by 1 per rank.', 0, 5, STAT('dexterity')),
+      n('hunter.bm.endurance_training', 'Endurance Training', 'Increases Stamina by 1 per rank.', 0, 5, STAT('constitution')),
       n('hunter.bm.ferocity', 'Ferocity', D.crit, 5, 5, TAG('crit_minor')),
       n('hunter.bm.unleashed_fury', 'Unleashed Fury', D.dmg2, 10, 5, TAG('dmg_major')),
       n('hunter.bm.frenzy', 'Frenzy', D.haste, 15, 3, TAG('haste_minor')),
       n('hunter.bm.spirit_bond', 'Spirit Bond', D.hp, 20, 5, TAG('hp_minor')),
       n('hunter.bm.serpents_swiftness', "Serpent's Swiftness", D.haste, 25, 3, TAG('haste_minor')),
-      n('hunter.bm.animal_handler', 'Animal Handler', 'Increases Agility by 1 per rank.', 25, 2, STAT('agility')),
+      n('hunter.bm.animal_handler', 'Animal Handler', 'Increases Agility by 1 per rank.', 25, 2, STAT('dexterity')),
       n('hunter.bm.bestial_wrath', 'Bestial Wrath', 'Sends your beast into a frenzy for 200% damage.', 28, 1, TAG('bestial_wrath')),
     ],
   },
@@ -170,13 +171,13 @@ const HUNTER_TALENTS: ClassTalents = [
     name: 'Marksmanship',
     nodes: [
       n('hunter.mm.lethal_shots', 'Lethal Shots', D.crit, 0, 5, TAG('lethal_shots')),
-      n('hunter.mm.efficiency', 'Efficiency', 'Increases Agility by 1 per rank.', 0, 5, STAT('agility')),
+      n('hunter.mm.efficiency', 'Efficiency', 'Increases Agility by 1 per rank.', 0, 5, STAT('dexterity')),
       n('hunter.mm.improved_arcane_shot', 'Improved Arcane Shot', D.dmg2, 5, 5, TAG('dmg_major')),
       n('hunter.mm.mortal_shots', 'Mortal Shots', D.crit, 10, 5, TAG('crit_minor')),
       n('hunter.mm.barrage', 'Barrage', D.dmg1, 15, 3, TAG('dmg_minor')),
       n('hunter.mm.ranged_weapon_specialization', 'Ranged Weapon Specialization', D.dmg2, 20, 5, TAG('dmg_major')),
       n('hunter.mm.trueshot_aura', 'Trueshot Aura', D.dmg1, 25, 3, TAG('dmg_minor')),
-      n('hunter.mm.combat_experience', 'Combat Experience', 'Increases Agility by 1 per rank.', 25, 2, STAT('agility')),
+      n('hunter.mm.combat_experience', 'Combat Experience', 'Increases Agility by 1 per rank.', 25, 2, STAT('dexterity')),
       n('hunter.mm.silencing_shot', 'Silencing Shot', 'Silences the target and deals 170% weapon damage.', 28, 1, TAG('silencing_shot')),
     ],
   },
@@ -184,9 +185,9 @@ const HUNTER_TALENTS: ClassTalents = [
     name: 'Survival',
     nodes: [
       n('hunter.surv.savage_strikes', 'Savage Strikes', D.crit, 0, 5, TAG('crit_minor')),
-      n('hunter.surv.thick_hide', 'Thick Hide', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
+      n('hunter.surv.thick_hide', 'Thick Hide', 'Increases Stamina by 1 per rank.', 0, 5, STAT('constitution')),
       n('hunter.surv.survivalist', 'Survivalist', D.hp, 5, 5, TAG('hp_minor')),
-      n('hunter.surv.lightning_reflexes', 'Lightning Reflexes', 'Increases Agility by 1 per rank.', 10, 5, STAT('agility')),
+      n('hunter.surv.lightning_reflexes', 'Lightning Reflexes', 'Increases Agility by 1 per rank.', 10, 5, STAT('dexterity')),
       n('hunter.surv.expose_weakness', 'Expose Weakness', D.dmg2, 15, 3, TAG('dmg_major')),
       n('hunter.surv.killer_instinct', 'Killer Instinct', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('hunter.surv.surefooted', 'Surefooted', D.haste, 25, 3, TAG('haste_minor')),
@@ -201,13 +202,13 @@ const ROGUE_TALENTS: ClassTalents = [
     name: 'Assassination',
     nodes: [
       n('rogue.ass.malice', 'Malice', D.crit, 0, 5, TAG('malice')),
-      n('rogue.ass.ruthlessness', 'Ruthlessness', 'Increases Agility by 1 per rank.', 0, 5, STAT('agility')),
+      n('rogue.ass.ruthlessness', 'Ruthlessness', 'Increases Agility by 1 per rank.', 0, 5, STAT('dexterity')),
       n('rogue.ass.lethality', 'Lethality', D.dmg2, 5, 5, TAG('dmg_major')),
       n('rogue.ass.vile_poisons', 'Vile Poisons', D.dmg1, 10, 5, TAG('dmg_minor')),
       n('rogue.ass.cold_blood', 'Cold Blood', D.crit, 15, 3, TAG('crit_minor')),
       n('rogue.ass.seal_fate', 'Seal Fate', D.dmg2, 20, 5, TAG('dmg_major')),
       n('rogue.ass.quick_recovery', 'Quick Recovery', D.lifesteal, 25, 3, TAG('lifesteal_minor')),
-      n('rogue.ass.deadliness', 'Deadliness', 'Increases Agility by 1 per rank.', 25, 2, STAT('agility')),
+      n('rogue.ass.deadliness', 'Deadliness', 'Increases Agility by 1 per rank.', 25, 2, STAT('dexterity')),
       n('rogue.ass.mutilate', 'Mutilate', 'A flurry of blades for 200% weapon damage.', 28, 1, TAG('mutilate')),
     ],
   },
@@ -215,11 +216,11 @@ const ROGUE_TALENTS: ClassTalents = [
     name: 'Combat',
     nodes: [
       n('rogue.combat.improved_sinister_strike', 'Improved Sinister Strike', D.haste, 0, 5, TAG('haste_minor')),
-      n('rogue.combat.dual_wield_specialization', 'Dual Wield Specialization', 'Increases Agility by 1 per rank.', 0, 5, STAT('agility')),
+      n('rogue.combat.dual_wield_specialization', 'Dual Wield Specialization', 'Increases Agility by 1 per rank.', 0, 5, STAT('dexterity')),
       n('rogue.combat.precision', 'Precision', D.crit, 5, 5, TAG('crit_minor')),
       n('rogue.combat.weapon_expertise', 'Weapon Expertise', D.dmg2, 10, 5, TAG('dmg_major')),
       n('rogue.combat.aggression', 'Aggression', D.dmg1, 15, 3, TAG('dmg_minor')),
-      n('rogue.combat.lightning_reflexes', 'Lightning Reflexes', 'Increases Agility by 1 per rank.', 20, 5, STAT('agility')),
+      n('rogue.combat.lightning_reflexes', 'Lightning Reflexes', 'Increases Agility by 1 per rank.', 20, 5, STAT('dexterity')),
       n('rogue.combat.adrenaline_rush', 'Adrenaline Rush', D.haste, 25, 3, TAG('haste_minor')),
       n('rogue.combat.weapon_master', 'Weapon Master', D.dmg1, 25, 2, TAG('dmg_minor')),
       n('rogue.combat.blade_flurry', 'Blade Flurry', 'Whirls into the target for 150% weapon damage.', 28, 1, TAG('blade_flurry')),
@@ -229,11 +230,11 @@ const ROGUE_TALENTS: ClassTalents = [
     name: 'Subtlety',
     nodes: [
       n('rogue.sub.opportunity', 'Opportunity', D.dmg2, 0, 5, TAG('dmg_major')),
-      n('rogue.sub.master_of_deception', 'Master of Deception', 'Increases Agility by 1 per rank.', 0, 5, STAT('agility')),
+      n('rogue.sub.master_of_deception', 'Master of Deception', 'Increases Agility by 1 per rank.', 0, 5, STAT('dexterity')),
       n('rogue.sub.initiative', 'Initiative', D.crit, 5, 5, TAG('crit_minor')),
       n('rogue.sub.serrated_blades', 'Serrated Blades', D.dmg1, 10, 5, TAG('dmg_minor')),
       n('rogue.sub.hemorrhage', 'Hemorrhage', D.dmg2, 15, 3, TAG('dmg_major')),
-      n('rogue.sub.deadliness', 'Deadliness', 'Increases Agility by 1 per rank.', 20, 5, STAT('agility')),
+      n('rogue.sub.deadliness', 'Deadliness', 'Increases Agility by 1 per rank.', 20, 5, STAT('dexterity')),
       n('rogue.sub.sinister_calling', 'Sinister Calling', D.crit, 25, 3, TAG('crit_minor')),
       n('rogue.sub.elusiveness', 'Elusiveness', D.hp, 25, 2, TAG('hp_minor')),
       n('rogue.sub.shadowstrike', 'Shadowstrike', 'Strikes from the shadows for 230% weapon damage, increased to 300% below 35% health.', 28, 1, TAG('shadowstrike')),
@@ -245,27 +246,27 @@ const PRIEST_TALENTS: ClassTalents = [
   {
     name: 'Discipline',
     nodes: [
-      n('priest.disc.meditation', 'Meditation', 'Increases Spirit by 1 per rank.', 0, 5, STAT('spirit')),
-      n('priest.disc.enlightenment', 'Enlightenment', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
+      n('priest.disc.meditation', 'Meditation', 'Increases Spirit by 1 per rank.', 0, 5, STAT('wisdom')),
+      n('priest.disc.enlightenment', 'Enlightenment', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
       n('priest.disc.improved_power_word_fortitude', 'Improved Power Word: Fortitude', D.hp, 5, 5, TAG('hp_minor')),
       n('priest.disc.mental_strength', 'Mental Strength', D.crit, 10, 5, TAG('crit_minor')),
       n('priest.disc.power_infusion', 'Power Infusion', D.haste, 15, 3, TAG('haste_minor')),
       n('priest.disc.focused_power', 'Focused Power', D.dmg1, 20, 5, TAG('dmg_minor')),
-      n('priest.disc.grace', 'Grace', 'Increases Spirit by 1 per rank.', 25, 3, STAT('spirit')),
-      n('priest.disc.inner_focus', 'Inner Focus', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
+      n('priest.disc.grace', 'Grace', 'Increases Spirit by 1 per rank.', 25, 3, STAT('wisdom')),
+      n('priest.disc.inner_focus', 'Inner Focus', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intelligence')),
       n('priest.disc.penance', 'Penance', 'Channels healing for 250% of your healing power to a wounded ally.', 28, 1, TAG('penance')),
     ],
   },
   {
     name: 'Holy',
     nodes: [
-      n('priest.holy.healing_focus', 'Healing Focus', 'Increases Spirit by 1 per rank.', 0, 5, STAT('spirit')),
-      n('priest.holy.improved_renew', 'Improved Renew', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
+      n('priest.holy.healing_focus', 'Healing Focus', 'Increases Spirit by 1 per rank.', 0, 5, STAT('wisdom')),
+      n('priest.holy.improved_renew', 'Improved Renew', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
       n('priest.holy.spiritual_healing', 'Spiritual Healing', D.hp, 5, 5, TAG('hp_minor')),
       n('priest.holy.divine_fury', 'Divine Fury', D.crit, 10, 5, TAG('crit_minor')),
       n('priest.holy.holy_concentration', 'Holy Concentration', D.haste, 15, 3, TAG('haste_minor')),
-      n('priest.holy.blessed_resilience', 'Blessed Resilience', 'Increases Spirit by 1 per rank.', 20, 5, STAT('spirit')),
-      n('priest.holy.empowered_healing', 'Empowered Healing', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intellect')),
+      n('priest.holy.blessed_resilience', 'Blessed Resilience', 'Increases Spirit by 1 per rank.', 20, 5, STAT('wisdom')),
+      n('priest.holy.empowered_healing', 'Empowered Healing', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intelligence')),
       n('priest.holy.serendipity', 'Serendipity', D.crit, 25, 2, TAG('crit_minor')),
       n('priest.holy.guardian_spirit', 'Guardian Spirit', 'A powerful heal restoring 300% of your healing power to a wounded ally.', 28, 1, TAG('guardian_spirit')),
     ],
@@ -274,13 +275,13 @@ const PRIEST_TALENTS: ClassTalents = [
     name: 'Shadow',
     nodes: [
       n('priest.shadow.darkness', 'Darkness', 'Increases shadow damage by 2% per rank.', 0, 5, TAG('shadow_mastery')),
-      n('priest.shadow.spirit_tap', 'Spirit Tap', 'Increases Spirit by 1 per rank.', 0, 5, STAT('spirit')),
+      n('priest.shadow.spirit_tap', 'Spirit Tap', 'Increases Spirit by 1 per rank.', 0, 5, STAT('wisdom')),
       n('priest.shadow.shadow_focus', 'Shadow Focus', D.crit, 5, 5, TAG('crit_minor')),
       n('priest.shadow.shadow_weaving', 'Shadow Weaving', D.dmg1, 10, 5, TAG('dmg_minor')),
       n('priest.shadow.vampiric_embrace', 'Vampiric Embrace', 'Heals you for 8% of shadow damage dealt per rank.', 15, 3, TAG('vampiric_embrace')),
       n('priest.shadow.shadow_power', 'Shadow Power', D.dmg2, 20, 5, TAG('dmg_major')),
       n('priest.shadow.focused_mind', 'Focused Mind', D.crit, 25, 3, TAG('crit_minor')),
-      n('priest.shadow.shadow_affinity', 'Shadow Affinity', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
+      n('priest.shadow.shadow_affinity', 'Shadow Affinity', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intelligence')),
       n('priest.shadow.mind_blast', 'Mind Blast', "Blasts the target's mind for 250% spell damage.", 28, 1, TAG('mind_blast')),
     ],
   },
@@ -290,14 +291,14 @@ const SHAMAN_TALENTS: ClassTalents = [
   {
     name: 'Elemental',
     nodes: [
-      n('shaman.ele.convection', 'Convection', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
+      n('shaman.ele.convection', 'Convection', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
       n('shaman.ele.concussion', 'Concussion', 'Increases lightning damage by 1% per rank.', 0, 5, TAG('concussion')),
       n('shaman.ele.call_of_flame', 'Call of Flame', D.dmg2, 5, 5, TAG('dmg_major')),
       n('shaman.ele.elemental_devastation', 'Elemental Devastation', D.crit, 10, 5, TAG('crit_minor')),
       n('shaman.ele.elemental_focus', 'Elemental Focus', D.haste, 15, 3, TAG('haste_minor')),
       n('shaman.ele.lightning_mastery', 'Lightning Mastery', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('shaman.ele.elemental_precision', 'Elemental Precision', D.crit, 25, 3, TAG('crit_minor')),
-      n('shaman.ele.unrelenting_storm', 'Unrelenting Storm', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
+      n('shaman.ele.unrelenting_storm', 'Unrelenting Storm', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intelligence')),
       n('shaman.ele.thunderstorm', 'Thunderstorm', 'Calls down lightning for 300% spell damage.', 28, 1, TAG('thunderstorm')),
     ],
   },
@@ -318,13 +319,13 @@ const SHAMAN_TALENTS: ClassTalents = [
   {
     name: 'Restoration',
     nodes: [
-      n('shaman.resto.tidal_focus', 'Tidal Focus', 'Increases Spirit by 1 per rank.', 0, 5, STAT('spirit')),
-      n('shaman.resto.totemic_focus', 'Totemic Focus', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
+      n('shaman.resto.tidal_focus', 'Tidal Focus', 'Increases Spirit by 1 per rank.', 0, 5, STAT('wisdom')),
+      n('shaman.resto.totemic_focus', 'Totemic Focus', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
       n('shaman.resto.healing_grace', 'Healing Grace', D.hp, 5, 5, TAG('hp_minor')),
       n('shaman.resto.tidal_mastery', 'Tidal Mastery', D.crit, 10, 5, TAG('crit_minor')),
       n('shaman.resto.natures_swiftness', "Nature's Swiftness", D.haste, 15, 3, TAG('haste_minor')),
-      n('shaman.resto.purification', 'Purification', 'Increases Intellect by 1 per rank.', 20, 5, STAT('intellect')),
-      n('shaman.resto.healing_way', 'Healing Way', 'Increases Spirit by 1 per rank.', 25, 3, STAT('spirit')),
+      n('shaman.resto.purification', 'Purification', 'Increases Intellect by 1 per rank.', 20, 5, STAT('intelligence')),
+      n('shaman.resto.healing_way', 'Healing Way', 'Increases Spirit by 1 per rank.', 25, 3, STAT('wisdom')),
       n('shaman.resto.nature_guardian', "Nature's Guardian", D.hp, 25, 2, TAG('hp_minor')),
       n('shaman.resto.riptide', 'Riptide', 'A surging wave restoring 260% of your healing power to a wounded ally.', 28, 1, TAG('riptide')),
     ],
@@ -335,14 +336,14 @@ const MAGE_TALENTS: ClassTalents = [
   {
     name: 'Arcane',
     nodes: [
-      n('mage.arcane.arcane_focus', 'Arcane Focus', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
+      n('mage.arcane.arcane_focus', 'Arcane Focus', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
       n('mage.arcane.arcane_concentration', 'Arcane Concentration', D.crit, 0, 5, TAG('crit_minor')),
       n('mage.arcane.arcane_impact', 'Arcane Impact', D.dmg2, 5, 5, TAG('dmg_major')),
-      n('mage.arcane.arcane_meditation', 'Arcane Meditation', 'Increases Spirit by 1 per rank.', 10, 5, STAT('spirit')),
+      n('mage.arcane.arcane_meditation', 'Arcane Meditation', 'Increases Spirit by 1 per rank.', 10, 5, STAT('wisdom')),
       n('mage.arcane.presence_of_mind', 'Presence of Mind', D.haste, 15, 3, TAG('haste_minor')),
       n('mage.arcane.arcane_instability', 'Arcane Instability', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('mage.arcane.arcane_potency', 'Arcane Potency', D.crit, 25, 3, TAG('crit_minor')),
-      n('mage.arcane.mind_mastery', 'Mind Mastery', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
+      n('mage.arcane.mind_mastery', 'Mind Mastery', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intelligence')),
       n('mage.arcane.arcane_power', 'Arcane Power', 'Unleashes raw arcane power for 200% spell damage.', 28, 1, TAG('arcane_power')),
     ],
   },
@@ -355,7 +356,7 @@ const MAGE_TALENTS: ClassTalents = [
       n('mage.fire.fire_power', 'Fire Power', D.dmg2, 10, 5, TAG('dmg_major')),
       n('mage.fire.combustion', 'Combustion', D.crit, 15, 3, TAG('crit_minor')),
       n('mage.fire.master_of_elements', 'Master of Elements', D.dmg1, 20, 5, TAG('dmg_minor')),
-      n('mage.fire.burning_soul', 'Burning Soul', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intellect')),
+      n('mage.fire.burning_soul', 'Burning Soul', 'Increases Intellect by 1 per rank.', 25, 3, STAT('intelligence')),
       n('mage.fire.pyromaniac', 'Pyromaniac', D.crit, 25, 2, TAG('crit_minor')),
       n('mage.fire.pyroblast', 'Pyroblast', 'A massive fireball for 185% damage that burns for a further 60% over 6s.', 28, 1, TAG('pyroblast_mastery')),
     ],
@@ -370,7 +371,7 @@ const MAGE_TALENTS: ClassTalents = [
       n('mage.frost.ice_barrier', 'Ice Barrier', D.shield, 15, 3, TAG('ice_barrier')),
       n('mage.frost.arctic_winds', 'Arctic Winds', D.dmg2, 20, 5, TAG('dmg_major')),
       n('mage.frost.shatter', 'Shatter', D.crit, 25, 3, TAG('crit_minor')),
-      n('mage.frost.frost_channeling', 'Frost Channeling', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
+      n('mage.frost.frost_channeling', 'Frost Channeling', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intelligence')),
       n('mage.frost.frostfire_bolt', 'Frostfire Bolt', 'A bolt of frost and fire for 180% spell damage.', 28, 1, TAG('frostfire_bolt')),
     ],
   },
@@ -383,7 +384,7 @@ const WARLOCK_TALENTS: ClassTalents = [
       n('warlock.aff.suppression', 'Suppression', D.crit, 0, 5, TAG('crit_minor')),
       n('warlock.aff.improved_corruption', 'Improved Corruption', D.dmg1, 0, 5, TAG('dmg_minor')),
       n('warlock.aff.shadow_mastery', 'Shadow Mastery', 'Increases shadow damage by 2% per rank.', 5, 5, TAG('shadow_mastery')),
-      n('warlock.aff.fel_concentration', 'Fel Concentration', 'Increases Intellect by 1 per rank.', 10, 5, STAT('intellect')),
+      n('warlock.aff.fel_concentration', 'Fel Concentration', 'Increases Intellect by 1 per rank.', 10, 5, STAT('intelligence')),
       n('warlock.aff.siphon_life', 'Siphon Life', D.lifesteal, 15, 3, TAG('lifesteal_minor')),
       n('warlock.aff.shadow_embrace', 'Shadow Embrace', D.dmg2, 20, 5, TAG('dmg_major')),
       n('warlock.aff.malediction', 'Malediction', D.crit, 25, 3, TAG('crit_minor')),
@@ -394,14 +395,14 @@ const WARLOCK_TALENTS: ClassTalents = [
   {
     name: 'Demonology',
     nodes: [
-      n('warlock.demo.improved_imp', 'Improved Imp', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
-      n('warlock.demo.demonic_embrace', 'Demonic Embrace', 'Increases Stamina by 1 per rank.', 0, 5, STAT('stamina')),
+      n('warlock.demo.improved_imp', 'Improved Imp', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
+      n('warlock.demo.demonic_embrace', 'Demonic Embrace', 'Increases Stamina by 1 per rank.', 0, 5, STAT('constitution')),
       n('warlock.demo.fel_intellect', 'Fel Intellect', D.hp, 5, 5, TAG('hp_minor')),
       n('warlock.demo.demonic_power', 'Demonic Power', D.dmg2, 10, 5, TAG('dmg_major')),
       n('warlock.demo.soul_link', 'Soul Link', D.lifesteal, 15, 3, TAG('lifesteal_minor')),
       n('warlock.demo.master_demonologist', 'Master Demonologist', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('warlock.demo.demonic_tactics', 'Demonic Tactics', D.crit, 25, 3, TAG('crit_minor')),
-      n('warlock.demo.demonic_knowledge', 'Demonic Knowledge', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intellect')),
+      n('warlock.demo.demonic_knowledge', 'Demonic Knowledge', 'Increases Intellect by 1 per rank.', 25, 2, STAT('intelligence')),
       n('warlock.demo.demonbolt', 'Demonbolt', 'Hurls demonic fire at the target for 230% spell damage.', 28, 1, TAG('demonbolt')),
     ],
   },
@@ -409,7 +410,7 @@ const WARLOCK_TALENTS: ClassTalents = [
     name: 'Destruction',
     nodes: [
       n('warlock.dest.improved_shadow_bolt', 'Improved Shadow Bolt', D.crit, 0, 5, TAG('crit_minor')),
-      n('warlock.dest.cataclysm', 'Cataclysm', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
+      n('warlock.dest.cataclysm', 'Cataclysm', 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
       n('warlock.dest.bane', 'Bane', D.haste, 5, 5, TAG('haste_minor')),
       n('warlock.dest.devastation', 'Devastation', D.crit, 10, 5, TAG('devastation')),
       n('warlock.dest.improved_immolate', 'Improved Immolate', D.dmg1, 15, 3, TAG('dmg_minor')),
@@ -429,20 +430,20 @@ const DRUID_TALENTS: ClassTalents = [
       n('druid.bal.focused_starlight', 'Focused Starlight', D.crit, 0, 5, TAG('crit_minor')),
       n('druid.bal.improved_moonfire', 'Improved Moonfire', D.dmg2, 5, 5, TAG('dmg_major')),
       n('druid.bal.vengeance', 'Vengeance', D.crit, 10, 5, TAG('crit_minor')),
-      n('druid.bal.lunar_guidance', 'Lunar Guidance', 'Increases Intellect by 1 per rank.', 15, 3, STAT('intellect')),
+      n('druid.bal.lunar_guidance', 'Lunar Guidance', 'Increases Intellect by 1 per rank.', 15, 3, STAT('intelligence')),
       n('druid.bal.moonfury', 'Moonfury', D.dmg2, 20, 5, TAG('dmg_major')),
       n('druid.bal.wrath_of_cenarius', 'Wrath of Cenarius', D.dmg1, 25, 3, TAG('dmg_minor')),
-      n('druid.bal.dreamstate', 'Dreamstate', 'Increases Spirit by 1 per rank.', 25, 2, STAT('spirit')),
+      n('druid.bal.dreamstate', 'Dreamstate', 'Increases Spirit by 1 per rank.', 25, 2, STAT('wisdom')),
       n('druid.bal.starfall', 'Starfall', 'Calls down starlight for 290% spell damage.', 28, 1, TAG('starfall')),
     ],
   },
   {
     name: 'Feral',
     nodes: [
-      n('druid.feral.ferocity', 'Ferocity', 'Increases Agility by 1 per rank.', 0, 5, STAT('agility')),
+      n('druid.feral.ferocity', 'Ferocity', 'Increases Agility by 1 per rank.', 0, 5, STAT('dexterity')),
       n('druid.feral.sharpened_claws', 'Sharpened Claws', D.crit, 0, 5, TAG('crit_minor')),
       n('druid.feral.feral_aggression', 'Feral Aggression', D.dmg2, 5, 5, TAG('dmg_major')),
-      n('druid.feral.thick_hide', 'Thick Hide', 'Increases Stamina by 1 per rank.', 10, 5, STAT('stamina')),
+      n('druid.feral.thick_hide', 'Thick Hide', 'Increases Stamina by 1 per rank.', 10, 5, STAT('constitution')),
       n('druid.feral.blood_frenzy', 'Blood Frenzy', D.lifesteal, 15, 3, TAG('lifesteal_minor')),
       n('druid.feral.heart_of_the_wild', 'Heart of the Wild', D.dmg1, 20, 5, TAG('dmg_minor')),
       n('druid.feral.predatory_instincts', 'Predatory Instincts', D.crit, 25, 3, TAG('crit_minor')),
@@ -453,13 +454,13 @@ const DRUID_TALENTS: ClassTalents = [
   {
     name: 'Restoration',
     nodes: [
-      n('druid.resto.improved_rejuvenation', 'Improved Rejuvenation', 'Increases Spirit by 1 per rank.', 0, 5, STAT('spirit')),
-      n('druid.resto.natures_focus', "Nature's Focus", 'Increases Intellect by 1 per rank.', 0, 5, STAT('intellect')),
+      n('druid.resto.improved_rejuvenation', 'Improved Rejuvenation', 'Increases Spirit by 1 per rank.', 0, 5, STAT('wisdom')),
+      n('druid.resto.natures_focus', "Nature's Focus", 'Increases Intellect by 1 per rank.', 0, 5, STAT('intelligence')),
       n('druid.resto.gift_of_nature', 'Gift of Nature', D.hp, 5, 5, TAG('hp_minor')),
       n('druid.resto.tranquil_spirit', 'Tranquil Spirit', D.crit, 10, 5, TAG('crit_minor')),
       n('druid.resto.natures_swiftness', "Nature's Swiftness", D.haste, 15, 3, TAG('haste_minor')),
-      n('druid.resto.empowered_touch', 'Empowered Touch', 'Increases Intellect by 1 per rank.', 20, 5, STAT('intellect')),
-      n('druid.resto.living_spirit', 'Living Spirit', 'Increases Spirit by 1 per rank.', 25, 3, STAT('spirit')),
+      n('druid.resto.empowered_touch', 'Empowered Touch', 'Increases Intellect by 1 per rank.', 20, 5, STAT('intelligence')),
+      n('druid.resto.living_spirit', 'Living Spirit', 'Increases Spirit by 1 per rank.', 25, 3, STAT('wisdom')),
       n('druid.resto.improved_regrowth', 'Improved Regrowth', D.crit, 25, 2, TAG('crit_minor')),
       n('druid.resto.tranquility', 'Tranquility', "Channels nature's tranquility, restoring 300% of your healing power to a wounded ally.", 28, 1, TAG('tranquility')),
     ],
@@ -521,7 +522,7 @@ export interface TalentTag {
  * postavu" — používá character sheet i combat engine.
  */
 export interface AggregatedTalentEffects {
-  statBonus: Partial<Record<'strength' | 'agility' | 'stamina' | 'intellect' | 'spirit', number>>;
+  statBonus: Partial<Record<AbilityScore, number>>;
   healthBonus: number;
   tags: TalentTag[];
 }

@@ -160,10 +160,11 @@
 
   const statRows: { key: string; label: string }[] = [
     { key: 'strength', label: 'Strength' },
-    { key: 'agility', label: 'Agility' },
-    { key: 'stamina', label: 'Stamina' },
-    { key: 'intellect', label: 'Intellect' },
-    { key: 'spirit', label: 'Spirit' },
+    { key: 'dexterity', label: 'Dexterity' },
+    { key: 'constitution', label: 'Constitution' },
+    { key: 'intelligence', label: 'Intelligence' },
+    { key: 'wisdom', label: 'Wisdom' },
+    { key: 'charisma', label: 'Charisma' },
   ];
 
   function primaryWithGear(d: InspectView, key: string): number {

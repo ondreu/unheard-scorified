@@ -49,7 +49,7 @@ describe('deriveCombatProfile', () => {
     const geared = deriveCombatProfile({
       name: 'A', level: 10, klass: 'warrior',
       primary: baseStatsFor('orc', 'warrior', 10),
-      equipment: { strength: 20, stamina: 20, attack_power: 15, armor: 50 },
+      equipment: { strength: 20, constitution: 20, attack_power: 15, armor: 50 },
       talents: aggregateTalentEffects('warrior', {}),
     });
     expect(geared.maxHealth).toBeGreaterThan(naked.maxHealth);

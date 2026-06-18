@@ -45,7 +45,7 @@ describe('baseStatsFor', () => {
   it('roste s levelem', () => {
     const l1 = baseStatsFor('human', 'mage', 1);
     const l10 = baseStatsFor('human', 'mage', 10);
-    expect(l10.intellect).toBeGreaterThan(l1.intellect);
+    expect(l10.intelligence).toBeGreaterThan(l1.intelligence);
   });
 });
 

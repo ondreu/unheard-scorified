@@ -14,7 +14,7 @@
  * Veškerá náhoda jen přes `SeededRng` (anti-cheat, reprodukovatelnost).
  */
 import { SeededRng } from './rng';
-import type { PrimaryStat, PrimaryStats } from './character';
+import type { AbilityScore, AbilityScores } from './character';
 import { CLASSES, type ClassId } from './data/classes';
 import type { ItemStats } from './data/items';
 import type { AggregatedTalentEffects } from './data/talents';
@@ -194,8 +194,8 @@ export interface CombatProfileInput {
   name: string;
   level: number;
   klass: ClassId;
-  /** Base primární staty (rasa + classa + level). */
-  primary: PrimaryStats;
+  /** Base atributy (rasa + classa + level). */
+  primary: AbilityScores;
   /** Sečtené staty z equipnutého gearu (M4). */
   equipment: ItemStats;
   /** Agregované talent efekty (M4) — stat bonusy + combat tagy. */
@@ -209,13 +209,13 @@ export interface CombatProfileInput {
  */
 export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
   const { level, klass, primary, equipment, talents } = input;
-  const primaryStat: PrimaryStat = CLASSES[klass].primaryStat;
+  const primaryStat: AbilityScore = CLASSES[klass].primaryStat;
 
-  const stat = (key: PrimaryStat): number =>
+  const stat = (key: AbilityScore): number =>
     primary[key] + (equipment[key] ?? 0) + (talents.statBonus[key] ?? 0);
 
   const effPrimary = stat(primaryStat);
-  const effStamina = stat('stamina');
+  const effStamina = stat('constitution');
   const weaponPower = (equipment.attack_power ?? 0) + (equipment.spell_power ?? 0);
 
   // Modifikátory z combat tagů.

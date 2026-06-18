@@ -124,7 +124,7 @@ describe('resolveGauntletTurn', () => {
       level: 60,
       klass: 'warrior',
       primary: baseStatsFor('orc', 'warrior', 60),
-      equipment: { strength: 120, stamina: 120, attack_power: 200, armor: 400, crit_rating: 40 },
+      equipment: { strength: 120, constitution: 120, attack_power: 200, armor: 400, crit_rating: 40 },
       talents: aggregateTalentEffects('warrior', {}),
     });
     let s = startGauntletRun(base, 60, 4242);

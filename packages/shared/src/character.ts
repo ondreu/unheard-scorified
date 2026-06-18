@@ -1,6 +1,12 @@
 /**
  * Typy a vzorce pro postavu. Jediný zdroj pravdy pro API i web —
  * staty se počítají deterministicky stejně na obou stranách.
+ *
+ * MR-1 (D&D Remaster): WoW-flavored staty (Strength/Agility/Intellect/Spirit/
+ * Stamina) nahrazeny 6 D&D atributy STR/DEX/CON/INT/WIS/CHA s modifikátory
+ * (`floor((score-10)/2)`). Odvozené staty počítané dle D&D 5e: proficiency bonus,
+ * Armor Class, saving throw bonusy, spell save DC, spell attack bonus, initiative,
+ * attack bonus. Balanc (přesné magnitudy / dice combat) se ladí v MR-5/MR-10.
  */
 import { CLASSES, type ClassId, type ResourceType } from './data/classes';
 import { RACES, type Faction, type RaceId } from './data/races';
@@ -10,65 +16,140 @@ import type { ItemStats } from './data/items';
 export type { ClassId, ResourceType, Role } from './data/classes';
 export type { Faction, RaceId } from './data/races';
 
-/** Pět primárních atributů (vanilla model). */
-export type PrimaryStat = 'strength' | 'agility' | 'stamina' | 'intellect' | 'spirit';
+/** Šest D&D atributů (ability scores). */
+export type AbilityScore =
+  | 'strength'
+  | 'dexterity'
+  | 'constitution'
+  | 'intelligence'
+  | 'wisdom'
+  | 'charisma';
 
-export type PrimaryStats = Record<PrimaryStat, number>;
+export type AbilityScores = Record<AbilityScore, number>;
 
-/** Baseline primárních statů na lvl 1 (před rasou/classou). */
-export const BASELINE_STAT = 15;
+/** Pořadí atributů (pro deterministické UI/iterace). */
+export const ABILITY_SCORES: readonly AbilityScore[] = [
+  'strength',
+  'dexterity',
+  'constitution',
+  'intelligence',
+  'wisdom',
+  'charisma',
+] as const;
 
-/** Přírůstek primárního atributu na level (jednoduchý lineární růst). */
+/** Třípísmenné zkratky atributů (game language = EN), pro UI. */
+export const ABILITY_ABBREV: Record<AbilityScore, string> = {
+  strength: 'STR',
+  dexterity: 'DEX',
+  constitution: 'CON',
+  intelligence: 'INT',
+  wisdom: 'WIS',
+  charisma: 'CHA',
+};
+
+/** Baseline atributu na lvl 1 (před rasou/classou). */
+export const BASELINE_SCORE = 15;
+
+/** Přírůstek atributu na level (jednoduchý lineární růst; D&D ASI přijde v MR-6). */
 const PER_LEVEL_GROWTH = 1;
 
-/** Je kombinace rasy a classy povolená (vanilla omezení)? */
+/** D&D ability modifikátor: `floor((score - 10) / 2)`. */
+export function abilityModifier(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
+/** D&D proficiency bonus dle levelu: `2 + floor((level - 1) / 4)` (lvl 1→+2 … lvl 20→+6). */
+export function proficiencyBonus(level: number): number {
+  return 2 + Math.floor((Math.max(1, level) - 1) / 4);
+}
+
+/** Je kombinace rasy a classy povolená? */
 export function isValidRaceClass(race: RaceId, klass: ClassId): boolean {
   return RACES[race]?.allowedClasses.includes(klass) ?? false;
 }
 
-/** Frakce dané rasy (zatím kosmetická). */
+/** Frakce dané rasy (zatím kosmetická; odstraní se v MR-9). */
 export function factionOf(race: RaceId): Faction {
   return RACES[race].faction;
 }
 
 /**
- * Base primární staty postavy na daném levelu:
+ * Base atributy postavy na daném levelu:
  * baseline + rasové modifikátory + bonus k primárnímu atributu classy + růst za level.
  */
-export function baseStatsFor(race: RaceId, klass: ClassId, level = 1): PrimaryStats {
+export function baseStatsFor(race: RaceId, klass: ClassId, level = 1): AbilityScores {
   const raceDef = RACES[race];
   const classDef = CLASSES[klass];
   const growth = (level - 1) * PER_LEVEL_GROWTH;
 
-  const stats: PrimaryStats = {
-    strength: BASELINE_STAT + raceDef.statMods.strength + growth,
-    agility: BASELINE_STAT + raceDef.statMods.agility + growth,
-    stamina: BASELINE_STAT + raceDef.statMods.stamina + growth,
-    intellect: BASELINE_STAT + raceDef.statMods.intellect + growth,
-    spirit: BASELINE_STAT + raceDef.statMods.spirit + growth,
+  const stats: AbilityScores = {
+    strength: BASELINE_SCORE + raceDef.statMods.strength + growth,
+    dexterity: BASELINE_SCORE + raceDef.statMods.dexterity + growth,
+    constitution: BASELINE_SCORE + raceDef.statMods.constitution + growth,
+    intelligence: BASELINE_SCORE + raceDef.statMods.intelligence + growth,
+    wisdom: BASELINE_SCORE + raceDef.statMods.wisdom + growth,
+    charisma: BASELINE_SCORE + raceDef.statMods.charisma + growth,
   };
 
-  // Bonus classy: +3 k primárnímu atributu, +1 stamina.
+  // Bonus classy: +3 k primárnímu atributu, +1 constitution (výdrž).
   stats[classDef.primaryStat] += 3;
-  stats.stamina += 1;
+  stats.constitution += 1;
 
   return stats;
+}
+
+/** Spočítá modifikátory pro všech 6 atributů. */
+export function abilityModifiers(scores: AbilityScores): AbilityScores {
+  return {
+    strength: abilityModifier(scores.strength),
+    dexterity: abilityModifier(scores.dexterity),
+    constitution: abilityModifier(scores.constitution),
+    intelligence: abilityModifier(scores.intelligence),
+    wisdom: abilityModifier(scores.wisdom),
+    charisma: abilityModifier(scores.charisma),
+  };
+}
+
+/** Atribut, kterým classa sesílá kouzla (D&D spellcasting ability). */
+export function spellcastingAbility(klass: ClassId): AbilityScore {
+  return CLASSES[klass].spellcastingAbility;
 }
 
 export interface DerivedStats {
   health: number;
   resource: { type: ResourceType; max: number };
+  /** Modifikátory všech 6 atributů. */
+  modifiers: AbilityScores;
+  /** Proficiency bonus dle levelu. */
+  proficiencyBonus: number;
+  /** Armor Class (10 + DEX mod; gear AC se integruje v combat enginu, MR-5). */
+  armorClass: number;
+  /** Initiative bonus (DEX mod). */
+  initiative: number;
+  /** Saving throw bonusy per atribut (zatím jen modifikátor; class proficiency v MR-2). */
+  savingThrows: AbilityScores;
+  /** Spell save DC: 8 + proficiency + casting modifikátor. */
+  spellSaveDc: number;
+  /** Spell attack bonus: proficiency + casting modifikátor. */
+  spellAttackBonus: number;
+  /** Útočný bonus (proficiency + lepší z STR/DEX modifikátoru). */
+  attackBonus: number;
 }
 
-/** Odvozené staty (health, resource) z primárních. Placeholder balanc (laděno později). */
-export function deriveStats(primary: PrimaryStats, level: number, klass: ClassId): DerivedStats {
+/** Odvozené staty z atributů dle D&D 5e. Placeholder magnitudy (laděno v MR-10). */
+export function deriveStats(primary: AbilityScores, level: number, klass: ClassId): DerivedStats {
   const resourceType = CLASSES[klass].resource;
-  const health = 50 + primary.stamina * 10 + level * 5;
+  const mods = abilityModifiers(primary);
+  const prof = proficiencyBonus(level);
+  const castingMod = mods[CLASSES[klass].spellcastingAbility];
+
+  // HP: hit die avg + CON mod per level (D&D-style; přesné hit dice per class v MR-2).
+  const health = Math.max(1, 8 + (6 + mods.constitution) * level);
 
   let max: number;
   switch (resourceType) {
     case 'mana':
-      max = 100 + primary.intellect * 15;
+      max = 100 + primary.intelligence * 15;
       break;
     case 'energy':
       max = 100;
@@ -78,7 +159,18 @@ export function deriveStats(primary: PrimaryStats, level: number, klass: ClassId
       break;
   }
 
-  return { health, resource: { type: resourceType, max } };
+  return {
+    health,
+    resource: { type: resourceType, max },
+    modifiers: mods,
+    proficiencyBonus: prof,
+    armorClass: 10 + mods.dexterity,
+    initiative: mods.dexterity,
+    savingThrows: mods,
+    spellSaveDc: 8 + prof + castingMod,
+    spellAttackBonus: prof + castingMod,
+    attackBonus: prof + Math.max(mods.strength, mods.dexterity),
+  };
 }
 
 /** Kompletní stav postavy odvozený z perzistovaných dat (rasa, classa, totalXp). */
@@ -87,7 +179,7 @@ export interface CharacterSheet {
   xpIntoLevel: number;
   xpForNext: number;
   faction: Faction;
-  primary: PrimaryStats;
+  primary: AbilityScores;
   derived: DerivedStats;
   equipmentStats: ItemStats;
 }
