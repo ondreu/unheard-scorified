@@ -5,7 +5,6 @@ import { HistoryModule } from '../history/history.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { LockoutModule } from '../lockout/lockout.module';
 import { ProfessionDataModule } from '../profession/profession-data.module';
-import { TalentModule } from '../talent/talent.module';
 import { PushModule } from '../push/push.module';
 import { QuestModule } from '../quest/quest.module';
 import { RaidModule } from '../raid/raid.module';
@@ -25,7 +24,6 @@ import { DungeonService } from './dungeon.service';
     CharacterModule,
     HistoryModule,
     InventoryModule,
-    TalentModule,
     PushModule,
     RaidModule,
     LockoutModule,

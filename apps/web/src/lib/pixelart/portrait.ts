@@ -131,15 +131,18 @@ interface ClassLook {
 
 /** Barvy brnění/ramen per class (tón odpovídá fantasy archetypu). */
 export const CLASS_LOOK: Record<string, ClassLook> = {
-  warrior: { armor: 0x8a8478, trim: 0xc0b48a },
-  paladin: { armor: 0xc2c2cc, trim: 0xf0c860 },
-  hunter: { armor: 0x4a6a3a, trim: 0x8a6a3a },
-  rogue: { armor: 0x2a2a32, trim: 0x7a2a2a },
-  priest: { armor: 0xe2e2ea, trim: 0xf0c860 },
-  shaman: { armor: 0x2f6a7a, trim: 0x8a6a3a },
-  mage: { armor: 0x3a3a8a, trim: 0x9a7ad0 },
-  warlock: { armor: 0x42284a, trim: 0x8aae3a },
+  barbarian: { armor: 0x7a5a3a, trim: 0xc0b48a },
+  bard: { armor: 0x7a3a5a, trim: 0xf0c860 },
+  cleric: { armor: 0xe2e2ea, trim: 0xf0c860 },
   druid: { armor: 0x46582a, trim: 0x8a6a3a },
+  fighter: { armor: 0x8a8478, trim: 0xc0b48a },
+  monk: { armor: 0x2f6a5a, trim: 0xc0b48a },
+  paladin: { armor: 0xc2c2cc, trim: 0xf0c860 },
+  ranger: { armor: 0x4a6a3a, trim: 0x8a6a3a },
+  rogue: { armor: 0x2a2a32, trim: 0x7a2a2a },
+  sorcerer: { armor: 0x7a2a2a, trim: 0xf0a060 },
+  warlock: { armor: 0x42284a, trim: 0x8aae3a },
+  wizard: { armor: 0x3a3a8a, trim: 0x9a7ad0 },
 };
 
 const FACTION_BG: Record<Faction, [RGB, RGB]> = {
@@ -160,7 +163,7 @@ export function drawPortrait(
 ): void {
   const D = p.dim;
   const race = RACE_LOOK[opts.race] ?? (RACE_LOOK.human as RaceLook);
-  const klass = CLASS_LOOK[opts.klass] ?? (CLASS_LOOK.warrior as ClassLook);
+  const klass = CLASS_LOOK[opts.klass] ?? (CLASS_LOOK.fighter as ClassLook);
   const rng = new SeededRng(seedFromString(`${opts.seedKey}:${opts.race}:${opts.klass}`));
 
   // 1) Pozadí (frakční vinětový gradient).

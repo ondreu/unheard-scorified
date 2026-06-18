@@ -42,7 +42,7 @@ describe('M9 flow: mail', () => {
     seq += 1;
     const tokens = await auth.register(`mail_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     return { accountId, id: char.id, name: char.name };
   }
 

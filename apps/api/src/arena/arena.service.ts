@@ -7,12 +7,9 @@ import {
 } from '@nestjs/common';
 import {
   activeSeasonAt,
-  aggregateTalentEffects,
   applyRatingChange,
   ARENA_MIN_LEVEL,
-  baseStatsFor,
   DEFAULT_BRACKET,
-  deriveCombatProfile,
   levelFromXp,
   ratingTier,
   ratingTierProgress,
@@ -21,15 +18,12 @@ import {
   simulatePvpDuel,
   type ArenaBracket,
   type ArenaTier,
-  type ClassId,
   type CombatActor,
   type CombatEvent,
   type DuelSide,
-  type RaceId,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
-import { TalentRepository } from '../talent/talent.repository';
 import { PushService } from '../push/push.service';
 import type { ArenaMatch, Character } from '../db/schema';
 import { HistoryRepository } from '../history/history.repository';
@@ -132,7 +126,6 @@ export class ArenaService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly inventory: InventoryService,
-    private readonly talents: TalentRepository,
     private readonly repo: ArenaRepository,
     private readonly push: PushService,
     private readonly events: ArenaEventsRelay,
@@ -465,28 +458,8 @@ export class ArenaService {
     return granted;
   }
 
-  /** Bojový profil postavy ze snapshotu staty + gear + talenty (jako dungeon). */
-  private async buildPlayer(character: Character, level: number): Promise<CombatActor> {
-    const primary = baseStatsFor(character.race as RaceId, character.class as ClassId, level);
-    const equipment = await this.inventory.getEquipmentStats(character.id);
-    const talentRows = await this.talents.listTalents(character.id);
-    const allocations: Record<string, number> = {};
-    for (const r of talentRows) allocations[r.talentId] = r.points;
-    const talents = aggregateTalentEffects(character.class as ClassId, allocations);
-
-    const profile = deriveCombatProfile({
-      name: character.name,
-      level,
-      klass: character.class as ClassId,
-      primary,
-      equipment,
-      talents,
-    });
-    const rotation = await this.rotation.rotationForCombat(
-      character.id,
-      character.class as ClassId,
-      level,
-    );
-    return rotation ? { ...profile, rotation } : profile;
+  /** Bojový profil postavy ze snapshotu (staty + gear + D&D level-up + rotace). */
+  private buildPlayer(character: Character, level: number): Promise<CombatActor> {
+    return this.rotation.buildCombatProfile(character, level);
   }
 }

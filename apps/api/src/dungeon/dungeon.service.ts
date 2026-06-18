@@ -6,10 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  aggregateTalentEffects,
-  baseStatsFor,
   computeGroupReward,
-  deriveCombatProfile,
   deriveRaidActor,
   dungeonAttunementQuests,
   dungeonReputationGain,
@@ -30,10 +27,8 @@ import {
   seedFromString,
   simulateRaidRun,
   weeklyLockoutId,
-  type ClassId,
   type CombatActor,
   type CombatEvent,
-  type RaceId,
   type RaidActor,
   type RaidComposition,
   type RaidReward,
@@ -45,7 +40,6 @@ import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { ReputationRepository } from '../profession/profession.repository';
-import { TalentRepository } from '../talent/talent.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
 import { PushService } from '../push/push.service';
 import type { Character, RaidRun } from '../db/schema';
@@ -151,7 +145,6 @@ export class DungeonService {
     private readonly inventory: InventoryService,
     private readonly inventoryRepo: InventoryRepository,
     private readonly grant: InventoryGrantService,
-    private readonly talents: TalentRepository,
     private readonly push: PushService,
     private readonly repo: RaidRepository,
     private readonly lockouts: LockoutRepository,
@@ -502,29 +495,9 @@ export class DungeonService {
     return deriveRaidActor(base, role);
   }
 
-  private async buildCombatProfile(character: Character, level: number): Promise<CombatActor> {
-    const primary = baseStatsFor(character.race as RaceId, character.class as ClassId, level);
-    const equipment = await this.inventory.getEquipmentStats(character.id);
-    const talentRows = await this.talents.listTalents(character.id);
-    const allocations: Record<string, number> = {};
-    for (const r of talentRows) allocations[r.talentId] = r.points;
-    const talents = aggregateTalentEffects(character.class as ClassId, allocations);
-
-    const profile = deriveCombatProfile({
-      name: character.name,
-      level,
-      klass: character.class as ClassId,
-      primary,
-      equipment,
-      talents,
-    });
-    // Deklarativní rotace (MIL): připoj uloženou rotaci do snapshotu profilu.
-    const rotation = await this.rotation.rotationForCombat(
-      character.id,
-      character.class as ClassId,
-      level,
-    );
-    return rotation ? { ...profile, rotation } : profile;
+  private buildCombatProfile(character: Character, level: number): Promise<CombatActor> {
+    // Jediný zdroj pravdy profil-buildingu (staty + gear + D&D level-up + rotace).
+    return this.rotation.buildCombatProfile(character, level);
   }
 
   private toRunView(

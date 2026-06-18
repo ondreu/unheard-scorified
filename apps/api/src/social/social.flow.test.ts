@@ -45,7 +45,7 @@ describe('M9 flow: friends', () => {
   async function player(name: string): Promise<{ accountId: string; id: string; name: string }> {
     const tokens = await auth.register(`acc_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     return { accountId, id: char.id, name: char.name };
   }
 

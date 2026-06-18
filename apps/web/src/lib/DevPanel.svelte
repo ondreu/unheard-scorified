@@ -294,7 +294,7 @@
               class="dev-btn dev-btn--danger"
               disabled={busy}
               onclick={() => {
-                if (confirm('Reset character? This clears XP, gold, inventory, equipment and talents.')) {
+                if (confirm('Reset character? This clears XP, gold, inventory, equipment and level-up choices.')) {
                   run(() => devResetCharacter(characterId), () => 'Character reset to level 1');
                 }
               }}

@@ -10,15 +10,18 @@ import { Painter, shade, type RGB } from './core';
 
 /** Barva glyfu per class (vanilla-style akcenty). */
 export const CLASS_GLYPH_COLOR: Record<string, RGB> = {
-  warrior: 0xc79c6e,
-  paladin: 0xf58cba,
-  hunter: 0xabd473,
-  rogue: 0xfff569,
-  priest: 0xf0f0f0,
-  shaman: 0x2f9ae0,
-  mage: 0x69ccf0,
-  warlock: 0x9482c9,
+  barbarian: 0xc79c6e,
+  bard: 0xff7da6,
+  cleric: 0xf0f0f0,
   druid: 0xff7d0a,
+  fighter: 0xb5b5b5,
+  monk: 0x35e0a0,
+  paladin: 0xf58cba,
+  ranger: 0xabd473,
+  rogue: 0xfff569,
+  sorcerer: 0xff5a36,
+  warlock: 0x9482c9,
+  wizard: 0x69ccf0,
 };
 
 /** Vykreslí class crest na Painter (dim×dim). */
@@ -31,8 +34,9 @@ export function drawClassEmblem(p: Painter, classId: string): void {
   const m = D / 2;
 
   switch (classId) {
-    case 'warrior': {
-      // Zkřížené meče.
+    case 'fighter':
+    case 'barbarian': {
+      // Zkřížené meče (barbarian = širší, ale stejný glyf).
       p.line(D * 0.18, D * 0.82, D * 0.82, D * 0.18, steel);
       p.line(D * 0.82, D * 0.82, D * 0.18, D * 0.18, steel);
       p.rect(D * 0.12, D * 0.78, D * 0.18, 2, gold);
@@ -45,7 +49,7 @@ export function drawClassEmblem(p: Painter, classId: string): void {
       p.rect(D * 0.28, D * 0.2, D * 0.44, D * 0.16, gold);
       break;
     }
-    case 'hunter': {
+    case 'ranger': {
       // Luk + šíp.
       for (let y = D * 0.2; y <= D * 0.8; y++) {
         const t = (y - m) / (D * 0.32);
@@ -63,21 +67,29 @@ export function drawClassEmblem(p: Painter, classId: string): void {
       p.rect(m - 1, D * 0.64, 2, D * 0.18, dark);
       break;
     }
-    case 'priest': {
+    case 'monk': {
+      // Pěst (sevřená — blok kostek).
+      p.rect(D * 0.34, D * 0.4, D * 0.32, D * 0.28, c);
+      p.rect(D * 0.34, D * 0.36, D * 0.07, 0.08 * D, shade(c, 0.8));
+      p.rect(D * 0.44, D * 0.34, D * 0.07, 0.1 * D, shade(c, 0.8));
+      p.rect(D * 0.54, D * 0.36, D * 0.07, 0.08 * D, shade(c, 0.8));
+      break;
+    }
+    case 'cleric': {
       // Zářící kříž.
       p.rect(m - 1, D * 0.18, 2, D * 0.64, c);
       p.rect(D * 0.24, m - 1, D * 0.52, 2, c);
       p.disc(m, m, 1.4, gold);
       break;
     }
-    case 'shaman': {
-      // Blesk.
+    case 'sorcerer': {
+      // Blesk (vrozená magie).
       p.line(D * 0.6, D * 0.16, D * 0.34, m, c);
       p.line(D * 0.34, m, D * 0.56, m, c);
       p.line(D * 0.56, m, D * 0.36, D * 0.84, c);
       break;
     }
-    case 'mage': {
+    case 'wizard': {
       // Hvězda / orb.
       p.line(m, D * 0.14, m, D * 0.86, c);
       p.line(D * 0.14, m, D * 0.86, m, c);
@@ -101,6 +113,13 @@ export function drawClassEmblem(p: Painter, classId: string): void {
       p.disc(m - D * 0.06, D * 0.32, D * 0.07, c);
       p.disc(m + D * 0.06, D * 0.32, D * 0.07, c);
       p.disc(m + D * 0.18, D * 0.4, D * 0.07, c);
+      break;
+    }
+    case 'bard': {
+      // Nota (kruh + stopka).
+      p.disc(D * 0.4, D * 0.66, D * 0.12, c);
+      p.rect(D * 0.5, D * 0.28, 2, D * 0.4, c);
+      p.rect(D * 0.5, D * 0.28, D * 0.18, 2, c);
       break;
     }
     default:

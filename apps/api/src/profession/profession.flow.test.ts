@@ -16,7 +16,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { BuffRepository } from '../buff/buff.repository';
 import { makeGrant } from '../inventory/test-grant';
 import { MountRepository } from '../mount/mount.repository';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
 import { RotationRepository } from '../rotation/rotation.repository';
@@ -69,7 +69,7 @@ describe('M6 flow: profese & reputace', () => {
     const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
     const rotation = new RotationService(
       charRepo,
-      new TalentRepository(db),
+      new LevelUpRepository(db),
       new RotationRepository(db),
       invService,
     );
@@ -100,7 +100,7 @@ describe('M6 flow: profese & reputace', () => {
   async function newCharacter(username: string, name: string): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     return { accountId, id: char.id };
   }
 

@@ -40,7 +40,7 @@ describe('M10 flow: vendor (buy/sell)', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'human', class: 'mage' });
+    const char = await characters.create(accountId, { name, race: 'human', class: 'wizard' });
     return { accountId, id: char.id };
   }
 

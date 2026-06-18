@@ -28,22 +28,22 @@ describe('armor types', () => {
   });
 
   it('plate classy unesou všechny typy, cloth classy jen cloth', () => {
-    expect(CLASS_ARMOR_PROFICIENCY.warrior).toEqual(['cloth', 'leather', 'mail', 'plate']);
-    expect(CLASS_ARMOR_PROFICIENCY.mage).toEqual(['cloth']);
-    expect(CLASS_ARMOR_PROFICIENCY.priest).toEqual(['cloth']);
+    expect(CLASS_ARMOR_PROFICIENCY.fighter).toEqual(['cloth', 'leather', 'mail', 'plate']);
+    expect(CLASS_ARMOR_PROFICIENCY.wizard).toEqual(['cloth']);
+    expect(CLASS_ARMOR_PROFICIENCY.sorcerer).toEqual(['cloth']);
     expect(CLASS_ARMOR_PROFICIENCY.warlock).toEqual(['cloth']);
   });
 
   it('canEquipArmor respektuje proficiency', () => {
     // warlord_plate je plate
     expect(itemArmorClass('warlord_plate')).toBe('plate');
-    expect(canEquipArmor('warrior', 'warlord_plate')).toBe(true);
-    expect(canEquipArmor('mage', 'warlord_plate')).toBe(false);
+    expect(canEquipArmor('fighter', 'warlord_plate')).toBe(true);
+    expect(canEquipArmor('wizard', 'warlord_plate')).toBe(false);
 
     // arcane_robes je cloth → unese kdokoli
     expect(itemArmorClass('arcane_robes')).toBe('cloth');
-    expect(canEquipArmor('mage', 'arcane_robes')).toBe(true);
-    expect(canEquipArmor('warrior', 'arcane_robes')).toBe(true);
+    expect(canEquipArmor('wizard', 'arcane_robes')).toBe(true);
+    expect(canEquipArmor('fighter', 'arcane_robes')).toBe(true);
   });
 
   it('zbraně a šperky může nosit každá classa (žádné armor omezení)', () => {

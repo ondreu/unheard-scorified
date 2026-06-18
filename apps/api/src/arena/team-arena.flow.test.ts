@@ -13,7 +13,7 @@ import * as schema from '../db/schema';
 import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { BuffRepository } from '../buff/buff.repository';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { PushRepository } from '../push/push.repository';
@@ -52,10 +52,9 @@ describe('M9 flow: team arena (launchForGroup)', () => {
     team = new TeamArenaService(
       charRepo,
       invService,
-      new TalentRepository(db),
       new ArenaRepository(db),
       new PushService(new PushRepository(db)),
-      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
+      new RotationService(charRepo, new LevelUpRepository(db), new RotationRepository(db), invService),
       new InMemoryTeamArenaQueue(),
     );
   });
@@ -63,7 +62,7 @@ describe('M9 flow: team arena (launchForGroup)', () => {
   async function player(name: string): Promise<Character> {
     const tokens = await auth.register(`ta_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 10_000_000, 0); // nad ARENA_MIN_LEVEL
     return (await charRepo.findById(char.id))!;
   }

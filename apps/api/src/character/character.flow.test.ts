@@ -61,7 +61,7 @@ describe('M1 flow: účet + postava', () => {
     const char = await characters.create(accountId, {
       name: 'Thrall',
       race: 'orc',
-      class: 'shaman',
+      class: 'druid',
     });
     expect(char.faction).toBe('horde');
     expect(char.sheet.level).toBe(1);
@@ -74,11 +74,14 @@ describe('M1 flow: účet + postava', () => {
     expect(fetched.name).toBe('Thrall');
   });
 
-  it('odmítne nevalidní race-class kombinaci', async () => {
+  it('odmítne neznámou rasu / třídu (D&D matice je jinak bez omezení)', async () => {
     const accountId = await registerAndGetId('dave');
     await expect(
-      characters.create(accountId, { name: 'Baddruid', race: 'human', class: 'druid' }),
+      characters.create(accountId, { name: 'Nobody', race: 'human', class: 'necromancer' }),
     ).rejects.toThrow();
+    // Libovolná validní rasa+třída je naopak povolená (např. Human Druid).
+    const ok = await characters.create(accountId, { name: 'Goodruid', race: 'human', class: 'druid' });
+    expect(ok.sheet.level).toBe(1);
   });
 
   it('postava patří jen svému účtu', async () => {
@@ -87,7 +90,7 @@ describe('M1 flow: účet + postava', () => {
     const char = await characters.create(owner, {
       name: 'Jaina',
       race: 'human',
-      class: 'mage',
+      class: 'wizard',
     });
     await expect(characters.getOwned(other, char.id)).rejects.toThrow();
   });
@@ -97,7 +100,7 @@ describe('M1 flow: účet + postava', () => {
     const char = await characters.create(owner, {
       name: 'Garrosh',
       race: 'orc',
-      class: 'warrior',
+      class: 'fighter',
     });
 
     // Bez gearu: ilvl 0, prázdný equipment.

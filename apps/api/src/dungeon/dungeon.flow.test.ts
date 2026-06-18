@@ -17,7 +17,7 @@ import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { ReputationRepository } from '../profession/profession.repository';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
@@ -65,12 +65,11 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       invService,
       invRepo,
       makeGrant(db, invRepo),
-      new TalentRepository(db),
       new PushService(new PushRepository(db)),
       new RaidRepository(db),
       new LockoutRepository(db),
       new ReputationRepository(db),
-      new RotationService(charRepo, new TalentRepository(db), new RotationRepository(db), invService),
+      new RotationService(charRepo, new LevelUpRepository(db), new RotationRepository(db), invService),
       completedRepo,
       new HistoryRepository(db),
       new InMemoryRaidQueue(),
@@ -84,7 +83,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
   async function newCharacter(username: string, name: string): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     // M9/M12: dungeony mají attunement questline → splň všechny pro testovací postavy
     // (gating dungeonů v těchto testech je vždy levelem, ne attunementem).
     for (const q of [

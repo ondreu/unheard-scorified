@@ -14,7 +14,7 @@ import { InventoryRepository } from '../inventory/inventory.repository';
 import { InventoryService } from '../inventory/inventory.service';
 import { makeGrant } from '../inventory/test-grant';
 import { BuffRepository } from '../buff/buff.repository';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
@@ -55,7 +55,7 @@ describe('M13 flow: The Gauntlet', () => {
     const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
     const rotation = new RotationService(
       charRepo,
-      new TalentRepository(db),
+      new LevelUpRepository(db),
       new RotationRepository(db),
       invService,
     );
@@ -80,7 +80,7 @@ describe('M13 flow: The Gauntlet', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     if (strong) {
       await charRepo.addRewards(char.id, 50_000_000, 0); // cap level
       await invRepo.addItem(char.id, 'crusader_blade');

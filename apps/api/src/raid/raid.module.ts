@@ -6,7 +6,6 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { LockoutModule } from '../lockout/lockout.module';
 import { PushModule } from '../push/push.module';
 import { QuestModule } from '../quest/quest.module';
-import { TalentModule } from '../talent/talent.module';
 import { RotationModule } from '../rotation/rotation.module';
 import { RaidController } from './raid.controller';
 import { RaidEventsRelay } from './raid.events';
@@ -28,7 +27,6 @@ import { RaidService } from './raid.service';
     CharacterModule,
     HistoryModule,
     InventoryModule,
-    TalentModule,
     QuestModule,
     PushModule,
     LockoutModule,

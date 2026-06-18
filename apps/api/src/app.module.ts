@@ -24,7 +24,7 @@ import { RaidModule } from './raid/raid.module';
 import { RedisModule } from './redis/redis.module';
 import { RotationModule } from './rotation/rotation.module';
 import { SocialModule } from './social/social.module';
-import { TalentModule } from './talent/talent.module';
+import { LevelUpModule } from './levelup/levelup.module';
 import { TradeModule } from './trade/trade.module';
 import { VendorModule } from './vendor/vendor.module';
 
@@ -47,7 +47,7 @@ const devModules =
     PushModule,
     ActivityModule,
     InventoryModule,
-    TalentModule,
+    LevelUpModule,
     DungeonModule,
     ProfessionModule,
     ArenaModule,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLASS_BASELINE_ABILITIES,
-  CLASS_TALENTS,
   SIGNATURE_ABILITIES,
+  SUBCLASS_ABILITIES,
   abilityDamageMult,
-  aggregateTalentEffects,
+  aggregateProgression,
   applyAbsorb,
   baseStatsFor,
   deriveCombatProfile,
@@ -12,16 +12,29 @@ import {
   resolveAbilities,
   simulatePvpDuel,
   simulateRaidRun,
+  EMPTY_PROGRESSION,
+  CLASSES,
+  type ClassId,
+  type FeatId,
+  type ProgressionEffects,
   type CombatActor,
   type RaidActor,
 } from './index';
 
+/** Sestaví progresi z featů (každý feat = jeden ASI/feat slot). */
+function featProg(...featIds: FeatId[]): ProgressionEffects {
+  return aggregateProgression(
+    featIds.map((featId, i) => ({ slotId: `asi@${i}`, choice: { kind: 'feat', featId } })),
+  );
+}
+
 describe('ability descriptions & execute', () => {
-  it('every player ability (baseline + capstone) has a description', () => {
+  it('every player ability (class kit + subclass + draft pool) has a description', () => {
     for (const list of Object.values(CLASS_BASELINE_ABILITIES)) {
-      for (const ab of list) {
-        expect(ab.description, ab.id).toBeTruthy();
-      }
+      for (const ab of list) expect(ab.description, ab.id).toBeTruthy();
+    }
+    for (const [id, ab] of Object.entries(SUBCLASS_ABILITIES)) {
+      expect(ab.description, id).toBeTruthy();
     }
     for (const [id, spec] of Object.entries(SIGNATURE_ABILITIES)) {
       expect(spec.description, id).toBeTruthy();
@@ -29,49 +42,55 @@ describe('ability descriptions & execute', () => {
   });
 
   it('abilityDamageMult applies the execute bonus below the threshold', () => {
-    const execute = CLASS_BASELINE_ABILITIES.warrior!.find((a) => a.id === 'warrior_execute')!;
+    const execute = CLASS_BASELINE_ABILITIES.fighter!.find((a) => a.id === 'fighter_execute')!;
     expect(execute.executeBelowPct).toBe(0.3);
-    // Above threshold → base mult; at/below → boosted mult.
     expect(abilityDamageMult(execute, 0.5)).toBe(execute.damageMult);
     expect(abilityDamageMult(execute, 0.3)).toBe(execute.executeDamageMult);
     expect(abilityDamageMult(execute, 0.1)).toBe(execute.executeDamageMult);
   });
 
   it('a plain ability ignores execute (returns base mult)', () => {
-    const heroic = CLASS_BASELINE_ABILITIES.warrior!.find((a) => a.id === 'warrior_heroic_strike')!;
-    expect(abilityDamageMult(heroic, 0.1)).toBe(heroic.damageMult);
+    const strike = CLASS_BASELINE_ABILITIES.fighter!.find((a) => a.id === 'fighter_weapon_strike')!;
+    expect(abilityDamageMult(strike, 0.1)).toBe(strike.damageMult);
   });
 });
 
-describe('resolveAbilities (baseline + capstone kit)', () => {
-  it('grants baseline abilities by level, gating higher ones', () => {
-    const low = resolveAbilities('warrior', 1, []).map((a) => a.id);
-    expect(low).toContain('warrior_heroic_strike'); // unlock 1
-    expect(low).not.toContain('warrior_overpower'); // unlock 14
-    const high = resolveAbilities('warrior', 40, []).map((a) => a.id);
-    expect(high).toContain('warrior_overpower');
-    expect(high).toContain('warrior_execute');
+describe('resolveAbilities (class kit + subclass)', () => {
+  it('grants class abilities by level, gating higher ones', () => {
+    const low = resolveAbilities('fighter', null, 1).map((a) => a.id);
+    expect(low).toContain('fighter_weapon_strike'); // unlock 1
+    expect(low).not.toContain('fighter_execute'); // unlock 20
+    const high = resolveAbilities('fighter', null, 40).map((a) => a.id);
+    expect(high).toContain('fighter_action_surge');
+    expect(high).toContain('fighter_execute');
   });
 
-  it('adds the capstone signature ability from talent tags', () => {
-    const ids = resolveAbilities('warrior', 60, [{ tag: 'mortal_strike' }]).map((a) => a.id);
-    expect(ids).toContain('mortal_strike');
+  it('adds the subclass signature ability at the subclass level', () => {
+    const ids = resolveAbilities('fighter', 'champion', 60).map((a) => a.id);
+    expect(ids).toContain('champion_heroic_surge');
+    // Without a subclass the signature is absent.
+    expect(resolveAbilities('fighter', null, 60).map((a) => a.id)).not.toContain('champion_heroic_surge');
   });
 
   it('healer classes expose heal abilities', () => {
-    const priest = resolveAbilities('priest', 60, []);
-    expect(priest.some((a) => a.kind === 'heal')).toBe(true);
+    const cleric = resolveAbilities('cleric', null, 60);
+    expect(cleric.some((a) => a.kind === 'heal')).toBe(true);
   });
 });
 
-function profile(klass: Parameters<typeof aggregateTalentEffects>[0], allocations: Record<string, number>, level = 50): CombatActor {
+function profile(
+  klass: ClassId,
+  progression: ProgressionEffects = EMPTY_PROGRESSION,
+  level = 50,
+): CombatActor {
   return deriveCombatProfile({
     name: `${klass}-hero`,
     level,
     klass,
+    subclass: CLASSES[klass].subclasses[0]!.id,
     primary: baseStatsFor('human', klass, level),
     equipment: { attack_power: 60, constitution: 60, armor: 100 },
-    talents: aggregateTalentEffects(klass, allocations),
+    progression,
   });
 }
 
@@ -93,9 +112,9 @@ function tankyBoss(name = 'Test Boss'): CombatActor {
 }
 
 describe('shield derivation (absorb)', () => {
-  it('shield talent grants an absorb pool; without it shield is 0', () => {
-    const withBarrier = profile('mage', { 'mage.frost.ice_barrier': 1 });
-    const without = profile('mage', {});
+  it('a shield feat grants an absorb pool; without it shield is 0', () => {
+    const withBarrier = profile('wizard', featProg('defensive_duelist'));
+    const without = profile('wizard');
     expect(withBarrier.shield).toBeGreaterThan(0);
     expect(without.shield).toBe(0);
   });
@@ -110,14 +129,10 @@ describe('applyAbsorb', () => {
 });
 
 describe('ability kinds', () => {
-  it('capstone talents map to abilities with the right kind', () => {
-    const warlock = profile('warlock', { 'warlock.aff.unstable_affliction': 1 });
-    const ua = warlock.signatureAbilities.find((a) => a.id === 'unstable_affliction');
-    expect(ua?.kind).toBe('dot');
-
-    const warrior = profile('warrior', { 'warrior.fury.bloodthirst': 1 });
-    const bt = warrior.signatureAbilities.find((a) => a.id === 'bloodthirst');
-    expect(bt?.kind).toBe('drain');
+  it('class kit abilities carry the right kind', () => {
+    const warlock = profile('warlock');
+    expect(warlock.signatureAbilities.find((a) => a.id === 'warlock_hex')?.kind).toBe('dot');
+    expect(warlock.signatureAbilities.find((a) => a.id === 'warlock_drain_life')?.kind).toBe('drain');
   });
 });
 
@@ -126,9 +141,9 @@ describe('rich combat log (raid/dungeon engine)', () => {
 
   it('lifesteal dps produces drain events', () => {
     const party: RaidActor[] = [
-      deriveRaidActor(profile('warrior', {}), 'tank'),
-      deriveRaidActor(profile('priest', {}, 50), 'healer'),
-      deriveRaidActor(profile('warrior', { 'warrior.fury.bloodthirst': 1, 'warrior.fury.cruelty': 5 }), 'dps'),
+      deriveRaidActor(profile('fighter'), 'tank'),
+      deriveRaidActor(profile('cleric'), 'healer'),
+      deriveRaidActor(profile('warlock', featProg('lucky')), 'dps'),
     ];
     const r = simulateRaidRun(party, boss, 4242);
     expect(r.events.some((e) => e.type === 'drain')).toBe(true);
@@ -136,35 +151,31 @@ describe('rich combat log (raid/dungeon engine)', () => {
 
   it('a dot caster produces dot tick events', () => {
     const party: RaidActor[] = [
-      deriveRaidActor(profile('warrior', {}), 'tank'),
-      deriveRaidActor(profile('priest', {}, 50), 'healer'),
-      deriveRaidActor(profile('warlock', { 'warlock.aff.unstable_affliction': 1 }), 'dps'),
+      deriveRaidActor(profile('fighter'), 'tank'),
+      deriveRaidActor(profile('cleric'), 'healer'),
+      deriveRaidActor(profile('warlock'), 'dps'),
     ];
     const r = simulateRaidRun(party, boss, 13);
     expect(r.events.some((e) => e.type === 'dot')).toBe(true);
   });
 
   it('a healer casts heal abilities (not just auto-heals)', () => {
-    // High-pressure boss so the tank is frequently injured (heal abilities fire).
     const hardBoss: CombatActor = { ...tankyBoss('Pressure'), attackPower: 220, swingInterval: 1, maxHealth: 6000 };
     const party: RaidActor[] = [
-      deriveRaidActor(profile('warrior', {}), 'tank'),
-      deriveRaidActor(profile('priest', {}, 50), 'healer'),
-      deriveRaidActor(profile('warrior', {}), 'dps'),
-      deriveRaidActor(profile('warrior', {}), 'dps'),
+      deriveRaidActor(profile('fighter'), 'tank'),
+      deriveRaidActor(profile('cleric'), 'healer'),
+      deriveRaidActor(profile('fighter'), 'dps'),
+      deriveRaidActor(profile('fighter'), 'dps'),
     ];
     const r = simulateRaidRun(party, [hardBoss], 808);
-    // At least one heal event from a named heal spell (Greater Heal / Renew).
-    expect(
-      r.events.some((e) => e.type === 'heal' && (e.ability === 'Greater Heal' || e.ability === 'Renew')),
-    ).toBe(true);
+    expect(r.events.some((e) => e.type === 'heal' && e.ability === 'Cure Wounds')).toBe(true);
   });
 
   it('a shielded tank produces absorb events', () => {
     const party: RaidActor[] = [
-      deriveRaidActor(profile('mage', { 'mage.frost.ice_barrier': 1 }), 'tank'),
-      deriveRaidActor(profile('priest', {}, 50), 'healer'),
-      deriveRaidActor(profile('warrior', {}), 'dps'),
+      deriveRaidActor(profile('wizard', featProg('defensive_duelist')), 'tank'),
+      deriveRaidActor(profile('cleric'), 'healer'),
+      deriveRaidActor(profile('fighter'), 'dps'),
     ];
     const r = simulateRaidRun(party, boss, 77);
     expect(r.events.some((e) => e.type === 'absorb')).toBe(true);
@@ -172,10 +183,10 @@ describe('rich combat log (raid/dungeon engine)', () => {
 
   it('stays deterministic with the new mechanics', () => {
     const make = (): RaidActor[] => [
-      deriveRaidActor(profile('mage', { 'mage.frost.ice_barrier': 1 }), 'tank'),
-      deriveRaidActor(profile('priest', {}, 50), 'healer'),
-      deriveRaidActor(profile('warlock', { 'warlock.aff.unstable_affliction': 1 }), 'dps'),
-      deriveRaidActor(profile('warrior', { 'warrior.fury.bloodthirst': 1 }), 'dps'),
+      deriveRaidActor(profile('wizard', featProg('defensive_duelist')), 'tank'),
+      deriveRaidActor(profile('cleric'), 'healer'),
+      deriveRaidActor(profile('warlock'), 'dps'),
+      deriveRaidActor(profile('fighter', featProg('lucky')), 'dps'),
     ];
     const a = simulateRaidRun(make(), boss, 9001);
     const b = simulateRaidRun(make(), boss, 9001);
@@ -184,19 +195,24 @@ describe('rich combat log (raid/dungeon engine)', () => {
   });
 });
 
-describe('tank mitigation', () => {
-  function protTank(withTalents: boolean): RaidActor {
-    const tree = CLASS_TALENTS.warrior![2]!; // Protection
-    const alloc: Record<string, number> = {};
-    if (withTalents) for (const node of tree.nodes) alloc[node.id] = node.maxRanks;
+describe('tank mitigation (engine path)', () => {
+  /** Tank s mitigation ability ze sdíleného poolu (Shield of Faith). */
+  function mitTank(withMit: boolean): RaidActor {
     const base = deriveCombatProfile({
       name: 'Protector',
       level: 60,
-      klass: 'warrior',
-      primary: baseStatsFor('human', 'warrior', 60),
+      klass: 'fighter',
+      subclass: 'champion',
+      primary: baseStatsFor('human', 'fighter', 60),
       equipment: { attack_power: 150, strength: 200, constitution: 400, armor: 200 },
-      talents: aggregateTalentEffects('warrior', alloc),
+      progression: featProg('tough'),
     });
+    if (withMit) {
+      base.signatureAbilities = [
+        ...base.signatureAbilities,
+        { id: 'shield_of_faith', ...SIGNATURE_ABILITIES.shield_of_faith! },
+      ];
+    }
     return deriveRaidActor(base, 'tank');
   }
   const pressureBoss: CombatActor = {
@@ -205,10 +221,8 @@ describe('tank mitigation', () => {
     signatureAbilities: [], isBoss: true,
   };
 
-  it('prot capstone is a mitigation ability', () => {
-    const cap = CLASS_TALENTS.warrior![2]!.nodes.at(-1)!;
-    expect(SIGNATURE_ABILITIES[cap.effect.combatTags![0]!]!.kind).toBe('mitigation');
-    expect(CLASS_TALENTS.paladin![1]!.nodes.at(-1)!.name).toBe('Ardent Defender');
+  it('shield_of_faith is a mitigation ability', () => {
+    expect(SIGNATURE_ABILITIES.shield_of_faith!.kind).toBe('mitigation');
   });
 
   it('a mitigation cooldown reduces damage taken by the tank', () => {
@@ -221,30 +235,31 @@ describe('tank mitigation', () => {
       }
       return d;
     };
-    const withMit = simulateRaidRun([protTank(true)], [pressureBoss], 999);
-    expect(withMit.events.some((e) => e.ability === 'Shield Wall')).toBe(true);
-    expect(dmgTaken([protTank(true)])).toBeLessThan(dmgTaken([protTank(false)]));
+    const withMit = simulateRaidRun([mitTank(true)], [pressureBoss], 999);
+    expect(withMit.events.some((e) => e.ability === 'Shield of Faith')).toBe(true);
+    expect(dmgTaken([mitTank(true)])).toBeLessThan(dmgTaken([mitTank(false)]));
   });
 });
 
 describe('healer offensive vs defensive rotation modes', () => {
-  function priestHealer(rotation?: import('./index').CharacterRotation): RaidActor {
+  function clericHealer(rotation?: import('./index').CharacterRotation): RaidActor {
     const base = deriveCombatProfile({
-      name: 'Priest',
+      name: 'Cleric',
       level: 60,
-      klass: 'priest',
-      primary: baseStatsFor('human', 'priest', 60),
-      equipment: { spell_power: 150, intelligence: 150, constitution: 150 },
-      talents: aggregateTalentEffects('priest', {}),
+      klass: 'cleric',
+      subclass: 'life_domain',
+      primary: baseStatsFor('human', 'cleric', 60),
+      equipment: { spell_power: 150, wisdom: 150, constitution: 150 },
+      progression: EMPTY_PROGRESSION,
     });
     return deriveRaidActor({ ...base, rotation }, 'healer');
   }
-  function warriorTank(): RaidActor {
+  function fighterTank(): RaidActor {
     const base = deriveCombatProfile({
-      name: 'Tank', level: 60, klass: 'warrior',
-      primary: baseStatsFor('human', 'warrior', 60),
+      name: 'Tank', level: 60, klass: 'fighter', subclass: 'champion',
+      primary: baseStatsFor('human', 'fighter', 60),
       equipment: { attack_power: 100, constitution: 300, armor: 200 },
-      talents: aggregateTalentEffects('warrior', {}),
+      progression: EMPTY_PROGRESSION,
     });
     return deriveRaidActor(base, 'tank');
   }
@@ -255,10 +270,10 @@ describe('healer offensive vs defensive rotation modes', () => {
   };
 
   function tally(rotation?: import('./index').CharacterRotation): { heal: number; dmg: number } {
-    const r = simulateRaidRun([warriorTank(), priestHealer(rotation)], [boss], 321);
+    const r = simulateRaidRun([fighterTank(), clericHealer(rotation)], [boss], 321);
     let heal = 0, dmg = 0;
     for (const e of r.events) {
-      if (e.source !== 'Priest' || typeof e.amount !== 'number') continue;
+      if (e.source !== 'Cleric' || typeof e.amount !== 'number') continue;
       if (e.type === 'heal') heal += e.amount;
       else if (e.target === 'Boss') dmg += e.amount;
     }
@@ -274,8 +289,9 @@ describe('healer offensive vs defensive rotation modes', () => {
   it('pure HPS: disabling damage spells → heals only, no damage', () => {
     const pureHps: import('./index').CharacterRotation = {
       rules: [
-        { abilityId: 'priest_smite', enabled: false, conditionType: 'always' },
-        { abilityId: 'priest_shadow_word_pain', enabled: false, conditionType: 'always' },
+        { abilityId: 'cleric_sacred_flame', enabled: false, conditionType: 'always' },
+        { abilityId: 'cleric_guiding_bolt', enabled: false, conditionType: 'always' },
+        { abilityId: 'cleric_spirit_guardians', enabled: false, conditionType: 'always' },
       ],
     };
     const t = tally(pureHps);
@@ -286,8 +302,8 @@ describe('healer offensive vs defensive rotation modes', () => {
   it('pure DPS (niche): disabling heal spells → damage only, no healing', () => {
     const pureDps: import('./index').CharacterRotation = {
       rules: [
-        { abilityId: 'priest_greater_heal', enabled: false, conditionType: 'always' },
-        { abilityId: 'priest_renew', enabled: false, conditionType: 'always' },
+        { abilityId: 'cleric_cure_wounds', enabled: false, conditionType: 'always' },
+        { abilityId: 'life_preserve_life', enabled: false, conditionType: 'always' },
       ],
     };
     const t = tally(pureDps);
@@ -298,8 +314,8 @@ describe('healer offensive vs defensive rotation modes', () => {
 
 describe('rich combat log (pvp)', () => {
   it('lifesteal duelist produces drain events', () => {
-    const drainer = profile('warrior', { 'warrior.fury.bloodthirst': 1 }, 50);
-    const dummy = profile('warrior', {}, 50);
+    const drainer = profile('warlock', featProg('blood_drinker'), 50);
+    const dummy = profile('fighter', EMPTY_PROGRESSION, 50);
     const r = simulatePvpDuel(drainer, dummy, 5);
     expect(r.events.some((e) => e.type === 'drain')).toBe(true);
   });

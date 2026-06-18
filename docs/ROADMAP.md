@@ -940,7 +940,34 @@ MR-1 (staty STR/DEX/CON/INT/WIS/CHA + AC)
       = MR-5. Build/test/lint/typecheck zelené (353 shared + 193 API).
       _Pozn.: rasy/classy zatím WoW sada (8/9) namapovaná na D&D atributy — plný
       D&D class/race redesign (12 tříd, PHB rasy, subclassy) přijde v MR-2/MR-3/MR-9._
-- [ ] MR-2 — classy (12 D&D tříd) + subclassy (1 per třída v MVP).
+- [x] **MR-2 — 12 D&D tříd + subclassy + D&D level-up systém** ✅ (složeno s MR-6
+      dle rozhodnutí PM — WoW talent stromy rovnou zrušeny, ne placeholder):
+      - **12 D&D 5e tříd** (`data/classes.ts`): Barbarian, Bard, Cleric, Druid,
+        Fighter, Monk, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard. Každá:
+        `primaryStat` (combat-scaling), `spellcastingAbility`, `resource`, `hitDie`,
+        `roles`, `subclassLevel` + **1 subclass v MVP** (`SubclassId`, `SUBCLASSES`).
+      - **Race-class matice bez omezení** (D&D — `isValidRaceClass` vždy true; rasy
+        zatím WoW sada, přejmenování v MR-3/MR-9).
+      - **Talent stromy odstraněny** (`data/talents.ts`, `TalentModule`,
+        `character_talents`) → nahrazeny **D&D level-up systémem** (`levelup.ts`,
+        `data/feats.ts`): na ASI levelech (4/8/12/16/19) hráč volí **ASI** (+2 /
+        +1+1) nebo **Feat** (katalog ~13 featů); na subclass levelu volí subclass.
+        Volby v `character_levelup_choices` (migrace `0035`) + denormalizovaná
+        `characters.subclass`. `aggregateProgression` → `ProgressionEffects`
+        (stejný tvar jako dřív talenty → combat engine beze změny; combat tagy
+        crit/haste/dmg/lifesteal/shield nově z featů).
+      - **Abilit kit** (`abilities.ts`): D&D class kity (12) + subclass signature
+        ability; `resolveAbilities(klass, subclass, level)` (žádné talent capstony).
+      - **API**: `LevelUpModule` (GET stav slotů/voleb/možností, POST volba, DELETE
+        respec). `RotationService.buildCombatProfile` je jediný zdroj profil-buildingu
+        (dungeon/raid/arena/team-arena ho recyklují — odstraněna duplikace).
+      - **Web**: `/characters/[id]/levelup` (subclass picker + ASI/Feat), nav +
+        cosmetics/pixelart (emblémy, portréty) rozšířeny na 12 tříd.
+      - Wipe dev data (rozhodnutí PM) — žádná migrace starých class hodnot.
+      - Build/test/lint/typecheck zelené (357 shared + 185 API).
+      - _Pozn.: plné D&D spell sloty + tiered kouzla = MR-4; dice-roll combat = MR-5;
+        D&D bestiář/CR = MR-7; lore přejmenování = MR-8._
+- [ ] MR-3 — tvorba postavy + backstory (D&D Background, point-buy/standard array).
 
 ---
 

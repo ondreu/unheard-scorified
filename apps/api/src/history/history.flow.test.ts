@@ -43,7 +43,7 @@ describe('flow: activity history', () => {
   async function player(name: string): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(`hist_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'warrior' });
+    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
     return { accountId, id: char.id };
   }
 

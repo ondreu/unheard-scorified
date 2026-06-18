@@ -1935,19 +1935,22 @@ for (const [cls, ids] of Object.entries(ARMOR_CLASS_BY_ITEM) as [ArmorClass, Ite
 }
 
 /**
- * Co která classa umí nosit (vanilla-style proficiency na cap levelu;
- * leveling progrese se neřeší). Nižší typy umí každý, kdo umí vyšší.
+ * Co která classa umí nosit (D&D-style armor proficiency; leveling progrese se
+ * neřeší). Nižší typy umí každý, kdo umí vyšší. cloth<leather<mail<plate.
  */
 export const CLASS_ARMOR_PROFICIENCY: Record<ClassId, ArmorClass[]> = {
-  warrior: ['cloth', 'leather', 'mail', 'plate'],
+  fighter: ['cloth', 'leather', 'mail', 'plate'],
   paladin: ['cloth', 'leather', 'mail', 'plate'],
-  hunter: ['cloth', 'leather', 'mail'],
-  shaman: ['cloth', 'leather', 'mail'],
+  cleric: ['cloth', 'leather', 'mail'],
+  ranger: ['cloth', 'leather', 'mail'],
+  barbarian: ['cloth', 'leather', 'mail'],
   rogue: ['cloth', 'leather'],
+  monk: ['cloth', 'leather'],
   druid: ['cloth', 'leather'],
-  priest: ['cloth'],
-  mage: ['cloth'],
+  bard: ['cloth', 'leather'],
+  sorcerer: ['cloth'],
   warlock: ['cloth'],
+  wizard: ['cloth'],
 };
 
 /** Typ brnění itemu (M10); item bez armorClass (zbraň/šperk/plášť) ⇒ undefined. */

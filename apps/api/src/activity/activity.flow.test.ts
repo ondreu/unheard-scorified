@@ -18,7 +18,7 @@ import { BuffRepository } from '../buff/buff.repository';
 import { makeGrant } from '../inventory/test-grant';
 import { ProfessionRepository, ReputationRepository } from '../profession/profession.repository';
 import { MountRepository } from '../mount/mount.repository';
-import { TalentRepository } from '../talent/talent.repository';
+import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
 import { RotationRepository } from '../rotation/rotation.repository';
@@ -57,7 +57,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
     const invService = new InventoryService(charRepo, invRepo, new BuffRepository(db));
     const rotation = new RotationService(
       charRepo,
-      new TalentRepository(db),
+      new LevelUpRepository(db),
       new RotationRepository(db),
       invService,
     );
@@ -91,7 +91,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'human', class: 'mage' });
+    const char = await characters.create(accountId, { name, race: 'human', class: 'wizard' });
     return { accountId, id: char.id };
   }
 
@@ -262,7 +262,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
     const horde = await characters.create(accountId, {
       name: 'Grommash',
       race: 'orc',
-      class: 'shaman',
+      class: 'druid',
     });
 
     const ids = (await quests.listAvailable(accountId, horde.id)).map((q) => q.id);
