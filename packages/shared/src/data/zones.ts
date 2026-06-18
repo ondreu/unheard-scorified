@@ -5,8 +5,8 @@
  *
  * MR (deWoWčení): frakce odstraněny — všech 8 zón je NEUTRÁLNÍCH a sdílí je
  * každá postava. Dřívější paralelní Alliance/Horda zóny se stejnými brackety teď
- * tvoří jeden společný leveling track (víc obsahu na bracket). Lore názvy se
- * narovnají na homebrew D&D v navazujícím přírůstku.
+ * tvoří jeden společný leveling track (víc obsahu na bracket). Lore názvy jsou
+ * homebrew (setting „The Caldmoor Reaches") — engine/ids beze změny, jen texty.
  */
 export type ZoneId =
   | 'northshire'
@@ -33,59 +33,59 @@ export interface ZoneDef {
 export const ZONES: Record<ZoneId, ZoneDef> = {
   northshire: {
     id: 'northshire',
-    name: 'Northshire Valley',
+    name: 'Dawnhollow Vale',
     description: 'A peaceful starting vale where every new adventurer takes their first steps.',
     minLevel: 1,
     maxLevel: 10,
   },
   westfall: {
     id: 'westfall',
-    name: 'Westfall',
-    description: 'Windswept farmlands overrun by the Defias Brotherhood.',
+    name: 'Harrowfield',
+    description: 'Windswept farmlands overrun by the Ashen Hand.',
     minLevel: 10,
     maxLevel: 25,
   },
   duskwood: {
     id: 'duskwood',
-    name: 'Duskwood',
+    name: 'Gloamwood',
     description: 'A shadowed forest where the dead refuse to rest.',
     minLevel: 25,
     maxLevel: 40,
   },
   eastern_plaguelands: {
     id: 'eastern_plaguelands',
-    name: 'Eastern Plaguelands',
+    name: 'Blighted Marches',
     description:
-      'Blighted heartlands of the fallen kingdom, where the Argent Dawn holds the line against the Scourge.',
+      'Blighted heartlands of the fallen kingdom, where the Dawnward Order holds the line against the Pale Legion.',
     minLevel: 40,
     maxLevel: 60,
   },
   durotar: {
     id: 'durotar',
-    name: 'Durotar',
+    name: 'Emberwaste',
     description: 'A harsh red desert where every wanderer proves their worth.',
     minLevel: 1,
     maxLevel: 10,
   },
   barrens: {
     id: 'barrens',
-    name: 'The Barrens',
-    description: 'Vast golden savanna crossed by caravans, quilboar, and roaming centaur.',
+    name: 'The Goldgrass Plains',
+    description: 'Vast golden savanna crossed by caravans, boarkin, and roaming centaur.',
     minLevel: 10,
     maxLevel: 25,
   },
   thousand_needles: {
     id: 'thousand_needles',
-    name: 'Thousand Needles',
-    description: 'A canyon of towering mesas held by the Grimtotem and Galak ogres.',
+    name: 'Spire Canyons',
+    description: 'A canyon of towering mesas held by the Greyhorn and Galuk ogres.',
     minLevel: 25,
     maxLevel: 40,
   },
   felwood: {
     id: 'felwood',
-    name: 'Felwood',
+    name: 'Witherwood',
     description:
-      'A once-emerald forest rotted by fel corruption, prowled by Shadow Council satyrs and tainted furbolgs.',
+      'A once-emerald forest rotted by blight corruption, prowled by Duskcabal satyrs and tainted furbolgs.',
     minLevel: 40,
     maxLevel: 60,
   },

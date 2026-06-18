@@ -44,14 +44,14 @@ export function questingZoneForLevel(level: number): ZoneId {
  * (content), ať `zones.ts` zůstane čistá definice zón.
  */
 export const GRIND_FOES: Record<ZoneId, string[]> = {
-  northshire: ['Kobold Tunneler', 'Defias Thug', 'Timber Wolf', 'Riverpaw Gnoll'],
-  westfall: ['Defias Bandit', 'Harvest Golem', 'Coastal Murloc', 'Riverpaw Brute'],
-  duskwood: ['Nightbane Worgen', 'Skeletal Raider', 'Black Widow', 'Restless Dead'],
-  eastern_plaguelands: ['Plagued Ghoul', 'Scarlet Zealot', 'Carrion Vulture', 'Diseased Bear'],
-  durotar: ['Valley Scorpid', 'Burning Blade Cultist', 'Razormane Boar', 'Mottled Raptor'],
-  barrens: ['Bristleback Quilboar', 'Savannah Lion', 'Kolkar Centaur', 'Plainstrider'],
-  thousand_needles: ['Grimtotem Brave', 'Galak Ogre', 'Screeching Harpy', 'Salt Flat Lizard'],
-  felwood: ['Tainted Furbolg', 'Shadow Council Satyr', 'Felpine Wolf', 'Corrupt Sprite'],
+  northshire: ['Kobold Tunneler', 'Ashen Hand Thug', 'Timber Wolf', 'Riverpaw Gnoll'],
+  westfall: ['Ashen Hand Bandit', 'Harvest Golem', 'Coastal Marshlurker', 'Riverpaw Brute'],
+  duskwood: ['Nightbane Lycan', 'Skeletal Raider', 'Black Widow', 'Restless Dead'],
+  eastern_plaguelands: ['Plagued Ghoul', 'Crimson Zealot', 'Carrion Vulture', 'Diseased Bear'],
+  durotar: ['Valley Scorpid', 'Cinder Cultist', 'Thornroot Boar', 'Mottled Raptor'],
+  barrens: ['Thornback Boarkin', 'Savannah Lion', 'Kharzul Centaur', 'Plainstrider'],
+  thousand_needles: ['Greyhorn Brave', 'Galuk Ogre', 'Screeching Harpy', 'Salt Flat Lizard'],
+  felwood: ['Tainted Ursafolk', 'Duskcabal Satyr', 'Blightpine Wolf', 'Corrupt Sprite'],
 };
 
 /** Počet soubojů ve flavor logu dle délky — víc času = víc střetů (clamp 2..6). */

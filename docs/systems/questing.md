@@ -43,13 +43,15 @@ finishesAt }`.
 
 - **8 neutrálních zón** (MR deWoWčení — frakce odstraněny; dvě zóny na bracket,
   sdílený leveling track, stejný balanc):
-  - Bracket 1 (1–10): Northshire Valley, Durotar.
-  - Bracket 2 (10–25): Westfall, The Barrens.
-  - Bracket 3 (25–40): Duskwood, Thousand Needles.
-  - Bracket 4 (40–60): Eastern Plaguelands, Felwood.
+  - Bracket 1 (1–10): Dawnhollow Vale, Emberwaste.
+  - Bracket 2 (10–25): Harrowfield, The Goldgrass Plains.
+  - Bracket 3 (25–40): Gloamwood, Spire Canyons.
+  - Bracket 4 (40–60): Blighted Marches, Witherwood.
   - Loot per bracket: `bracket_1`…`bracket_4` (`loot.ts → ZONE_TO_BRACKET`).
+  - ℹ️ Lore názvy jsou homebrew (setting „The Caldmoor Reaches", viz
+    `docs/systems/setting.md`); zóna `id` zůstává WoW-historické (engine beze změny).
 - Zóna už nemá `faction`; postava vidí **všechny** questy (gating jen levelem,
-  zónou a story prerekvizitami). Lore názvy se narovnají na homebrew D&D později.
+  zónou a story prerekvizitami).
 - **Questy**: `story` (lineární chain přes `requiresQuest`, jednorázové). Balanc
   (doba, odměny) se ladí v datech.
 - **Gone Questing** (generický grind, ADR 0025): místo repeatable questů jediná
