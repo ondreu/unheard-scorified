@@ -22,17 +22,19 @@
 import { SeededRng, seedFromString } from './rng';
 import {
   abilityDamageMult,
+  abilityDamageSpec,
   buildAttackMessage,
   buildEnemyActor,
   computeHit,
+  crEnemyMagnitude,
   applyAbsorb,
   SIGNATURE_ABILITIES,
   type CombatActor,
   type CombatEvent,
   type SignatureAbility,
 } from './combat';
-import { missMessage } from './dnd-combat';
-import { applyDamageInteraction, damageInteraction } from './data/damage';
+import { applySpellSave, missMessage } from './dnd-combat';
+import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
 
@@ -251,9 +253,13 @@ export function buildGauntletEnemy(level: number, wave: number, rng: SeededRng):
   const eliteAp = isElite ? 1.7 : 1;
   const waveStep = wave - 1;
 
-  // Kompoundovaný (exponenciální) růst → obtížnost stoupá stále strměji.
-  const maxHealth = Math.round((36 + level * 16) * GAUNTLET_HP_GROWTH ** waveStep * eliteHp);
-  const attackPower = Math.round((3 + level * 0.8) * GAUNTLET_AP_GROWTH ** waveStep * eliteAp);
+  // Literal D&D magnituda (ADR 0032): base HP/dmg z Challenge Ratingu efektivní
+  // úrovně (level + vlna), pak **kompoundovaný** (exponenciální) růst za vlnu →
+  // start je D&D-kotvený, obtížnost pak stoupá stále strměji (přeroste hráčův
+  // snowball z draftů → přirozená hranice runu = skóre).
+  const base = crEnemyMagnitude(crForContentLevel(level + waveStep, false), false);
+  const maxHealth = Math.round(base.maxHealth * GAUNTLET_HP_GROWTH ** waveStep * eliteHp);
+  const attackPower = Math.round(base.attackPower * GAUNTLET_AP_GROWTH ** waveStep * eliteAp);
   const armor = Math.round(level * 2 + wave * 4);
 
   const pool = isElite ? ELITE_ENEMY_NAMES : NORMAL_ENEMY_NAMES;
@@ -428,9 +434,20 @@ export function resolveGauntletTurn(
   } else {
     // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
     const targetHpPct = enemy.currentHealth / enemy.maxHealth;
-    const mult = abilityDamageMult(ability, targetHpPct);
+    // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
+    // jinak škálují přes attackPower (damageMult + execute).
+    const spec = abilityDamageSpec(ability, null);
+    const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
     // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
-    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType);
+    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec);
+    // Per-spell saving throw (ADR 0032) → nepřítel hodí proti spell save DC hráče.
+    if (hit.hit && ability.save) {
+      const outcome = applySpellSave(ability, player, enemyAsActor, rng, hit.amount);
+      hit.amount = outcome.amount;
+      if (outcome.message) {
+        pushEvent({ t, type: 'ability', message: outcome.message, source: enemy.name, target: player.name });
+      }
+    }
     enemy.currentHealth -= hit.amount;
 
     let healed = hit.hit ? Math.round(hit.amount * player.lifesteal) : 0;

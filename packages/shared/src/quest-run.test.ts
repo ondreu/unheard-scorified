@@ -23,15 +23,17 @@ function makeProfile(level: number): CombatActor {
 }
 
 describe('questFoeStats', () => {
-  it('scales HP/AP with quest level and tier', () => {
+  it('scales Challenge Rating with quest level and tier (ADR 0032)', () => {
+    // Literal D&D magnitudy: HP/AP se odvodí z CR v `buildEnemyActor`; questFoeStats
+    // nese `challengeRating` (vyšší tier / level = vyšší CR = tvrdší nepřítel).
     const minion = questFoeStats({ name: 'Rat', tier: 'minion' }, 10);
     const boss = questFoeStats({ name: 'Lord', tier: 'boss' }, 10);
-    expect(boss.maxHealth).toBeGreaterThan(minion.maxHealth);
+    expect(boss.challengeRating!).toBeGreaterThan(minion.challengeRating!);
     expect(boss.isBoss).toBe(true);
     expect(minion.isBoss).toBe(false);
-    // vyšší level questu = silnější nepřítel
+    // vyšší level questu = vyšší CR
     const minionHi = questFoeStats({ name: 'Rat', tier: 'minion' }, 40);
-    expect(minionHi.maxHealth).toBeGreaterThan(minion.maxHealth);
+    expect(minionHi.challengeRating!).toBeGreaterThan(minion.challengeRating!);
   });
 });
 
@@ -95,9 +97,11 @@ describe('simulateQuestEncounter (no-fail)', () => {
   });
 
   it('bosses trigger DEX saving throws (half damage on success)', () => {
+    // No-fail boj (allowDefeat=false) → postava se nepoloží pod 1 HP, takže boss
+    // stihne svůj periodický „special" (každý 3. tah) → DEX save. Ověřuje mechaniku.
     const player = makeProfile(10);
-    const boss = questFoeStats({ name: 'Dread Lord', tier: 'boss' }, 30);
-    const out = simulateQuestEncounter(player, boss, new SeededRng(4), 0, true);
+    const boss = questFoeStats({ name: 'Dread Lord', tier: 'boss' }, 12);
+    const out = simulateQuestEncounter(player, boss, new SeededRng(4), 0);
     const joined = out.events.map((e) => e.message).join('\n');
     expect(joined).toMatch(/rolls a DEX save: \d+ [+−] \d+ = \d+ vs DC \d+/);
   });

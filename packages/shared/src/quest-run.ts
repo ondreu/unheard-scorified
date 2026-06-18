@@ -18,6 +18,7 @@
  */
 import {
   abilityDamageMult,
+  abilityDamageSpec,
   actorSpellSaveDc,
   applyAbsorb,
   buildEnemyActor,
@@ -27,8 +28,8 @@ import {
   type CombatEvent,
   type EnemyStats,
 } from './combat';
-import { buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
-import { crForContentLevel, crStatGuide } from './data/damage';
+import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
+import { crForContentLevel } from './data/damage';
 import type { SpellSlots } from './data/spell-slots';
 import type { SignatureAbility } from './data/abilities';
 import {
@@ -62,21 +63,22 @@ function spendSlotForTier(slots: SpellSlots, minTier: number): number | null {
   return null;
 }
 
-/**
- * Násobiče HP/AP nepřítele dle tieru. Konkrétní staty se odvodí z levelu questu
- * × těchto faktorů → autor questu řeší jen jméno + tier. Čísla jsou schválně
- * skromná (boj je flavor, nelze prohrát) — i mírně podlevelovaná postava vyhraje,
- * jen s nižším zbylým HP.
- */
-const TIER_SCALE: Record<QuestEnemyTier, { hp: number; ap: number; boss: boolean }> = {
-  minion: { hp: 0.45, ap: 0.5, boss: false },
-  standard: { hp: 1, ap: 0.85, boss: false },
-  elite: { hp: 1.9, ap: 1.45, boss: false },
-  boss: { hp: 3.2, ap: 1.9, boss: true },
+/** Je daný tier „boss" (tvrdší dpr faktor + boss flag v logu)? */
+const TIER_IS_BOSS: Record<QuestEnemyTier, boolean> = {
+  minion: false,
+  standard: false,
+  elite: false,
+  boss: true,
 };
 
 /** Cap délky jednoho encounteru (s) — flavor log nesmí být nekonečný. */
 const QUEST_ENCOUNTER_MAX_SEC = 90;
+/**
+ * Bump efektivní úrovně nepřátel u combat-objective questů (ADR 0032) — tyhle
+ * „proving fight" questy jsou záměrně smrtelné na holém requiredLevel; připravený
+ * hráč (gear / vyšší level) je zvládne. Laditelné (čísla, ne model).
+ */
+const COMBAT_OBJECTIVE_LEVEL_BUMP = 3;
 /** Pauza mezi kroky v timeline logu (s). */
 const STEP_GAP_SEC = 2;
 
@@ -94,22 +96,16 @@ const TIER_CR_OFFSET: Record<QuestEnemyTier, number> = {
 
 /** Odvodí staty questového nepřítele z levelu questu a tieru (deterministicky, bez RNG). */
 export function questFoeStats(foe: QuestFoe, questLevel: number): EnemyStats {
-  const s = TIER_SCALE[foe.tier];
   const lvl = Math.max(1, questLevel);
-  // AC / útočný bonus / save DC z Challenge Ratingu: CR úrovně questu + posun
-  // tieru, clampnutý do podporovaného rozsahu. HP/AP (idle pacing) zůstávají
-  // skromné autorské škálování (boj je flavor). MR-10.
+  // Literal D&D magnitudy (ADR 0032): HP/AP i AC/attackBonus/save DC se odvodí z
+  // Challenge Ratingu (CR úrovně questu + posun tieru, clampnuto). `buildEnemyActor`
+  // dopočítá staty z `challengeRating`. Boj je flavor (nelze prohrát).
   const cr = Math.max(0, Math.min(30, crForContentLevel(lvl) + TIER_CR_OFFSET[foe.tier]));
-  const guide = crStatGuide(cr);
   return {
     name: foe.name,
-    maxHealth: Math.round((40 + lvl * 24) * s.hp),
-    attackPower: round1((3 + lvl * 1.5) * s.ap),
     swingInterval: foe.tier === 'boss' ? 2.8 : 2.4,
-    isBoss: s.boss,
-    armorClass: guide.armorClass,
-    attackBonus: guide.attackBonus,
-    spellSaveDc: guide.saveDc,
+    isBoss: TIER_IS_BOSS[foe.tier],
+    challengeRating: cr,
   };
 }
 
@@ -205,17 +201,27 @@ export function simulateQuestEncounter(
         readyAt[a.id] = t + a.cooldownSec;
         break;
       }
-      const mult = chosen ? abilityDamageMult(chosen, enemyHp / enemy.maxHealth) : 1;
+      // Literal D&D spell dice (ADR 0032): kouzla s `dice` (Fireball 8d6) jdou přímo
+      // jako kostky (mult = 1); martial techniky/drainy škálují přes `attackPower`
+      // (mult = damageMult + execute). Upcast dle slotu, kterým bylo kouzlo sesláno.
+      const spec = chosen ? abilityDamageSpec(chosen, slotTier) : undefined;
+      const mult = chosen && !spec ? abilityDamageMult(chosen, enemyHp / enemy.maxHealth) : 1;
       // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy (Magic
       // Missile = force…); undefined → zdědí typ zbraně/classy útočníka.
-      const result = resolveAttack(player, enemy, rng, { abilityMult: mult, damageType: chosen?.damageType });
+      const result = resolveAttack(player, enemy, rng, {
+        abilityMult: mult,
+        damageType: chosen?.damageType,
+        damageSpec: spec,
+        autoHit: chosen?.autoHit,
+      });
 
-      // Damaging spell (DoT/area) → nepřítel si hodí CON save (úspěch = poloviční dmg).
+      // Per-spell saving throw (ADR 0032): kouzlo s `save` → nepřítel si hodí
+      // záchranný hod proti spell save DC (úspěch = půlka / nula dle efektu).
       let saveMessage: string | undefined;
-      if (result.hit && chosen?.kind === 'dot') {
-        const save = savingThrow(enemy, rng, 'constitution', actorSpellSaveDc(player));
-        if (save.success) result.amount = Math.max(1, Math.floor(result.amount / 2));
-        saveMessage = buildSaveMessage(enemy.name, 'constitution', save, true);
+      if (result.hit && chosen?.save) {
+        const outcome = applySpellSave(chosen, player, enemy, rng, result.amount);
+        result.amount = outcome.amount;
+        saveMessage = outcome.message;
       }
 
       if (result.hit) enemyHp = Math.max(0, enemyHp - result.amount);
@@ -414,6 +420,10 @@ export function simulateQuestRun(
   // Combat-objective questy (rozhodnutí PM): souboj se vyhodnotí doopravdy a lze
   // prohrát → odměna gatovaná vítězstvím. Default flavor combat (nelze prohrát).
   const allowDefeat = quest.combatObjective === true;
+  // „Come prepared" obtížnost (ADR 0032): combat-objective quest je záměrně
+  // smrtelný na holém requiredLevel (viz popisy questů) → nepřátelé dostanou bump
+  // efektivní úrovně (vyšší CR HP/dmg). Připravený hráč (gear / vyšší level) vyhraje.
+  const foeLevel = quest.requiredLevel + (allowDefeat ? COMBAT_OBJECTIVE_LEVEL_BUMP : 0);
   const steps: QuestStep[] = quest.steps
     ? quest.steps
     : quest.events
@@ -430,7 +440,7 @@ export function simulateQuestRun(
     }
     const enc = simulateQuestEncounter(
       player,
-      questFoeStats(step.foe, quest.requiredLevel),
+      questFoeStats(step.foe, foeLevel),
       rng,
       t,
       allowDefeat,

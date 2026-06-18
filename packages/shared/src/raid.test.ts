@@ -164,7 +164,10 @@ describe('simulateRaidRun', () => {
   });
 
   it('produces heal events from the healer', () => {
-    const bosses = RAIDS.molten_core!.bosses.map(buildRaidBoss);
+    // ADR 0032: bossové mají teď D&D (CR) magnitudy — pro test trvajícího boje, kde
+    // party utrží poškození a healer léčí, bosse naškálujeme jako velký raid (sdílí
+    // se škálováním velikosti party → sustained threat).
+    const bosses = RAIDS.molten_core!.bosses.map((b) => scaleBoss(buildRaidBoss(b, 14), 60));
     const result = simulateRaidRun(buildParty(2), bosses, 42);
     expect(result.events.some((e) => e.type === 'heal')).toBe(true);
   });

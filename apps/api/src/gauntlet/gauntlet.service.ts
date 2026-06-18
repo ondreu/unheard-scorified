@@ -347,18 +347,26 @@ export class GauntletService {
     return match?.item ?? null;
   }
 
-  /** Combat delta itemu (mirror koeficientů z `deriveCombatProfile`). */
+  /**
+   * Combat delta itemu pro gauntlet gear draft (ADR 0032). Po přechodu na literal
+   * D&D magnitudy škáluje hráčův útok přes **modifikátor** primárního atributu
+   * (`floor((score−10)/2)`, tady aproximováno přírůstkem `floor(primary/2)` na item
+   * statu) + weapon/spell power, a HP přes CON modifikátor za level (aproximace ~6
+   * HP/CON-mod-per-level bez znalosti levelu zde). Heuristika pro porovnání draftu —
+   * nemusí přesně zrcadlit `deriveCombatProfile`, jen být ve správné (D&D) škále.
+   */
   private itemCombatDelta(
     item: ItemDef,
     klass: ClassId,
   ): { attackPower: number; maxHealth: number; critChance: number; armor: number } {
     const s: ItemStats = item.stats;
     const primaryStat = CLASSES[klass].primaryStat;
-    const primary = s[primaryStat] ?? 0;
+    const primaryMod = Math.floor((s[primaryStat] ?? 0) / 2);
+    const conMod = Math.floor((s.constitution ?? 0) / 2);
     const weaponPower = (s.attack_power ?? 0) + (s.spell_power ?? 0);
     return {
-      attackPower: Math.round(primary * 0.9 + weaponPower),
-      maxHealth: Math.round((s.constitution ?? 0) * 8),
+      attackPower: Math.round(primaryMod + weaponPower),
+      maxHealth: Math.round(conMod * 6),
       critChance: (s.crit_rating ?? 0) * 0.002,
       armor: s.armor ?? 0,
     };

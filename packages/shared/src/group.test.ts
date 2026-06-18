@@ -29,7 +29,9 @@ describe('groupEncounters', () => {
   it('SP dungeon (size 1) = unscaled encounters', () => {
     const enc = groupEncounters('dungeon', 'ragefire_chasm', 1);
     expect(enc).toHaveLength(DUNGEONS.ragefire_chasm!.encounters.length);
-    expect(enc[0]!.maxHealth).toBe(DUNGEONS.ragefire_chasm!.encounters[0]!.maxHealth);
+    // ADR 0032: HP se odvozuje z CR (data už nenesou maxHealth); solo (size 1) je
+    // unscaled → kladné CR-based HP. Škálování ×size ověřuje další test.
+    expect(enc[0]!.maxHealth).toBeGreaterThan(0);
   });
 
   it('group dungeon scales enemy HP/dmg with party size', () => {

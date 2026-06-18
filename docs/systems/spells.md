@@ -65,3 +65,13 @@ součástí sheetu (overview/inspect) bez extra dotazu.
 - Spotřeba u dungeonů/raidů/arén/Gauntletu (mimo `ActivityService`).
 - Short Rest časová granularita (Warlock).
 - Balanc spotřeby a dopadu (MR-10).
+
+## MR-10e — literal spell dice + saving throwy ✅ (ADR 0032)
+
+Kouzla převzala D&D 5e mechaniku: `SignatureAbility.dice` (literal damage dice, např.
+Fireball 8d6 — **nezávisle na `attackPower`**), `dicePerSlotAbove` (upcast za vyšší
+slot, +1d6/slot u Fireballu), `save` (per-spell saving throw: DEX-half u Fireballu,
+WIS-negate u Vicious Mockery…) a `autoHit` (Magic Missile). Engine hází kostky přes
+`abilityDamageSpec`, save aplikuje sdílený `applySpellSave`. Upcast využívá slot, kterým
+bylo kouzlo sesláno (quest combat tracker; raid/gauntlet zatím base dice bez upcastu).
+Detail damage modelu viz `dnd-combat.md`.
