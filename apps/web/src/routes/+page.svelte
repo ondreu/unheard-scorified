@@ -6,8 +6,8 @@
   <div class="mb-6 text-6xl" aria-hidden="true">⚔️</div>
   <h1 class="font-display text-5xl font-bold tracking-tight text-[var(--gold-bright)]">AFK to 60</h1>
   <p class="mt-3 max-w-md text-[var(--text-dim)]">
-    A WoW-inspired idle RPG. Send your hero questing, raiding and battling in the arena — and reach
-    level 60 even while you're away.
+    A D&D-inspired idle RPG. Send your hero questing, raiding and battling in the arena — and reach
+    level 20 even while you're away.
   </p>
 
   <div class="mt-10 flex flex-wrap justify-center gap-3">

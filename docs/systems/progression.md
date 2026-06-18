@@ -1,15 +1,19 @@
 # Progrese & balanc tempa (XP křivka, délky aktivit, efektivita)
 
-> Detail-spec systému progrese. Kotva balancu (M9 balanc pass, rozhodnutí PM).
-> Jediný zdroj pravdy pro čísla je `packages/shared` — tady je **model + odvození
-> + cílová křivka** (mj. jako podklad pro plánování contentu napříč úrovněmi).
+> Detail-spec systému progrese. Kotva balancu (MR-11 — D&D level cap 20 + XP
+> křivka, rozhodnutí PM). Jediný zdroj pravdy pro čísla je `packages/shared` —
+> tady je **model + odvození + cílová křivka** (mj. jako podklad pro plánování
+> contentu napříč úrovněmi).
 
 ## Cíl (rozhodnutí PM)
 
-- **Level cap 60**, velmi pomalá „long-haul" křivka — cap je hlavní dlouhodobá meta.
-- **Early rychlé, se zvyšujícím levelem progresivně pomalejší.** lvl 10 ≈ za týden
-  běžného hraní.
-- **Cesta 1→60 ≈ 3–5 měsíců** kalendářně pro aktivního idle hráče.
+- **Level cap 20** (D&D, MR-11), velmi pomalá „long-haul" křivka — cap je hlavní
+  dlouhodobá meta.
+- **Early rychlé, se zvyšujícím levelem progresivně pomalejší.** lvl 1→2 ≈ 3,3 h
+  perfect-chain (≈ „level za den" běžného hraní); cesta dál progresivně zpomaluje.
+- **Cesta 1→20 ≈ 3–5 měsíců** kalendářně pro aktivního idle hráče (stejné cílové
+  okno času jako WoW-éra, jen rozložené do 20 levelů místo 60 → každý level
+  „těžší", víc obsahu na level).
 - **Idle cadence**: nejkratší aktivita 5 min, nejdelší 3 h („kontrola párkrát denně",
   ale i krátké aktivní sezení).
 
@@ -34,7 +38,8 @@ Kalibrace: **cap ≈ 2200 h perfect-chain** (`TARGET_HOURS_TO_CAP`). Kalendářn
 Tempo určují dvě věci ve `packages/shared/src/constants.ts`:
 
 1. **XP křivka** `XP_CURVE` → `xpForNextLevel(L) = floor(base + scale·L^exponent)`.
-   Kalibrováno `exponent = 2.0`, `scale = 120.8`, `base = 0`.
+   Kalibrováno `exponent = 2.0`, `scale = 1966.2`, `base = 0`
+   (`scale = TARGET_HOURS_TO_CAP · 600 / Σ_{L=1..19} L^1.5`).
 2. **Referenční rychlost** `XP_REWARD_RATE` → `referenceXpPerHour(L) = 600·L^0.5`
    (XP/h „nejlepší dostupné" aktivity na levelu L při efektivitě 1.0; roste s √L,
    aby vyšší questy dávaly větší čísla).
@@ -63,42 +68,38 @@ posune celkový čas (lineárně), změnou `exponent` (a `levelExponent` rychlos
 
 ## Cílová křivka (podklad pro content)
 
-Čas (perfect-chain) a XP na jednotlivých úrovních:
+Čas (perfect-chain) a XP na jednotlivých úrovních (scale = 1966,2):
 
-| Level | XP na další level | h na tento level |
-| ---: | ---: | ---: |
-| 1 | 120 | 0,2 |
-| 5 | 3 020 | 2,3 |
-| 10 | 12 080 | 6,4 |
-| 15 | 27 180 | 11,7 |
-| 20 | 48 320 | 18,0 |
-| 25 | 75 500 | 25,2 |
-| 30 | 108 720 | 33,1 |
-| 35 | 147 980 | 41,7 |
-| 40 | 193 280 | 50,9 |
-| 45 | 244 620 | 60,8 |
-| 50 | 302 000 | 71,2 |
-| 55 | 365 420 | 82,1 |
-| 59 | 420 504 | 91,2 |
+| Level | XP na další level | h na tento level | kumulativně h |
+| ---: | ---: | ---: | ---: |
+| 1 | 1 966 | 3,3 | 3,3 |
+| 2 | 7 864 | 9,3 | 12,5 |
+| 3 | 17 695 | 17,0 | 29,6 |
+| 5 | 49 155 | 36,6 | 92,4 |
+| 8 | 125 836 | 74,2 | 275,4 |
+| 10 | 196 620 | 103,6 | 467,5 |
+| 13 | 332 287 | 153,6 | 876,9 |
+| 15 | 442 395 | 190,4 | 1 238,9 |
+| 18 | 637 048 | 250,3 | 1 928,6 |
+| 19 | 709 798 | 271,4 | 2 200,0 |
 
-Po desítkových pásmech:
+Po pětilevelových pásmech:
 
 | Pásmo | h v pásmu | kumulativně na vstup | podíl z cesty |
 | --- | ---: | ---: | ---: |
-| 1–10 | 22 | 22 | 1 % |
-| 10–20 | 113 | 135 | 5 % |
-| 20–30 | 245 | 381 | 11 % |
-| 30–40 | 409 | 790 | 19 % |
-| 40–50 | 599 | 1388 | 27 % |
-| 50–60 | 811 | 2199 | 37 % |
+| 1–5 | 56 | 56 | 2,5 % |
+| 5–10 | 308 | 364 | 14,0 % |
+| 10–15 | 685 | 1 049 | 31,1 % |
+| 15–20 | 1 151 | 2 200 | 52,3 % |
 
-Celkové XP 1→60 = **8 481 344**.
+Celkové XP 1→20 = **4 856 506**.
 
-> ⚠️ **Content gap 40–60.** Pásmo 40–60 je **64 % celé cesty**, ale dnes tam je
-> tenký obsah (dungeony končí Scarlet Monastery lvl 30–38, pak jen repeatable
-> questy + 2 raidy). Křivka je záměrně tímto směrem nastavená (cap = long-haul
-> meta), ale **late-game obsah (zóny/dungeony/questy 40–60) je potřeba doplnit**,
-> ať to není grind na jednom questu. Samostatný content task (viz ROADMAP M10+).
+> ⚠️ **Content gap 14–20.** Pásmo 14–20 je **~52 % celé cesty**, ale je tam
+> tenčí obsah (linear rescale MR-11 zkomprimoval WoW frontier 40–60 do levelů
+> 14–20: frontier zóny Blighted Marches/Witherwood, dungeony Zarfarai→Pyrehold,
+> raidy). Křivka je záměrně tímto směrem nastavená (cap = long-haul meta), ale
+> **late-game obsah (14–20) je potřeba zahustit**, ať to není grind na jednom
+> questu. Samostatný content task (viz ROADMAP).
 
 ## Mimo rozsah tohoto passu
 
@@ -112,7 +113,7 @@ Celkové XP 1→60 = **8 481 344**.
 ## Testy (kontrakt)
 
 `packages/shared/src/progression.test.ts`:
-- perfect-chain čas 1→60 v okně cíle (±2 %),
-- monotónní `hoursToNextLevel` (early < late), lvl 10 ≈ 22 h, pásmo 50–60 dominuje,
+- perfect-chain čas 1→20 v okně cíle (±2 %),
+- monotónní `hoursToNextLevel` (early < late), lvl 1→2 ≈ 3,3 h, pásmo 15–20 dominuje (>40 %),
 - `activityEfficiency` endpointy/clamp/monotónnost,
 - všechny questy v `[5 min, 3 h]` a `baseXp` kalibrovaný na referenční rychlost (±5 %).

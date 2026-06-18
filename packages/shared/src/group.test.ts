@@ -95,19 +95,19 @@ describe('isGroupContentUnlocked', () => {
     expect(isGroupContentUnlocked('raid', 'molten_core', 40, ['tn_galak_ogres'])).toBe(true);
   });
 
-  it('M12 40–60 dungeons gate on level + attunement questline', () => {
+  it('frontier dungeons gate on level + attunement questline', () => {
     // Pod úrovní → zamčeno i s attunementem
-    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 41, ['al_zf_attunement'])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 13, ['al_zf_attunement'])).toBe(false);
     // Level bez attunementu nestačí
-    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, [])).toBe(false);
-    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 42, ['ho_zf_attunement'])).toBe(true);
-    expect(isGroupContentUnlocked('dungeon', 'maraudon', 46, [])).toBe(false);
-    expect(isGroupContentUnlocked('dungeon', 'maraudon', 46, ['al_mar_attunement'])).toBe(true);
-    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, [])).toBe(false);
-    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 52, ['ho_brd_attunement'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 14, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'zulfarrak', 14, ['ho_zf_attunement'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'maraudon', 15, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'maraudon', 15, ['al_mar_attunement'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 17, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'blackrock_depths', 17, ['ho_brd_attunement'])).toBe(true);
     // Stratholme: level + attunement questline
-    expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, [])).toBe(false);
-    expect(isGroupContentUnlocked('dungeon', 'stratholme', 58, ['al_culling_stratholme'])).toBe(true);
+    expect(isGroupContentUnlocked('dungeon', 'stratholme', 19, [])).toBe(false);
+    expect(isGroupContentUnlocked('dungeon', 'stratholme', 19, ['al_culling_stratholme'])).toBe(true);
   });
 
   it('M12.5 low-level dungeons gate on a multi-quest attunement chain', () => {

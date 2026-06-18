@@ -3,8 +3,8 @@
  * Balanc se ladí ZDE — nikdy nehardcodovat hodnoty jinde.
  */
 
-/** Maximální dosažitelný level (vanilla cap). */
-export const MAX_LEVEL = 60;
+/** Maximální dosažitelný level (D&D cap, MR-11). */
+export const MAX_LEVEL = 20;
 
 /**
  * Ladicí parametry XP křivky. Křivka je záměrně "long-haul" — dosažení
@@ -13,23 +13,25 @@ export const MAX_LEVEL = 60;
  * Model (viz `docs/systems/progression.md`):
  *   xpForNextLevel(L) = floor(base + scale * L^exponent)
  *
- * Kalibrace M9 balanc pass: `scale`/`exponent` jsou odvozené tak, aby cesta
- * 1→60 trvala ~2200 h "perfect-chain" herního času (aktivní idle hráč, který
+ * Kalibrace MR-11 (D&D cap 20): `scale`/`exponent` jsou odvozené tak, aby cesta
+ * 1→20 trvala ~2200 h "perfect-chain" herního času (aktivní idle hráč, který
  * při každé kontrole hned zařadí další aktivitu) s tvarem time(L) ∝ L^1.5 —
- * early rychlé, plynule pomalejší (lvl 10 ≈ 22 h, cap ≈ 3–5 měsíců kalendářně).
+ * early rychlé (lvl 1→2 ≈ 3,3 h ≈ „level za den"), plynule pomalejší, cap ≈
+ * 3–5 měsíců kalendářně. Stejné cílové okno času jako WoW-éra, jen rozložené
+ * do 20 levelů místo 60 → každý level je „těžší", obsahu na level víc.
  *
  * Odvození: time(L) = xpForNext(L) / referenceXpPerHour(L). Při
  * referenceXpPerHour(L) = XP_REWARD_RATE.base * L^XP_REWARD_RATE.levelExponent
  * (= 600 * L^0.5) vyjde xpForNext(L) = scale * L^2 a time(L) ∝ L^1.5. Proto
- * exponent = 2.0 a scale = 2200h_coeff * 600 ≈ 120.8.
+ * exponent = 2.0 a scale = TARGET_HOURS_TO_CAP * 600 / Σ_{1..19} L^1.5 ≈ 1966.2.
  */
 export const XP_CURVE = {
   /** Aditivní základ (drží lvl 1 nad nulou; pacing určuje scale·L^exponent). */
   base: 0,
   /** Mocninový exponent růstu nákladu (2.0 → time-per-level ∝ L^1.5). */
   exponent: 2.0,
-  /** Lineární multiplikátor; kalibrováno na ~2200 h perfect-chain do capu. */
-  scale: 120.8,
+  /** Lineární multiplikátor; kalibrováno na ~2200 h perfect-chain do capu (lvl 20). */
+  scale: 1966.2,
 } as const;
 
 /**

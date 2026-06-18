@@ -39,10 +39,10 @@ export const MOUNT_TIER_SPEED: Record<MountTier, number> = {
   epic: 0.5,
 };
 
-/** Level gate a cena jednotně per tier. */
+/** Level gate a cena jednotně per tier (D&D cap 20, MR-11). */
 export const MOUNT_TIER_REQUIRED_LEVEL: Record<MountTier, number> = {
-  basic: 30,
-  epic: 50,
+  basic: 10,
+  epic: 17,
 };
 export const MOUNT_TIER_COST: Record<MountTier, number> = {
   basic: 250,

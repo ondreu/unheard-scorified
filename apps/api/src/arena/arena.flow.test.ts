@@ -74,7 +74,7 @@ describe('M7 flow: arena PVP', () => {
     vi.useRealTimers();
   });
 
-  /** Postava na vysokém levelu (cap 60), volitelně se zbraní. */
+  /** Postava na max levelu (cap), volitelně se zbraní. */
   async function fighter(
     username: string,
     name: string,

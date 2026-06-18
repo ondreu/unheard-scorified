@@ -22,7 +22,7 @@ a posílá záměry (start/claim).
 
 ## Leveling (`packages/shared/src/leveling.ts`, `constants.ts`)
 
-- XP křivka `XP_CURVE` (cap 60, záměrně pomalá) z M0 — laditelný parametr.
+- XP křivka `XP_CURVE` (cap 20, záměrně pomalá — MR-11) — laditelný parametr.
 - `xpForNextLevel(level)`, `totalXpForLevel(level)`, `levelFromTotalXp(totalXp)`.
 - Smluvní aliasy (M2): `xpForLevel` (= kumulativní XP na level), `levelFromXp`
   (= jen číslo levelu).

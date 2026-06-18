@@ -180,30 +180,30 @@ describe('simulateRaidRun', () => {
 
 describe('isRaidUnlocked (attunement)', () => {
   it('requires level and an attunement quest', () => {
-    expect(isRaidUnlocked('molten_core', 39, ['dw_morbent_fel'])).toBe(false);
-    expect(isRaidUnlocked('molten_core', 40, [])).toBe(false);
-    expect(isRaidUnlocked('molten_core', 40, ['tn_galak_ogres'])).toBe(true);
+    expect(isRaidUnlocked('molten_core', 13, ['dw_morbent_fel'])).toBe(false);
+    expect(isRaidUnlocked('molten_core', 14, [])).toBe(false);
+    expect(isRaidUnlocked('molten_core', 14, ['tn_galak_ogres'])).toBe(true);
   });
 
   it('blackwing lair needs the drakefire attunement', () => {
-    expect(isRaidUnlocked('blackwing_lair', 55, ['dw_morbent_fel'])).toBe(false);
-    expect(isRaidUnlocked('blackwing_lair', 55, ['al_drakefire_attunement'])).toBe(true);
+    expect(isRaidUnlocked('blackwing_lair', 18, ['dw_morbent_fel'])).toBe(false);
+    expect(isRaidUnlocked('blackwing_lair', 18, ['al_drakefire_attunement'])).toBe(true);
   });
 
   it('unknown raid is locked', () => {
-    expect(isRaidUnlocked('nonsense', 60, ['al_drakefire_attunement'])).toBe(false);
+    expect(isRaidUnlocked('nonsense', 20, ['al_drakefire_attunement'])).toBe(false);
   });
 
-  it("Zul'Gurub needs level 50 and the Paragons of Power attunement", () => {
-    expect(isRaidUnlocked('zulgurub', 49, ['al_paragons_of_power'])).toBe(false);
-    expect(isRaidUnlocked('zulgurub', 50, [])).toBe(false);
-    expect(isRaidUnlocked('zulgurub', 50, ['ho_paragons_of_power'])).toBe(true);
+  it("Zul'Gurub needs level 17 and the Paragons of Power attunement", () => {
+    expect(isRaidUnlocked('zulgurub', 16, ['al_paragons_of_power'])).toBe(false);
+    expect(isRaidUnlocked('zulgurub', 17, [])).toBe(false);
+    expect(isRaidUnlocked('zulgurub', 17, ['ho_paragons_of_power'])).toBe(true);
   });
 
-  it("Temple of Ahn'Qiraj needs level 58 and the Scepter attunement", () => {
-    expect(isRaidUnlocked('ahnqiraj', 57, ['al_scepter_of_the_sands'])).toBe(false);
-    expect(isRaidUnlocked('ahnqiraj', 58, ['al_paragons_of_power'])).toBe(false);
-    expect(isRaidUnlocked('ahnqiraj', 58, ['al_scepter_of_the_sands'])).toBe(true);
+  it("Temple of Ahn'Qiraj needs level 19 and the Scepter attunement", () => {
+    expect(isRaidUnlocked('ahnqiraj', 18, ['al_scepter_of_the_sands'])).toBe(false);
+    expect(isRaidUnlocked('ahnqiraj', 19, ['al_paragons_of_power'])).toBe(false);
+    expect(isRaidUnlocked('ahnqiraj', 19, ['al_scepter_of_the_sands'])).toBe(true);
   });
 });
 

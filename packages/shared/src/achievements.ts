@@ -35,8 +35,8 @@ export interface AchievementDef {
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   // Leveling
   { id: 'level_10', name: 'Getting Started', description: 'Reach level 10.', metric: 'level', threshold: 10, rewardGold: 50 },
-  { id: 'level_30', name: 'Seasoned Adventurer', description: 'Reach level 30.', metric: 'level', threshold: 30, rewardGold: 200 },
-  { id: 'level_60', name: 'To Sixty!', description: 'Reach the level cap of 60.', metric: 'level', threshold: 60, rewardGold: 1000 },
+  { id: 'level_15', name: 'Seasoned Adventurer', description: 'Reach level 15.', metric: 'level', threshold: 15, rewardGold: 200 },
+  { id: 'level_20', name: 'To Twenty!', description: 'Reach the level cap of 20.', metric: 'level', threshold: 20, rewardGold: 1000 },
   // Wealth (aktuální zlato)
   { id: 'gold_500', name: 'Pocket Money', description: 'Hold 500 gold.', metric: 'gold', threshold: 500, rewardGold: 50 },
   { id: 'gold_5000', name: 'Well Off', description: 'Hold 5,000 gold.', metric: 'gold', threshold: 5000, rewardGold: 250 },

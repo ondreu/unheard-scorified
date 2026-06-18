@@ -299,7 +299,7 @@
           <section class="card">
             <h2>Level</h2>
             <div class="row">
-              <input type="number" min="1" max="60" bind:value={levelInput} class="field field--sm" />
+              <input type="number" min="1" max="20" bind:value={levelInput} class="field field--sm" />
               <button class="btn" disabled={busy} onclick={() => charAct((id) => devSetLevel(id, levelInput), (r) => `Level → ${r.level}`)}>Set</button>
             </div>
           </section>
