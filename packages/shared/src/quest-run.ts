@@ -28,6 +28,7 @@ import {
   type EnemyStats,
 } from './combat';
 import { buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
+import { crForContentLevel, crStatGuide } from './data/damage';
 import type { SpellSlots } from './data/spell-slots';
 import type { SignatureAbility } from './data/abilities';
 import {
@@ -80,35 +81,35 @@ const QUEST_ENCOUNTER_MAX_SEC = 90;
 const STEP_GAP_SEC = 2;
 
 /**
- * D&D AC/útočný bonus questového nepřítele dle tieru. Škáluje pozvolna s levelem
- * (jako proficiency bonus), tier dává malý posun → vyšší tier = těžší zásah i
- * vyšší šance zasáhnout postavu. Balanc = MR-10.
+ * Posun Challenge Ratingu questového nepřítele dle tieru (vůči CR úrovně questu).
+ * Vyšší tier = vyšší CR → tvrdší zásah i vyšší šance zasáhnout postavu. AC /
+ * útočný bonus / save DC se pak berou z `crStatGuide` (DMG). MR-10.
  */
-const TIER_DND: Record<QuestEnemyTier, { acBonus: number; atkBonus: number }> = {
-  minion: { acBonus: -1, atkBonus: -1 },
-  standard: { acBonus: 0, atkBonus: 0 },
-  elite: { acBonus: 1, atkBonus: 1 },
-  boss: { acBonus: 2, atkBonus: 2 },
+const TIER_CR_OFFSET: Record<QuestEnemyTier, number> = {
+  minion: -2,
+  standard: 0,
+  elite: 1,
+  boss: 2,
 };
 
 /** Odvodí staty questového nepřítele z levelu questu a tieru (deterministicky, bez RNG). */
 export function questFoeStats(foe: QuestFoe, questLevel: number): EnemyStats {
   const s = TIER_SCALE[foe.tier];
-  const d = TIER_DND[foe.tier];
   const lvl = Math.max(1, questLevel);
-  // AC i útočný bonus škálují ~level/2 — aby drželi krok s D&D modifikátory hráče
-  // (`baseStatsFor` přidává +1/level všem skóre → mody i AC rostou s levelem).
-  // Tím je boj na úrovni reálný kontest; balanc = MR-10.
-  const scale = Math.round(lvl * 0.55);
+  // AC / útočný bonus / save DC z Challenge Ratingu: CR úrovně questu + posun
+  // tieru, clampnutý do podporovaného rozsahu. HP/AP (idle pacing) zůstávají
+  // skromné autorské škálování (boj je flavor). MR-10.
+  const cr = Math.max(0, Math.min(30, crForContentLevel(lvl) + TIER_CR_OFFSET[foe.tier]));
+  const guide = crStatGuide(cr);
   return {
     name: foe.name,
     maxHealth: Math.round((40 + lvl * 24) * s.hp),
     attackPower: round1((3 + lvl * 1.5) * s.ap),
     swingInterval: foe.tier === 'boss' ? 2.8 : 2.4,
     isBoss: s.boss,
-    armorClass: 10 + scale + d.acBonus,
-    attackBonus: 2 + scale + d.atkBonus,
-    spellSaveDc: 10 + scale + d.atkBonus,
+    armorClass: guide.armorClass,
+    attackBonus: guide.attackBonus,
+    spellSaveDc: guide.saveDc,
   };
 }
 

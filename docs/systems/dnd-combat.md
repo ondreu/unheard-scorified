@@ -47,8 +47,9 @@ převzetí (per-zbraň/kouzlo dice, CR-based AC/HP/damage) = balanc MR-10.
    = poloviční dmg); boss každý 3. tah sešle „special" (1.6×) → hráč DEX save.
 4. **Spell sloty (MR-4)**: kouzla (tier ≥ 1) čerpají snapshot slotů jako rozpočet
    běhu; po vyčerpání fallback na zbraň/cantrip. Log: `casts Fireball (3rd-level slot)`.
-5. **Enemy AC/attackBonus** škálují ~level/2 (`questFoeStats`) → reálný kontest;
-   combat-objective questy gated buildem (novice prohraje).
+5. **Enemy AC/attackBonus/save DC** se berou z **Challenge Ratingu** (DMG tabulka
+   `crStatGuide`): `questFoeStats` mapuje úroveň questu + tier na CR (MR-10a) →
+   reálný kontest; combat-objective questy gated buildem (novice prohraje).
 
 No-fail flavor combat i combat-objective (lze prohrát) zachovány; odměny netknuté.
 
@@ -57,10 +58,22 @@ No-fail flavor combat i combat-objective (lze prohrát) zachovány; odměny netk
 `computeHit` přepsán na dice (sdílené jádro `rollHit`) → **dungeon/raid/PVP/aréna/
 Gauntlet** běží na stejném D&D modelu. `HitResult` nese `hit`/`roll`/`targetAc`;
 miss = `amount: 0` s miss-aware logem (`missMessage` + kompaktní `rollTag`
-`[d20: 14 + 6 = 20 vs AC 13]`). Nepřátelé dostávají AC/attackBonus z úrovně obsahu
-(`EnemyStats.level` → `buildEnemyActor`).
+`[d20: 14 + 6 = 20 vs AC 13]`). Nepřátelé dostávají AC/attackBonus/save DC z
+**Challenge Ratingu**: `EnemyStats.challengeRating` (explicitní) → jinak z
+`EnemyStats.level` přes `crForContentLevel` (+boss) → `crStatGuide` (DMG tabulka)
+v `buildEnemyActor`. Explicitní `armorClass`/`attackBonus`/`spellSaveDc` mají přednost.
+
+## MR-10a — CR-based enemy staty ✅
+
+Ad-hoc `~level*0.55` placeholdery (AC/attackBonus) nahrazeny **D&D Challenge
+Ratingem**: `crForContentLevel(level, isBoss)` mapuje úroveň obsahu (1–20, MR-11) na
+CR (trash = CR level, boss +2 CR; clamp 0–30 i pro Gauntlet „efektivní" vlny nad
+cap), `crStatGuide` z toho dá AC/attackBonus/save DC z DMG tabulky. Sjednoceno
+napříč všemi simulátory (dungeon/raid/quest/Gauntlet) — `buildEnemyActor` i
+`questFoeStats`. **HP/poškození (idle pacing) zůstávají autorská data** (CR-based
+HP/damage + per-zbraň/kouzlo dice = další MR-10 slice).
 
 ## Follow-up
 
 - Plný damage-dice redesign per zbraň/kouzlo (1d8+STR, 8d6 Fireball) + save-heavy
-  kouzla → MR-7 (bestiář/CR) + **MR-10 (balance pass: převzetí D&D čísel)**.
+  kouzla + CR-based HP/damage → **MR-10 (balance pass: převzetí D&D čísel)**.

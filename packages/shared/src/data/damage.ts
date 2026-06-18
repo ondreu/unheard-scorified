@@ -266,3 +266,20 @@ export function formatChallengeRating(cr: ChallengeRating): string {
   if (cr === 0.5) return '1/2';
   return String(cr);
 }
+
+/**
+ * Mapuje **úroveň obsahu** (idle progrese 1–20 po MR-11) na **Challenge Rating**
+ * pro odvození D&D combat statů (AC/attackBonus/save DC/XP přes `crStatGuide`).
+ *
+ * Idle model = většinou 1 silný nepřítel vs. 1 hráč → encounter CR ≈ úroveň
+ * hráče (DMG: „deadly" solo encounter ~ party level). Trash drží CR = level,
+ * **boss** dostane +2 CR (tvrdší zásah i obrana). Výsledek je clampnutý do
+ * podporovaného rozsahu (0–30); `crStatGuide` ošetří okraje. Level cap obsahu je
+ * 20 (MR-11), ale funkce přijímá i vyšší „efektivní" úrovně (např. Gauntlet vlny
+ * nad cap). Nahrazuje dřívější ad-hoc `~level*0.55` placeholdery (MR-10).
+ */
+export function crForContentLevel(level: number, isBoss = false): ChallengeRating {
+  const base = Math.max(0, Math.min(30, Math.round(level)));
+  const cr = isBoss ? base + 2 : base;
+  return Math.max(0, Math.min(30, cr));
+}
