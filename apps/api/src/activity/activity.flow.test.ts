@@ -261,7 +261,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
     const char = await characters.create(accountId, {
       name: 'Grommash',
-      race: 'orc',
+      race: 'half_orc',
       class: 'druid',
     });
 

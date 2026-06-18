@@ -100,7 +100,7 @@ describe('M9 flow: groups (party)', () => {
     seq += 1;
     const tokens = await auth.register(`grp_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name, race: 'half_orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 60_000_000, 0); // vysoký level (raid/aréna gates)
     return { accountId, id: char.id, name: char.name };
   }

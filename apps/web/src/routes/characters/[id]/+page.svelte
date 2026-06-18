@@ -272,6 +272,23 @@
           </div>
         {/each}
       </div>
+
+      <!-- Racial traits (PHB) -->
+      {#if RACES[c.race as keyof typeof RACES]?.traits?.length}
+        <div class="mt-4">
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-faint)]">
+            {RACES[c.race as keyof typeof RACES].name} traits
+          </h3>
+          <ul class="space-y-1">
+            {#each RACES[c.race as keyof typeof RACES].traits as t (t.name)}
+              <li class="text-sm">
+                <span class="font-semibold text-[var(--gold-bright)]">{t.name}</span>
+                <span class="text-[var(--text-dim)]"> — {t.description}</span>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
     </section>
 
     <!-- Activity panel -->

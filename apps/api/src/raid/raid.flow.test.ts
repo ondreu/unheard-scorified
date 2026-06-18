@@ -85,7 +85,7 @@ describe('M8 flow: raids (MP PVE)', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name, race: 'half_orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 50_000_000, 0); // cap level
     if (opts.attune) await completed.markCompleted(char.id, opts.attune);
     if (opts.weapon) {

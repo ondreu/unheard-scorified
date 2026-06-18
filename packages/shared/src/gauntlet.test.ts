@@ -26,7 +26,7 @@ function hero(level: number, klass: 'fighter' | 'wizard' = 'fighter'): CombatAct
     name: 'Hero',
     level,
     klass,
-    primary: baseStatsFor('orc', klass, level),
+    primary: baseStatsFor('half_orc', klass, level),
     equipment: {},
     progression: EMPTY_PROGRESSION,
   });
@@ -123,7 +123,7 @@ describe('resolveGauntletTurn', () => {
       name: 'Veteran',
       level: 60,
       klass: 'fighter',
-      primary: baseStatsFor('orc', 'fighter', 60),
+      primary: baseStatsFor('half_orc', 'fighter', 60),
       equipment: { strength: 120, constitution: 120, attack_power: 200, armor: 400, crit_rating: 40 },
       progression: EMPTY_PROGRESSION,
     });

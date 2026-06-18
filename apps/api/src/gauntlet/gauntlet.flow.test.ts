@@ -80,7 +80,7 @@ describe('M13 flow: The Gauntlet', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name, race: 'half_orc', class: 'fighter' });
     if (strong) {
       await charRepo.addRewards(char.id, 50_000_000, 0); // cap level
       await invRepo.addItem(char.id, 'crusader_blade');

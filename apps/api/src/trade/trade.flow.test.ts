@@ -48,7 +48,7 @@ describe('M8.5-D flow: p2p trade', () => {
   ): Promise<{ accountId: string; id: string; name: string }> {
     const tokens = await auth.register(`tr_${name}_${seq}`, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name, race: 'half_orc', class: 'fighter' });
     if (opts.gold) await charRepo.addRewards(char.id, 0, opts.gold);
     for (const it of opts.items ?? []) await invRepo.addItemQty(char.id, it.id, it.qty);
     return { accountId, id: char.id, name: char.name };

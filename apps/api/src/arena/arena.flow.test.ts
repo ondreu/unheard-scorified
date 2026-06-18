@@ -82,7 +82,7 @@ describe('M7 flow: arena PVP', () => {
   ): Promise<{ accountId: string; id: string }> {
     const tokens = await auth.register(username, 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name, race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name, race: 'half_orc', class: 'fighter' });
     await charRepo.addRewards(char.id, 10_000_000, 0); // vysoký level → eligible
     if (weapon) {
       const invRepo = new InventoryRepository(db);
@@ -95,7 +95,7 @@ describe('M7 flow: arena PVP', () => {
   it('lvl pod minimem nemůže do arény', async () => {
     const tokens = await auth.register('lowbie', 'password123');
     const accountId = auth.verifyAccessToken(tokens.accessToken).sub;
-    const char = await characters.create(accountId, { name: 'Tinyrunt', race: 'orc', class: 'fighter' });
+    const char = await characters.create(accountId, { name: 'Tinyrunt', race: 'half_orc', class: 'fighter' });
     await expect(arena.queue(accountId, char.id)).rejects.toThrow();
   });
 

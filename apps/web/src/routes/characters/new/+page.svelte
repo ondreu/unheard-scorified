@@ -124,6 +124,25 @@
           </button>
         {/each}
       </div>
+
+      <!-- Race detail: popis, ability bonusy a rasové schopnosti zvolené rasy. -->
+      <div class="card mt-2 !block !p-3 text-left">
+        <p class="text-sm text-[var(--text-dim)]">{RACES[race].description}</p>
+        <p class="mt-2 text-xs">
+          <span class="text-[var(--text-faint)]">Ability bonuses:</span>
+          {#each ABILITY_SCORES.filter((a) => RACES[race].statMods[a] !== 0) as a (a)}
+            <span class="ml-1 text-[var(--gold)]">+{RACES[race].statMods[a]} {ABILITY_ABBREV[a]}</span>
+          {/each}
+        </p>
+        <ul class="mt-2 space-y-1">
+          {#each RACES[race].traits as t (t.name)}
+            <li class="text-xs">
+              <span class="font-semibold text-[var(--gold-bright)]">{t.name}</span>
+              <span class="text-[var(--text-dim)]"> — {t.description}</span>
+            </li>
+          {/each}
+        </ul>
+      </div>
     </div>
 
     <div>

@@ -11,7 +11,7 @@ import { CLASSES } from './data/classes';
 
 describe('isValidRaceClass', () => {
   it('povolí libovolnou kombinaci (D&D race-class matice bez omezení)', () => {
-    expect(isValidRaceClass('nightelf', 'druid')).toBe(true);
+    expect(isValidRaceClass('elf', 'druid')).toBe(true);
     expect(isValidRaceClass('human', 'druid')).toBe(true);
     expect(isValidRaceClass('gnome', 'barbarian')).toBe(true);
   });
@@ -27,9 +27,9 @@ describe('isValidRaceClass', () => {
 
 describe('baseStatsFor', () => {
   it('aplikuje rasové i class modifikátory', () => {
-    const taurenWarrior = baseStatsFor('tauren', 'fighter', 1);
-    // baseline 15 + tauren str +4 + warrior primary +3 = 22
-    expect(taurenWarrior.strength).toBe(22);
+    const dragonbornFighter = baseStatsFor('dragonborn', 'fighter', 1);
+    // baseline 15 + dragonborn STR +2 + fighter primary +3 = 20
+    expect(dragonbornFighter.strength).toBe(20);
   });
 
   it('roste s levelem', () => {
@@ -48,14 +48,14 @@ describe('deriveStats', () => {
   });
 
   it('barbarian používá rage (fixní 100)', () => {
-    const primary = baseStatsFor('orc', 'barbarian', 1);
+    const primary = baseStatsFor('half_orc', 'barbarian', 1);
     expect(deriveStats(primary, 1, 'barbarian').resource).toEqual({ type: 'rage', max: 100 });
   });
 });
 
 describe('buildCharacterSheet', () => {
   it('0 XP = level 1 a konzistentní sheet', () => {
-    const sheet = buildCharacterSheet('orc', 'druid', 0);
+    const sheet = buildCharacterSheet('half_orc', 'druid', 0);
     expect(sheet.level).toBe(1);
     expect(sheet.derived.health).toBeGreaterThan(0);
   });
