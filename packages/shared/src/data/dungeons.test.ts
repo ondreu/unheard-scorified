@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DUNGEONS } from './dungeons';
-import { RAIDS, buildRaidBoss } from './raids';
-import { buildEnemyActor, deriveCombatProfile, resolveAttack, resolveAbilities, type CombatActor } from '../combat';
+import { buildEnemyActor, deriveCombatProfile, resolveAttack, type CombatActor } from '../combat';
 import { baseStatsFor } from '../character';
 import { EMPTY_PROGRESSION } from '../levelup';
 import { SeededRng } from '../rng';
-import { CLASSES, type ClassId } from './classes';
+import { type ClassId } from './classes';
 
 function hero(klass: ClassId, level = 20): CombatActor {
   return deriveCombatProfile({
@@ -63,29 +62,6 @@ describe('MR-10d — typed late-game content', () => {
         (e) => e.damageType || e.resistances || e.vulnerabilities || e.immunities,
       );
       expect(typed, `dungeon ${id} has no typed enemy`).toBe(true);
-    }
-  });
-
-  it('Cinderforge raid (Molten Core) Flamelord is fire-immune, but casters stay viable via per-ability types', () => {
-    const ignaroth = buildRaidBoss(RAIDS.molten_core!.bosses.at(-1)!, 14);
-    expect(ignaroth.immunities).toContain('fire');
-    // Per-ability typy (MR-10d): každá caster classa má aspoň 1 ofenzivní ability,
-    // jejíž typ se LIŠÍ od typu classy → fire-immune boss je nezneškodní úplně.
-    for (const klass of ['wizard', 'sorcerer', 'druid'] as ClassId[]) {
-      const classType = CLASSES[klass].attackDamageType;
-      const offTypeAbility = resolveAbilities(klass, null, 20).some(
-        (a) => (a.kind === 'strike' || a.kind === 'dot' || a.kind === 'drain') &&
-          a.damageType != null && a.damageType !== classType,
-      );
-      expect(offTypeAbility, `${klass} has no off-element ability`).toBe(true);
-    }
-  });
-
-  it('every late-game raid boss carries a damage type', () => {
-    for (const id of ['molten_core', 'zulgurub', 'blackwing_lair', 'ahnqiraj']) {
-      for (const b of RAIDS[id]!.bosses) {
-        expect(b.damageType, `raid ${id} boss ${b.id} has no damageType`).toBeDefined();
-      }
     }
   });
 });

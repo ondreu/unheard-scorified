@@ -33,8 +33,8 @@ export class ProgressionRepository {
     );
   }
 
-  /** Počet vítězných group-run clearů daného typu (dungeon/raid) pro postavu. */
-  clears(characterId: string, contentType: 'dungeon' | 'raid'): Promise<number> {
+  /** Počet vítězných group-run clearů daného typu (dungeon) pro postavu. */
+  clears(characterId: string, contentType: 'dungeon'): Promise<number> {
     return this.count(
       this.db
         .select({ count: sql<number>`count(*)::int` })
@@ -113,7 +113,7 @@ export class ProgressionRepository {
   /** Počet vítězných clearů daného typu od `sinceMs`. */
   clearsSince(
     characterId: string,
-    contentType: 'dungeon' | 'raid',
+    contentType: 'dungeon',
     sinceMs: number,
   ): Promise<number> {
     return this.count(

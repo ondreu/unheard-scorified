@@ -18,7 +18,6 @@ import { CharacterRepository } from '../character/character.repository';
 import { GuildRepository } from '../social/guild.repository';
 import { SocialRepository } from '../social/social.repository';
 import { DungeonService, type DungeonMember } from '../dungeon/dungeon.service';
-import { RaidService } from '../raid/raid.service';
 import { ArenaService } from '../arena/arena.service';
 import { TeamArenaService } from '../arena/team-arena.service';
 import type { Character } from '../db/schema';
@@ -58,15 +57,14 @@ export interface GroupState {
 /** Výsledek spuštění obsahu se skupinou (web podle něj naviguje na watch). */
 export type GroupLaunchResult =
   | { activityType: 'dungeon'; runId: string }
-  | { activityType: 'raid'; runId: string }
   | { activityType: 'arena'; bracket: ArenaBracket; status: 'queued' | 'matched'; matchId?: string };
 
 /**
- * Trvalá skupina (party) — M9 social, ADR 0022. Sjednocuje formaci pro **dungeon,
- * raid i arénu** (nahrazuje raid lobby + ruční team arénu). Postava je v nejvýše
- * jedné skupině; leader zve přátele/spoluhráče z guildy, členové mají PVE roli
- * (aréna ji ignoruje). Leader spustí obsah → run/zápas přes existující enginy
- * (`finalizeRun` / `simulateTeamFight`), žádný NPC backfill.
+ * Trvalá skupina (party) — M9 social, ADR 0022. Sjednocuje formaci pro **dungeon
+ * i arénu** (nahrazuje ruční team arénu; raidy vyříznuty — ADR 0033). Postava je
+ * v nejvýše jedné skupině; leader zve přátele/spoluhráče z guildy, členové mají
+ * PVE roli (aréna ji ignoruje). Leader spustí obsah → run/zápas přes existující
+ * enginy (`finalizeDungeonRun` / `simulateTeamFight`), žádný NPC backfill.
  */
 @Injectable()
 export class GroupService {
@@ -76,7 +74,6 @@ export class GroupService {
     private readonly social: SocialRepository,
     private readonly guilds: GuildRepository,
     private readonly dungeons: DungeonService,
-    private readonly raids: RaidService,
     private readonly arena: ArenaService,
     private readonly teamArena: TeamArenaService,
   ) {}
@@ -334,7 +331,7 @@ export class GroupService {
   }
 
   /**
-   * Spustí obsah se skupinou (jen leader): **dungeon / raid** (group PVE run) nebo
+   * Spustí obsah se skupinou (jen leader): **dungeon** (group PVE run) nebo
    * **aréna** (velikost → bracket: 1→1v1, 3→3v3, 5→5v5). Recykluje existující
    * run/aréna enginy; žádný NPC backfill.
    */
@@ -364,10 +361,6 @@ export class GroupService {
     if (activityType === 'dungeon') {
       const view = await this.dungeons.runForGroup(leader, contentId, members);
       return { activityType, runId: view.runId };
-    }
-    if (activityType === 'raid') {
-      const { runId } = await this.raids.runForGroup(leader, contentId, members);
-      return { activityType, runId };
     }
 
     // Aréna: velikost → bracket.

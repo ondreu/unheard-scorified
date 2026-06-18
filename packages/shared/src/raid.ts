@@ -1,8 +1,11 @@
 /**
- * Raid combat (M8, MP PVE). Recykluje deterministický combat engine z M5
- * (`computeHit`, `CombatActor`, `CombatEvent`) — žádná duplikace bojových vzorců
- * (viz CLAUDE.md). Na rozdíl od dungeonu (1 postava vs sekvence nepřátel) je raid
- * **party N aktérů s rolemi vs boss** (víc aktérů na straně hráčů).
+ * **Group PVE run engine** (legacy název `raid` — raidy jako herní mód byly
+ * vyříznuty, viz ADR 0033). Tento modul drží sdílenou simulaci skupinového boje
+ * **party N aktérů s rolemi vs sekvence encounterů** — používá ji **dungeon**
+ * (SP 1 dps i group 3/5) a sandbox trénovací terč (rotace). Recykluje
+ * deterministický combat engine z M5 (`computeHit`, `CombatActor`, `CombatEvent`)
+ * — žádná duplikace bojových vzorců (viz CLAUDE.md). Názvy `Raid*`/`RAID_*`
+ * zůstávají jako interní legacy (minimální řez, ADR 0033).
  *
  * Role (rozhodnutí PM, MVP 5 hráčů = 1 tank / 1 heal / 3 dps):
  *  - `tank`   — víc HP, míň dmg, na něj boss útočí (a bere zmírněné poškození).
@@ -186,6 +189,13 @@ export function scaleBoss(boss: CombatActor, size: number): CombatActor {
     maxHealth: Math.round(boss.maxHealth * factor),
     attackPower: boss.attackPower * factor,
   };
+}
+
+/** Odměna jednoho účastníka za group run (XP/zlato/loot). */
+export interface RaidReward {
+  xp: number;
+  gold: number;
+  items: string[];
 }
 
 export interface RaidCombatResult {

@@ -1,15 +1,16 @@
 /**
- * Sjednocený **group PVE run** model (M8.5-B). Dungeon i raid jsou jeden druh
- * obsahu: **party (1..N aktérů s rolemi) vs sekvence encounterů**, na společné
- * simulaci `simulateRaidRun` (party vs sekvence, wipe/retry z M8.5-A, member
- * abilities). SP dungeon = group run s 1 dps; group dungeon 3/5 a raid 5/10/20
- * přidávají role. Party se skládá **jen z reálných hráčů** (žádný NPC backfill —
- * odebráno; obsah se odsimuluje s tím, kolik hráčů se sejde, boss se škáluje
+ * Sjednocený **group PVE run** model (M8.5-B; raidy vyříznuty v ADR 0033, zbyl
+ * jen dungeon). Dungeon je **party (1..N aktérů s rolemi) vs sekvence
+ * encounterů** na společné simulaci `simulateRaidRun` (party vs sekvence,
+ * wipe/retry z M8.5-A, member abilities). SP dungeon = group run s 1 dps; group
+ * dungeon 3/5 přidává role. Party se skládá **jen z reálných hráčů** (žádný NPC
+ * backfill; obsah se odsimuluje s tím, kolik hráčů se sejde, boss se škáluje
  * velikostí party).
  *
  * Tento modul drží **content-agnostické** helpery (velikosti, kompozice,
- * encountery + scaling, unlock, personal reward). Persistence
- * a matchmaking žijí v API (sdílené run tabulky). Veškerá náhoda jen přes
+ * encountery + scaling, unlock, personal reward). Persistence a matchmaking žijí
+ * v API (sdílené run tabulky). `GroupContentType` zůstává jako rozšiřitelný
+ * abstrakční bod (kdyby přibyl další group PVE mód). Veškerá náhoda jen přes
  * `SeededRng`. Viz ADR 0014.
  */
 import { SeededRng } from './rng';
@@ -19,24 +20,11 @@ import {
   type CombatActor,
 } from './combat';
 import { DUNGEONS, isDungeonId, isDungeonUnlocked } from './data/dungeons';
-import {
-  RAIDS,
-  buildRaidBoss,
-  computeRaidReward,
-  isRaidId,
-  isRaidUnlocked,
-  type RaidReward,
-} from './data/raids';
-import {
-  RAID_BASE_SIZE,
-  defaultRaidComposition,
-  scaleBoss,
-  type RaidComposition,
-} from './raid';
+import type { RaidComposition, RaidReward } from './raid';
 import { rollLoot, DUNGEON_LOOT_TABLES } from './loot';
 
-/** Druh group PVE obsahu. */
-export type GroupContentType = 'dungeon' | 'raid';
+/** Druh group PVE obsahu (po vyříznutí raidů jen dungeon — ADR 0033). */
+export type GroupContentType = 'dungeon';
 
 /** Povolené velikosti dungeon party: 1 (SP), 3, 5 (group). */
 export const DUNGEON_SIZES = [1, 3, 5] as const;
@@ -56,21 +44,19 @@ export interface GroupContentMeta {
   bossName: string;
 }
 
-/** Povolené velikosti party pro daný obsah. */
-export function groupContentSizes(contentType: GroupContentType, contentId: string): number[] {
-  if (contentType === 'dungeon') return [...DUNGEON_SIZES];
-  return RAIDS[contentId]?.sizes ?? [];
+/** Povolené velikosti party pro daný obsah (dungeon: 1/3/5). */
+export function groupContentSizes(_contentType: GroupContentType, _contentId: string): number[] {
+  return [...DUNGEON_SIZES];
 }
 
 /**
  * Default kompozice (tank/healer/dps) pro velikost. Dungeon: 1 = solo dps,
- * 3 = 1/1/1, 5 = 1/1/3. Raid recykluje `defaultRaidComposition`.
+ * 3 = 1/1/1, 5 = 1/1/3.
  */
 export function groupComposition(
-  contentType: GroupContentType,
+  _contentType: GroupContentType,
   size: number,
 ): RaidComposition {
-  if (contentType === 'raid') return defaultRaidComposition(size);
   if (size <= 1) return { tank: 0, healer: 0, dps: 1 };
   if (size === 3) return { tank: 1, healer: 1, dps: 1 };
   return { tank: 1, healer: 1, dps: size - 2 };
@@ -88,62 +74,49 @@ function scaleActor(actor: CombatActor, factor: number): CombatActor {
 
 /**
  * Sekvence encounterů (`CombatActor[]`) pro obsah a velikost party. Dungeon:
- * trash+boss škálované ×size (base 1 hráč → balanc invariantní s počtem hráčů,
- * stejná logika jako `scaleBoss` u raidů). Raid: bossové škálovaní `scaleBoss`.
+ * trash+boss škálované ×size (base 1 hráč → balanc invariantní s počtem hráčů).
  */
 export function groupEncounters(
-  contentType: GroupContentType,
+  _contentType: GroupContentType,
   contentId: string,
   size: number,
 ): CombatActor[] {
-  if (contentType === 'dungeon') {
-    const dungeon = DUNGEONS[contentId];
-    if (!dungeon) return [];
-    const factor = Math.max(1, size); // dungeon base = 1 hráč
-    // Úroveň obsahu → D&D AC/attackBonus nepřátel (MR-5).
-    return dungeon.encounters.map((e) =>
-      scaleActor(buildEnemyActor({ ...e, level: e.level ?? dungeon.requiredLevel }), factor),
-    );
-  }
-  const raid = RAIDS[contentId];
-  if (!raid) return [];
-  return raid.bosses.map((b) => scaleBoss(buildRaidBoss(b, raid.attunement.requiredLevel), size));
+  const dungeon = DUNGEONS[contentId];
+  if (!dungeon) return [];
+  const factor = Math.max(1, size); // dungeon base = 1 hráč
+  // Úroveň obsahu → D&D AC/attackBonus nepřátel (MR-5).
+  return dungeon.encounters.map((e) =>
+    scaleActor(buildEnemyActor({ ...e, level: e.level ?? dungeon.requiredLevel }), factor),
+  );
 }
 
 /** Je obsah pro postavu odemčený (level + případný attunement/questline)? */
 export function isGroupContentUnlocked(
-  contentType: GroupContentType,
+  _contentType: GroupContentType,
   contentId: string,
   level: number,
   completedQuestIds: string[],
 ): boolean {
-  if (contentType === 'dungeon') return isDungeonUnlocked(contentId, level, completedQuestIds);
-  return isRaidUnlocked(contentId, level, completedQuestIds);
+  return isDungeonUnlocked(contentId, level, completedQuestIds);
 }
 
-export function isGroupContentId(contentType: GroupContentType, id: string): boolean {
-  return contentType === 'dungeon' ? isDungeonId(id) : isRaidId(id);
+export function isGroupContentId(_contentType: GroupContentType, id: string): boolean {
+  return isDungeonId(id);
 }
 
 /**
  * Personal reward jednoho účastníka za group run (M8.5-A/-D). **Hard fail** =
  * 0 (žádná útěcha). Při clearu plné XP/zlato + loot **škálované wipy**
- * (`wipeRewardMultiplier`). Loot je **personal** (seed odvozený per účastník).
- * Dungeon používá `DUNGEON_LOOT_TABLES`, raid deleguje na `computeRaidReward`.
+ * (`wipeRewardMultiplier`). Loot je **personal** (seed odvozený per účastník)
+ * z `DUNGEON_LOOT_TABLES`.
  */
 export function computeGroupReward(
-  contentType: GroupContentType,
+  _contentType: GroupContentType,
   contentId: string,
   victory: boolean,
   seed: number,
   wipes: number,
 ): RaidReward {
-  if (contentType === 'raid') {
-    const raid = RAIDS[contentId];
-    if (!raid) return { xp: 0, gold: 0, items: [] };
-    return computeRaidReward(raid, victory, seed, wipes);
-  }
-
   const dungeon = DUNGEONS[contentId];
   if (!dungeon) return { xp: 0, gold: 0, items: [] };
   if (!victory) return { xp: 0, gold: 0, items: [] };
@@ -160,6 +133,3 @@ export function computeGroupReward(
     items,
   };
 }
-
-// Re-export pro pohodlí API (jeden import z group modelu).
-export { RAID_BASE_SIZE };

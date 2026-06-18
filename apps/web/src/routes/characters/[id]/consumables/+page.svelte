@@ -8,7 +8,7 @@
   const ui = {
     title: 'Consumables',
     blurb:
-      'Drink a potion or elixir to gain a temporary buff. Active buffs add their stats to your character in combat (dungeons, raids, arena) until they expire.',
+      'Drink a potion or elixir to gain a temporary buff. Active buffs add their stats to your character in combat (dungeons, arena) until they expire.',
     yourConsumables: 'Your Consumables',
     activeBuffs: 'Active Buffs',
     none: "You have no consumables. Craft them with Alchemy or buy them from a vendor.",

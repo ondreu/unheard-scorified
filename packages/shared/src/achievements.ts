@@ -1,9 +1,10 @@
 /**
  * Achievementy (M9). Statický katalog + čisté helpery (jediný zdroj pravdy pro
  * API i web). Achievementy se **odvozují z existujícího stavu** (level, zlato,
- * počty dokončených questů/dungeonů/raidů/arén/přátel) — žádné invazivní
- * countery napříč systémy. Progres se počítá lazy při čtení; nárok na odměnu se
- * uloží (jednorázově).
+ * počty dokončených questů/dungeonů/arén/přátel) — žádné invazivní countery
+ * napříč systémy. Progres se počítá lazy při čtení; nárok na odměnu se uloží
+ * (jednorázově). Raid achievementy byly odebrány s vyříznutím raidů (ADR 0033);
+ * dříve odemčené nároky hráčům zůstávají jako historická data.
  *
  * UI strings (name/description) jsou herní obsah → anglicky.
  */
@@ -14,7 +15,6 @@ export const ACHIEVEMENT_METRICS = [
   'gold',
   'questsCompleted',
   'dungeonClears',
-  'raidClears',
   'arenaWins',
   'friends',
 ] as const;
@@ -46,9 +46,6 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   // Dungeons
   { id: 'dungeon_1', name: 'Delver', description: 'Clear your first dungeon.', metric: 'dungeonClears', threshold: 1, rewardGold: 50 },
   { id: 'dungeon_25', name: 'Dungeon Crawler', description: 'Clear 25 dungeons.', metric: 'dungeonClears', threshold: 25, rewardGold: 500 },
-  // Raids
-  { id: 'raid_1', name: 'Raider', description: 'Clear your first raid boss run.', metric: 'raidClears', threshold: 1, rewardGold: 150 },
-  { id: 'raid_10', name: 'Raid Veteran', description: 'Clear 10 raid runs.', metric: 'raidClears', threshold: 10, rewardGold: 750 },
   // Arena
   { id: 'arena_1', name: 'Gladiator Initiate', description: 'Win an arena match.', metric: 'arenaWins', threshold: 1, rewardGold: 75 },
   { id: 'arena_25', name: 'Arena Champion', description: 'Win 25 arena matches.', metric: 'arenaWins', threshold: 25, rewardGold: 600 },
@@ -60,7 +57,6 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   { id: 'gold_50000', name: 'Tycoon', description: 'Hold 50,000 gold.', metric: 'gold', threshold: 50000, rewardGold: 1500 },
   { id: 'quests_200', name: 'Champion of the People', description: 'Complete 200 quests.', metric: 'questsCompleted', threshold: 200, rewardGold: 1500 },
   { id: 'dungeon_100', name: 'Master Delver', description: 'Clear 100 dungeons.', metric: 'dungeonClears', threshold: 100, rewardGold: 1500 },
-  { id: 'raid_50', name: 'Raid Conqueror', description: 'Clear 50 raid runs.', metric: 'raidClears', threshold: 50, rewardGold: 2500 },
   { id: 'arena_100', name: 'Arena Master', description: 'Win 100 arena matches.', metric: 'arenaWins', threshold: 100, rewardGold: 2000 },
 ] as const;
 

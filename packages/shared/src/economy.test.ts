@@ -11,12 +11,10 @@ import {
 } from './index';
 
 describe('M8.6 bindType (soulbound / BoP / BoE)', () => {
-  it('raid/dungeon personal loot je BoP (soulbound)', () => {
-    expect(itemBindType('ashkandi')).toBe('bop'); // raid legendary
-    expect(itemBindType('earthshaker')).toBe('bop'); // raid epic
+  it('dungeon personal loot je BoP (soulbound)', () => {
     expect(itemBindType('whitemane_chapeau')).toBe('bop'); // dungeon boss epic
     expect(itemBindType('taragaman_hammer')).toBe('bop'); // dungeon boss rare
-    expect(isSoulbound('ashkandi')).toBe(true);
+    expect(isSoulbound('whitemane_chapeau')).toBe(true);
   });
 
   it('běžný gear a materiály jsou nevázané (none)', () => {
@@ -38,8 +36,8 @@ describe('M8.6 bindType (soulbound / BoP / BoE)', () => {
 
 describe('M8.6 isAuctionable (AH filtr)', () => {
   it('BoP item není prodejný na AH', () => {
-    expect(isAuctionable('ashkandi')).toBe(false);
     expect(isAuctionable('whitemane_chapeau')).toBe(false);
+    expect(isAuctionable('taragaman_hammer')).toBe(false);
   });
 
   it('nevázané a BoE itemy prodejné jsou', () => {
@@ -81,22 +79,10 @@ describe('M8.6 weekly lockout (deterministický UTC týden)', () => {
 });
 
 describe('M8.6 lockoutIdForContent (které obsahy lockoutu podléhají)', () => {
-  it('všechny raidy mají weekly lockout', () => {
-    expect(contentHasWeeklyLockout('raid', 'molten_core')).toBe(true);
-    expect(lockoutIdForContent('raid', 'molten_core')).toBe('raid:molten_core');
-    expect(lockoutIdForContent('raid', 'blackwing_lair')).toBe('raid:blackwing_lair');
-  });
-
   it('jen vyšší dungeon (scarlet) je lockoutován; nižší ne', () => {
     expect(contentHasWeeklyLockout('dungeon', 'scarlet_monastery')).toBe(true);
     expect(lockoutIdForContent('dungeon', 'scarlet_monastery')).toBe('dungeon:scarlet_monastery');
     expect(contentHasWeeklyLockout('dungeon', 'ragefire_chasm')).toBe(false);
     expect(lockoutIdForContent('dungeon', 'ragefire_chasm')).toBeNull();
-  });
-
-  it('raid a dungeon mají oddělený namespace', () => {
-    expect(lockoutIdForContent('raid', 'molten_core')).not.toBe(
-      lockoutIdForContent('dungeon', 'molten_core'),
-    );
   });
 });

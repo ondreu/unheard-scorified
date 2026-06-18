@@ -1,7 +1,15 @@
-# Systém: Raidy (MP PVE) — M8
+# Systém: Raidy (MP PVE) — M8 ❌ ODSTRANĚNO (ADR 0033)
+
+> ⚠️ **Raidy byly vyříznuty (ADR 0033, 2026-06-18).** Tento dokument je
+> **historický**. Raid mód (data, služby, UI, loot, achievementy) už neexistuje.
+> Sdílený **group-run engine** (party vs sekvence, role T/H/DPS, wipe/retry) a run
+> tabulky **přežívají** pod legacy názvy `raid_*` a obsluhují už jen **dungeony**
+> (viz `docs/systems/groups.md`, `combat-dungeons.md`). Níže popsaný stav platil
+> do odstranění.
 
 Organizovaný skupinový PVE obsah s rolemi, idle boss fighty, attunement gatingem
-a raid lootem. Rozhodnutí a důsledky: **ADR 0011**. Combat recykluje M5 engine.
+a raid lootem. Rozhodnutí a důsledky: **ADR 0011** (superseded ADR 0033). Combat
+recykluje M5 engine.
 
 ## Velikost & kompozice (rozhodnutí PM)
 

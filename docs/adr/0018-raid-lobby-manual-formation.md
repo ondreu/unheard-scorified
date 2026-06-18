@@ -1,6 +1,9 @@
 # ADR 0018 — Raid lobby (ruční formace, M8.5-B)
 
-- Status: Accepted
+> ⚠️ **OBSOLETE:** raid lobby bylo nahrazeno trvalou skupinou (ADR 0022, migrace
+> 0019 dropla `raid_lobbies`), a raidy jako celek byly **vyříznuty** (ADR 0033).
+
+- Status: Superseded (ADR 0022) → raidy odstraněny (ADR 0033)
 - Datum: 2026-06-15
 - Kontext milníku: **M8.5-B** (odemčeno M9 social)
 

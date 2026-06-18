@@ -25,9 +25,7 @@ import { ReputationRepository } from '../profession/profession.repository';
 import { SocialRepository } from '../social/social.repository';
 import { GuildRepository } from '../social/guild.repository';
 import { RaidRepository } from '../raid/raid.repository';
-import { RaidEventsRelay } from '../raid/raid.events';
 import { InMemoryRaidQueue } from '../raid/raid.matchmaking';
-import { RaidService } from '../raid/raid.service';
 import { DungeonService } from '../dungeon/dungeon.service';
 import { ArenaRepository } from '../arena/arena.repository';
 import { ArenaEventsRelay } from '../arena/arena.events';
@@ -41,7 +39,8 @@ import { GroupService } from './group.service';
 
 /**
  * Integrační test M9 trvalých skupin (ADR 0022) nad pglite (in-memory fronty).
- * Pokrývá formaci (create/invite/accept/kick/leave) + launch dungeon/raid/aréna.
+ * Pokrývá formaci (create/invite/accept/kick/leave) + launch dungeon/aréna
+ * (raidy vyříznuty — ADR 0033).
  */
 describe('M9 flow: groups (party)', () => {
   let db: Database;
@@ -76,10 +75,6 @@ describe('M9 flow: groups (party)', () => {
     const rotation = new RotationService(charRepo, levelup, new RotationRepository(db), invService);
 
     const history = new HistoryRepository(db);
-    const raids = new RaidService(
-      charRepo, invService, invRepo, makeGrant(db, invRepo), completed, push, raidRepo,
-      new RaidEventsRelay(), lockouts, rotation, history, queue,
-    );
     const dungeons = new DungeonService(
       charRepo, invService, invRepo, makeGrant(db, invRepo), push, raidRepo, lockouts, reputation, rotation, completed, history, queue,
     );
@@ -92,7 +87,7 @@ describe('M9 flow: groups (party)', () => {
     );
     group = new GroupService(
       charRepo, new GroupRepository(db), social, new GuildRepository(db),
-      dungeons, raids, arena, teamArena,
+      dungeons, arena, teamArena,
     );
   });
 
@@ -159,15 +154,6 @@ describe('M9 flow: groups (party)', () => {
 
     const res = await group.launch(a!.accountId, a!.id, 'dungeon', 'ragefire_chasm');
     expect(res.activityType).toBe('dungeon');
-    expect('runId' in res && res.runId).toBeTruthy();
-  });
-
-  it('launch raid (attuned) → run', async () => {
-    const a = await player('RaidLead');
-    await completed.markCompleted(a.id, 'tn_galak_ogres'); // molten_core attunement
-    await group.create(a.accountId, a.id, 'dps');
-    const res = await group.launch(a.accountId, a.id, 'raid', 'molten_core');
-    expect(res.activityType).toBe('raid');
     expect('runId' in res && res.runId).toBeTruthy();
   });
 

@@ -1,5 +1,9 @@
 # ADR 0015 — Ekonomika: soulbound/BoP & weekly lockout (M8.6)
 
+> ℹ️ **Částečně dotčeno ADR 0033 (2026-06-18):** raidy vyříznuty. Weekly lockout
+> **zůstává**, ale platí už jen pro **vyšší dungeony** (`weeklyLockout`); plošný
+> raid lockout je pryč. Soulbound/BoP nedotčeno.
+
 - Status: Accepted
 - Datum: 2026-06-15
 - Kontext milníku: **M8.6 — Ekonomika** (vyčleněno z M8.5-E)

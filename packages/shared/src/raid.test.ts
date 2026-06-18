@@ -1,18 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  RAIDS,
   RAID_COMPOSITION,
   RAID_PARTY_SIZE,
   RAID_SIZES,
-  buildRaidBoss,
   buildTrainingDummy,
   compositionSize,
-  computeRaidReward,
   defaultRaidComposition,
   deriveRaidActor,
   isRaidRole,
   isRaidSize,
-  isRaidUnlocked,
   isValidComposition,
   scaleBoss,
   simulateDummyFight,
@@ -21,9 +17,9 @@ import {
   type RaidActor,
   type RaidRole,
 } from './index';
-import { RAID_LOOT_TABLES } from './loot';
-import { ITEMS } from './data/items';
-import { QUESTS } from './data/quests';
+
+// Group PVE run engine (legacy `raid` název, ADR 0033). Raidy jako herní mód byly
+// vyříznuty → testy běží na syntetických bossech, ne na (smazaných) raid datech.
 
 /** Silný generický bojový profil pro testy. */
 function strongActor(name: string, attackPower = 60, maxHealth = 800): CombatActor {
@@ -39,6 +35,11 @@ function strongActor(name: string, attackPower = 60, maxHealth = 800): CombatAct
     shield: 0,
     signatureAbilities: [],
   };
+}
+
+/** Syntetický boss-encounter (CombatActor) pro testy enginu. */
+function bossActor(name: string, attackPower = 40, maxHealth = 4000): CombatActor {
+  return { ...strongActor(name, attackPower, maxHealth), swingInterval: 2.5 };
 }
 
 /** Postaví standardní party 1 tank / 1 heal / 3 dps. */
@@ -92,7 +93,7 @@ describe('raid sizes & composition', () => {
   });
 
   it('scaleBoss scales HP and damage with size', () => {
-    const boss = buildRaidBoss(RAIDS.molten_core!.bosses[0]!);
+    const boss = bossActor('Cinderwarden', 40, 5000);
     const scaled = scaleBoss(boss, 20);
     expect(scaled.maxHealth).toBe(boss.maxHealth * 4);
     expect(scaled.attackPower).toBe(boss.attackPower * 4);
@@ -126,18 +127,22 @@ describe('deriveRaidActor', () => {
 });
 
 describe('simulateRaidRun', () => {
+  const bosses = (): CombatActor[] => [
+    bossActor('Boss One', 35, 3500),
+    bossActor('Boss Two', 38, 4000),
+    bossActor('Boss Three', 42, 4500),
+  ];
+
   it('is deterministic for the same seed', () => {
-    const bosses = RAIDS.molten_core!.bosses.map(buildRaidBoss);
-    const a = simulateRaidRun(buildParty(), bosses, 12345);
-    const b = simulateRaidRun(buildParty(), bosses, 12345);
+    const a = simulateRaidRun(buildParty(), bosses(), 12345);
+    const b = simulateRaidRun(buildParty(), bosses(), 12345);
     expect(a.victory).toBe(b.victory);
     expect(a.durationSec).toBe(b.durationSec);
     expect(a.events.length).toBe(b.events.length);
   });
 
-  it('a strong party defeats Molten Core', () => {
-    const bosses = RAIDS.molten_core!.bosses.map(buildRaidBoss);
-    const result = simulateRaidRun(buildParty(3), bosses, 999);
+  it('a strong party defeats the encounter sequence', () => {
+    const result = simulateRaidRun(buildParty(3), bosses(), 999);
     expect(result.victory).toBe(true);
     expect(result.events.at(-1)?.type).toBe('victory');
   });
@@ -148,8 +153,8 @@ describe('simulateRaidRun', () => {
       deriveRaidActor(strongActor('H', 2, 50), 'healer'),
       deriveRaidActor(strongActor('D', 2, 50), 'dps'),
     ];
-    const bosses = RAIDS.blackwing_lair!.bosses.map(buildRaidBoss);
-    const result = simulateRaidRun(weak, bosses, 7);
+    const tough: CombatActor[] = [bossActor('Wall', 80, 20000), bossActor('Gate', 90, 25000)];
+    const result = simulateRaidRun(weak, tough, 7);
     expect(result.victory).toBe(false);
     expect(result.defeatedAtBoss).toBeDefined();
     expect(result.events.at(-1)?.type).toBe('defeat');
@@ -157,109 +162,23 @@ describe('simulateRaidRun', () => {
   });
 
   it('a clean clear reports zero wipes', () => {
-    const bosses = RAIDS.molten_core!.bosses.map(buildRaidBoss);
-    const result = simulateRaidRun(buildParty(3), bosses, 999);
+    const result = simulateRaidRun(buildParty(3), bosses(), 999);
     expect(result.victory).toBe(true);
     expect(result.wipes).toBe(0);
   });
 
   it('produces heal events from the healer', () => {
-    // ADR 0032: bossové mají teď D&D (CR) magnitudy — pro test trvajícího boje, kde
-    // party utrží poškození a healer léčí, bosse naškálujeme jako velký raid (sdílí
-    // se škálováním velikosti party → sustained threat).
-    const bosses = RAIDS.molten_core!.bosses.map((b) => scaleBoss(buildRaidBoss(b, 14), 60));
-    const result = simulateRaidRun(buildParty(2), bosses, 42);
+    // Velký, dlouho žijící boss → party utrží poškození a healer léčí.
+    const tanky = [scaleBoss(bossActor('Endless', 45, 6000), 60)];
+    const result = simulateRaidRun(buildParty(2), tanky, 42);
     expect(result.events.some((e) => e.type === 'heal')).toBe(true);
   });
 
   it('all event times are non-decreasing', () => {
-    const bosses = RAIDS.molten_core!.bosses.map(buildRaidBoss);
-    const result = simulateRaidRun(buildParty(2), bosses, 314);
+    const result = simulateRaidRun(buildParty(2), bosses(), 314);
     for (let i = 1; i < result.events.length; i++) {
       expect(result.events[i]!.t).toBeGreaterThanOrEqual(result.events[i - 1]!.t);
     }
-  });
-});
-
-describe('isRaidUnlocked (attunement)', () => {
-  it('requires level and an attunement quest', () => {
-    expect(isRaidUnlocked('molten_core', 13, ['dw_morbent_fel'])).toBe(false);
-    expect(isRaidUnlocked('molten_core', 14, [])).toBe(false);
-    expect(isRaidUnlocked('molten_core', 14, ['tn_galak_ogres'])).toBe(true);
-  });
-
-  it('blackwing lair needs the drakefire attunement', () => {
-    expect(isRaidUnlocked('blackwing_lair', 18, ['dw_morbent_fel'])).toBe(false);
-    expect(isRaidUnlocked('blackwing_lair', 18, ['al_drakefire_attunement'])).toBe(true);
-  });
-
-  it('unknown raid is locked', () => {
-    expect(isRaidUnlocked('nonsense', 20, ['al_drakefire_attunement'])).toBe(false);
-  });
-
-  it("Zul'Gurub needs level 17 and the Paragons of Power attunement", () => {
-    expect(isRaidUnlocked('zulgurub', 16, ['al_paragons_of_power'])).toBe(false);
-    expect(isRaidUnlocked('zulgurub', 17, [])).toBe(false);
-    expect(isRaidUnlocked('zulgurub', 17, ['ho_paragons_of_power'])).toBe(true);
-  });
-
-  it("Temple of Ahn'Qiraj needs level 19 and the Scepter attunement", () => {
-    expect(isRaidUnlocked('ahnqiraj', 18, ['al_scepter_of_the_sands'])).toBe(false);
-    expect(isRaidUnlocked('ahnqiraj', 19, ['al_paragons_of_power'])).toBe(false);
-    expect(isRaidUnlocked('ahnqiraj', 19, ['al_scepter_of_the_sands'])).toBe(true);
-  });
-});
-
-describe('raid data integrity', () => {
-  it('every raid has a loot table and all loot entries reference real items', () => {
-    for (const [id, raid] of Object.entries(RAIDS)) {
-      const table = RAID_LOOT_TABLES[id];
-      expect(table, `missing loot table for ${id}`).toBeDefined();
-      for (const entry of table!.entries) {
-        expect(ITEMS[entry.itemId], `unknown item ${entry.itemId} in ${id}`).toBeDefined();
-      }
-      // Attunement questy musí existovat (gate nesmí ukazovat na neznámý quest).
-      for (const q of raid.attunement.questAnyOf) {
-        expect(QUESTS[q], `unknown attunement quest ${q} for ${id}`).toBeDefined();
-      }
-    }
-  });
-
-  it("M12 raids drop their bind-on-pickup loot on victory", () => {
-    for (const id of ['zulgurub', 'ahnqiraj']) {
-      const raid = RAIDS[id]!;
-      // Projdi řadu seedů — alespoň jeden musí vyrolovat item z tabulky.
-      const dropped = new Set<string>();
-      for (let seed = 0; seed < 60; seed++) {
-        for (const item of computeRaidReward(raid, true, seed).items) dropped.add(item);
-      }
-      expect(dropped.size).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe('computeRaidReward', () => {
-  it('victory grants full xp and rolls loot deterministically', () => {
-    const raid = RAIDS.blackwing_lair!;
-    const a = computeRaidReward(raid, true, 123);
-    const b = computeRaidReward(raid, true, 123);
-    expect(a).toEqual(b);
-    expect(a.xp).toBe(raid.baseXp);
-  });
-
-  it('hard fail grants no reward (no consolation)', () => {
-    const raid = RAIDS.molten_core!;
-    const r = computeRaidReward(raid, false, 1);
-    expect(r).toEqual({ xp: 0, gold: 0, items: [] });
-  });
-
-  it('reward scales down with wipes (max at 0 wipes)', () => {
-    const raid = RAIDS.blackwing_lair!;
-    const clean = computeRaidReward(raid, true, 123, 0);
-    const wiped = computeRaidReward(raid, true, 123, 3);
-    expect(clean.xp).toBe(raid.baseXp);
-    expect(wiped.xp).toBeLessThan(clean.xp);
-    expect(wiped.gold).toBeLessThanOrEqual(clean.gold);
   });
 });
 

@@ -6,16 +6,14 @@ import {
   groupEncounters,
   isGroupContentUnlocked,
   DUNGEONS,
-  RAIDS,
 } from './index';
 import { DUNGEON_LOOT_TABLES } from './loot';
 import { ITEMS } from './data/items';
 import { QUESTS } from './data/quests';
 
 describe('group content sizes & composition', () => {
-  it('dungeon supports 1/3/5; raid mirrors raid sizes', () => {
+  it('dungeon supports 1/3/5', () => {
     expect(groupContentSizes('dungeon', 'ragefire_chasm')).toEqual([1, 3, 5]);
-    expect(groupContentSizes('raid', 'molten_core')).toEqual([...RAIDS.molten_core!.sizes]);
   });
 
   it('dungeon composition: solo dps, then tank/heal/dps', () => {
@@ -40,11 +38,6 @@ describe('groupEncounters', () => {
     expect(five[0]!.maxHealth).toBe(solo[0]!.maxHealth * 5);
     expect(five[0]!.attackPower).toBeCloseTo(solo[0]!.attackPower * 5);
   });
-
-  it('raid encounters = scaled bosses', () => {
-    const bosses = groupEncounters('raid', 'molten_core', 5);
-    expect(bosses).toHaveLength(RAIDS.molten_core!.bosses.length);
-  });
 });
 
 describe('computeGroupReward', () => {
@@ -66,14 +59,6 @@ describe('computeGroupReward', () => {
     expect(a).toEqual(b);
   });
 
-  it('raid delegates to raid reward (hard fail = 0)', () => {
-    expect(computeGroupReward('raid', 'molten_core', false, 1, 0)).toEqual({
-      xp: 0,
-      gold: 0,
-      items: [],
-    });
-  });
-
   it('unknown content = zero reward', () => {
     expect(computeGroupReward('dungeon', 'nope', true, 1, 0)).toEqual({ xp: 0, gold: 0, items: [] });
   });
@@ -90,11 +75,6 @@ describe('isGroupContentUnlocked', () => {
     // Deadmines má teď (M12.5) vlastní 2-questový attunement → level nestačí
     expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, [])).toBe(false);
     expect(isGroupContentUnlocked('dungeon', 'deadmines', 60, ['al_dm_attune_2'])).toBe(true);
-  });
-
-  it('raid gates on level + attunement', () => {
-    expect(isGroupContentUnlocked('raid', 'molten_core', 40, [])).toBe(false);
-    expect(isGroupContentUnlocked('raid', 'molten_core', 40, ['tn_galak_ogres'])).toBe(true);
   });
 
   it('frontier dungeons gate on level + attunement questline', () => {

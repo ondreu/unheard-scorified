@@ -53,10 +53,10 @@ export class RespondJoinRequestDto {
 }
 
 export class LaunchGroupDto {
-  @IsIn(['dungeon', 'raid', 'arena'])
-  activityType!: 'dungeon' | 'raid' | 'arena';
+  @IsIn(['dungeon', 'arena'])
+  activityType!: 'dungeon' | 'arena';
 
-  /** Dungeon/raid id; pro arénu se ignoruje (bracket plyne z velikosti). */
+  /** Dungeon id; pro arénu se ignoruje (bracket plyne z velikosti). */
   @IsString()
   @IsOptional()
   contentId?: string;

@@ -1,6 +1,11 @@
 # ADR 0011 — Raidy (MP PVE): party combat, attunement & idle matchmaking (M8)
 
-- Status: Accepted
+> ⚠️ **SUPERSEDED — ADR 0033 (2026-06-18):** raidy jako herní mód byly **vyříznuty**.
+> Combat engine, run tabulky a matchmaking fronta z tohoto ADR **přežívají** jako
+> sdílená group-run infrastruktura pro dungeony (legacy názvy `raid_*`). Raid data,
+> služby, UI, loot a achievementy jsou pryč.
+
+- Status: Superseded (ADR 0033)
 - Datum: 2026-06-15
 - Kontext milníku: **M8 — Raidy (MP PVE) & Auction House**
 

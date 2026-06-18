@@ -35,7 +35,7 @@ export const NAV_CATEGORIES: NavCategory[] = [
     group: 'play',
     icon: '⚔️',
     title: 'Play',
-    sub: 'Quests, dungeons, raids & arena',
+    sub: 'Quests, dungeons & arena',
     accent: 'var(--horde)',
   },
   {
@@ -76,14 +76,6 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'Dungeons',
     sub: 'Idle PVE runs',
     accent: '#9b7bd4',
-    group: 'play',
-  },
-  {
-    path: 'raids',
-    icon: '🐉',
-    title: 'Raids',
-    sub: 'Group PVE bosses',
-    accent: 'var(--horde)',
     group: 'play',
   },
   {

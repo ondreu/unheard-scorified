@@ -13,7 +13,6 @@
     launchGroup,
     leaveGroup,
     listDungeons,
-    listRaids,
     getTeamArena,
     promoteGroupMember,
     respondGroupInvite,
@@ -21,7 +20,6 @@
     setGroupRole,
     type DungeonListItem,
     type GroupState,
-    type RaidListItem,
     type RaidRole,
     type TeamArenaView,
   } from '$lib/api';
@@ -50,7 +48,6 @@
     myRole: 'My role',
     launch: 'Go',
     dungeon: 'Dungeon',
-    raid: 'Raid',
     arena: 'Arena',
     arenaHint: 'Arena bracket follows your group size (1 → 1v1, 2 → 2v2, 3 → 3v3, 5 → 5v5).',
   };
@@ -59,7 +56,6 @@
 
   let gs = $state<GroupState | null>(null);
   let dungeons = $state<DungeonListItem[]>([]);
-  let raids = $state<RaidListItem[]>([]);
   let teamArena = $state<TeamArenaView | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -70,7 +66,6 @@
   let inviteName = $state('');
   let inviteRole = $state<RaidRole>('dps');
   let dungeonId = $state('');
-  let raidId = $state('');
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -87,14 +82,9 @@
 
   onMount(async () => {
     await load();
-    const [d, r] = await Promise.all([
-      listDungeons(characterId).catch(() => []),
-      listRaids(characterId).catch(() => []),
-    ]);
+    const d = await listDungeons(characterId).catch(() => []);
     dungeons = d.filter((x) => x.unlocked);
-    raids = r.filter((x) => x.unlocked);
     dungeonId = dungeons[0]?.id ?? '';
-    raidId = raids[0]?.id ?? '';
     teamArena = await getTeamArena(characterId).catch(() => null);
     // Light polling for invites / members joining (no WS for groups).
     poller = setInterval(() => void load(true), 4000);
@@ -131,14 +121,13 @@
     }
   }
 
-  async function launch(activity: 'dungeon' | 'raid' | 'arena'): Promise<void> {
+  async function launch(activity: 'dungeon' | 'arena'): Promise<void> {
     busy = true;
     error = null;
     try {
-      const content = activity === 'dungeon' ? dungeonId : activity === 'raid' ? raidId : undefined;
+      const content = activity === 'dungeon' ? dungeonId : undefined;
       const res = await launchGroup(characterId, activity, content);
       if (res.activityType === 'dungeon') await goto(`/characters/${characterId}/dungeon/${res.runId}`);
-      else if (res.activityType === 'raid') await goto(`/characters/${characterId}/raid/${res.runId}`);
       else if (res.matchId) {
         const path = res.bracket === '1v1' ? 'arena/match' : 'team-match';
         await goto(`/characters/${characterId}/${path}/${res.matchId}`);
@@ -288,12 +277,6 @@
                 {#each dungeons as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
               </select>
               <button disabled={busy || !dungeonId} onclick={() => launch('dungeon')} class="btn btn-primary btn-sm">{ui.dungeon} {ui.launch}</button>
-            </div>
-            <div class="flex items-end gap-2">
-              <select bind:value={raidId} class="input flex-1">
-                {#each raids as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
-              </select>
-              <button disabled={busy || !raidId} onclick={() => launch('raid')} class="btn btn-primary btn-sm">{ui.raid} {ui.launch}</button>
             </div>
             <div class="flex items-center justify-between">
               <span class="text-xs text-[var(--text-faint)]">

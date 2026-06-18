@@ -2,13 +2,12 @@
  * Lookup helpery pro combat log UI (klik na jméno NPC / ability → detail).
  * Combat eventy nesou jen jména (stringy), ne id — tyhle helpery dohledají
  * statická data podle jména z existujících katalogů (jediný zdroj pravdy:
- * `data/dungeons.ts`, `data/raids.ts`, `data/abilities.ts`).
+ * `data/dungeons.ts`, `data/abilities.ts`).
  *
  * Web (PlayerProfile-like NPC karta + ability detail) z nich jen čte; žádná
  * herní logika tu není (čistá data) → bezpečné importovat na FE i BE.
  */
 import { DUNGEONS } from './data/dungeons';
-import { RAIDS } from './data/raids';
 import { crEnemyMagnitude } from './combat';
 import { crForContentLevel } from './data/damage';
 import {
@@ -39,7 +38,7 @@ export interface NpcInfo {
 
 let enemyIndex: Map<string, NpcInfo> | null = null;
 
-/** Lazy index všech NPC (dungeon trash/bossové + raid bossové) podle jména. */
+/** Lazy index všech NPC (dungeon trash/bossové) podle jména. */
 function buildEnemyIndex(): Map<string, NpcInfo> {
   const index = new Map<string, NpcInfo>();
   for (const d of Object.values(DUNGEONS)) {
@@ -59,24 +58,6 @@ function buildEnemyIndex(): Map<string, NpcInfo> {
         isBoss,
         source: d.name,
         abilities: [],
-      });
-    }
-  }
-  for (const r of Object.values(RAIDS)) {
-    for (const b of r.bosses) {
-      if (index.has(b.name)) continue;
-      // Raid boss: CR-odvozené magnitudy (ADR 0032), boss flag vždy true.
-      const cr = b.challengeRating ?? crForContentLevel(b.level ?? r.attunement.requiredLevel, true);
-      const mag = crEnemyMagnitude(cr, true);
-      index.set(b.name, {
-        name: b.name,
-        maxHealth: mag.maxHealth,
-        attackPower: mag.attackPower,
-        swingInterval: b.swingInterval,
-        armor: b.armor ?? 0,
-        isBoss: true,
-        source: r.name,
-        abilities: (b.abilities ?? []).map((a) => ({ ...a })),
       });
     }
   }

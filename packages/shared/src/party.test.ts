@@ -15,10 +15,10 @@ describe('party / group helpers', () => {
     expect(arenaBracketForSize(6)).toBeNull();
   });
 
-  it('isGroupActivityType přijme jen dungeon/raid/arena', () => {
+  it('isGroupActivityType přijme jen dungeon/arena (raidy vyříznuty)', () => {
     expect(isGroupActivityType('dungeon')).toBe(true);
-    expect(isGroupActivityType('raid')).toBe(true);
     expect(isGroupActivityType('arena')).toBe(true);
+    expect(isGroupActivityType('raid')).toBe(false);
     expect(isGroupActivityType('quest')).toBe(false);
     expect(isGroupActivityType('')).toBe(false);
   });
