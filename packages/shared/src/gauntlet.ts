@@ -36,7 +36,7 @@ import {
 } from './combat';
 import { applySpellSave, missMessage } from './dnd-combat';
 import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
-import { hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
 
@@ -455,7 +455,8 @@ export function resolveGauntletTurn(
 
   // Class resources (ADR 0034): commit — utratí slot (kouzlo, upcast přes `usedSlotTier`)
   // resp. Ki (Monkova technika). Dostupnost ověřena výše; DoT nepřítele nezabil → ability dopadne.
-  if (abilityTier >= 1) usedSlotTier = spendSlotForTier(state.player.spellSlots, abilityTier);
+  if (abilityTier >= 1)
+    usedSlotTier = spendSlotForTier(state.player.spellSlots, abilityTier, abilityPrefersUpcast(ability));
   if (kiCost > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - kiCost;
 
   // (2) Hráčova ability.
@@ -506,7 +507,7 @@ export function resolveGauntletTurn(
     // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
     // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
     // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
-    const spec = abilityDamageSpec(ability, usedSlotTier);
+    const spec = abilityDamageSpec(ability, usedSlotTier, player.level);
     const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
     // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
     const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec);

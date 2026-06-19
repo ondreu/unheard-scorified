@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CASTER_TYPE,
+  abilityPrefersUpcast,
   activitySlotCost,
   availableSlots,
   casterTypeOf,
@@ -10,9 +11,41 @@ import {
   spellSlotsFor,
   spellbookFor,
   spendHighestSlots,
+  spendSlotForTier,
   totalSpellSlots,
 } from './spell-slots';
 import { CLASS_IDS } from './classes';
+
+describe('spendSlotForTier — frugal vs upcast', () => {
+  it('default (frugal) spends the lowest available slot ≥ minTier', () => {
+    const slots = { 1: 2, 3: 1, 5: 1 };
+    expect(spendSlotForTier(slots, 1)).toBe(1);
+    expect(slots[1]).toBe(1);
+  });
+
+  it('preferHighest spends the highest available slot ≥ minTier (max upcast)', () => {
+    const slots = { 3: 1, 5: 1, 9: 1 };
+    expect(spendSlotForTier(slots, 3, true)).toBe(9); // nuke vrazí největší slot
+    expect(slots[9]).toBe(0);
+    expect(spendSlotForTier(slots, 3, true)).toBe(5);
+  });
+
+  it('returns null when no slot of minTier or higher exists', () => {
+    expect(spendSlotForTier({ 1: 1 }, 3)).toBeNull();
+    expect(spendSlotForTier({ 1: 1 }, 3, true)).toBeNull();
+  });
+});
+
+describe('abilityPrefersUpcast', () => {
+  it('upcastable nuke (dice + dicePerSlotAbove) prefers upcast', () => {
+    expect(abilityPrefersUpcast({ dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 })).toBe(true);
+  });
+
+  it('heal/buff/non-upcast spell stays frugal', () => {
+    expect(abilityPrefersUpcast({})).toBe(false);
+    expect(abilityPrefersUpcast({ dice: { count: 4, sides: 6, bonus: 0 } })).toBe(false); // bez per-slot
+  });
+});
 
 describe('caster classification', () => {
   it('classifies every class', () => {

@@ -8,6 +8,7 @@ import {
   evaluateRotationRule,
   sanitizeRotation,
   shouldCastAbility,
+  shouldCastHeal,
   simulateRaidRun,
   type CharacterRotation,
   type CombatActor,
@@ -52,6 +53,30 @@ describe('shouldCastAbility', () => {
     };
     expect(shouldCastAbility(rot, 'execute', ctx)).toBe(false);
     expect(shouldCastAbility(rot, 'execute', { ...ctx, enemyHpPct: 0.2 })).toBe(true);
+  });
+});
+
+describe('shouldCastHeal', () => {
+  it('without a rule defaults to self_hp_below 0.5 (heal only when injured)', () => {
+    expect(shouldCastHeal(undefined, 'heal', { enemyHpPct: 1, selfHpPct: 0.4 })).toBe(true);
+    expect(shouldCastHeal(undefined, 'heal', { enemyHpPct: 1, selfHpPct: 0.5 })).toBe(true);
+    expect(shouldCastHeal(undefined, 'heal', { enemyHpPct: 1, selfHpPct: 0.6 })).toBe(false);
+    expect(shouldCastHeal({ rules: [] }, 'heal', { enemyHpPct: 1, selfHpPct: 0.9 })).toBe(false);
+  });
+
+  it('honors a player-configured threshold ("when below N% HP")', () => {
+    const rot: CharacterRotation = {
+      rules: [{ abilityId: 'heal', enabled: true, conditionType: 'self_hp_below', threshold: 0.8 }],
+    };
+    expect(shouldCastHeal(rot, 'heal', { enemyHpPct: 1, selfHpPct: 0.75 })).toBe(true);
+    expect(shouldCastHeal(rot, 'heal', { enemyHpPct: 1, selfHpPct: 0.85 })).toBe(false);
+  });
+
+  it('honors always / disabled overrides', () => {
+    const always: CharacterRotation = { rules: [{ abilityId: 'heal', enabled: true, conditionType: 'always' }] };
+    expect(shouldCastHeal(always, 'heal', { enemyHpPct: 1, selfHpPct: 1 })).toBe(true);
+    const off: CharacterRotation = { rules: [{ abilityId: 'heal', enabled: false, conditionType: 'always' }] };
+    expect(shouldCastHeal(off, 'heal', { enemyHpPct: 1, selfHpPct: 0.1 })).toBe(false);
   });
 });
 

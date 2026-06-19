@@ -136,6 +136,18 @@ Flame 1d8, Fire Bolt 1d10, Call Lightning 3d10… Engine je hodí přímo přes
 navíc za každý tier nad `spellTier` (Fireball +1d6/slot). Ability bez `dice` (martial
 techniky/drainy/healy) škálují dál přes `attackPower` (`damageMult` + execute).
 
+**Cantrip scaling („Fix kouzla").** At-will cantripy (`spellTier === 0` s `dice`)
+násobí počet kostek dle levelu **1 → 2 → 3 → 4 na 5/11/17** (`cantripDiceMultiplier`,
+přesná D&D křivka, analog martial Extra Attack) — caster sustained DPS roste s úrovní
+místo aby zamrzl na 1 kostce. Leveled kouzla (tier ≥ 1) tímhle neškálují (mají upcast).
+
+**Upcast nuke nejvyšším slotem.** Slot na seslání kouzla volí `spendSlotForTier(slots,
+minTier, preferHighest)`: **upcastovatelné nuke** (`dice` + `dicePerSlotAbove`, viz
+`abilityPrefersUpcast`) vrazí **nejvyšší** dostupný slot (max upcast → high-level slot
+= reálný damage), ostatní kouzla (heal/buff/smite) zůstávají úsporná (nejnižší slot).
+Tím high-level casteři využijí velké sloty, které existují jen na vysokém levelu, a
+nezamrznou na výkonu po cap cantripů (lvl 17).
+
 **Per-spell saving throwy.** `SignatureAbility.save` = `{ ability, effect }`; sdílený
 `applySpellSave` (dnd-combat.ts) hodí cíli záchranný hod proti spell save DC útočníka:
 `'half'` = úspěch půlí poškození (Fireball/Moonbeam/Call Lightning…), `'negate'` =
@@ -178,10 +190,19 @@ trash / 0.10 boss → geared **martial** on-level: trash rychlý (3–5 úderů,
 ztráta), boss 5–8 úderů s vítězstvím a ~45–62 % HP; naked výrazně riskantnější (gear
 má váhu).
 
-**Známé omezení — casteři (odloženo na „Fix kouzla").** Leveled kouzla/cantripy běží
-na **literal D&D kostkách** (Fire Bolt 1d10, Fireball 8d6), které jsou na idle škále
-hluboko pod martial `attackPower` (~40–70/úder), a cantripy navíc neškálují s levelem.
-Po odstranění HP crutche (growth) tak wizard/cleric nejsou na high-level bossech
-viable. Náprava = samostatný milník **„Fix kouzla nesedící na D&D"** (rozhodnutí PM):
-škálování cantripů (D&D 1→2→3→4 kostek) + sustained leveled kouzel. Gear/base/enemy
-čísla z tohoto passu zůstávají.
+**Casteři — viable ✅ („Fix kouzla").** Dřívější omezení (leveled kouzla/cantripy na
+literal kostkách hluboko pod martial `attackPower`, cantripy bez level-scalingu →
+wizard/cleric neviable na high-level bossech) **vyřešeno** třemi D&D-věrnými pákami:
+1. **cantrip scaling** (1→2→3→4 kostek na 5/11/17) — at-will damage roste s levelem;
+2. **upcast nuke nejvyšším slotem** — high-level sloty konečně škálují damage;
+3. **healer self-sustain v solo questu** — healer (cleric/druid/bard/paladin/ranger),
+   který v sólo questu „nemá koho léčit", ošetří sebe. **Kdy** řídí rotace
+   (`shouldCastHeal`, podmínka `self_hp_below` „když pod N % HP použij X spell";
+   default bez pravidla = 0.5, hráč přebije prahem / `always` / vypnutím), heal spálí
+   slot a slábne přes `healFalloff` → squishy healer souboj vydrží, ale neléčí naprázdno.
+
+Měřeno harnessem (`gear-balance.test.ts`, kontrakt `CASTER_CLASSES`): geared on-level
+boss BiS — **wizard** (glass cannon) ~72–98 % win / 6–9 úderů, **cleric** (healer)
+~84–100 % win / 9–15 úderů (delší attrition souboje). Mírnější laťka než martial
+(win > 0.65, ≤ 16 úderů), ale boss je spolehlivě poražitelný se ztrátou HP. Magnitudy
+gearu/base/enemy z balance passu nedotčeny.

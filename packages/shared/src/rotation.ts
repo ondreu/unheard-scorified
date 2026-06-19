@@ -101,6 +101,31 @@ export function shouldCastAbility(
 }
 
 /**
+ * Default práh self-heal (solo): healer bez explicitního pravidla se sám ošetří,
+ * až když klesne pod tento podíl HP (ne na plné HP). Hráč to přebije vlastním
+ * pravidlem v rotaci (jiný práh / `always` / ability vypnout).
+ */
+export const DEFAULT_HEAL_HP_THRESHOLD = 0.5;
+
+/**
+ * Smí se **heal** seslat právě teď? Jako `shouldCastAbility`, ale když pro ability
+ * není pravidlo (nebo není rotace), default **není** „always" nýbrž
+ * „`self_hp_below` `DEFAULT_HEAL_HP_THRESHOLD`" — sólo healer se neléčí naprázdno na
+ * plné HP, ale až když je zraněný. Používá to solo quest combat (`quest-run.ts`),
+ * kde healer „nemá koho léčit" a ošetří sebe; hráč rozhoduje přes rotaci
+ * („když pod N % HP použij X spell").
+ */
+export function shouldCastHeal(
+  rotation: CharacterRotation | undefined,
+  abilityId: string,
+  ctx: RotationContext,
+): boolean {
+  const rule = rotation?.rules.find((r) => r.abilityId === abilityId);
+  if (!rule) return ctx.selfHpPct <= DEFAULT_HEAL_HP_THRESHOLD;
+  return evaluateRotationRule(rule, ctx);
+}
+
+/**
  * Je daná ability v rotaci povolená? (Bez vyhodnocení podmínky — jen
  * enable/disable.) Bez rotace nebo bez pravidla = `true` (default zapnuto).
  * Engine to používá k volbě režimu healera (offensive vs defensive): healer,
