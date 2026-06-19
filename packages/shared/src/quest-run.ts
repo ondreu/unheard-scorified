@@ -30,7 +30,7 @@ import {
 } from './combat';
 import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
 import { crForContentLevel } from './data/damage';
-import type { SpellSlots } from './data/spell-slots';
+import { spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import type { SignatureAbility } from './data/abilities';
 import {
   type QuestDef,
@@ -46,21 +46,6 @@ function ordinal(n: number): string {
   if (n === 2) return '2nd';
   if (n === 3) return '3rd';
   return `${n}th`;
-}
-
-/**
- * Vyčerpá jeden spell slot tieru >= `minTier` (nejnižší dostupný → upcast jen
- * když musí). Mutuje lokální kopii rozpočtu; vrací použitý tier nebo null (nic
- * dostupné → kouzlo „fizzles", postava sáhne po zbrani/cantripu).
- */
-function spendSlotForTier(slots: SpellSlots, minTier: number): number | null {
-  for (let tier = minTier; tier <= 9; tier++) {
-    if ((slots[tier] ?? 0) > 0) {
-      slots[tier] = (slots[tier] ?? 0) - 1;
-      return tier;
-    }
-  }
-  return null;
 }
 
 /** Je daný tier „boss" (tvrdší dpr faktor + boss flag v logu)? */

@@ -22,6 +22,7 @@ import {
 import { shouldCastAbility } from './rotation';
 import { missMessage } from './dnd-combat';
 import type { DamageType } from './data/damage';
+import { spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import {
   ARENA_SEASONS,
   ARENA_TIERS,
@@ -63,6 +64,8 @@ interface DuelTimer {
   executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
+  /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot strany. */
+  abilitySpellTier?: number;
 }
 
 /**
@@ -76,6 +79,11 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
   const hp: Record<DuelSide, number> = { a: a.maxHealth, b: b.maxHealth };
   const shield: Record<DuelSide, number> = { a: a.shield ?? 0, b: b.shield ?? 0 };
   const actor: Record<DuelSide, CombatActor> = { a, b };
+  // Spell sloty (ADR 0034) jako per-duel rozpočet kouzel každé strany.
+  const slotBudget: Record<DuelSide, SpellSlots> = {
+    a: { ...(a.spellSlots ?? {}) },
+    b: { ...(b.spellSlots ?? {}) },
+  };
   let clock = 0;
 
   events.push({
@@ -101,6 +109,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       executeBelowPct: ab.executeBelowPct,
       executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
+      abilitySpellTier: ab.spellTier,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -113,6 +122,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       executeBelowPct: ab.executeBelowPct,
       executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
+      abilitySpellTier: ab.spellTier,
     })),
   ];
 
@@ -142,6 +152,15 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
         enemyHpPct: defender.maxHealth > 0 ? hp[defenderSide] / defender.maxHealth : 0,
         selfHpPct: attacker.maxHealth > 0 ? hp[attackerSide] / attacker.maxHealth : 0,
       })
+    ) {
+      continue;
+    }
+    // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot strany; když
+    // dojdou, se „drží" (postava mlátí basic údery / cantripy). Per-duel rozpočet.
+    if (
+      timer.abilityId &&
+      (timer.abilitySpellTier ?? 0) >= 1 &&
+      spendSlotForTier(slotBudget[attackerSide], timer.abilitySpellTier!) == null
     ) {
       continue;
     }
@@ -252,6 +271,8 @@ interface TeamTimer {
   executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
+  /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot daného člena. */
+  abilitySpellTier?: number;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -286,6 +307,11 @@ export function simulateTeamFight(
     a: teamA.map((m) => m.shield ?? 0),
     b: teamB.map((m) => m.shield ?? 0),
   };
+  // Spell sloty (ADR 0034) jako per-zápas rozpočet kouzel každého člena obou týmů.
+  const slotBudget: Record<DuelSide, SpellSlots[]> = {
+    a: teamA.map((m) => ({ ...(m.spellSlots ?? {}) })),
+    b: teamB.map((m) => ({ ...(m.spellSlots ?? {}) })),
+  };
   let clock = 0;
 
   events.push({
@@ -310,7 +336,8 @@ export function simulateTeamFight(
           abilityMult: ab.damageMult,
           executeBelowPct: ab.executeBelowPct,
           executeDamageMult: ab.executeDamageMult,
-      abilityDamageType: ab.damageType,
+          abilityDamageType: ab.damageType,
+          abilitySpellTier: ab.spellTier,
         });
       }
     });
@@ -348,6 +375,15 @@ export function simulateTeamFight(
         selfHpPct:
           attacker.maxHealth > 0 ? hp[attackerSide][timer.member]! / attacker.maxHealth : 0,
       })
+    ) {
+      continue;
+    }
+    // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot člena; když dojdou,
+    // se „drží" (člen mlátí basic údery / cantripy). Per-zápas rozpočet per člen.
+    if (
+      timer.abilityId &&
+      (timer.abilitySpellTier ?? 0) >= 1 &&
+      spendSlotForTier(slotBudget[attackerSide][timer.member]!, timer.abilitySpellTier!) == null
     ) {
       continue;
     }

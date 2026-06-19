@@ -35,6 +35,7 @@ import {
 import { isAbilityEnabled, shouldCastAbility } from './rotation';
 import { applySpellSave, missMessage, rollTag } from './dnd-combat';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
+import { spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -268,6 +269,22 @@ function scheduleDot(
   });
 }
 
+/**
+ * Pokusí se utratit spell slot za seslání kouzla (spellTier ≥ 1) z per-encounter
+ * rozpočtu člena (ADR 0034). Cantripy/martial techniky (tier 0 / bez tieru) jdou
+ * zdarma → `{ ok: true, tier: null }`. Když není slot tieru ≥ kouzla → `ok: false`
+ * (kouzlo se nesešle, „drží se" — člen mlátí basic swingem / cantripy dál).
+ */
+function spendAbilitySlot(
+  budget: SpellSlots,
+  ability: SignatureAbility,
+): { ok: boolean; tier: number | null } {
+  const tier = ability.spellTier ?? 0;
+  if (tier < 1) return { ok: true, tier: null };
+  const used = spendSlotForTier(budget, tier);
+  return used == null ? { ok: false, tier: null } : { ok: true, tier: used };
+}
+
 /** Vybere cíl bossova úderu: první živý tank, jinak nejodolnější živý člen. */
 function chooseBossTarget(party: RaidActor[], hp: number[]): number {
   let tankIdx = -1;
@@ -303,6 +320,10 @@ function fightBoss(
   const hp = [...startHp];
   // Absorpční štíty členů (per pull). Nedoplňují se; pohlcují příchozí poškození.
   const shield = party.map((p) => p.shield ?? 0);
+  // Spell sloty (ADR 0034) jako per-encounter rozpočet kouzel: každé seslané
+  // kouzlo (spellTier ≥ 1) čerpá slot; když dojdou, kouzlo se „drží" a člen mlátí
+  // basic swingem / cantripy. Fresh kopie per pull (stejně jako quest-run encounter).
+  const slotBudget = party.map((p) => ({ ...(p.spellSlots ?? {}) }) as SpellSlots);
   // Aktivní mitigation okno (tank cooldowny): do kdy platí + jaké % redukce.
   const mitigationUntil = party.map(() => -1);
   const mitigationPct = party.map(() => 0);
@@ -471,6 +492,8 @@ function fightBoss(
       }
       // Mitigation cooldown (tank): aktivuje okno snížení příchozího poškození.
       if (ability.kind === 'mitigation') {
+        // Spell sloty (ADR 0034): pokud je mitigace kouzlo (tier ≥ 1) a není slot, drž ji.
+        if (!spendAbilitySlot(slotBudget[i]!, ability).ok) continue;
         mitigationUntil[i] = clock + (ability.mitigationDurationSec ?? 0);
         mitigationPct[i] = ability.mitigationPct ?? 0;
         events.push({
@@ -496,6 +519,9 @@ function fightBoss(
           }
         }
         if (tIdx < 0 || worstMissing <= 0) continue;
+        // Spell sloty (ADR 0034): heal-kouzlo (tier ≥ 1) čerpá slot; když dojdou,
+        // ability-heal se „drží" (healer pořád léčí slabší basic swingem zdarma).
+        if (!spendAbilitySlot(slotBudget[i]!, ability).ok) continue;
         const amount = Math.max(
           1,
           Math.round(member.healPower * ability.damageMult * (0.9 + rng.next() * 0.2)),
@@ -513,11 +539,15 @@ function fightBoss(
         });
         continue;
       }
+      // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot; když dojdou,
+      // se „drží" (člen mlátí basic swingem / cantripy). Slot tier řídí upcast.
+      const slot = spendAbilitySlot(slotBudget[i]!, ability);
+      if (!slot.ok) continue;
       const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
       // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-      // jinak škálují přes attackPower (damageMult + execute). Raid netrackuje slot
-      // tier → base dice bez upcastu.
-      const spec = abilityDamageSpec(ability, null);
+      // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
+      // kterým bylo kouzlo sesláno (ADR 0034 → raid teď trackuje slot tier).
+      const spec = abilityDamageSpec(ability, slot.tier);
       const mult = spec ? 1 : abilityDamageMult(ability, bossHpPct);
       const executing = !spec && mult > ability.damageMult;
       const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec);

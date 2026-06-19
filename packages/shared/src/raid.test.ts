@@ -182,6 +182,33 @@ describe('simulateRaidRun', () => {
   });
 });
 
+describe('spell sloty v group PVE (ADR 0034)', () => {
+  // Caster s jedním kouzlem (cd 4 s) proti nekonečnému terči (60 s) → kdyby nebyl
+  // slot limit, kouzlo se sešle ~15×. Sloty ho omezí na per-encounter rozpočet.
+  const caster = (slots: Record<number, number>, tier: number): CombatActor => ({
+    ...strongActor('Mage', 60, 800),
+    signatureAbilities: [
+      { id: 'spell_x', name: 'Spell X', kind: 'strike', cooldownSec: 4, damageMult: 1.5, spellTier: tier },
+    ],
+    spellSlots: slots,
+  });
+  const castCount = (slots: Record<number, number>, tier: number): number =>
+    simulateDummyFight(caster(slots, tier), 'dps', 60, 5).events.filter((e) => e.ability === 'Spell X').length;
+
+  it('tier ≥ 1 kouzlo je omezené počtem slotů (per-encounter rozpočet)', () => {
+    expect(castCount({ 1: 2 }, 1)).toBe(2);
+    expect(castCount({ 1: 1 }, 1)).toBe(1);
+  });
+
+  it('bez slotu se tier ≥ 1 kouzlo vůbec nesešle (fizzles → basic swing)', () => {
+    expect(castCount({}, 1)).toBe(0);
+  });
+
+  it('cantrip (tier 0) je neomezený i bez slotů', () => {
+    expect(castCount({}, 0)).toBeGreaterThan(2);
+  });
+});
+
 describe('training dummy sandbox (MIL)', () => {
   it('runs for the requested duration and stays alive (huge HP)', () => {
     const dps = strongActor('Garrosh', 60, 800);

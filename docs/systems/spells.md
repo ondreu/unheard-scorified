@@ -65,16 +65,30 @@ rozpad per tier je na `/characters/[id]/spells`.
 Zjednodušený `ResourceType` (`mana`/`energy`/`rage` proxy z WoW-éry) **scrapnut** —
 byl to mrtvý kosmetický stav v `DerivedStats.resource`, který se nikdy v boji
 nečetl. Jediný resource model hry = **D&D spell sloty** (tento dokument), v budoucnu
-doplněné o class resources (Rage/Ki/Pact Magic). Follow-up (ADR 0034): spotřeba
-slotů i v dungeonech/Gauntletu/PVP (Slice 2) + class resources (Slice 3).
+doplněné o class resources (Rage/Ki/Pact Magic).
 
-## Follow-up (MR-5+)
+### Per-encounter spotřeba slotů napříč simulátory (Slice 2 ✅)
 
-- Per-encounter depletion řídící **dice-roll combat** (slabší rotace bez slotů,
-  „šetři sloty na bosse").
-- Spotřeba u dungeonů/raidů/arén/Gauntletu (mimo `ActivityService`).
+Sdílený primitiv **`spendSlotForTier(slots, minTier)`** (`data/spell-slots.ts`):
+vyčerpá nejnižší dostupný slot tieru ≥ kouzla (upcast jen když musí), nebo vrátí
+`null` (kouzlo „fizzles" → zbraň/cantrip). Každý bojový simulátor si na startu
+encounteru vezme **lokální kopii** `actor.spellSlots` jako rozpočet:
+
+| Simulátor                         | Stav | Pozn.                                         |
+| --------------------------------- | ---- | --------------------------------------------- |
+| Quest / Gone Questing (`quest-run.ts`) | ✅ | Od MR-4; upcast + saving throwy (ADR 0032).   |
+| Dungeon (`raid.ts` `fightBoss`)   | ✅ | Per-pull rozpočet, **upcast**; healer free basic-swing heal. |
+| PVP / arény (`pvp.ts`)            | ✅ | Per-duel / per-člen rozpočet (1v1 i 3v3/5v5). |
+| Gauntlet (`gauntlet.ts`)          | ⏳ | Slice 2b (interaktivní, persistovaný stav).   |
+
+Cantripy (tier 0) a martial techniky (bez `spellTier`) jdou **zdarma** (at-will);
+kouzla (tier ≥ 1) čerpají slot. Long Rest = reset při claimu/návratu (beze změny).
+
+## Follow-up
+
+- Gauntlet slot spotřeba (Slice 2b) — persistence + recharge + UI.
 - Short Rest časová granularita (Warlock).
-- Balanc spotřeby a dopadu (MR-10).
+- Class resources (Rage/Ki/Pact, Slice 3 ADR 0034).
 
 ## MR-10e — literal spell dice + saving throwy ✅ (ADR 0032)
 

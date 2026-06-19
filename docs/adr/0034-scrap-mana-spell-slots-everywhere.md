@@ -56,16 +56,50 @@ explicitní resource — což je honest stav: jejich bojové techniky jsou už d
 **at-will** (bez `spellTier`, free v simulátorech). Rage/Ki/Pact jako reálné
 resources přijdou ve Slice 3.
 
-### Slice 2 — Sloty do všech combat módů (follow-up)
+### Slice 2 — Sloty do idle auto-resolve combatu (dungeon + PVP) ✅
 
-Retrofit per-encounter slot spotřeby (vzor `quest-run.ts`) do dungeonů
-(`raid.ts` engine), Gauntletu (`gauntlet.ts`) a PVP/arén (`pvp.ts`):
-lokální slot budget ze snapshotu na startu běhu, spotřeba od nejvyššího tieru,
-upcast, Long Rest na konci běhu. `CombatActor.spellSlots` už je všude
-naplněný (`deriveCombatProfile`), takže jde o čtení/odečet v simulačních smyčkách.
+Per-encounter slot spotřeba (vzor `quest-run.ts`) retrofitnutá do **dungeon
+enginu** (`raid.ts` — `fightBoss`) a **PVP/arén** (`pvp.ts` — `simulatePvpDuel`
++ `simulateTeamFight`). Sdílený primitiv `spendSlotForTier` vytažen z `quest-run.ts`
+do `data/spell-slots.ts` (jediný zdroj pravdy spotřeby slotů; quest-run na něj
+přepojen).
 
-> ⚠️ Slice 2 mění bojové výsledky (slabší rotace po vyčerpání slotů) → vlastní
-> slice + balanc ověření; proto oddělené od scrap mana.
+Model (shodný s quest-run, idle-konzistentní):
+
+- **Lokální slot budget** = kopie `actor.spellSlots` (snapshot), **fresh per
+  encounter/pull/duel** — slot model je per-encounter (jako quest-run, kde
+  `simulateQuestEncounter` dostává čistý rozpočet). Long Rest = reset při
+  claimu/návratu (beze změny, MR-4).
+- **Spotřeba**: každé seslání kouzla (`spellTier ≥ 1`) čerpá slot tieru ≥ kouzla
+  (nejnižší dostupný → upcast jen když musí). Cantripy (tier 0) a martial techniky
+  (bez `spellTier`) jdou **zdarma** (at-will).
+- **Fizzle/hold**: když není slot, kouzlo se nesešle (`continue`) → aktér mlátí
+  basic údery / cantripy dál. **Pojistka u healerů**: ability-heal (heal-kind
+  kouzlo) čerpá slot, ale **basic-swing heal** (raid `member` timer) je free →
+  healer i po vyčerpání slotů léčí slabě dál (žádný kolaps group PVE).
+- **Upcast** v dungeonu: `fightBoss` teď trackuje použitý slot tier → `abilityDamageSpec`
+  dostává reálný tier (Fireball atd. upcastuje; dřív `null` = base dice, ADR 0032).
+  PVP zatím škáluje přes `damageMult` (literal dice/upcast v PVP = mimo tento slice).
+
+Kontraktní testy: `raid.test.ts` + `pvp.test.ts` ověřují, že tier ≥ 1 kouzlo se
+sešle nejvýš `available slots`-krát a cantrip neomezeně.
+
+> ⚠️ Mění bojové výsledky (slabší rotace po vyčerpání slotů). Verifikováno:
+> build/test/lint/typecheck zelené, dungeon + arena integrační flows beze změny
+> (winnability zachována — fallback na cantrip/basic + wipe/retry determination).
+
+### Slice 2b — Sloty v Gauntletu (follow-up)
+
+Gauntlet (`gauntlet.ts`) **záměrně oddělen** — není idle auto-resolve, ale
+**interaktivní** (hráč volí tah), **persistovaný** JSON run-stav napříč vlnami,
+s **drafty** (přidávají spelly za běhu) a bez HP regenerace. Sloty tam vyžadují
+vlastní rozhodnutí, a proto samostatný slice:
+
+- **persistence** slot rozpočtu v `GauntletPlayerState` (JSON, bez migrace),
+- **recharge kadence** (per-vlnu = encounter? per-run? — design decision),
+- **UI**: zobrazení dostupných slotů + **odmítnutí tahu** (kouzlo bez slotu jako
+  „not ready", analogicky cooldownu) ve web kliencie,
+- interakce s ability draftem (nové kouzlo vs. dostupné sloty).
 
 ### Slice 3 — Class resources (follow-up)
 
@@ -79,10 +113,16 @@ Sjednotí model „resource per třída" bez návratu k `ResourceType` proxy.
   jako jediný zdroj.
 - (+) Slice 1 je čistá deletion bez DB migrace a bez změny bojových výsledků
   (resource se nikdy nečetl) → nízkoriziková, plně testovaná.
+- (+) Slot ekonomika je po Slice 2 bojově relevantní v **questu/grindu + dungeonech
+  + PVP/arénách** — caster front-loaduje nejlepší kouzla, pak padá na cantripy
+  (D&D depletion). Jediný sdílený primitiv (`spendSlotForTier`).
 - (−) Martial třídy mezi Slice 1 a Slice 3 bez explicitního resource (jejich
   techniky jsou ale už at-will, takže funkčně beze změny).
-- (−) „Sloty všude" (Slice 2) zůstává otevřené — slot ekonomika je bojově
-  relevantní zatím jen v questu/grindu.
+- (−) Gauntlet (Slice 2b) zatím sloty nečerpá — vyžaduje persistenci + UI +
+  recharge rozhodnutí (interaktivní mód).
+- (−) Slot rozpočet je **per-encounter** (fresh per pull/duel), ne sdílený přes
+  celý dungeon run — jednodušší a bezpečnější (žádné dry-caster unwinnable
+  retries); plný „one Long Rest per adventure" model = případný budoucí tuning.
 
 ## Alternativy
 
