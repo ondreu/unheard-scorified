@@ -76,7 +76,8 @@ describe('M4 flow: inventory & equipment', () => {
     expect(after.equipped).toHaveLength(1);
     expect(after.equipped[0]?.slot).toBe('main_hand');
     expect(after.equipped[0]?.itemId).toBe('iron_shortsword');
-    expect(after.equipmentStats.strength).toBeGreaterThan(0);
+    // Po D&D rescale gearu dává zbraň attack_power (ne raw ability skóre).
+    expect(after.equipmentStats.attack_power).toBeGreaterThan(0);
 
     const unequipped = await invService.unequip(accountId, id, 'main_hand');
     expect(unequipped.equipped).toHaveLength(0);

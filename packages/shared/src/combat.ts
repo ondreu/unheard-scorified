@@ -14,7 +14,7 @@
  * Veškerá náhoda jen přes `SeededRng` (anti-cheat, reprodukovatelnost).
  */
 import { SeededRng } from './rng';
-import { abilityModifier, dndMaxHp, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
+import { ABILITY_SCORE_CAP, abilityModifier, dndMaxHp, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
 import { CLASSES, type ClassId, type SubclassId } from './data/classes';
 import { casterTypeOf, spellSlotsFor, type CasterType, type SpellSlots } from './data/spell-slots';
 import {
@@ -49,6 +49,11 @@ const BASE_SWING_INTERVAL = 2.4;
 const BASE_CRIT_CHANCE = 0.05;
 /** Crit násobek poškození. */
 const CRIT_MULTIPLIER = 2;
+/**
+ * Kolik bodů gear `armor` = +1 AC. Po D&D rescale gearu (bounded accuracy) full
+ * BiS ≈ +3 AC nad nahou postavou (D&D magic-armor škála). Jediný zdroj pravdy.
+ */
+const ARMOR_PER_AC = 40;
 /** Strop crit šance. */
 const MAX_CRIT_CHANCE = 0.6;
 
@@ -63,10 +68,10 @@ const MAX_CRIT_CHANCE = 0.6;
  * scaleActor) → 4-PC rozpočet ≈ literal CR. Boss je tvrdší (víc HP, tvrdší zásah).
  * Laditelné konstanty (čísla, ne model).
  */
-const ENEMY_HP_FACTOR_TRASH = 0.3;
-const ENEMY_HP_FACTOR_BOSS = 0.45;
-const ENEMY_DPR_TO_SWING_TRASH = 0.1;
-const ENEMY_DPR_TO_SWING_BOSS = 0.13;
+const ENEMY_HP_FACTOR_TRASH = 0.26;
+const ENEMY_HP_FACTOR_BOSS = 0.4;
+const ENEMY_DPR_TO_SWING_TRASH = 0.08;
+const ENEMY_DPR_TO_SWING_BOSS = 0.1;
 
 /**
  * Počet kostek/útoků základního útoku dle levelu (D&D Extra Attack u martialů /
@@ -308,8 +313,11 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
   const { level, klass, subclass, primary, equipment, progression } = input;
   const primaryStat: AbilityScore = CLASSES[klass].primaryStat;
 
+  // D&D strop: innate skóre (array + rasa + ASI) je clampnuto na 20; magic-item
+  // gear smí přidat navrch (vzácně). Drží bounded accuracy (gear & balance follow-up).
   const stat = (key: AbilityScore): number =>
-    primary[key] + (equipment[key] ?? 0) + (progression.statBonus[key] ?? 0);
+    Math.min(ABILITY_SCORE_CAP, primary[key] + (progression.statBonus[key] ?? 0)) +
+    (equipment[key] ?? 0);
 
   const effPrimary = stat(primaryStat);
   const effStamina = stat('constitution');
@@ -369,7 +377,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     dndMaxHp(CLASSES[klass].hitDie, level, conMod) + progression.healthBonus + healthFlat,
   );
   // Gear armor → drobný AC bonus (plný AC redesign = MR-10).
-  const armorAcBonus = Math.floor((equipment.armor ?? 0) / 50);
+  const armorAcBonus = Math.floor((equipment.armor ?? 0) / ARMOR_PER_AC);
   const saveMods: Partial<Record<AbilityScore, number>> = {
     strength: abilityModifier(stat('strength')),
     dexterity: dexMod,
@@ -527,7 +535,7 @@ export function applyRage<T extends CombatActor>(actor: T): T {
 /** Armor Class aktéra (fallback z continuous armoru, když AC chybí). */
 export function actorAc(actor: CombatActor): number {
   if (actor.armorClass != null) return actor.armorClass;
-  return 10 + Math.floor((actor.armor ?? 0) / 50);
+  return 10 + Math.floor((actor.armor ?? 0) / ARMOR_PER_AC);
 }
 
 /** Útočný bonus aktéra (fallback ~ odvozený z attackPower, když chybí). */
