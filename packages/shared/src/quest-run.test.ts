@@ -37,6 +37,33 @@ describe('questFoeStats', () => {
   });
 });
 
+function druid(level: number): CombatActor {
+  return deriveCombatProfile({
+    name: 'Willow',
+    level,
+    klass: 'druid',
+    subclass: 'circle_of_the_moon',
+    primary: baseStatsFor('elf', 'druid', level),
+    equipment: {},
+    progression: EMPTY_PROGRESSION,
+  });
+}
+
+describe('DoT ticks over time (ADR 0036, Fix kouzla)', () => {
+  it("druid's Moonbeam deals damage as recurring ticks, not a single hit", () => {
+    const player = druid(8); // Moonbeam unlocks at 8
+    const foe = questFoeStats({ name: 'Treant', tier: 'boss' }, 60); // tanky → boj trvá, DoT stihne tikat
+    const out = simulateQuestEncounter(player, foe, new SeededRng(5), 0);
+    const moonbeamTicks = out.events.filter((e) => e.type === 'dot' && e.ability === 'Moonbeam');
+    // Více tiků v různých časech (ne jeden zásah).
+    expect(moonbeamTicks.length).toBeGreaterThanOrEqual(2);
+    const times = new Set(moonbeamTicks.map((e) => e.t));
+    expect(times.size).toBeGreaterThanOrEqual(2);
+    // Tik damage je deterministický průměr 2d10 (~11) ± obrany — kladné poškození.
+    expect(moonbeamTicks.every((e) => (e.amount ?? 0) > 0)).toBe(true);
+  });
+});
+
 describe('simulateQuestEncounter (no-fail)', () => {
   it('always defeats the enemy and never lets the player drop below 1 HP', () => {
     const player = makeProfile(5);

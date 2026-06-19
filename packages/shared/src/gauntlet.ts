@@ -24,10 +24,12 @@ import {
   abilityDamageMult,
   abilityDamageSpec,
   applyRage,
+  bonusDiceSpec,
   buildAttackMessage,
   buildEnemyActor,
   computeHit,
   crEnemyMagnitude,
+  dotTickRaw,
   applyAbsorb,
   SIGNATURE_ABILITIES,
   type CombatActor,
@@ -241,7 +243,12 @@ export function effectivePlayerActor(base: CombatActor, picks: GauntletPick[]): 
 
 /** Kompletní ability kit dostupný v runu (základní úder + signatures + drafty). */
 export function gauntletAbilities(base: CombatActor, picks: GauntletPick[]): SignatureAbility[] {
-  return [GAUNTLET_BASIC_ATTACK, ...effectivePlayerActor(base, picks).signatureAbilities];
+  // Koncentrační buffy (Hunter's Mark/Hex, ADR 0036) jsou pasivní (rider na každý
+  // zásah přes weaponRiderDice) — nejsou castable, nenabízíme je v UI.
+  return [
+    GAUNTLET_BASIC_ATTACK,
+    ...effectivePlayerActor(base, picks).signatureAbilities.filter((a) => a.kind !== 'buff'),
+  ];
 }
 
 // ── Generování nepřátel ──────────────────────────────────────────────────────
@@ -406,7 +413,7 @@ export function resolveGauntletTurn(
     abilityId === GAUNTLET_BASIC_ATTACK.id
       ? GAUNTLET_BASIC_ATTACK
       : player.signatureAbilities.find((a) => a.id === abilityId);
-  if (!ability) return { state, events: [] };
+  if (!ability || ability.kind === 'buff') return { state, events: [] }; // buff = pasivní rider
   if (!isGauntletAbilityReady(state, abilityId)) return { state, events: [] };
 
   // Class resources (ADR 0034): rozpočet na celý run. Lazy init pro běhy založené
@@ -505,12 +512,17 @@ export function resolveGauntletTurn(
     // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
     const targetHpPct = enemy.currentHealth / enemy.maxHealth;
     // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-    // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
+    // jinak škálují přes attackPower (damageMult). Upcast dle slotu,
     // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
     const spec = abilityDamageSpec(ability, usedSlotTier, player.level);
     const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
+    // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
+    const bonusDice = bonusDiceSpec(ability, usedSlotTier, player.level);
     // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
-    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec);
+    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec, {
+      advantage: ability.advantage ? 'advantage' : undefined,
+      bonusDice,
+    });
     // Per-spell saving throw (ADR 0032) → nepřítel hodí proti spell save DC hráče.
     if (hit.hit && ability.save) {
       const outcome = applySpellSave(ability, player, enemyAsActor, rng, hit.amount);
@@ -527,11 +539,11 @@ export function resolveGauntletTurn(
       state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + healed);
     }
 
-    if (hit.hit && ability.kind === 'dot' && ability.dotTicks && ability.dotTickMult) {
+    if (hit.hit && ability.kind === 'dot' && ability.dotTicks) {
       // DoT tik respektuje typ + obrany cíle (MR-10d), stejně jako přímý zásah.
       const dotType = ability.damageType ?? player.damageType ?? 'bludgeoning';
       const interaction = damageInteraction(dotType, enemyAsActor);
-      const raw = Math.round(player.attackPower * ability.dotTickMult);
+      const raw = dotTickRaw(ability, player);
       const tickDamage = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
       enemy.dots.push({
         remainingTicks: ability.dotTicks,

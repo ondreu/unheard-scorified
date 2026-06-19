@@ -190,6 +190,33 @@ trash / 0.10 boss → geared **martial** on-level: trash rychlý (3–5 úderů,
 ztráta), boss 5–8 úderů s vítězstvím a ~45–62 % HP; naked výrazně riskantnější (gear
 má váhu).
 
+## „Fix kouzla" — D&D 5e-věrný audit abilit ✅ (ADR 0036)
+
+Katalog `data/abilities.ts` narovnán na D&D 5e RAW (audit v `systems/spell-audit.md`).
+Magnitudu kouzel/heads nese **literal dice + atribut mod**, ne `attackPower × %`.
+
+- **Heady = literal dice** (`healDiceSpec`): Cure Wounds 1d8+mod, Healing Word 1d4+mod
+  (+upcast); Lay on Hands / Preserve Life = flat pool bez slotu. Žádné „% healing power".
+- **DoT reálně tiká** (`dotDice`, per-tik literal): Moonbeam 2d10, Spirit Guardians 3d8,
+  Hunger of Hadar 2d6, Searing Smite 1d6. Quest-run teď DoT tikuje (dřív 1 zásah).
+- **Martial = weapon + bonus kostky** (`bonusDice`, +scaling): Sneak Attack +⌈lvl/2⌉d6,
+  Divine Smite +2d8, superiority/Colossus/Brutal +1d8/1d10; extra-attack techniky
+  (Action Surge/Frenzy/Flurry) = `damageMult` = počet útoků; **advantage** (Reckless,
+  Assassinate). **WoW execute (`executeBelowPct`) smazán úplně** (není D&D).
+- **Koncentrační buffy** (`kind:'buff'`, `weaponRiderDice`): Hunter's Mark / Hex =
+  +1d6 na **každý zásah**, aplikováno pasivně na celý encounter (`rollHit`).
+- **AoE** (`aoe`): mass heal → všichni zranění spojenci (raid hned); AoE damage
+  flag připraven, multi-enemy damage čeká na multi-enemy souboje (dungeon overhaul).
+- **Mislabely opraveny:** Scorching Ray = 6d6 instant (ne DoT), Drain Life →
+  Vampiric Touch, Inflict Wounds neléčí. Per-spell saving throwy (`save`) doplněny.
+
+_Balanc: literal-heal healeři = delší attrition souboje (caster swing strop 16→18);
+rogue Sneak Attack burst je naked-viable (kontrakt „gear má váhu" bere i HP margin).
+Magnitudy gearu/base/enemy z ADR 0035 nedotčené. Conditions (stun/prone/frightened)
++ AC-buff ability + AoE-damage multi-target = follow-up._
+
+## Casteři — viable ✅ („Fix kouzla" — magnitudy)
+
 **Casteři — viable ✅ („Fix kouzla").** Dřívější omezení (leveled kouzla/cantripy na
 literal kostkách hluboko pod martial `attackPower`, cantripy bez level-scalingu →
 wizard/cleric neviable na high-level bossech) **vyřešeno** třemi D&D-věrnými pákami:

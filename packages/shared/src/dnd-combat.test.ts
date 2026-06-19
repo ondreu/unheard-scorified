@@ -100,8 +100,8 @@ describe('per-class damage type (MR-10b)', () => {
     const magicMissile = wizard.find((a) => a.id === 'wiz_magic_missile')!;
     const fireBolt = wizard.find((a) => a.id === 'wiz_fire_bolt')!;
     expect(magicMissile.damageType).toBe('force');
-    // Fire Bolt sdílí typ classy (fire) → damageType nedefinováno (zdědí).
-    expect(fireBolt.damageType).toBeUndefined();
+    // Fire Bolt má teď explicitní typ poškození (ADR 0036 — žádné implicitní dědění).
+    expect(fireBolt.damageType).toBe('fire');
 
     // Proti fire-immune cíli: ability typovaná force projde, fire (class) je 0.
     const fireImmune = buildEnemyActor({

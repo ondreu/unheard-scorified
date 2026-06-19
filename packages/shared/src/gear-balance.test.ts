@@ -244,7 +244,10 @@ describe('gear-balance contract', () => {
         expect(trash.winRate).toBeGreaterThan(0.95);
         expect(boss.winRate).toBeGreaterThan(0.65);
         expect(boss.avgSwings).toBeGreaterThanOrEqual(4);
-        expect(boss.avgSwings).toBeLessThanOrEqual(16);
+        // Literal D&D heal (ADR 0036): healeři (cleric) vedou delší attrition souboje
+        // — léčení v boji je v D&D záměrně pomalé (Cure Wounds upcast drží krok s HP,
+        // ne přestřelí). Strop 18 (dříve 16) reflektuje literal-heal model.
+        expect(boss.avgSwings).toBeLessThanOrEqual(18);
         expect(boss.avgHpPct).toBeLessThan(90); // boss stojí HP
       }
     }
@@ -254,7 +257,11 @@ describe('gear-balance contract', () => {
     for (const klass of MARTIAL_CLASSES) {
       const naked = ttkProfile(hero(20, klass, {}), 20, true);
       const geared = ttkProfile(hero(20, klass, bisStats(20)), 20, true);
-      expect(geared.winRate).toBeGreaterThan(naked.winRate + 0.2);
+      // Gear se projeví na win-rate NEBO (když je trída i nahá near-cap, např. rogue
+      // s D&D Sneak Attack 10d6 burstem) na zbylém HP — gear pořád znamená přežití.
+      const winGap = geared.winRate - naked.winRate;
+      const hpGap = geared.avgHpPct - naked.avgHpPct;
+      expect(winGap > 0.2 || hpGap > 12).toBe(true);
     }
   });
 });

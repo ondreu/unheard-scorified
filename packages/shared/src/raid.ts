@@ -24,11 +24,13 @@ import {
   abilityDamageSpec,
   applyAbsorb,
   applyRage,
+  bonusDiceSpec,
   buildAttackMessage,
   buildEnemyActor,
   canRage,
   computeHit,
   determinationFactor,
+  dotTickRaw,
   round1,
   type CombatActor,
   type CombatEvent,
@@ -257,7 +259,7 @@ function scheduleDot(
   // jako přímý zásah (jinak by fire DoT „protekl" fire-immune cílem). Cíl je
   // statický, tak interakci spočítáme jednou při scheduleru.
   const dotType = ability.damageType ?? source.damageType ?? 'bludgeoning';
-  const raw = Math.round(source.attackPower * (ability.dotTickMult ?? 0));
+  const raw = dotTickRaw(ability, source);
   const interaction = damageInteraction(dotType, target);
   const dmg = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
   timers.push({
@@ -515,35 +517,43 @@ function fightBoss(
       // Heal-kind ability: jen healer, jen když je koho léčit (jinak se „drží").
       if (ability.kind === 'heal') {
         if (member.role !== 'healer' || member.healPower <= 0) continue;
-        let tIdx = -1;
+        // Zranění spojenci (živí, pod max HP). AoE heal (Mass Healing Word) ošetří
+        // VŠECHNY (ADR 0036), jednocílový heal jen nejzraněnějšího.
+        const hurt: number[] = [];
+        let worstIdx = -1;
         let worstMissing = 0;
         for (let k = 0; k < party.length; k++) {
           if (hp[k]! <= 0) continue;
           const missing = party[k]!.maxHealth - hp[k]!;
+          if (missing <= 0) continue;
+          hurt.push(k);
           if (missing > worstMissing) {
             worstMissing = missing;
-            tIdx = k;
+            worstIdx = k;
           }
         }
-        if (tIdx < 0 || worstMissing <= 0) continue;
+        if (worstIdx < 0) continue;
         // Spell sloty (ADR 0034): heal-kouzlo (tier ≥ 1) čerpá slot; když dojdou,
         // ability-heal se „drží" (healer pořád léčí slabší basic swingem zdarma).
         if (!spendAbilitySlot(slotBudget[i]!, ability).ok) continue;
-        const amount = Math.max(
-          1,
-          Math.round(member.healPower * ability.damageMult * (0.9 + rng.next() * 0.2)),
-        );
-        hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
-        events.push({
-          t: round1(clock),
-          type: 'heal',
-          source: member.name,
-          target: party[tIdx]!.name,
-          amount,
-          ability: ability.name,
-          targetHealthRemaining: hp[tIdx],
-          message: `💚 ${member.name} casts ${ability.name} on ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
-        });
+        const targets = ability.aoe ? hurt : [worstIdx];
+        for (const tIdx of targets) {
+          const amount = Math.max(
+            1,
+            Math.round(member.healPower * ability.damageMult * (0.9 + rng.next() * 0.2)),
+          );
+          hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
+          events.push({
+            t: round1(clock),
+            type: 'heal',
+            source: member.name,
+            target: party[tIdx]!.name,
+            amount,
+            ability: ability.name,
+            targetHealthRemaining: hp[tIdx],
+            message: `💚 ${member.name} casts ${ability.name} on ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
+          });
+        }
         continue;
       }
       // Ki (ADR 0034): Monkova technika (`kiCost`) potřebuje dost Ki; jinak se „drží".
@@ -556,12 +566,16 @@ function fightBoss(
       if (kiCost > 0) kiBudget[i]! -= kiCost;
       const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
       // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-      // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
+      // jinak škálují přes attackPower (damageMult). Upcast dle slotu,
       // kterým bylo kouzlo sesláno (ADR 0034 → raid teď trackuje slot tier).
       const spec = abilityDamageSpec(ability, slot.tier, member.level);
       const mult = spec ? 1 : abilityDamageMult(ability, bossHpPct);
-      const executing = !spec && mult > ability.damageMult;
-      const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec);
+      // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
+      const bonusDice = bonusDiceSpec(ability, slot.tier, member.level);
+      const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec, {
+        advantage: ability.advantage ? 'advantage' : undefined,
+        bonusDice,
+      });
       // Per-spell saving throw (ADR 0032) → boss si hodí proti spell save DC člena.
       if (hit.hit && ability.save) {
         const outcome = applySpellSave(ability, member, boss, rng, hit.amount);
@@ -573,7 +587,6 @@ function fightBoss(
       const healed = hit.hit && healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
       if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
       if (hit.hit && ability.kind === 'dot') scheduleDot(timers, member, boss, ability, clock);
-      const exec = executing ? ' (execute!)' : '';
       events.push({
         t: round1(clock),
         type: healed > 0 ? 'drain' : 'ability',
@@ -586,10 +599,10 @@ function fightBoss(
         message: !hit.hit
           ? `${member.name} casts ${ability.name} at ${boss.name} — MISS ${rollTag(hit)}`
           : healed > 0
-            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
+            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
             : ability.kind === 'dot'
-              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, leaving a burn. ${boss.name}: ${bossHp} HP`
-              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}. ${boss.name}: ${bossHp} HP`,
+              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, leaving a burn. ${boss.name}: ${bossHp} HP`
+              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
       });
     } else {
       // Boss útočí.
@@ -746,7 +759,7 @@ export function simulateRaidRun(
 
 // ── Trénovací terč / sandbox (MIL) ──────────────────────────────────────────
 // „Testovací target/healing dummy" — ladění rotace bez nutnosti soupeře/party.
-// Recykluje `fightBoss` (role routing, mitigation, heal, DoT, execute — žádná
+// Recykluje `fightBoss` (role routing, mitigation, heal, DoT — žádná
 // duplikace), jen s časovým stropem místo ukončení na smrti bosse/party.
 
 /** HP terče — dost vysoko, aby v rozumné délce testu nikdy nepadl. */

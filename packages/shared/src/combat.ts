@@ -23,7 +23,7 @@ import {
   rageDamageBonus,
   RAGE_RESIST_TYPES,
 } from './data/class-resources';
-import { attackHits, diceNotation, rollAttack, rollDice, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
+import { attackHits, diceAverage, diceNotation, rollAttack, rollDice, type AdvantageMode, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
 import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
@@ -231,6 +231,14 @@ export interface CombatActor {
   rageDamageBonus?: number;
   /** Caster type (full/half/pact/none) — pact (Warlock) má v Gauntletu per-wave short rest. */
   casterType?: CasterType;
+  /**
+   * Koncentrační buff rider (ADR 0036) — Hunter's Mark / Hex: tyto kostky se přičtou
+   * ke **každému zásahu** aktéra (+1d6). V idle modelu aktivní celý encounter (buff
+   * v D&D trvá ~1 h). `undefined` = bez rideru. Crit zdvojí i jeho kostky.
+   */
+  weaponRiderDice?: DiceSpec;
+  /** Jméno aktivního rider buffu (pro combat log). */
+  riderName?: string;
   signatureAbilities: SignatureAbility[];
   /**
    * Deklarativní rotace (MIL) — řídí, zda/kdy se signature ability sešle.
@@ -421,8 +429,20 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     rageCharges: rageChargesFor(klass, level),
     rageDamageBonus: rageChargesFor(klass, level) > 0 ? rageDamageBonus(level) : 0,
     casterType: ct,
+    // Koncentrační buff rider (ADR 0036): Hunter's Mark / Hex se v idle modelu drží
+    // celý encounter → +riderDice na každý zásah. Jeden naráz (koncentrace) = první.
+    ...riderFromAbilities(abilities),
     signatureAbilities: abilities,
   };
+}
+
+/** Najde první koncentrační buff (Hunter's Mark/Hex) a vrátí jeho rider (ADR 0036). */
+function riderFromAbilities(
+  abilities: SignatureAbility[],
+): { weaponRiderDice?: DiceSpec; riderName?: string } {
+  const buff = abilities.find((a) => a.kind === 'buff' && a.riderDice);
+  if (!buff || !buff.riderDice) return {};
+  return { weaponRiderDice: buff.riderDice, riderName: buff.name };
 }
 
 /** Staty nepřítele (statická data dungeonu). */
@@ -561,6 +581,25 @@ export function actorSpellSaveDc(actor: CombatActor): number {
   return actor.spellSaveDc ?? 10;
 }
 
+/** Proficiency bonus z levelu (D&D 5e: 2 + floor((level−1)/4) → +2..+6). */
+export function actorProficiency(actor: CombatActor): number {
+  const level = actor.level ?? 1;
+  return 2 + Math.floor((Math.max(1, level) - 1) / 4);
+}
+
+/**
+ * Spellcasting modifikátor aktéra (ADR 0036) — pro heal/spell bonusy (Cure Wounds
+ * `1d8 + spellMod`). Odvozeno ze spell save DC (`DC = 8 + prof + spellMod`):
+ * `spellMod = spellSaveDc − 8 − proficiency`. Fallback na `damageBonus` (primární
+ * atribut mod) nebo 0, když caster staty chybí (nepřítel / martial).
+ */
+export function actorSpellMod(actor: CombatActor): number {
+  if (actor.spellSaveDc != null) {
+    return Math.max(0, actor.spellSaveDc - 8 - actorProficiency(actor));
+  }
+  return Math.max(0, actor.damageBonus ?? 0);
+}
+
 /**
  * Damage dice aktéra — `count`d`sides` + `bonus`, kde `sides` je per-class
  * kostka zbraně/cantripu (`attackDie`, default d6 pro nepřátele) a `count`/`bonus`
@@ -613,6 +652,67 @@ export function abilityDamageSpec(
   return { count: base.count + above * perSlot, sides: base.sides, bonus: base.bonus };
 }
 
+/**
+ * Bonus kostky přičtené k weapon hitu (ADR 0036, „Fix kouzla") — D&D maneuvery bez
+ * vlastního `dice` (Divine Smite +2d8, Sneak Attack +Nd6, superiority +1d8). Počet:
+ * `bonusDicePerLevels` → `ceil(level / N)` (Sneak Attack scaling), jinak `bonusDice.count`,
+ * + **upcast** `dicePerSlotAbove` za tier nad `spellTier` (Divine Smite +1d8/slot).
+ * Vrací `undefined` pro ability bez `bonusDice` (čisté weapon attacky / kouzla s `dice`).
+ * Crit doubling řeší `rollHit`.
+ */
+export function bonusDiceSpec(
+  ability: SignatureAbility,
+  slotTier: number | null,
+  level = 1,
+): DiceSpec | undefined {
+  const base = ability.bonusDice;
+  if (!base) return undefined;
+  let count = base.count;
+  if (ability.bonusDicePerLevels && ability.bonusDicePerLevels > 0) {
+    count = Math.max(1, Math.ceil(Math.max(1, level) / ability.bonusDicePerLevels));
+  }
+  const perSlot = ability.dicePerSlotAbove ?? 0;
+  const minTier = ability.spellTier ?? 0;
+  if (perSlot > 0 && slotTier != null && !ability.dice) {
+    count += Math.max(0, slotTier - minTier) * perSlot;
+  }
+  return { count, sides: base.sides, bonus: base.bonus };
+}
+
+/**
+ * Literal D&D heal dice (ADR 0036, „Fix kouzla") — nahrazuje `damageMult ×
+ * HEAL_POWER_FACTOR` proxy: `Cure Wounds 1d8 + spellMod`, `Healing Word 1d4 + spellMod`,
+ * upcast `+dice/slot`. Spellcasting mod se přičte k `bonus` (D&D heal = kostky + mod).
+ * Vrací `undefined` pro heal bez literal `dice` (→ stará `attackPower` cesta).
+ */
+export function healDiceSpec(
+  ability: SignatureAbility,
+  slotTier: number | null,
+  healer: CombatActor,
+): DiceSpec | undefined {
+  if (!ability.dice) return undefined;
+  const base = ability.dice;
+  const perSlot = ability.dicePerSlotAbove ?? 0;
+  const minTier = ability.spellTier ?? 1;
+  const above = perSlot > 0 && slotTier != null ? Math.max(0, slotTier - minTier) : 0;
+  return {
+    count: base.count + above * perSlot,
+    sides: base.sides,
+    bonus: base.bonus + actorSpellMod(healer),
+  };
+}
+
+/**
+ * Deterministické poškození jednoho DoT tiku (ADR 0036). Literal D&D DoT (Moonbeam
+ * 2d10, Spirit Guardians 3d8) → `diceAverage` per tik (bez RNG — DoT tiky jsou fixní,
+ * nesmí rozhodit pořadí draws v simulátorech). Bez `dice` → stará cesta `attackPower ×
+ * dotTickMult`. Vrací raw poškození před aplikací resistance/immunity (to řeší volající).
+ */
+export function dotTickRaw(ability: SignatureAbility, source: CombatActor): number {
+  if (ability.dotDice) return Math.round(diceAverage(ability.dotDice));
+  return Math.round(source.attackPower * (ability.dotTickMult ?? 0));
+}
+
 /** Výsledek jednoho hodu na zásah + poškození (D&D dice-roll). */
 export interface HitResult {
   /** Výsledné poškození (0 při miss). */
@@ -645,6 +745,14 @@ function attackDamageType(attacker: CombatActor, override?: DamageType): DamageT
   return override ?? attacker.damageType ?? 'bludgeoning';
 }
 
+/** Jádro hodu na zásah: nové volby (advantage / bonus kostky) jdou přes opts. */
+interface RollHitExtra {
+  /** Advantage/disadvantage na hod na zásah (ADR 0036). */
+  advantage?: AdvantageMode;
+  /** Bonus kostky přičtené k weapon hitu (ADR 0036 — Smite/Sneak/superiority). */
+  bonusDice?: DiceSpec;
+}
+
 /** Společné jádro hodu na zásah (d20 + attackBonus vs AC → damage dice → obrany). */
 function rollHit(
   attacker: CombatActor,
@@ -655,10 +763,11 @@ function rollHit(
   enraged: boolean,
   damageTypeOverride?: DamageType,
   damageSpecOverride?: DiceSpec,
+  extra: RollHitExtra = {},
 ): HitResult {
   const targetAc = actorAc(defender);
   const damageType = attackDamageType(attacker, damageTypeOverride);
-  const roll = rollAttack(rng, actorAttackBonus(attacker));
+  const roll = rollAttack(rng, actorAttackBonus(attacker), extra.advantage ?? 'normal');
   const hit = autoHit || attackHits(roll, targetAc);
   if (!hit) {
     return { amount: 0, crit: false, hit: false, roll, targetAc, damageType, damageInteraction: 'normal' };
@@ -669,7 +778,20 @@ function rollHit(
     ? { ...damageSpecOverride, count: crit ? damageSpecOverride.count * 2 : damageSpecOverride.count }
     : weaponDamageSpec(attacker, crit);
   const damage = rollDice(rng, spec.count, spec.sides);
-  const raw = Math.round((damage.total + spec.bonus) * abilityMult * (enraged ? 3 : 1));
+  // Bonus kostky na weapon hit (ADR 0036 — Divine Smite/Sneak Attack/superiority):
+  // přičtou se k weapon damage (crit zdvojí i jejich počet), nenásobí abilityMult.
+  let bonusTotal = 0;
+  if (extra.bonusDice) {
+    const bc = crit ? extra.bonusDice.count * 2 : extra.bonusDice.count;
+    bonusTotal = rollDice(rng, bc, extra.bonusDice.sides).total + extra.bonusDice.bonus;
+  }
+  // Koncentrační buff rider (ADR 0036 — Hunter's Mark/Hex): +riderDice na každý zásah.
+  if (attacker.weaponRiderDice) {
+    const rd = attacker.weaponRiderDice;
+    const rc = crit ? rd.count * 2 : rd.count;
+    bonusTotal += rollDice(rng, rc, rd.sides).total + rd.bonus;
+  }
+  const raw = Math.round(((damage.total + spec.bonus) * abilityMult + bonusTotal) * (enraged ? 3 : 1));
   // Resistance / vulnerability / immunity (MR-7): immune ruší poškození úplně,
   // jinak min. 1 (chip damage). Mechanika je živá ve všech simulátorech (sdílené
   // jádro rollHit).
@@ -683,7 +805,9 @@ function rollHit(
     roll,
     targetAc,
     damage,
-    damageNotation: diceNotation(spec),
+    damageNotation: extra.bonusDice
+      ? `${diceNotation(spec)} + ${diceNotation(extra.bonusDice)}`
+      : diceNotation(spec),
     damageType,
     damageInteraction: interaction,
   };
@@ -704,8 +828,9 @@ export function computeHit(
   enraged: boolean,
   damageType?: DamageType,
   damageSpec?: DiceSpec,
+  extra?: RollHitExtra,
 ): HitResult {
-  return rollHit(attacker, defender, rng, abilityMult, false, enraged, damageType, damageSpec);
+  return rollHit(attacker, defender, rng, abilityMult, false, enraged, damageType, damageSpec, extra);
 }
 
 export interface ResolveAttackOpts {
@@ -717,11 +842,16 @@ export interface ResolveAttackOpts {
   damageType?: DamageType;
   /** Literal damage dice kouzla (ADR 0032) — přebije weapon dice (8d6 Fireball). */
   damageSpec?: DiceSpec;
+  /** Advantage/disadvantage na hod na zásah (ADR 0036) — Reckless Attack/Assassinate. */
+  advantage?: AdvantageMode;
+  /** Bonus kostky na weapon hit (ADR 0036) — Divine Smite/Sneak Attack/superiority. */
+  bonusDice?: DiceSpec;
 }
 
 /**
- * Vyřeší jeden útok s volbami (abilityMult, autoHit, damageType). Tenký wrapper
- * nad sdíleným jádrem `rollHit` — používá ho quest combat (MR-5). Vrací `HitResult`.
+ * Vyřeší jeden útok s volbami (abilityMult, autoHit, damageType, advantage,
+ * bonusDice). Tenký wrapper nad sdíleným jádrem `rollHit` — používá ho quest combat
+ * (MR-5). Vrací `HitResult`.
  */
 export function resolveAttack(
   attacker: CombatActor,
@@ -738,6 +868,7 @@ export function resolveAttack(
     false,
     opts.damageType,
     opts.damageSpec,
+    { advantage: opts.advantage, bonusDice: opts.bonusDice },
   );
 }
 

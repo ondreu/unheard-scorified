@@ -208,6 +208,15 @@ Legenda verdiktu: ✅ D&D-věrné (jen drobnost) · 🔧 přepsat na literal · 
 
 ---
 
+## Stav implementace ✅ (ADR 0036)
+
+Slices A–H **hotové** (commity na větvi `claude/keen-lamport-qoo7nu`, PR #87):
+A (engine cesty) · B (caster instant spells) · B2 (DoT tiking + literal) · C (heady
+literal) · D (martial + smazat execute) · E (koncentrační buffy) · F (subclass) ·
+G (cleanup execute + docs + tento ADR) · H (AoE flag + mass heal). Viz `docs/adr/0036`.
+**Mimo rozsah (follow-up):** conditions, AC-buff ability, AoE-damage multi-target,
+kniha kouzel (výběr aktivních spellů).
+
 ## Slice plán (implementace = ADR 0036)
 
 Každý slice samostatně mergovatelný, **`gear-balance.test.ts` + nové ability testy zelené**.

@@ -3,7 +3,7 @@
    * Detail combat ability (klik na jméno ability v logu). Data z
    * `findAbilityByName` (katalog `data/abilities.ts`). UI strings anglicky.
    */
-  import { findAbilityByName } from '@game/shared';
+  import { findAbilityByName, diceNotation, type SignatureAbility } from '@game/shared';
   import { inspectAbility } from '$lib/ui-stores';
   import Badge from './Badge.svelte';
   import PixelAbilityIcon from './PixelAbilityIcon.svelte';
@@ -15,7 +15,22 @@
     heal: { label: 'Heal', color: 'var(--success)', icon: '✨' },
     shield: { label: 'Shield', color: 'var(--info)', icon: '🛡️' },
     mitigation: { label: 'Mitigation', color: 'var(--info)', icon: '🛡️' },
+    buff: { label: 'Concentration', color: 'var(--gold-bright)', icon: '🔮' },
   };
+
+  /**
+   * D&D-věrné zobrazení poškození/healu (ADR 0036): literal kostky (8d6), bonus
+   * kostky na zásah (+Nd6), DoT per-tik, rider per hit; jinak `damageMult` jako %
+   * (sim-knob u weapon-mult abilit). Žádné zavádějící „230 % heal".
+   */
+  function damageText(a: SignatureAbility): string {
+    if (a.riderDice) return `+${diceNotation(a.riderDice)} per hit`;
+    if (a.dice && a.bonusDice) return `${diceNotation(a.dice)} (+${diceNotation(a.bonusDice)})`;
+    if (a.dice) return diceNotation(a.dice);
+    if (a.dotDice) return `${diceNotation(a.dotDice)} / tick`;
+    if (a.bonusDice) return `weapon +${diceNotation(a.bonusDice)}`;
+    return `${Math.round(a.damageMult * 100)}%`;
+  }
 
   const ui = {
     cooldown: 'Cooldown',
@@ -82,10 +97,12 @@
               <dt class="text-[var(--text-dim)]">{ui.cooldown}</dt>
               <dd>{a.cooldownSec}s</dd>
             </div>
-            <div class="flex justify-between">
-              <dt class="text-[var(--text-dim)]">{a.kind === 'heal' ? ui.healing : ui.damage}</dt>
-              <dd>{Math.round(a.damageMult * 100)}%</dd>
-            </div>
+            {#if a.kind !== 'buff' || a.riderDice}
+              <div class="flex justify-between">
+                <dt class="text-[var(--text-dim)]">{a.kind === 'heal' ? ui.healing : ui.damage}</dt>
+                <dd>{damageText(a)}</dd>
+              </div>
+            {/if}
             {#if a.dotTicks && a.dotDurationSec}
               <div class="flex justify-between">
                 <dt class="text-[var(--text-dim)]">{ui.overTime}</dt>
@@ -96,12 +113,6 @@
               <div class="flex justify-between">
                 <dt class="text-[var(--text-dim)]">{ui.drainHeal}</dt>
                 <dd>{Math.round(a.drainHealFraction * 100)}%</dd>
-              </div>
-            {/if}
-            {#if a.executeBelowPct}
-              <div class="flex justify-between">
-                <dt class="text-[var(--text-dim)]">{ui.execute}</dt>
-                <dd>{Math.round(a.executeBelowPct * 100)}%</dd>
               </div>
             {/if}
             {#if a.mitigationPct}

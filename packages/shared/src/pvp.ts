@@ -12,8 +12,10 @@
  */
 import { SeededRng } from './rng';
 import {
+  abilityDamageSpec,
   applyAbsorb,
   applyRage,
+  bonusDiceSpec,
   buildAttackMessage,
   canRage,
   computeHit,
@@ -21,6 +23,7 @@ import {
   type CombatActor,
   type CombatEvent,
 } from './combat';
+import type { DiceSpec } from './dice';
 import { shouldCastAbility } from './rotation';
 import { missMessage } from './dnd-combat';
 import type { DamageType } from './data/damage';
@@ -62,14 +65,18 @@ interface DuelTimer {
   abilityId?: string;
   abilityKind?: string;
   abilityMult?: number;
-  executeBelowPct?: number;
-  executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
   /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot strany. */
   abilitySpellTier?: number;
   /** Ki cost techniky (ADR 0034) — čerpá Ki pool strany (Monk). */
   abilityKiCost?: number;
+  /** Literal D&D spell dice (ADR 0032/0036) — Fireball 8d6 (base tier, bez upcast). */
+  abilityDamageSpec?: DiceSpec;
+  /** Bonus kostky na weapon hit (ADR 0036) — Divine Smite/Sneak Attack. */
+  abilityBonusDice?: DiceSpec;
+  /** Advantage na hod na zásah (ADR 0036) — Reckless Attack/Assassinate. */
+  abilityAdvantage?: boolean;
 }
 
 /**
@@ -115,11 +122,12 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityId: ab.id,
       abilityKind: ab.kind,
       abilityMult: ab.damageMult,
-      executeBelowPct: ab.executeBelowPct,
-      executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
       abilitySpellTier: ab.spellTier,
       abilityKiCost: ab.kiCost,
+      abilityDamageSpec: abilityDamageSpec(ab, ab.spellTier ?? null, a.level),
+      abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, a.level),
+      abilityAdvantage: ab.advantage,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -129,11 +137,12 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityId: ab.id,
       abilityKind: ab.kind,
       abilityMult: ab.damageMult,
-      executeBelowPct: ab.executeBelowPct,
-      executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
       abilitySpellTier: ab.spellTier,
       abilityKiCost: ab.kiCost,
+      abilityDamageSpec: abilityDamageSpec(ab, ab.spellTier ?? null, b.level),
+      abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, b.level),
+      abilityAdvantage: ab.advantage,
     })),
   ];
 
@@ -182,12 +191,12 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       kiBudget[attackerSide] -= kiCost;
     }
 
-    let effMult = timer.abilityMult ?? 1;
-    const defHpPct = defender.maxHealth > 0 ? hp[defenderSide] / defender.maxHealth : 0;
-    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
-      effMult = timer.executeDamageMult ?? effMult;
-    }
-    const hit = computeHit(attacker, defender, rng, effMult, enraged, timer.abilityDamageType);
+    const effMult = timer.abilityMult ?? 1;
+    const spec = timer.abilityDamageSpec;
+    const hit = computeHit(attacker, defender, rng, spec ? 1 : effMult, enraged, timer.abilityDamageType, spec, {
+      advantage: timer.abilityAdvantage ? 'advantage' : undefined,
+      bonusDice: timer.abilityBonusDice,
+    });
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide] > 0) {
@@ -284,14 +293,18 @@ interface TeamTimer {
   abilityId?: string;
   abilityKind?: string;
   abilityMult?: number;
-  executeBelowPct?: number;
-  executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
   /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot daného člena. */
   abilitySpellTier?: number;
   /** Ki cost techniky (ADR 0034) — čerpá Ki pool daného člena (Monk). */
   abilityKiCost?: number;
+  /** Literal D&D spell dice (ADR 0032/0036). */
+  abilityDamageSpec?: DiceSpec;
+  /** Bonus kostky na weapon hit (ADR 0036). */
+  abilityBonusDice?: DiceSpec;
+  /** Advantage na hod na zásah (ADR 0036). */
+  abilityAdvantage?: boolean;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -361,11 +374,12 @@ export function simulateTeamFight(
           abilityId: ab.id,
           abilityKind: ab.kind,
           abilityMult: ab.damageMult,
-          executeBelowPct: ab.executeBelowPct,
-          executeDamageMult: ab.executeDamageMult,
           abilityDamageType: ab.damageType,
           abilitySpellTier: ab.spellTier,
           abilityKiCost: ab.kiCost,
+          abilityDamageSpec: abilityDamageSpec(ab, ab.spellTier ?? null, m.level),
+          abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, m.level),
+          abilityAdvantage: ab.advantage,
         });
       }
     });
@@ -421,13 +435,12 @@ export function simulateTeamFight(
       if (kiCost > kiBudget[attackerSide][timer.member]!) continue;
       kiBudget[attackerSide][timer.member]! -= kiCost;
     }
-    let effMult = timer.abilityMult ?? 1;
-    const defHpPct =
-      defender.maxHealth > 0 ? hp[defenderSide][targetIdx]! / defender.maxHealth : 0;
-    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
-      effMult = timer.executeDamageMult ?? effMult;
-    }
-    const hit = computeHit(attacker, defender, rng, effMult, enraged, timer.abilityDamageType);
+    const effMult = timer.abilityMult ?? 1;
+    const spec = timer.abilityDamageSpec;
+    const hit = computeHit(attacker, defender, rng, spec ? 1 : effMult, enraged, timer.abilityDamageType, spec, {
+      advantage: timer.abilityAdvantage ? 'advantage' : undefined,
+      bonusDice: timer.abilityBonusDice,
+    });
     let dmg = hit.amount;
     let absorbed = 0;
     if (shield[defenderSide][targetIdx]! > 0) {
