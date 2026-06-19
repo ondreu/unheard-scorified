@@ -110,11 +110,31 @@ Gauntlet (`gauntlet.ts`) je jiný než idle auto-resolve moduly — **interaktiv
   („Arcane Recovery / Long Rest") je připravený **ventil** pro budoucí balanc,
   pokud se per-run rationing ukáže příliš tvrdý.
 
-### Slice 3 — Class resources (follow-up)
+### Slice 3 — Class resources ✅
 
-Reálné non-caster resources: **Rage** (Barbarian), **Ki** (Monk),
-**Pact Magic** (Warlock — už má `pact` caster type, jen recharge granularitu).
-Sjednotí model „resource per třída" bez návratu k `ResourceType` proxy.
+Reálné non-caster resources sjednocené na D&D 5e (`data/class-resources.ts`), bez
+návratu k `ResourceType` proxy. `CombatActor` rozšířen o `kiPoints` / `rageCharges`
+/ `rageDamageBonus` / `casterType` (odvozeno v `deriveCombatProfile`); `DerivedStats`
+o `kiPoints` / `rageCharges` (character sheet + inspect).
+
+- **Ki** (Monk, rozhodnutí PM: bodový pool) — `kiPointsFor = level`. Monkovy techniky
+  dostaly `SignatureAbility.kiCost` (Stunning Strike 1, Quivering Palm 3, Flurry of
+  Blows 1; Martial Arts zdarma). Pool gatuje techniky **stejně jako spell sloty**:
+  per-encounter v idle (quest/dungeon/PVP), per-run v Gauntletu. Bez Ki → základní úder.
+- **Rage** (Barbarian, rozhodnutí PM: buff okno) — `rageChargesFor` (D&D 2–6/odpočinek),
+  `rageDamageBonus` (+2/+3/+4). Rage = **varianta aktéra** `applyRage` (resistance na
+  bludgeoning/piercing/slashing ×0.5 + flat damage bonus) → projde centrálním
+  `computeHit` jako útočník i cíl, **bez změny call-sites**. Idle abstrakce: Barbarian
+  se **auto-rozzuří na začátku encounteru/vlny** (charge-gated), buff platí celý souboj
+  (místo D&D bonus-action + 1 min). Idle módy = per-encounter (prakticky vždy zuří =
+  tanky class identita); Gauntlet = per-run rationing (auto-zuření per vlnu, dokud má charge).
+- **Pact Magic** (Warlock) — per-encounter sloty (Slice 2) už dávají „short rest" v idle
+  módech; v **Gauntletu** (per-run) Warlock navíc **recharguje sloty každou vlnu**
+  (`spawnWave`, `casterType === 'pact'`) → faithful pact short-rest recovery.
+
+UI: Gauntlet combat bar zašedne techniku bez Ki (`outOfKi`, štítek „No Ki"); panel hráče
+ukazuje 🌀 Ki, 💢 rage charges (+🔥 když zuří). Character sheet/inspect: řádek Ki / Rage
+(místo Spell Slots) pro Monka / Barbariana.
 
 ## Důsledky
 
@@ -126,8 +146,13 @@ Sjednotí model „resource per třída" bez návratu k `ResourceType` proxy.
   quest/grind, dungeon, PVP/arény (per-encounter) i Gauntlet (per-run). Caster
   front-loaduje nejlepší kouzla, pak padá na cantripy (D&D depletion). Jediný
   sdílený primitiv (`spendSlotForTier` / `hasSlotForTier`).
-- (−) Martial třídy mezi Slice 1 a Slice 3 bez explicitního resource (jejich
-  techniky jsou ale už at-will, takže funkčně beze změny).
+- (+) Po Slice 3 má **každá třída D&D resource**: spell sloty (caster), Ki (Monk),
+  Rage (Barbarian), Pact short-rest (Warlock) — žádný `ResourceType` proxy. Rage
+  využívá existující `resistances`/`attackPower` → projde centrálním `computeHit`
+  bez nových per-hit větví.
+- (−) Rage je **idle abstrakce** — auto-zuření na začátku encounteru/vlny + buff na
+  celý souboj (místo D&D bonus-action + 1 min + bonus-action udržení). Magnitudy
+  (rage bonus flat, durace) laditelné; resistance je hlavní efekt.
 - (−) **Dva modely recharge** dle povahy módu: idle auto-resolve = **per-encounter**
   (fresh per pull/duel, bezpečné — žádné dry-caster unwinnable retries), Gauntlet
   = **per-run** (roguelite rationing, interaktivní). Vědomý rozdíl, ne nekonzistence.

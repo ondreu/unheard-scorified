@@ -23,8 +23,10 @@ import {
   abilityDamageMult,
   abilityDamageSpec,
   applyAbsorb,
+  applyRage,
   buildAttackMessage,
   buildEnemyActor,
+  canRage,
   computeHit,
   determinationFactor,
   round1,
@@ -317,6 +319,9 @@ function fightBoss(
   maxClockSec?: number,
 ): BossAttemptResult {
   const events: CombatEvent[] = [];
+  // Rage (ADR 0034): Barbarian-členové se na pull auto-rozzuří (charge-gated) →
+  // resistance na fyzické + rage damage bonus (varianta aktéra, projde computeHit).
+  party = party.map((p) => (canRage(p) ? applyRage(p) : p));
   const hp = [...startHp];
   // Absorpční štíty členů (per pull). Nedoplňují se; pohlcují příchozí poškození.
   const shield = party.map((p) => p.shield ?? 0);
@@ -324,6 +329,8 @@ function fightBoss(
   // kouzlo (spellTier ≥ 1) čerpá slot; když dojdou, kouzlo se „drží" a člen mlátí
   // basic swingem / cantripy. Fresh kopie per pull (stejně jako quest-run encounter).
   const slotBudget = party.map((p) => ({ ...(p.spellSlots ?? {}) }) as SpellSlots);
+  // Ki body (ADR 0034) per člen — rozpočet Monkových technik (`kiCost`) na pull.
+  const kiBudget = party.map((p) => p.kiPoints ?? 0);
   // Aktivní mitigation okno (tank cooldowny): do kdy platí + jaké % redukce.
   const mitigationUntil = party.map(() => -1);
   const mitigationPct = party.map(() => 0);
@@ -539,10 +546,14 @@ function fightBoss(
         });
         continue;
       }
+      // Ki (ADR 0034): Monkova technika (`kiCost`) potřebuje dost Ki; jinak se „drží".
+      const kiCost = ability.kiCost ?? 0;
+      if (kiCost > (kiBudget[i] ?? 0)) continue;
       // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot; když dojdou,
       // se „drží" (člen mlátí basic swingem / cantripy). Slot tier řídí upcast.
       const slot = spendAbilitySlot(slotBudget[i]!, ability);
       if (!slot.ok) continue;
+      if (kiCost > 0) kiBudget[i]! -= kiCost;
       const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
       // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
       // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,

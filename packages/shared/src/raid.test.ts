@@ -209,6 +209,30 @@ describe('spell sloty v group PVE (ADR 0034)', () => {
   });
 });
 
+describe('Ki v group PVE (ADR 0034)', () => {
+  // Monk-like aktér s jednou technikou (cd 4 s) proti nekonečnému terči (60 s) →
+  // bez Ki limitu by se sešla ~15×. Ki pool ji omezí na per-encounter rozpočet.
+  const kiUser = (kiPoints: number, cost: number): CombatActor => ({
+    ...strongActor('Monk', 60, 800),
+    kiPoints,
+    signatureAbilities: [
+      { id: 'ki_x', name: 'Ki Strike', kind: 'strike', cooldownSec: 4, damageMult: 1.5, kiCost: cost },
+    ],
+  });
+  const castCount = (kiPoints: number, cost: number): number =>
+    simulateDummyFight(kiUser(kiPoints, cost), 'dps', 60, 5).events.filter((e) => e.ability === 'Ki Strike').length;
+
+  it('technika s kiCost je omezená Ki poolem', () => {
+    expect(castCount(2, 1)).toBe(2);
+    expect(castCount(3, 1)).toBe(3);
+    expect(castCount(0, 1)).toBe(0);
+  });
+
+  it('technika bez kiCost je neomezená', () => {
+    expect(castCount(0, 0)).toBeGreaterThan(2);
+  });
+});
+
 describe('training dummy sandbox (MIL)', () => {
   it('runs for the requested duration and stays alive (huge HP)', () => {
     const dps = strongActor('Garrosh', 60, 800);

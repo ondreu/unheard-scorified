@@ -34,6 +34,7 @@
     backToArena: 'Back to The Gauntlet',
     cooldown: 'CD',
     noSlots: 'No slot',
+    noKi: 'No Ki',
     vs: 'vs',
     takeIt: 'Take it',
   };
@@ -178,6 +179,16 @@
               ✨ {slotTotal(r.player.spellSlots)}/{slotTotal(r.player.maxSpellSlots)}
             </span>
           {/if}
+          {#if r.player.maxKiPoints > 0}
+            <span class="ml-1 text-[var(--info)]" title="Ki remaining this run">
+              🌀 {r.player.kiPoints}/{r.player.maxKiPoints}
+            </span>
+          {/if}
+          {#if r.player.maxRageCharges > 0}
+            <span class="ml-1 text-[var(--danger)]" title="Rage charges left{r.player.raging ? ' — raging!' : ''}">
+              💢 {r.player.rageCharges}/{r.player.maxRageCharges}{r.player.raging ? '🔥' : ''}
+            </span>
+          {/if}
         </span>
       </div>
       <div class="bar mt-2">
@@ -192,8 +203,12 @@
           {#each r.abilities as a (a.id)}
             <button
               class="btn flex items-center gap-2 text-left"
-              disabled={busy || !a.ready || a.outOfSlots}
-              title={a.outOfSlots ? `${a.description} (out of spell slots)` : a.description}
+              disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
+              title={a.outOfSlots
+                ? `${a.description} (out of spell slots)`
+                : a.outOfKi
+                  ? `${a.description} (not enough Ki)`
+                  : a.description}
               onclick={() => act(a.id)}
             >
               <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
@@ -202,6 +217,8 @@
                 <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
               {:else if a.outOfSlots}
                 <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
+              {:else if a.outOfKi}
+                <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
               {/if}
             </button>
           {/each}

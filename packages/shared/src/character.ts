@@ -12,6 +12,7 @@ import { CLASSES, type ClassId } from './data/classes';
 import { RACES, type RaceId } from './data/races';
 import { levelFromTotalXp } from './leveling';
 import { casterTypeOf, spellSlotsFor, type CasterType, type SpellSlots } from './data/spell-slots';
+import { kiPointsFor, rageChargesFor } from './data/class-resources';
 import type { ItemStats } from './data/items';
 
 export type { ClassId, Role } from './data/classes';
@@ -176,6 +177,10 @@ export interface DerivedStats {
   casterType: CasterType;
   /** Maximální spell sloty (plně odpočaté) per tier — D&D tabulka (MR-4). */
   spellSlots: SpellSlots;
+  /** Max Ki body (Monk) — class resource (ADR 0034). 0 = ne-Monk. */
+  kiPoints: number;
+  /** Počet rage charges (Barbarian) — class resource (ADR 0034). 0 = ne-Barbarian. */
+  rageCharges: number;
 }
 
 /** Odvozené staty z atributů dle D&D 5e. Placeholder magnitudy (laděno v MR-10). */
@@ -199,6 +204,8 @@ export function deriveStats(primary: AbilityScores, level: number, klass: ClassI
     attackBonus: prof + Math.max(mods.strength, mods.dexterity),
     casterType: casterTypeOf(klass),
     spellSlots: spellSlotsFor(klass, level),
+    kiPoints: kiPointsFor(klass, level),
+    rageCharges: rageChargesFor(klass, level),
   };
 }
 

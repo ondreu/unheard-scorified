@@ -22,7 +22,10 @@ import {
   type GauntletRunState,
 } from './index';
 
-function hero(level: number, klass: 'fighter' | 'wizard' = 'fighter'): CombatActor {
+function hero(
+  level: number,
+  klass: 'fighter' | 'wizard' | 'monk' | 'barbarian' | 'warlock' = 'fighter',
+): CombatActor {
   return deriveCombatProfile({
     name: 'Hero',
     level,
@@ -90,6 +93,42 @@ describe('spell sloty v Gauntletu (ADR 0034)', () => {
     if (s.status === 'drafting' && s.draft) s = applyGauntletDraft(base, s, s.draft[0]!.id, 8);
     // Utracený slot zůstává — žádný per-wave reset na max.
     expect(total(s.player.spellSlots)).toBe(afterCast);
+  });
+});
+
+describe('class resources v Gauntletu (ADR 0034)', () => {
+  const total = (m: Record<number, number>): number =>
+    Object.values(m).reduce((a, b) => a + b, 0);
+
+  it('Ki: Monkova technika je omezená per-run Ki poolem', () => {
+    const base = hero(8, 'monk');
+    const s = startGauntletRun(base, 8, 1);
+    expect(s.player.kiPoints).toBe(base.kiPoints);
+    const kiAbility = gauntletAbilities(base, s.picks).find((a) => (a.kiCost ?? 0) > 0)!;
+    expect(canCastGauntletAbility(s, kiAbility)).toBe(true);
+    s.player.kiPoints = 0;
+    expect(canCastGauntletAbility(s, kiAbility)).toBe(false);
+  });
+
+  it('Rage: Barbarian se na startu rozzuří a utratí charge (per-run)', () => {
+    const base = hero(3, 'barbarian'); // 3 charges
+    const s = startGauntletRun(base, 3, 1);
+    expect(s.player.raging).toBe(true);
+    expect(s.player.rageCharges).toBe((base.rageCharges ?? 0) - 1);
+  });
+
+  it('Pact: Warlock recharguje spell sloty každou vlnu (short rest)', () => {
+    const base = hero(8, 'warlock');
+    let s = startGauntletRun(base, 1, 1); // slabý nepřítel (level 1) → warlock přežije
+    const max = total(s.player.spellSlots);
+    expect(max).toBeGreaterThan(0);
+    s.player.spellSlots = {}; // vyčerpáno
+    s = clearWave(base, s);
+    expect(s.status).toBe('drafting');
+    // Engine-only: draft staví service; tady ho postavíme ručně a posuneme vlnu.
+    s.draft = rollGauntletDraft(base, s, new SeededRng(1));
+    s = applyGauntletDraft(base, s, s.draft[0]!.id, 1);
+    expect(total(s.player.spellSlots)).toBe(max); // short rest (pact) obnovil sloty
   });
 });
 

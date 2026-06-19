@@ -1764,6 +1764,8 @@ export interface GauntletAbilityView {
   ready: boolean;
   spellTier: number;
   outOfSlots: boolean;
+  kiCost: number;
+  outOfKi: boolean;
 }
 
 export interface GauntletDailyView {
@@ -1800,6 +1802,11 @@ export interface GauntletRunView {
     mitigationTurns: number;
     spellSlots: Record<number, number>;
     maxSpellSlots: Record<number, number>;
+    kiPoints: number;
+    maxKiPoints: number;
+    rageCharges: number;
+    maxRageCharges: number;
+    raging: boolean;
   };
   enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
   abilities: GauntletAbilityView[];

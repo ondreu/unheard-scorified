@@ -21,7 +21,9 @@ import {
   abilityDamageSpec,
   actorSpellSaveDc,
   applyAbsorb,
+  applyRage,
   buildEnemyActor,
+  canRage,
   resolveAttack,
   round1,
   type CombatActor,
@@ -133,6 +135,10 @@ export function simulateQuestEncounter(
   allowDefeat = false,
 ): QuestEncounterOutcome {
   const enemy = buildEnemyActor(foeStats);
+  // Rage (ADR 0034): Barbarian se na začátku encounteru auto-rozzuří (charge-gated)
+  // → resistance na fyzické poškození + rage damage bonus po celý souboj (idle
+  // abstrakce D&D rage). Per-encounter rozpočet (jako spell sloty).
+  if (canRage(player)) player = applyRage(player);
   const events: CombatEvent[] = [];
   let playerHp = player.maxHealth;
   let playerShield = player.shield;
@@ -144,6 +150,8 @@ export function simulateQuestEncounter(
   // Spell sloty (MR-4) jako rozpočet kouzel v rámci tohoto běhu — kouzla (tier ≥ 1)
   // ho čerpají; když dojdou, postava sáhne po zbrani/cantripu. Lokální kopie.
   const slotBudget: SpellSlots = { ...(player.spellSlots ?? {}) };
+  // Ki body (ADR 0034) jako rozpočet Monkových technik (`kiCost`) v tomto souboji.
+  let kiBudget = player.kiPoints ?? 0;
 
   // Initiative (d20 + DEX): rozhodne, kdo udeří jako první (D&D 5e).
   const playerInit = rollInitiative(player, rng);
@@ -176,12 +184,16 @@ export function simulateQuestEncounter(
       let slotTier: number | null = null;
       for (const a of abilities) {
         if ((readyAt[a.id] ?? startT) > t) continue;
+        // Ki (ADR 0034): Monkova technika potřebuje dost Ki; jinak se „drží" (→ basic).
+        const kiCost = a.kiCost ?? 0;
+        if (kiCost > kiBudget) continue;
         const tier = a.spellTier ?? 0;
         if (tier >= 1) {
           const used = spendSlotForTier(slotBudget, tier);
           if (used == null) continue; // žádný slot → kouzlo fizzles, zkus další
           slotTier = used;
         }
+        if (kiCost > 0) kiBudget -= kiCost;
         chosen = a;
         readyAt[a.id] = t + a.cooldownSec;
         break;

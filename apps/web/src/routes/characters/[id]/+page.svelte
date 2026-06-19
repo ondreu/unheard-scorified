@@ -241,12 +241,24 @@
           <div class="text-xs text-[var(--text-faint)]">Health</div>
           <div class="font-semibold">{c.sheet.derived.health}</div>
         </div>
-        <div class="rounded-lg bg-black/20 px-3 py-2">
-          <div class="text-xs text-[var(--text-faint)]">Spell Slots</div>
-          <div class="font-semibold">
-            {Object.values(c.sheet.derived.spellSlots).reduce((a, b) => a + b, 0) || '—'}
+        {#if c.sheet.derived.kiPoints > 0}
+          <div class="rounded-lg bg-black/20 px-3 py-2">
+            <div class="text-xs text-[var(--text-faint)]">Ki</div>
+            <div class="font-semibold">{c.sheet.derived.kiPoints}</div>
           </div>
-        </div>
+        {:else if c.sheet.derived.rageCharges > 0}
+          <div class="rounded-lg bg-black/20 px-3 py-2">
+            <div class="text-xs text-[var(--text-faint)]">Rage</div>
+            <div class="font-semibold">{c.sheet.derived.rageCharges}</div>
+          </div>
+        {:else}
+          <div class="rounded-lg bg-black/20 px-3 py-2">
+            <div class="text-xs text-[var(--text-faint)]">Spell Slots</div>
+            <div class="font-semibold">
+              {Object.values(c.sheet.derived.spellSlots).reduce((a, b) => a + b, 0) || '—'}
+            </div>
+          </div>
+        {/if}
         {#each stats as s (s.key)}
           <div class="rounded-lg bg-black/20 px-3 py-2">
             <!-- Full word when there's room; short code on the narrowest layout. -->

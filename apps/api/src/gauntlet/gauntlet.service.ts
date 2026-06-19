@@ -6,6 +6,7 @@ import {
   CLASSES,
   dailyPeriodId,
   gauntletAbilities,
+  hasSlotForTier,
   gauntletDailyGoldCap,
   gauntletDailyXpCap,
   gauntletRunReward,
@@ -51,6 +52,10 @@ export interface GauntletAbilityView {
   spellTier: number;
   /** Kouzlo (tier ≥ 1) bez volného slotu → nelze seslat (UI ho zašedne). */
   outOfSlots: boolean;
+  /** Ki cost techniky (Monk, ADR 0034). 0 = zdarma. */
+  kiCost: number;
+  /** Monkova technika bez dost Ki → nelze seslat (UI ji zašedne). */
+  outOfKi: boolean;
 }
 
 export interface GauntletDailyView {
@@ -75,6 +80,13 @@ export interface GauntletRunView {
     spellSlots: SpellSlots;
     /** Maximální spell sloty per tier (ze snapshotu) — pro „X/Y" zobrazení. */
     maxSpellSlots: SpellSlots;
+    /** Zbývající Ki body (Monk) / max — class resource (ADR 0034). 0 = ne-Monk. */
+    kiPoints: number;
+    maxKiPoints: number;
+    /** Zbývající rage charges (Barbarian) / max + zda právě zuří (ADR 0034). */
+    rageCharges: number;
+    maxRageCharges: number;
+    raging: boolean;
   };
   enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
   abilities: GauntletAbilityView[];
@@ -420,6 +432,8 @@ export class GauntletService {
   ): GauntletAbilityView[] {
     return gauntletAbilities(snapshot, state.picks).map((a) => {
       const remaining = state.player.cooldowns[a.id] ?? 0;
+      const spellTier = a.spellTier ?? 0;
+      const kiCost = a.kiCost ?? 0;
       return {
         id: a.id,
         name: a.name,
@@ -428,8 +442,11 @@ export class GauntletService {
         cooldownSec: a.cooldownSec,
         cooldownRemaining: remaining,
         ready: remaining <= 0,
-        spellTier: a.spellTier ?? 0,
-        outOfSlots: !canCastGauntletAbility(state, a),
+        spellTier,
+        // Rozliš důvod nedostupnosti (slot vs Ki) pro správný UI štítek.
+        outOfSlots: spellTier >= 1 && !hasSlotForTier(state.player.spellSlots ?? {}, spellTier),
+        kiCost,
+        outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
       };
     });
   }
@@ -458,6 +475,11 @@ export class GauntletService {
         mitigationTurns: state.player.mitigationTurns,
         spellSlots: state.player.spellSlots ?? { ...(run.playerSnapshot.spellSlots ?? {}) },
         maxSpellSlots: run.playerSnapshot.spellSlots ?? {},
+        kiPoints: state.player.kiPoints ?? run.playerSnapshot.kiPoints ?? 0,
+        maxKiPoints: run.playerSnapshot.kiPoints ?? 0,
+        rageCharges: state.player.rageCharges ?? run.playerSnapshot.rageCharges ?? 0,
+        maxRageCharges: run.playerSnapshot.rageCharges ?? 0,
+        raging: state.player.raging ?? false,
       },
       enemy: state.enemy
         ? {

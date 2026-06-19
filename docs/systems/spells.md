@@ -86,11 +86,23 @@ kouzla (tier ≥ 1) čerpají slot. Idle auto-resolve módy mají rozpočet **pe
 (reset každý souboj), Gauntlet **per-run** (interaktivní rationing). Long Rest =
 reset při claimu/návratu (beze změny).
 
+## Class resources (Slice 3 ✅, ADR 0034)
+
+Non-caster zdroje sjednocené na D&D (`data/class-resources.ts`), stejný gating
+mechanismus jako spell sloty:
+
+- **Ki** (Monk) — bodový pool (= level); techniky mají `kiCost` (Stunning Strike 1,
+  Quivering Palm 3, Flurry 1). Per-encounter (idle) / per-run (Gauntlet).
+- **Rage** (Barbarian) — `applyRage` = varianta aktéra s **resistance na fyzické**
+  poškození (×0.5) + flat damage bonus. Auto-zuření na začátku encounteru/vlny
+  (charge-gated), projde centrálním `computeHit`. Idle = per-encounter, Gauntlet = per-run.
+- **Pact** (Warlock) — per-encounter sloty (idle) + **per-wave recharge** v Gauntletu
+  (short rest).
+
 ## Follow-up
 
 - Gauntlet slot-refill draft odměna (ventil pro per-run rationing) — ADR 0034.
-- Short Rest časová granularita (Warlock).
-- Class resources (Rage/Ki/Pact, Slice 3 ADR 0034).
+- Rage tuning (flat bonus magnituda / durace) — laditelné.
 
 ## MR-10e — literal spell dice + saving throwy ✅ (ADR 0032)
 

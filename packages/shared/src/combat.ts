@@ -16,7 +16,13 @@
 import { SeededRng } from './rng';
 import { abilityModifier, dndMaxHp, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
 import { CLASSES, type ClassId, type SubclassId } from './data/classes';
-import { casterTypeOf, spellSlotsFor, type SpellSlots } from './data/spell-slots';
+import { casterTypeOf, spellSlotsFor, type CasterType, type SpellSlots } from './data/spell-slots';
+import {
+  kiPointsFor,
+  rageChargesFor,
+  rageDamageBonus,
+  RAGE_RESIST_TYPES,
+} from './data/class-resources';
 import { attackHits, diceNotation, rollAttack, rollDice, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
@@ -205,6 +211,15 @@ export interface CombatActor {
   immunities?: readonly DamageType[];
   /** Max spell sloty (MR-4) — rozpočet kouzel v rámci jednoho běhu (snapshot). */
   spellSlots?: SpellSlots;
+  // ── Class resources (ADR 0034, Slice 3) — non-caster zdroje ────────────────
+  /** Max Ki body (Monk) — rozpočet technik (`kiCost`). 0/undefined = ne-Monk. */
+  kiPoints?: number;
+  /** Počet rage charges (Barbarian) — kolikrát se umí rozzuřit. 0/undefined = ne-Barbarian. */
+  rageCharges?: number;
+  /** Rage damage bonus (flat na útok během rage, D&D +2/+3/+4). */
+  rageDamageBonus?: number;
+  /** Caster type (full/half/pact/none) — pact (Warlock) má v Gauntletu per-wave short rest. */
+  casterType?: CasterType;
   signatureAbilities: SignatureAbility[];
   /**
    * Deklarativní rotace (MIL) — řídí, zda/kdy se signature ability sešle.
@@ -385,6 +400,12 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     saveMods,
     spellSaveDc: 8 + prof + castingMod,
     spellSlots: spellSlotsFor(klass, level),
+    // Class resources (ADR 0034, Slice 3) — Ki (Monk) / Rage (Barbarian) / caster
+    // type (pact = Warlock short rest v Gauntletu).
+    kiPoints: kiPointsFor(klass, level),
+    rageCharges: rageChargesFor(klass, level),
+    rageDamageBonus: rageChargesFor(klass, level) > 0 ? rageDamageBonus(level) : 0,
+    casterType: ct,
     signatureAbilities: abilities,
   };
 }
@@ -477,6 +498,27 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     immunities: def.immunities,
     signatureAbilities: [],
     isBoss,
+  };
+}
+
+/** Má aktér volnou rage charge (umí se rozzuřit)? — ADR 0034, Slice 3. */
+export function canRage(actor: CombatActor): boolean {
+  return (actor.rageCharges ?? 0) > 0;
+}
+
+/**
+ * Rozzuřený Barbarian (ADR 0034, Slice 3) — varianta aktéra s **resistance na
+ * fyzické poškození** (×0.5 bludgeoning/piercing/slashing) a flat **rage damage
+ * bonusem** (`rageDamageBonus`) na útok. Aplikuje se swapem aktéra při setupu
+ * encounteru → projde centrálním `computeHit` (resistances + attackPower) bez změny
+ * call-sites. Generické v `T`, aby zachovalo rozšířené typy (RaidActor role/healPower).
+ * Idempotentní by být nemusí — voláno jednou per encounter na čistém snapshotu.
+ */
+export function applyRage<T extends CombatActor>(actor: T): T {
+  return {
+    ...actor,
+    attackPower: actor.attackPower + (actor.rageDamageBonus ?? 0),
+    resistances: [...(actor.resistances ?? []), ...RAGE_RESIST_TYPES],
   };
 }
 
