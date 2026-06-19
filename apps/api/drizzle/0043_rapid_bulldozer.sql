@@ -1,0 +1,1 @@
+ALTER TABLE "characters" ADD COLUMN "prepared_spells" jsonb;

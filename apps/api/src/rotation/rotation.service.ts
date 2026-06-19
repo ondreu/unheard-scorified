@@ -7,7 +7,7 @@ import {
   deriveCombatProfile,
   isRaidRole,
   levelFromXp,
-  resolveAbilities,
+  resolvePreparedAbilities,
   sanitizeRotation,
   seedFromString,
   simulateDummyFight,
@@ -67,6 +67,7 @@ export class RotationService {
       character.class as ClassId,
       character.subclass as SubclassId | null,
       levelFromXp(character.totalXp),
+      character.preparedSpells ?? undefined,
     );
     const abilityIds = abilities.map((a) => a.id);
     const stored = await this.rotations.getRules(characterId);
@@ -90,6 +91,7 @@ export class RotationService {
       character.class as ClassId,
       character.subclass as SubclassId | null,
       levelFromXp(character.totalXp),
+      character.preparedSpells ?? undefined,
     );
     const sanitized = sanitizeRotation(input, abilities.map((a) => a.id));
     await this.rotations.setRules(characterId, sanitized.rules);
@@ -105,10 +107,11 @@ export class RotationService {
     classId: ClassId,
     subclass: SubclassId | null,
     level: number,
+    prepared?: string[] | null,
   ): Promise<CharacterRotation | undefined> {
     const stored = await this.rotations.getRules(characterId);
     if (!stored || stored.length === 0) return undefined;
-    const abilities = this.abilitiesFor(classId, subclass, level);
+    const abilities = this.abilitiesFor(classId, subclass, level, prepared ?? undefined);
     if (abilities.length === 0) return undefined;
     return sanitizeRotation({ rules: stored }, abilities.map((a) => a.id));
   }
@@ -151,7 +154,13 @@ export class RotationService {
       ? abilityScoresFor(character.baseScores, character.race as RaceId, level)
       : baseStatsFor(character.race as RaceId, klass, level);
     const equipment = await this.inventory.getEquipmentStats(character.id);
-    const rotation = await this.rotationForCombat(character.id, klass, subclass, level);
+    const rotation = await this.rotationForCombat(
+      character.id,
+      klass,
+      subclass,
+      level,
+      character.preparedSpells ?? undefined,
+    );
     const choices = await this.levelup.listChoices(character.id);
     const progression = aggregateProgression(toStoredChoices(choices));
 
@@ -163,17 +172,24 @@ export class RotationService {
       primary,
       equipment,
       progression,
+      // Kniha kouzel (ADR 0039) — aktivní kouzla. null/undefined = legacy baseline kit.
+      preparedSpells: character.preparedSpells ?? undefined,
     });
     return rotation ? { ...profile, rotation } : profile;
   }
 
-  /** Kompletní ability kit postavy (class kit dle levelu + subclass signature). */
+  /**
+   * Aktivní ability kit postavy = always-on techniky + vybraná (prepared) kouzla
+   * z Knihy kouzel (ADR 0039). `prepared == null/undefined` → legacy baseline kit.
+   * Editor rotace tak ukazuje přesně to, co je živé v boji.
+   */
   private abilitiesFor(
     classId: ClassId,
     subclass: SubclassId | null,
     level: number,
+    prepared?: string[] | null,
   ): SignatureAbility[] {
-    return resolveAbilities(classId, subclass, level);
+    return resolvePreparedAbilities(classId, subclass, level, prepared ?? null);
   }
 
   private abilityViews(abilities: SignatureAbility[]): RotationAbilityView[] {
