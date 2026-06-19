@@ -73,20 +73,24 @@ function scaleActor(actor: CombatActor, factor: number): CombatActor {
 }
 
 /**
- * Sekvence encounterů (`CombatActor[]`) pro obsah a velikost party. Dungeon:
- * trash+boss škálované ×size (base 1 hráč → balanc invariantní s počtem hráčů).
+ * Sekvence encounterů pro obsah a velikost party. Dungeon overhaul (ADR 0037):
+ * každý encounter je **skupina nepřátel** (`CombatActor[]`) bojovaná naráz →
+ * návratový typ `CombatActor[][]` (pole skupin). Nepřátelé jsou škálovaní ×size
+ * (base 1 hráč → balanc invariantní s počtem hráčů), AC/attackBonus z úrovně
+ * nepřítele (MR-5; trash minioni mají nižší `level`).
  */
 export function groupEncounters(
   _contentType: GroupContentType,
   contentId: string,
   size: number,
-): CombatActor[] {
+): CombatActor[][] {
   const dungeon = DUNGEONS[contentId];
   if (!dungeon) return [];
   const factor = Math.max(1, size); // dungeon base = 1 hráč
-  // Úroveň obsahu → D&D AC/attackBonus nepřátel (MR-5).
-  return dungeon.encounters.map((e) =>
-    scaleActor(buildEnemyActor({ ...e, level: e.level ?? dungeon.requiredLevel }), factor),
+  return dungeon.encounters.map((enc) =>
+    enc.enemies.map((e) =>
+      scaleActor(buildEnemyActor({ ...e, level: e.level ?? dungeon.requiredLevel }), factor),
+    ),
   );
 }
 

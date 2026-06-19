@@ -182,6 +182,48 @@ describe('simulateRaidRun', () => {
   });
 });
 
+describe('multi-enemy encountery (dungeon overhaul, ADR 0037)', () => {
+  /** Slabší pack-enemy (víc na jeden encounter). */
+  const packEnemy = (name: string): CombatActor => bossActor(name, 25, 1200);
+
+  it('encounter se skupinou nepřátel je vyčištěn celý (enemy_defeated per nepřítel)', () => {
+    const pack: CombatActor[] = [packEnemy('Trash A'), packEnemy('Trash B'), packEnemy('Trash C')];
+    const result = simulateRaidRun(buildParty(3), [pack], 4242);
+    expect(result.victory).toBe(true);
+    const defeated = result.events.filter((e) => e.type === 'enemy_defeated');
+    expect(defeated.length).toBe(3);
+    for (const name of ['Trash A', 'Trash B', 'Trash C']) {
+      expect(defeated.some((e) => e.target === name)).toBe(true);
+    }
+  });
+
+  it('pack a jednotlivci se míchají v jedné sekvenci (group + single)', () => {
+    const seq: (CombatActor | CombatActor[])[] = [
+      [packEnemy('Add 1'), packEnemy('Add 2')],
+      bossActor('Lone Boss', 35, 3000),
+    ];
+    const result = simulateRaidRun(buildParty(3), seq, 99);
+    expect(result.victory).toBe(true);
+    // 2 z packu + 1 sólo boss = 3 poražení.
+    expect(result.events.filter((e) => e.type === 'enemy_defeated').length).toBe(3);
+    expect(result.events.some((e) => e.type === 'encounter_start' && /pack of 2/i.test(e.message))).toBe(true);
+  });
+
+  it('legacy pole jednotlivců = sekvence 1-enemy encounterů (zpětná kompatibilita)', () => {
+    const singles: CombatActor[] = [bossActor('Solo 1', 30, 2000), bossActor('Solo 2', 30, 2000)];
+    const result = simulateRaidRun(buildParty(3), singles, 7);
+    expect(result.victory).toBe(true);
+    expect(result.events.filter((e) => e.type === 'enemy_defeated').length).toBe(2);
+  });
+
+  it('je deterministický i pro multi-enemy pack', () => {
+    const mk = (): (CombatActor | CombatActor[])[] => [[packEnemy('X'), packEnemy('Y')]];
+    const a = simulateRaidRun(buildParty(2), mk(), 555);
+    const b = simulateRaidRun(buildParty(2), mk(), 555);
+    expect(a.events).toEqual(b.events);
+  });
+});
+
 describe('spell sloty v group PVE (ADR 0034)', () => {
   // Caster s jedním kouzlem (cd 4 s) proti nekonečnému terči (60 s) → kdyby nebyl
   // slot limit, kouzlo se sešle ~15×. Sloty ho omezí na per-encounter rozpočet.

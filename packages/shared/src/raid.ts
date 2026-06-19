@@ -136,14 +136,20 @@ const BOSS_ATTEMPT_CAP = 7;
 /** Prodleva (s), než se party po wipu sebere a pullne znovu. */
 const RAID_REGROUP_AFTER_WIPE_SEC = 8;
 
-/** Zlehčená kopie bosse (×factor na HP i attack power). */
-function easeBoss(boss: CombatActor, factor: number): CombatActor {
-  if (factor >= 1) return boss;
+/** Zlehčená kopie nepřítele (×factor na HP i attack power). */
+function easeEnemy(enemy: CombatActor, factor: number): CombatActor {
+  if (factor >= 1) return enemy;
   return {
-    ...boss,
-    maxHealth: Math.max(1, Math.round(boss.maxHealth * factor)),
-    attackPower: boss.attackPower * factor,
+    ...enemy,
+    maxHealth: Math.max(1, Math.round(enemy.maxHealth * factor)),
+    attackPower: enemy.attackPower * factor,
   };
+}
+
+/** Zlehčená kopie celého encounteru (každý nepřítel ×factor). */
+function easeEncounter(enemies: CombatActor[], factor: number): CombatActor[] {
+  if (factor >= 1) return enemies;
+  return enemies.map((e) => easeEnemy(e, factor));
 }
 
 /**
@@ -227,10 +233,12 @@ interface BossAttemptResult {
 interface RaidTimer {
   next: number;
   interval: number;
-  kind: 'member' | 'member_ability' | 'boss_basic' | 'boss_ability' | 'dot_tick';
+  kind: 'member' | 'member_ability' | 'enemy_basic' | 'enemy_ability' | 'dot_tick';
   memberIdx?: number;
+  /** enemy_basic / enemy_ability / dot_tick: index nepřítele v encounteru. */
+  enemyIdx?: number;
   ability?: SignatureAbility;
-  /** dot_tick: fixní poškození bosse jedním tikem. */
+  /** dot_tick: fixní poškození nepřítele jedním tikem. */
   dotDamage?: number;
   /** dot_tick: jméno DoT efektu (pro log) a jeho zdroj. */
   dotName?: string;
@@ -248,6 +256,7 @@ function scheduleDot(
   timers: RaidTimer[],
   source: CombatActor,
   target: CombatActor,
+  targetIdx: number,
   ability: SignatureAbility,
   clock: number,
 ): void {
@@ -266,6 +275,7 @@ function scheduleDot(
     next: clock + interval,
     interval,
     kind: 'dot_tick',
+    enemyIdx: targetIdx,
     dotDamage: dmg,
     dotName: ability.name,
     dotSource: source.name,
@@ -289,7 +299,25 @@ function spendAbilitySlot(
   return used == null ? { ok: false, tier: null } : { ok: true, tier: used };
 }
 
-/** Vybere cíl bossova úderu: první živý tank, jinak nejodolnější živý člen. */
+/**
+ * Vybere cíl týmového úderu mezi nepřáteli: **nejnižší živé HP** (fokus na
+ * nejslabšího → trash padá první, klesá příchozí poškození). Vrací -1, pokud
+ * nikdo nežije.
+ */
+function chooseEnemyTarget(enemyHp: number[]): number {
+  let idx = -1;
+  let lowest = Infinity;
+  for (let i = 0; i < enemyHp.length; i++) {
+    if (enemyHp[i]! <= 0) continue;
+    if (enemyHp[i]! < lowest) {
+      lowest = enemyHp[i]!;
+      idx = i;
+    }
+  }
+  return idx;
+}
+
+/** Vybere cíl nepřátelského úderu: první živý tank, jinak nejodolnější živý člen. */
 function chooseBossTarget(party: RaidActor[], hp: number[]): number {
   let tankIdx = -1;
   let fallbackIdx = -1;
@@ -306,18 +334,20 @@ function chooseBossTarget(party: RaidActor[], hp: number[]): number {
 }
 
 /**
- * Odbojuje JEDEN pokus o bosse (party vs jeden boss) od `startClock` a `startHp`.
- * Vrací události + výsledek + koncové HP party. Sdílí per-hit vzorce s arenou
- * i dungeonem (`computeHit`).
+ * Odbojuje JEDEN pokus o encounter (party vs **skupina nepřátel**) od `startClock`
+ * a `startHp`. Vrací události + výsledek + koncové HP party. Sdílí per-hit vzorce
+ * s arenou i questem (`computeHit`). Tým fokusuje nejslabšího nepřítele
+ * (`chooseEnemyTarget`), nepřátelé útočí na tanka/threat (`chooseBossTarget`).
+ * AoE útoky/heal zasáhnou všechny živé cíle. Vítězství = všichni nepřátelé padli.
  */
-function fightBoss(
+function fightEncounter(
   party: RaidActor[],
-  boss: CombatActor,
+  enemyActors: CombatActor[],
   rng: SeededRng,
   startClock: number,
   startHp: number[],
   attempt: number,
-  /** Sandbox dummy testing (MIL): zastaví pokus v daném čase místo na smrti bosse/party. */
+  /** Sandbox dummy testing (MIL): zastaví pokus v daném čase místo na smrti všech / party. */
   maxClockSec?: number,
 ): BossAttemptResult {
   const events: CombatEvent[] = [];
@@ -337,37 +367,137 @@ function fightBoss(
   const mitigationUntil = party.map(() => -1);
   const mitigationPct = party.map(() => 0);
   let clock = startClock;
-  let bossHp = boss.maxHealth;
+  // Stav nepřátel skupiny: HP + flag „už hlášen pád" (enemy_defeated jen jednou).
+  const enemies = enemyActors;
+  const enemyHp = enemies.map((e) => e.maxHealth);
+  const enemyDead = enemies.map(() => false);
   const encStart = clock;
   const note = attempt > 0 ? ` (pull ${attempt + 1}, weakened)` : '';
 
   const livingCount = (): number => hp.reduce((n, h) => (h > 0 ? n + 1 : n), 0);
+  const anyEnemyAlive = (): boolean => enemyHp.some((h) => h > 0);
+  const livingEnemyIndices = (): number[] => {
+    const out: number[] = [];
+    for (let i = 0; i < enemyHp.length; i++) if (enemyHp[i]! > 0) out.push(i);
+    return out;
+  };
+  /** Po zásahu zkontroluje pád nepřítele a vyšle jednorázový `enemy_defeated`. */
+  const killCheck = (ei: number): void => {
+    if (enemyHp[ei]! <= 0 && !enemyDead[ei]) {
+      enemyDead[ei] = true;
+      events.push({
+        t: round1(clock),
+        type: 'enemy_defeated',
+        target: enemies[ei]!.name,
+        message: `${enemies[ei]!.name} is defeated!`,
+      });
+    }
+  };
 
-  events.push({
-    t: round1(clock),
-    type: 'encounter_start',
-    message: `⚔️ ${boss.name} (Boss) engages the raid!${note}`,
-    target: boss.name,
-    targetHealthRemaining: bossHp,
-  });
+  // Úvodní hláška: jeden nepřítel = jmenovitě (boss label), pack = souhrn.
+  if (enemies.length === 1) {
+    const e = enemies[0]!;
+    events.push({
+      t: round1(clock),
+      type: 'encounter_start',
+      message: `⚔️ ${e.name}${e.isBoss ? ' (Boss)' : ''} engages the party!${note}`,
+      target: e.name,
+      targetHealthRemaining: enemyHp[0],
+    });
+  } else {
+    events.push({
+      t: round1(clock),
+      type: 'encounter_start',
+      message: `⚔️ A pack of ${enemies.length} foes engages the party: ${enemies.map((e) => e.name).join(', ')}!${note}`,
+      target: enemies[0]!.name,
+      targetHealthRemaining: enemyHp[0],
+    });
+  }
 
   const timers: RaidTimer[] = [];
   for (let i = 0; i < party.length; i++) {
     timers.push({ next: clock + party[i]!.swingInterval, interval: party[i]!.swingInterval, kind: 'member', memberIdx: i });
     // Všechny role mají timery svých abilit (MIL). Branch `member_ability` routuje
-    // dle druhu: heal-kind jen pro healery (léčí spojence), offensive na bosse
+    // dle druhu: heal-kind jen pro healery (léčí spojence), offensive na nepřátele
     // (i healer může DPSit jako filler). Healer navíc auto-léčí basic swingem.
     for (const ab of party[i]!.signatureAbilities) {
       timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'member_ability', memberIdx: i, ability: ab });
     }
   }
-  timers.push({ next: clock + boss.swingInterval, interval: boss.swingInterval, kind: 'boss_basic' });
-  for (const ab of boss.signatureAbilities) {
-    timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'boss_ability', ability: ab });
+  // Per-nepřítel swing + ability timery (každý nepřítel útočí sám za sebe).
+  for (let ei = 0; ei < enemies.length; ei++) {
+    timers.push({ next: clock + enemies[ei]!.swingInterval, interval: enemies[ei]!.swingInterval, kind: 'enemy_basic', enemyIdx: ei });
+    for (const ab of enemies[ei]!.signatureAbilities) {
+      timers.push({ next: clock + ab.cooldownSec, interval: ab.cooldownSec, kind: 'enemy_ability', enemyIdx: ei, ability: ab });
+    }
   }
 
+  /** Aplikuje jeden útok člena na konkrétního nepřítele (sdíleno basic/ability). */
+  const memberHitEnemy = (
+    member: RaidActor,
+    memberIdx: number,
+    ei: number,
+    ability: SignatureAbility | undefined,
+    slotTier: number | null,
+  ): void => {
+    const enemy = enemies[ei]!;
+    const targetHpPct = enemy.maxHealth > 0 ? enemyHp[ei]! / enemy.maxHealth : 0;
+    // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
+    // jinak škálují přes attackPower (damageMult). Upcast dle použitého slotu.
+    const spec = ability ? abilityDamageSpec(ability, slotTier, member.level) : undefined;
+    const mult = ability ? (spec ? 1 : abilityDamageMult(ability, targetHpPct)) : 1;
+    const bonusDice = ability ? bonusDiceSpec(ability, slotTier, member.level) : undefined;
+    const hit = computeHit(member, enemy, rng, mult, false, ability?.damageType, spec, {
+      advantage: ability?.advantage ? 'advantage' : undefined,
+      bonusDice,
+    });
+    // Per-spell saving throw (ADR 0032) → nepřítel si hodí proti spell save DC člena.
+    if (hit.hit && ability?.save) {
+      const outcome = applySpellSave(ability, member, enemy, rng, hit.amount);
+      hit.amount = outcome.amount;
+      if (outcome.message) events.push({ t: round1(clock), type: 'ability', source: enemy.name, message: outcome.message });
+    }
+    enemyHp[ei] = Math.max(0, enemyHp[ei]! - hit.amount);
+    const healFrac = member.lifesteal + (ability?.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
+    const healed = hit.hit && healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
+    if (healed > 0) hp[memberIdx] = Math.min(member.maxHealth, hp[memberIdx]! + healed);
+    if (hit.hit && ability?.kind === 'dot') scheduleDot(timers, member, enemy, ei, ability, clock);
+    const remaining = enemyHp[ei]!;
+    const abilityName = ability?.name;
+    events.push({
+      t: round1(clock),
+      type: healed > 0 ? 'drain' : ability ? 'ability' : 'attack',
+      source: member.name,
+      target: enemy.name,
+      amount: hit.amount,
+      crit: hit.crit,
+      ability: abilityName,
+      targetHealthRemaining: remaining,
+      message: !hit.hit
+        ? abilityName
+          ? `${member.name} casts ${abilityName} at ${enemy.name} — MISS ${rollTag(hit)}`
+          : missMessage(member.name, enemy.name, hit)
+        : abilityName
+          ? healed > 0
+            ? `🩸 ${member.name} casts ${abilityName} on ${enemy.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${enemy.name}: ${remaining} HP`
+            : ability?.kind === 'dot'
+              ? `🔥 ${member.name} casts ${abilityName} on ${enemy.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, leaving a burn. ${enemy.name}: ${remaining} HP`
+              : `${member.name} casts ${abilityName} on ${enemy.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${enemy.name}: ${remaining} HP`
+          : buildAttackMessage({
+              attacker: member,
+              targetName: enemy.name,
+              amount: hit.amount,
+              crit: hit.crit,
+              healed,
+              abilityName: undefined,
+              suffix: `. ${enemy.name}: ${remaining} HP ${rollTag(hit)}`,
+            }),
+    });
+    killCheck(ei);
+  };
+
   let iterations = 0;
-  while (bossHp > 0 && livingCount() > 0 && iterations++ < RAID_MAX_ITERATIONS) {
+  while (anyEnemyAlive() && livingCount() > 0 && iterations++ < RAID_MAX_ITERATIONS) {
     let idx = 0;
     for (let j = 1; j < timers.length; j++) {
       if (timers[j]!.next < timers[idx]!.next) idx = j;
@@ -421,66 +551,34 @@ function fightBoss(
             message: `💚 ${member.name} heals ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
           });
         } else if (canDps) {
-          // Nikdo zraněný (nebo pure-DPS healer) → úder bossovi (slabý — healer).
-          const hit = computeHit(member, boss, rng, 1, false);
-          bossHp = Math.max(0, bossHp - hit.amount);
-          events.push({
-            t: round1(clock),
-            type: 'attack',
-            source: member.name,
-            target: boss.name,
-            amount: hit.amount,
-            crit: hit.crit,
-            targetHealthRemaining: bossHp,
-            message: hit.hit
-              ? `${member.name} hits ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP ${rollTag(hit)}`
-              : missMessage(member.name, boss.name, hit),
-          });
+          // Nikdo zraněný (nebo pure-DPS healer) → úder nejslabšímu nepříteli (slabý — healer).
+          const ei = chooseEnemyTarget(enemyHp);
+          if (ei >= 0) memberHitEnemy(member, i, ei, undefined, null);
         }
         // jinak (pure HPS a nikdo zraněný) → healer tento swing nic nedělá
       } else {
-        const hit = computeHit(member, boss, rng, 1, false);
-        bossHp = Math.max(0, bossHp - hit.amount);
-        const healed = member.lifesteal > 0 ? Math.round(hit.amount * member.lifesteal) : 0;
-        if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
-        events.push({
-          t: round1(clock),
-          type: healed > 0 ? 'drain' : 'attack',
-          source: member.name,
-          target: boss.name,
-          amount: hit.amount,
-          crit: hit.crit,
-          targetHealthRemaining: bossHp,
-          message: hit.hit
-            ? buildAttackMessage({
-                attacker: member,
-                targetName: boss.name,
-                amount: hit.amount,
-                crit: hit.crit,
-                healed,
-                abilityName: undefined,
-                suffix: `. ${boss.name}: ${bossHp} HP ${rollTag(hit)}`,
-              })
-            : missMessage(member.name, boss.name, hit),
-        });
+        const ei = chooseEnemyTarget(enemyHp);
+        if (ei >= 0) memberHitEnemy(member, i, ei, undefined, null);
       }
     } else if (timer.kind === 'dot_tick') {
-      if (bossHp <= 0) {
+      const ei = timer.enemyIdx!;
+      if (enemyHp[ei]! <= 0) {
         timer.next = Infinity;
         continue;
       }
       const dmg = timer.dotDamage!;
-      bossHp = Math.max(0, bossHp - dmg);
+      enemyHp[ei] = Math.max(0, enemyHp[ei]! - dmg);
       events.push({
         t: round1(clock),
         type: 'dot',
         source: timer.dotSource,
-        target: boss.name,
+        target: enemies[ei]!.name,
         amount: dmg,
         ability: timer.dotName,
-        targetHealthRemaining: bossHp,
-        message: `🔥 ${boss.name} suffers ${dmg} from ${timer.dotName} (${timer.dotSource}). ${boss.name}: ${bossHp} HP`,
+        targetHealthRemaining: enemyHp[ei],
+        message: `🔥 ${enemies[ei]!.name} suffers ${dmg} from ${timer.dotName} (${timer.dotSource}). ${enemies[ei]!.name}: ${enemyHp[ei]} HP`,
       });
+      killCheck(ei);
       timer.ticksLeft = (timer.ticksLeft ?? 1) - 1;
       if (timer.ticksLeft <= 0) timer.next = Infinity;
     } else if (timer.kind === 'member_ability') {
@@ -488,12 +586,18 @@ function fightBoss(
       if (hp[i]! <= 0) continue; // mrtvý člen nekouzlí
       const member = party[i]!;
       const ability = timer.ability!;
+      // Reprezentativní cíl (nejslabší nepřítel) pro rotaci + jednocílové útoky.
+      const primaryEi = chooseEnemyTarget(enemyHp);
+      const primaryPct =
+        primaryEi >= 0 && enemies[primaryEi]!.maxHealth > 0
+          ? enemyHp[primaryEi]! / enemies[primaryEi]!.maxHealth
+          : 0;
       // Deklarativní rotace (MIL): pravidlo rozhodne, zda se ability teď sešle.
       // Pokud ne, ability se „drží" (člen mezitím útočí basic swingem). Default
       // (bez rotace) = always → beze změny chování.
       if (
         !shouldCastAbility(member.rotation, ability.id, {
-          enemyHpPct: boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0,
+          enemyHpPct: primaryPct,
           selfHpPct: member.maxHealth > 0 ? hp[i]! / member.maxHealth : 0,
         })
       ) {
@@ -556,6 +660,8 @@ function fightBoss(
         }
         continue;
       }
+      // Útočná ability (strike/drain/dot) → potřebuje živý cíl.
+      if (primaryEi < 0) continue;
       // Ki (ADR 0034): Monkova technika (`kiCost`) potřebuje dost Ki; jinak se „drží".
       const kiCost = ability.kiCost ?? 0;
       if (kiCost > (kiBudget[i] ?? 0)) continue;
@@ -564,53 +670,20 @@ function fightBoss(
       const slot = spendAbilitySlot(slotBudget[i]!, ability);
       if (!slot.ok) continue;
       if (kiCost > 0) kiBudget[i]! -= kiCost;
-      const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
-      // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-      // jinak škálují přes attackPower (damageMult). Upcast dle slotu,
-      // kterým bylo kouzlo sesláno (ADR 0034 → raid teď trackuje slot tier).
-      const spec = abilityDamageSpec(ability, slot.tier, member.level);
-      const mult = spec ? 1 : abilityDamageMult(ability, bossHpPct);
-      // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
-      const bonusDice = bonusDiceSpec(ability, slot.tier, member.level);
-      const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec, {
-        advantage: ability.advantage ? 'advantage' : undefined,
-        bonusDice,
-      });
-      // Per-spell saving throw (ADR 0032) → boss si hodí proti spell save DC člena.
-      if (hit.hit && ability.save) {
-        const outcome = applySpellSave(ability, member, boss, rng, hit.amount);
-        hit.amount = outcome.amount;
-        if (outcome.message) events.push({ t: round1(clock), type: 'ability', source: boss.name, message: outcome.message });
-      }
-      bossHp = Math.max(0, bossHp - hit.amount);
-      const healFrac = member.lifesteal + (ability.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
-      const healed = hit.hit && healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
-      if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
-      if (hit.hit && ability.kind === 'dot') scheduleDot(timers, member, boss, ability, clock);
-      events.push({
-        t: round1(clock),
-        type: healed > 0 ? 'drain' : 'ability',
-        source: member.name,
-        target: boss.name,
-        amount: hit.amount,
-        crit: hit.crit,
-        ability: ability.name,
-        targetHealthRemaining: bossHp,
-        message: !hit.hit
-          ? `${member.name} casts ${ability.name} at ${boss.name} — MISS ${rollTag(hit)}`
-          : healed > 0
-            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
-            : ability.kind === 'dot'
-              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, leaving a burn. ${boss.name}: ${bossHp} HP`
-              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
-      });
+      // AoE útok (ADR 0036, aktivováno dungeon overhaulem) → zasáhne VŠECHNY živé
+      // nepřátele (jeden cast, víc cílů); jinak jen nejslabšího.
+      const targets = ability.aoe ? livingEnemyIndices() : [primaryEi];
+      for (const ei of targets) memberHitEnemy(member, i, ei, ability, slot.tier);
     } else {
-      // Boss útočí.
+      // Nepřítel útočí (enemy_basic / enemy_ability).
+      const ei = timer.enemyIdx!;
+      if (enemyHp[ei]! <= 0) continue; // mrtvý nepřítel neútočí
+      const enemy = enemies[ei]!;
       const tIdx = chooseBossTarget(party, hp);
       if (tIdx < 0) break;
       const target = party[tIdx]!;
-      const ability = timer.kind === 'boss_ability' ? timer.ability : undefined;
-      const hit = computeHit(boss, target, rng, ability?.damageMult ?? 1, enraged);
+      const ability = timer.kind === 'enemy_ability' ? timer.ability : undefined;
+      const hit = computeHit(enemy, target, rng, ability?.damageMult ?? 1, enraged);
       let dmg = hit.amount;
       if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
       // Aktivní mitigation cooldown (Shield Wall / Ardent Defender).
@@ -626,7 +699,7 @@ function fightBoss(
           events.push({
             t: round1(clock),
             type: 'absorb',
-            source: boss.name,
+            source: enemy.name,
             target: target.name,
             amount: abs.absorbed,
             message: `🛡️ ${target.name}'s shield absorbs ${abs.absorbed}${shield[tIdx]! > 0 ? ` (${shield[tIdx]} left)` : ' (shield breaks)'}.`,
@@ -639,31 +712,31 @@ function fightBoss(
         events.push({
           t: round1(clock),
           type: ability ? 'ability' : 'attack',
-          source: boss.name,
+          source: enemy.name,
           target: target.name,
           amount: dmg,
           crit: hit.crit,
           ability: ability?.name,
           targetHealthRemaining: hp[tIdx],
           message: ability
-            ? `${boss.name} uses ${ability.name} on ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`
-            : `${boss.name} hits ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`,
+            ? `${enemy.name} uses ${ability.name} on ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`
+            : `${enemy.name} hits ${target.name} for ${dmg}${hit.crit ? ' (crit!)' : ''}${enraged ? ' [enraged]' : ''}. ${target.name}: ${hp[tIdx]} HP`,
         });
       } else if (!hit.hit) {
         events.push({
           t: round1(clock),
           type: 'attack',
-          source: boss.name,
+          source: enemy.name,
           target: target.name,
           amount: 0,
-          message: missMessage(boss.name, target.name, hit),
+          message: missMessage(enemy.name, target.name, hit),
         });
       }
       if (hp[tIdx] === 0) {
         events.push({
           t: round1(clock),
           type: 'player_defeated',
-          source: boss.name,
+          source: enemy.name,
           target: target.name,
           message: `💀 ${target.name} has fallen!`,
         });
@@ -671,15 +744,7 @@ function fightBoss(
     }
   }
 
-  const victory = bossHp <= 0 && livingCount() > 0;
-  if (victory) {
-    events.push({
-      t: round1(clock),
-      type: 'enemy_defeated',
-      target: boss.name,
-      message: `${boss.name} is defeated!`,
-    });
-  }
+  const victory = !anyEnemyAlive() && livingCount() > 0;
   return { events, victory, clock, hp };
 }
 
@@ -692,29 +757,32 @@ function fightBoss(
  */
 export function simulateRaidRun(
   party: RaidActor[],
-  bosses: CombatActor[],
+  encounters: (CombatActor | CombatActor[])[],
   seed: number,
 ): RaidCombatResult {
   const rng = new SeededRng(seed);
   const events: CombatEvent[] = [];
+  // Normalizace: prvek může být jeden nepřítel (legacy = 1-enemy encounter) nebo
+  // skupina (`CombatActor[]`, dungeon overhaul) → vždy `CombatActor[][]`.
+  const groups: CombatActor[][] = encounters.map((e) => (Array.isArray(e) ? e : [e]));
   const fullHp = party.map((p) => p.maxHealth);
-  // HP nesená mezi PORAŽENÝMI bossy (po wipu se resetuje na plnou).
+  // HP nesená mezi VYČIŠTĚNÝMI encountery (po wipu se resetuje na plnou).
   let carriedHp = [...fullHp];
   let clock = 0;
   let wipes = 0;
   let victory = true;
   let defeatedAtBoss: number | undefined;
 
-  for (let bi = 0; bi < bosses.length; bi++) {
-    const baseBoss = bosses[bi]!;
+  for (let bi = 0; bi < groups.length; bi++) {
+    const baseGroup = groups[bi]!;
     let attempt = 0;
     let killed = false;
     let hpAfter = carriedHp;
 
     while (attempt < BOSS_ATTEMPT_CAP) {
-      const boss = easeBoss(baseBoss, determinationFactor(attempt));
+      const group = easeEncounter(baseGroup, determinationFactor(attempt));
       const startHp = attempt === 0 ? carriedHp : fullHp;
-      const enc = fightBoss(party, boss, rng, clock, startHp, attempt);
+      const enc = fightEncounter(party, group, rng, clock, startHp, attempt);
       for (const e of enc.events) events.push(e);
       clock = enc.clock;
       if (enc.victory) {
@@ -733,8 +801,8 @@ export function simulateRaidRun(
       break;
     }
 
-    // Klid mezi poraženými bossy (kromě po posledním): doléč živé.
-    if (bi < bosses.length - 1) {
+    // Klid mezi vyčištěnými encountery (kromě po posledním): doléč živé.
+    if (bi < groups.length - 1) {
       clock += RAID_REST_SEC;
       carriedHp = hpAfter.map((h, k) =>
         h > 0 ? Math.min(party[k]!.maxHealth, h + Math.round(party[k]!.maxHealth * RAID_REST_HEAL_FRACTION)) : 0,
@@ -759,8 +827,8 @@ export function simulateRaidRun(
 
 // ── Trénovací terč / sandbox (MIL) ──────────────────────────────────────────
 // „Testovací target/healing dummy" — ladění rotace bez nutnosti soupeře/party.
-// Recykluje `fightBoss` (role routing, mitigation, heal, DoT — žádná
-// duplikace), jen s časovým stropem místo ukončení na smrti bosse/party.
+// Recykluje `fightEncounter` (role routing, mitigation, heal, DoT — žádná
+// duplikace), jen s časovým stropem místo ukončení na smrti nepřátel/party.
 
 /** HP terče — dost vysoko, aby v rozumné délce testu nikdy nepadl. */
 const DUMMY_MAX_HEALTH = 50_000_000;
@@ -798,7 +866,7 @@ export function simulateDummyFight(
   const rng = new SeededRng(seed);
   const member = deriveRaidActor(actor, role);
   const dummy = buildTrainingDummy(member.maxHealth);
-  const attempt = fightBoss([member], dummy, rng, 0, [member.maxHealth], 0, durationSec);
+  const attempt = fightEncounter([member], [dummy], rng, 0, [member.maxHealth], 0, durationSec);
   const events = attempt.events.map((e) =>
     e.type === 'encounter_start' ? { ...e, message: `⚔️ ${actor.name} starts attacking the Training Dummy.` } : e,
   );

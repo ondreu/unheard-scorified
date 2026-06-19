@@ -1,19 +1,34 @@
 /**
  * Definice dungeonů (SP PVE instance, M5). Statická herní data — jediný zdroj
- * pravdy pro API i web. Balanc (HP/AP nepřátel, XP, loot) se ladí ZDE (vyladí
- * se v M9).
+ * pravdy pro API i web. Balanc (HP/AP nepřátel, XP, loot) se ladí ZDE.
  *
- * Dungeon = sekvence nepřátel (`EnemyDef`: trash + boss) + odměny + odkaz na
- * boss loot tabulku (`DUNGEON_LOOT_TABLES` v `loot.ts`). Dungeony jsou PVE
- * neutrální (frakce odstraněny v MR), gated `requiredLevel` (content gating,
- * viz ADR 0008). Lore názvy jsou homebrew. Combat z `combat.ts` z nich postaví
- * `CombatActor`y.
+ * Dungeon = **sekvence encounterů** (`EncounterDef`), kde každý encounter je
+ * **skupina nepřátel** bojovaná naráz (`EnemyDef[]`) — trash packy (2–3 nepřátelé),
+ * sólo bossové i boss+adds. Tým fokusuje cíle, nepřátelé útočí na tanka/threat.
+ * Trash v packu jsou „oslabení minioni" (nižší efektivní level → nižší CR HP/dmg),
+ * aby byl pack férový i pro at-level solo idle (dungeon overhaul, ADR 0037).
+ *
+ * Dungeony jsou PVE neutrální (frakce odstraněny v MR), gated `requiredLevel`
+ * (content gating, viz ADR 0008). Lore názvy jsou homebrew. Combat z `combat.ts`
+ * z nich postaví `CombatActor`y (`buildEnemyActor` per nepřítel).
  */
 import type { EnemyStats } from '../combat';
 
 /** Nepřítel v dungeonu (statická data → `buildEnemyActor`). */
 export interface EnemyDef extends EnemyStats {
   id: string;
+}
+
+/**
+ * Jeden encounter dungeonu = **skupina nepřátel** bojovaná naráz (dungeon
+ * overhaul, ADR 0037). Většinou trash pack (2–3) nebo boss (případně boss+adds).
+ * Pořadí ve `enemies` je jen kosmetické (engine cílí dle HP/threat); boss-flag
+ * drží `EnemyDef.isBoss`.
+ */
+export interface EncounterDef {
+  id: string;
+  /** Nepřátelé ve skupině (1..N), bojovaní naráz. */
+  enemies: EnemyDef[];
 }
 
 /**
@@ -37,8 +52,8 @@ export interface DungeonDef {
   attunement?: DungeonAttunement;
   /** Doporučený horní level (jen UI hint). */
   recommendedLevel: number;
-  /** Sekvence nepřátel: trash → boss (poslední je obvykle `isBoss`). */
-  encounters: EnemyDef[];
+  /** Sekvence encounterů (skupin nepřátel): trash packy → boss (poslední). */
+  encounters: EncounterDef[];
   /** Základní XP odměna za vyčištění (fixní). */
   baseXp: number;
   /** Základní zlato (rolluje se s variancí přes SeededRng). */
@@ -80,6 +95,11 @@ function enemy(
   return { id, name, swingInterval, ...opts };
 }
 
+/** Encounter (skupina nepřátel bojovaná naráz). */
+function pack(id: string, ...enemies: EnemyDef[]): EncounterDef {
+  return { id, enemies };
+}
+
 export const DUNGEONS: Record<string, DungeonDef> = {
   // ── Emberfire Chasm (3–5) ──────────────────────────────────────────────────
   ragefire_chasm: {
@@ -94,9 +114,13 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 25,
     goldVariance: 0.25,
     encounters: [
-      enemy('rfc_cultist', 'Ember Cultist', 2.6),
-      enemy('rfc_warlock', 'Earthborer Warlock', 2.8),
-      enemy('rfc_taragaman', 'Tarrakal the Hungerer', 2.4, { armor: 40, isBoss: true }),
+      pack(
+        'rfc_e1',
+        enemy('rfc_cultist', 'Ember Cultist', 2.6),
+        enemy('rfc_cultist_b', 'Ember Acolyte', 2.6, { level: 1 }),
+      ),
+      pack('rfc_e2', enemy('rfc_warlock', 'Earthborer Warlock', 2.8)),
+      pack('rfc_e3', enemy('rfc_taragaman', 'Tarrakal the Hungerer', 2.4, { armor: 40, isBoss: true })),
     ],
   },
 
@@ -112,10 +136,19 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 45,
     goldVariance: 0.25,
     encounters: [
-      enemy('dm_miner', 'Ashen Hand Overseer', 2.5),
-      enemy('dm_evoker', 'Ashen Hand Evoker', 2.7),
-      enemy('dm_rhahkzor', 'Rahkzor', 2.4, { armor: 60 }),
-      enemy('dm_vancleef', 'Edmund Vance', 2.3, { armor: 80, isBoss: true }),
+      pack(
+        'dm_e1',
+        enemy('dm_miner', 'Ashen Hand Overseer', 2.5),
+        enemy('dm_miner_b', 'Ashen Hand Digger', 2.5, { level: 4 }),
+      ),
+      pack('dm_e2', enemy('dm_evoker', 'Ashen Hand Evoker', 2.7)),
+      pack('dm_e3', enemy('dm_rhahkzor', 'Rahkzor', 2.4, { armor: 60 })),
+      // Boss + add: VanCleef nastoupí s posledním kopáčem.
+      pack(
+        'dm_e4',
+        enemy('dm_vancleef', 'Edmund Vance', 2.3, { armor: 80, isBoss: true }),
+        enemy('dm_miner_c', 'Ashen Hand Digger', 2.5, { level: 4 }),
+      ),
     ],
   },
 
@@ -131,10 +164,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 55,
     goldVariance: 0.25,
     encounters: [
-      enemy('wc_adder', 'Deviate Adder', 2.5),
-      enemy('wc_druid', 'Fang Warden', 2.6),
-      enemy('wc_serpent', 'Deviate Ravager', 2.4, { armor: 40 }),
-      enemy('wc_mutanus', 'Mutanis the Devourer', 2.3, { armor: 60, isBoss: true }),
+      pack(
+        'wc_e1',
+        enemy('wc_adder', 'Deviate Adder', 2.5),
+        enemy('wc_adder_b', 'Deviate Hatchling', 2.5, { level: 4 }),
+      ),
+      pack('wc_e2', enemy('wc_druid', 'Fang Warden', 2.6)),
+      pack('wc_e3', enemy('wc_serpent', 'Deviate Ravager', 2.4, { armor: 40 })),
+      pack('wc_e4', enemy('wc_mutanus', 'Mutanis the Devourer', 2.3, { armor: 60, isBoss: true })),
     ],
   },
 
@@ -150,10 +187,14 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 70,
     goldVariance: 0.2,
     encounters: [
-      enemy('sfk_worgen', 'Shadowmaw Moonwalker', 2.5),
-      enemy('sfk_ghost', 'Tormented Officer', 2.6),
-      enemy('sfk_fenrus', 'Fenris the Devourer', 2.2, { armor: 70 }),
-      enemy('sfk_arugal', 'Archmage Argol', 2.4, { armor: 60, isBoss: true }),
+      pack(
+        'sfk_e1',
+        enemy('sfk_worgen', 'Shadowmaw Moonwalker', 2.5),
+        enemy('sfk_worgen_b', 'Shadowmaw Whelp', 2.5, { level: 5 }),
+      ),
+      pack('sfk_e2', enemy('sfk_ghost', 'Tormented Officer', 2.6)),
+      pack('sfk_e3', enemy('sfk_fenrus', 'Fenris the Devourer', 2.2, { armor: 70 })),
+      pack('sfk_e4', enemy('sfk_arugal', 'Archmage Argol', 2.4, { armor: 60, isBoss: true })),
     ],
   },
 
@@ -169,10 +210,13 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     baseGold: 95,
     goldVariance: 0.2,
     encounters: [
-      enemy('bfd_acolyte', 'Dusk Acolyte', 2.5),
-      enemy('bfd_naga', 'Akhumai Servant', 2.6),
-      enemy('bfd_priestess', 'Dusk Priestess', 2.4, { armor: 50 }),
-      enemy('bfd_akumai', 'Akhumai', 2.3, { armor: 70, isBoss: true }),
+      pack(
+        'bfd_e1',
+        enemy('bfd_acolyte', 'Dusk Acolyte', 2.5),
+        enemy('bfd_naga', 'Akhumai Servant', 2.6),
+      ),
+      pack('bfd_e2', enemy('bfd_priestess', 'Dusk Priestess', 2.4, { armor: 50 })),
+      pack('bfd_e3', enemy('bfd_akumai', 'Akhumai', 2.3, { armor: 70, isBoss: true })),
     ],
   },
 
@@ -189,10 +233,18 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     goldVariance: 0.2,
     weeklyLockout: true,
     encounters: [
-      enemy('sm_zealot', 'Crimson Zealot', 2.5),
-      enemy('sm_monk', 'Crimson Monk', 2.6),
-      enemy('sm_herod', 'Herrod the Champion', 2.2, { armor: 90 }),
-      enemy('sm_whitemane', 'High Inquisitor Palevane', 2.4, { armor: 70, isBoss: true }),
+      pack(
+        'sm_e1',
+        enemy('sm_zealot', 'Crimson Zealot', 2.5),
+        enemy('sm_monk', 'Crimson Monk', 2.6),
+      ),
+      pack('sm_e2', enemy('sm_herod', 'Herrod the Champion', 2.2, { armor: 90 })),
+      // Boss + add: Palevane sesílá s posledním zealotem.
+      pack(
+        'sm_e3',
+        enemy('sm_whitemane', 'High Inquisitor Palevane', 2.4, { armor: 70, isBoss: true }),
+        enemy('sm_zealot_b', 'Crimson Zealot', 2.5, { level: 8 }),
+      ),
     ],
   },
 
@@ -210,22 +262,26 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // Bestiář (MR-10d): trollí hoodoo = nekrotická magie, hadí bůh = jed; krvavý
     // chief je zranitelný radiant (holy smite). Aktivuje typové obrany (MR-7/10b).
     encounters: [
-      enemy('zf_axethrower', 'Dunescale Axe Thrower', 2.5, { damageType: 'slashing' }),
-      enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 2.6, {
+      pack(
+        'zf_e1',
+        enemy('zf_axethrower', 'Dunescale Axe Thrower', 2.5, { damageType: 'slashing' }),
+        enemy('zf_axethrower_b', 'Dunescale Brave', 2.5, { level: 12, damageType: 'slashing' }),
+      ),
+      pack('zf_e2', enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 2.6, {
         damageType: 'necrotic',
         resistances: ['necrotic'],
-      }),
-      enemy('zf_gahzrilla', 'Gazrilla', 2.3, {
+      })),
+      pack('zf_e3', enemy('zf_gahzrilla', 'Gazrilla', 2.3, {
         armor: 80,
         damageType: 'poison',
         resistances: ['poison'],
-      }),
-      enemy('zf_ukorz', 'Chief Ukor Dunescalp', 2.4, {
+      })),
+      pack('zf_e4', enemy('zf_ukorz', 'Chief Ukor Dunescalp', 2.4, {
         armor: 90,
         isBoss: true,
         damageType: 'slashing',
         vulnerabilities: ['radiant'],
-      }),
+      })),
     ],
   },
 
@@ -243,27 +299,36 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // Bestiář (MR-10d): nature/earth téma — treant i elementál odolávají fyzickému
     // poškození (martiali si škrtnou), ale hoří (caster fire excels). „Bring a caster."
     encounters: [
-      enemy('mar_noxxion', 'Noxxion Spawn', 2.5, {
-        damageType: 'poison',
-        resistances: ['poison'],
-        vulnerabilities: ['fire'],
-      }),
-      enemy('mar_treant', 'Corrupted Treant', 2.6, {
+      pack(
+        'mar_e1',
+        enemy('mar_noxxion', 'Noxxion Spawn', 2.5, {
+          damageType: 'poison',
+          resistances: ['poison'],
+          vulnerabilities: ['fire'],
+        }),
+        enemy('mar_noxxion_b', 'Noxxion Spawnling', 2.5, {
+          level: 13,
+          damageType: 'poison',
+          resistances: ['poison'],
+          vulnerabilities: ['fire'],
+        }),
+      ),
+      pack('mar_e2', enemy('mar_treant', 'Corrupted Treant', 2.6, {
         damageType: 'bludgeoning',
         resistances: ['bludgeoning', 'piercing'],
         vulnerabilities: ['fire'],
-      }),
-      enemy('mar_landslide', 'Landslide', 2.3, {
+      })),
+      pack('mar_e3', enemy('mar_landslide', 'Landslide', 2.3, {
         armor: 100,
         damageType: 'bludgeoning',
         resistances: ['slashing', 'piercing', 'bludgeoning'],
-      }),
-      enemy('mar_theradras', 'Princess Theradris', 2.4, {
+      })),
+      pack('mar_e4', enemy('mar_theradras', 'Princess Theradris', 2.4, {
         armor: 90,
         isBoss: true,
         damageType: 'poison',
         vulnerabilities: ['fire'],
-      }),
+      })),
     ],
   },
 
@@ -282,22 +347,26 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // Bestiář (MR-10d): forge/fire téma — obyvatelé jsou žárovzdorní (resist fire),
     // takže fire casteři tu nezáří; martiali a ostatní normálně.
     encounters: [
-      enemy('brd_guard', 'Anvilrage Guardsman', 2.5, { armor: 80, damageType: 'slashing' }),
-      enemy('brd_geologist', 'Cinderforge Geologist', 2.6, {
+      pack(
+        'brd_e1',
+        enemy('brd_guard', 'Anvilrage Guardsman', 2.5, { armor: 80, damageType: 'slashing' }),
+        enemy('brd_guard_b', 'Anvilrage Footman', 2.5, { level: 15, armor: 60, damageType: 'slashing' }),
+      ),
+      pack('brd_e2', enemy('brd_geologist', 'Cinderforge Geologist', 2.6, {
         damageType: 'bludgeoning',
         resistances: ['fire'],
-      }),
-      enemy('brd_angerforge', 'General Emberforge', 2.3, {
+      })),
+      pack('brd_e3', enemy('brd_angerforge', 'General Emberforge', 2.3, {
         armor: 110,
         damageType: 'fire',
         resistances: ['fire'],
-      }),
-      enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2.4, {
+      })),
+      pack('brd_e4', enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2.4, {
         armor: 120,
         isBoss: true,
         damageType: 'fire',
         resistances: ['fire'],
-      }),
+      })),
     ],
   },
 
@@ -319,31 +388,41 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     // resist nekrotice). Holy classy (Cleric/Paladin = radiant) tu DOMINUJÍ; dreadlord
     // Baron navíc odolá ohni (fiend). Vrchol „class counter" identity 14–20.
     encounters: [
-      enemy('strat_zombie', 'Plagued Zombie', 2.5, {
-        damageType: 'necrotic',
-        resistances: ['necrotic'],
-        immunities: ['poison'],
-        vulnerabilities: ['radiant'],
-      }),
-      enemy('strat_cryptfiend', 'Crypt Fiend', 2.6, {
+      pack(
+        'strat_e1',
+        enemy('strat_zombie', 'Plagued Zombie', 2.5, {
+          damageType: 'necrotic',
+          resistances: ['necrotic'],
+          immunities: ['poison'],
+          vulnerabilities: ['radiant'],
+        }),
+        enemy('strat_zombie_b', 'Plagued Ghoul', 2.5, {
+          level: 17,
+          damageType: 'necrotic',
+          resistances: ['necrotic'],
+          immunities: ['poison'],
+          vulnerabilities: ['radiant'],
+        }),
+      ),
+      pack('strat_e2', enemy('strat_cryptfiend', 'Crypt Fiend', 2.6, {
         armor: 70,
         damageType: 'piercing',
         resistances: ['necrotic'],
         vulnerabilities: ['radiant'],
-      }),
-      enemy('strat_ramstein', 'Ramstein the Gorger', 2.3, {
+      })),
+      pack('strat_e3', enemy('strat_ramstein', 'Ramstein the Gorger', 2.3, {
         armor: 120,
         damageType: 'bludgeoning',
         resistances: ['necrotic'],
         vulnerabilities: ['radiant', 'fire'],
-      }),
-      enemy('strat_baron', 'Baron Ravendere', 2.4, {
+      })),
+      pack('strat_e4', enemy('strat_baron', 'Baron Ravendere', 2.4, {
         armor: 130,
         isBoss: true,
         damageType: 'necrotic',
         resistances: ['necrotic', 'fire'],
         vulnerabilities: ['radiant'],
-      }),
+      })),
     ],
   },
 };
@@ -352,6 +431,22 @@ export const DUNGEON_IDS = Object.keys(DUNGEONS);
 
 export function isDungeonId(value: string): value is string {
   return value in DUNGEONS;
+}
+
+/** Všichni nepřátelé dungeonu napříč encountery (ploché pole). */
+export function dungeonEnemies(dungeon: DungeonDef): EnemyDef[] {
+  return dungeon.encounters.flatMap((e) => e.enemies);
+}
+
+/**
+ * „Boss" dungeonu pro UI/label = boss-flagnutý nepřítel posledního encounteru
+ * (fallback poslední nepřítel poslední skupiny). `undefined`, pokud dungeon nemá
+ * encountery.
+ */
+export function dungeonBoss(dungeon: DungeonDef): EnemyDef | undefined {
+  const last = dungeon.encounters.at(-1);
+  if (!last) return undefined;
+  return last.enemies.find((e) => e.isBoss) ?? last.enemies.at(-1);
 }
 
 /** Je dungeon odemčený pro daný level postavy? */

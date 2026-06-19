@@ -75,8 +75,13 @@ stav (stateless, škálovatelné). Klient polluje (REST) / WS (M7).
 ## Dungeony (`packages/shared/src/data/dungeons.ts`)
 
 PVE neutrální (obě frakce), gated `requiredLevel` (content gating). Každý
-dungeon = sekvence `EnemyDef` (trash → boss) + `baseXp`/`baseGold` + odkaz na
-boss loot tabulku.
+dungeon = **sekvence encounterů** (`EncounterDef`), kde každý encounter je
+**skupina nepřátel** (`enemies: EnemyDef[]`) bojovaná naráz — trash packy (2–3,
+„oslabení minioni" s nižším CR), sólo bossové i boss+adds (dungeon overhaul,
+**ADR 0037**). Plus `baseXp`/`baseGold` + odkaz na boss loot tabulku. Engine
+`fightEncounter` (`raid.ts`) tým fokusuje nejslabšího nepřítele, nepřátelé útočí
+na tanka/threat; AoE útoky/heal zasáhnou všechny živé cíle. Helpery
+`dungeonEnemies` / `dungeonBoss`.
 
 | Dungeon            | Req lvl | Boss                          | Attunement (gate quest)            | Pozn.          |
 | ------------------ | ------- | ----------------------------- | ---------------------------------- | -------------- |

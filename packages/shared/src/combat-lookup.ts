@@ -7,7 +7,7 @@
  * Web (PlayerProfile-like NPC karta + ability detail) z nich jen čte; žádná
  * herní logika tu není (čistá data) → bezpečné importovat na FE i BE.
  */
-import { DUNGEONS } from './data/dungeons';
+import { DUNGEONS, dungeonEnemies } from './data/dungeons';
 import { crEnemyMagnitude } from './combat';
 import { crForContentLevel } from './data/damage';
 import {
@@ -42,7 +42,7 @@ let enemyIndex: Map<string, NpcInfo> | null = null;
 function buildEnemyIndex(): Map<string, NpcInfo> {
   const index = new Map<string, NpcInfo>();
   for (const d of Object.values(DUNGEONS)) {
-    for (const e of d.encounters) {
+    for (const e of dungeonEnemies(d)) {
       if (index.has(e.name)) continue;
       // HP/poškození se odvozují z Challenge Ratingu (ADR 0032) — stejně jako v
       // boji (`buildEnemyActor`). Explicitní CR přebíjí, jinak z levelu (+boss).
