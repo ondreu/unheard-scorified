@@ -34,6 +34,7 @@ export * from './pvp';
 export * from './raid';
 export * from './gauntlet';
 export * from './dungeon-run';
+export * from './dungeon-party';
 export * from './group';
 export * from './data/companions';
 export * from './lockout';
