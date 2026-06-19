@@ -197,20 +197,54 @@ export function spellSlotTiers(slots: SpellSlots): number[] {
 }
 
 /**
- * Vyčerpá jeden spell slot tieru **>= `minTier`** (nejnižší dostupný → upcast jen
- * když musí). **Mutuje** předaný rozpočet (lokální kopie per-encounter); vrací
- * použitý tier, nebo `null` když žádný slot tieru ≥ minTier není (kouzlo „fizzles"
- * → postava sáhne po zbrani/cantripu). Sdílený slot model napříč VŠEMI bojovými
- * simulátory (quest / dungeon / PVP) — jediný zdroj per-encounter spotřeby slotů.
+ * Vyčerpá jeden spell slot tieru **>= `minTier`**. **Mutuje** předaný rozpočet
+ * (lokální kopie per-encounter); vrací použitý tier, nebo `null` když žádný slot
+ * tieru ≥ minTier není (kouzlo „fizzles" → postava sáhne po zbrani/cantripu).
+ *
+ * `preferHighest`:
+ *  - `false` (default) — **nejnižší** dostupný slot (upcast jen když musí). Úsporné
+ *    hospodaření pro kouzla, jimž upcast nepomáhá (heal/buff/smite bez `dice`).
+ *  - `true` — **nejvyšší** dostupný slot (maximální upcast). Pro upcastovatelné nuke
+ *    (`dice` + `dicePerSlotAbove`): high-level caster vrazí do bombu svůj největší
+ *    slot → velké sloty (které existují jen na vysokém levelu) konečně škálují damage.
+ *
+ * Sdílený slot model napříč VŠEMI bojovými simulátory (quest / dungeon / PVP /
+ * Gauntlet) — jediný zdroj per-encounter spotřeby slotů.
  */
-export function spendSlotForTier(slots: SpellSlots, minTier: number): number | null {
-  for (let tier = Math.max(1, minTier); tier <= 9; tier++) {
+export function spendSlotForTier(
+  slots: SpellSlots,
+  minTier: number,
+  preferHighest = false,
+): number | null {
+  const lo = Math.max(1, minTier);
+  if (preferHighest) {
+    for (let tier = MAX_SPELL_TIER; tier >= lo; tier--) {
+      if ((slots[tier] ?? 0) > 0) {
+        slots[tier] = (slots[tier] ?? 0) - 1;
+        return tier;
+      }
+    }
+    return null;
+  }
+  for (let tier = lo; tier <= MAX_SPELL_TIER; tier++) {
     if ((slots[tier] ?? 0) > 0) {
       slots[tier] = (slots[tier] ?? 0) - 1;
       return tier;
     }
   }
   return null;
+}
+
+/**
+ * Má kouzlo prospěch z upcastu? Upcastovatelné nuke (`dice` + `dicePerSlotAbove`,
+ * např. Fireball +1d6/slot) → `true` (sešli nejvyšším slotem). Ostatní (heal/buff/
+ * smite, kouzla bez per-slot kostek) → `false` (úsporně, nejnižší slot).
+ */
+export function abilityPrefersUpcast(ability: {
+  dice?: unknown;
+  dicePerSlotAbove?: number;
+}): boolean {
+  return ability.dice != null && (ability.dicePerSlotAbove ?? 0) > 0;
 }
 
 /**

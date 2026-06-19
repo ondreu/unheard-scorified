@@ -167,6 +167,12 @@ export const LIFESTEAL_TAG_LABELS: Record<string, string> = {
 /** Bojový aktér (postava nebo nepřítel). Plně serializovatelný (snapshot). */
 export interface CombatActor {
   name: string;
+  /**
+   * Úroveň aktéra (1–20). Postavy ji dědí z `deriveCombatProfile`; nepřátelé ji
+   * nechávají `undefined`. Řídí **cantrip scaling** (D&D 1→2→3→4 kostek na 5/11/17,
+   * `abilityDamageSpec`) — at-will kouzla rostou s levelem jako martial Extra Attack.
+   */
+  level?: number;
   maxHealth: number;
   /** Základní poškození na úder (před variancí/critem/armorem). */
   attackPower: number;
@@ -389,6 +395,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
 
   return {
     name: input.name,
+    level,
     maxHealth,
     attackPower,
     swingInterval: BASE_SWING_INTERVAL / (1 + attackSpeed),
@@ -571,19 +578,36 @@ export function weaponDamageSpec(actor: CombatActor, crit = false): DiceSpec {
 }
 
 /**
+ * Cantrip damage scaling (D&D 5e „Fix kouzla"): at-will cantripy (Fire Bolt 1d10)
+ * násobí počet kostek dle levelu **1 → 2 → 3 → 4 na 5/11/17** — přesně D&D křivka
+ * (analog martial Extra Attack), takže caster sustained DPS roste s úrovní místo
+ * aby zamrzl na 1 kostce. Leveled kouzla (tier ≥ 1) škálují upcastem, ne tímhle.
+ */
+export function cantripDiceMultiplier(level: number): number {
+  return level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1;
+}
+
+/**
  * Literal D&D damage dice kouzla (ADR 0032) — `ability.dice` (Fireball 8d6) +
  * **upcast** (`dicePerSlotAbove` kostek za každý tier nad `spellTier`, dle slotu,
- * kterým bylo kouzlo sesláno). Nezávislé na `attackPower`. Vrací `undefined` pro
+ * kterým bylo kouzlo sesláno) + **cantrip scaling** (tier 0 roste s levelem, viz
+ * `cantripDiceMultiplier`). Nezávislé na `attackPower`. Vrací `undefined` pro
  * ability bez literal kostek (martial techniky/drainy/healy → škálují přes
  * `attackPower`). Crit doubling řeší `rollHit` (po hodu na zásah).
  */
 export function abilityDamageSpec(
   ability: SignatureAbility,
   slotTier: number | null,
+  level = 1,
 ): DiceSpec | undefined {
   if (!ability.dice) return undefined;
   const base = ability.dice;
   const minTier = ability.spellTier ?? 0;
+  // Cantrip (tier 0): počet kostek × level-scaling (D&D 1/2/3/4). Leveled kouzlo:
+  // base + upcast kostky za každý tier nad `spellTier`.
+  if (minTier === 0) {
+    return { count: base.count * cantripDiceMultiplier(level), sides: base.sides, bonus: base.bonus };
+  }
   const perSlot = ability.dicePerSlotAbove ?? 0;
   const above = perSlot > 0 && slotTier != null ? Math.max(0, slotTier - minTier) : 0;
   return { count: base.count + above * perSlot, sides: base.sides, bonus: base.bonus };

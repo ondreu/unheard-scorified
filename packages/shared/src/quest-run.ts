@@ -32,7 +32,7 @@ import {
 } from './combat';
 import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
 import { crForContentLevel } from './data/damage';
-import { spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import type { SignatureAbility } from './data/abilities';
 import {
   type QuestDef,
@@ -117,6 +117,25 @@ function offensiveAbilities(player: CombatActor) {
   );
 }
 
+/** Léčivé ability postavy (heal-kind) — solo self-sustain healera v questovém combatu. */
+function healAbilities(player: CombatActor) {
+  return player.signatureAbilities.filter((a) => a.kind === 'heal');
+}
+
+/**
+ * Healer self-sustain (solo quest combat): healer (cleric/druid/bard/paladin/ranger)
+ * se sám léčí, když klesne pod tento podíl HP. V group obsahu léčí spoluhráče; v
+ * sólo questu by jinak „neměl koho léčit" a padal — proto se ošetří sám. Léčení
+ * čerpá spell slot (tier ≥ 1) jako každé jiné kouzlo.
+ */
+const HEAL_HP_THRESHOLD = 0.5;
+/** Heal = `attackPower × damageMult × HEAL_POWER_FACTOR × falloff` (sdílí konvenci s Gauntletem). */
+const HEAL_POWER_FACTOR = 0.6;
+/** Spam-ochrana: každý další heal v souboji je slabší (jako Gauntlet `healFalloff`). */
+function healFalloff(healsUsed: number): number {
+  return Math.max(0.3, 1 - 0.15 * healsUsed);
+}
+
 /**
  * Auto-resolved souboj postava-vs-nepřítel (sólo). Recykluje `computeHit`/
  * `applyAbsorb` z combat enginu (žádná duplikace per-hit vzorců).
@@ -145,8 +164,11 @@ export function simulateQuestEncounter(
   let enemyHp = enemy.maxHealth;
 
   const abilities = offensiveAbilities(player);
+  const heals = healAbilities(player);
+  let healsUsed = 0;
   const readyAt: Record<string, number> = {};
   for (const a of abilities) readyAt[a.id] = startT; // ready od startu
+  for (const h of heals) readyAt[h.id] = startT;
   // Spell sloty (MR-4) jako rozpočet kouzel v rámci tohoto běhu — kouzla (tier ≥ 1)
   // ho čerpají; když dojdou, postava sáhne po zbrani/cantripu. Lokální kopie.
   const slotBudget: SpellSlots = { ...(player.spellSlots ?? {}) };
@@ -178,6 +200,37 @@ export function simulateQuestEncounter(
     if (pNext <= eNext) {
       t = pNext;
       pNext = t + player.swingInterval;
+      // Healer self-sustain (solo): pod prahem HP sešle heal (spálí slot) místo útoku
+      // → healer questící sám se udrží. Group obsah léčí spoluhráče (jiný engine).
+      if (heals.length > 0 && playerHp / player.maxHealth < HEAL_HP_THRESHOLD) {
+        let healChosen: SignatureAbility | undefined;
+        for (const h of heals) {
+          if ((readyAt[h.id] ?? startT) > t) continue;
+          const tier = h.spellTier ?? 0;
+          if (tier >= 1 && spendSlotForTier(slotBudget, tier) == null) continue; // bez slotu → drží
+          healChosen = h;
+          readyAt[h.id] = t + h.cooldownSec;
+          break;
+        }
+        if (healChosen) {
+          const healed = Math.max(
+            1,
+            Math.round(player.attackPower * healChosen.damageMult * HEAL_POWER_FACTOR * healFalloff(healsUsed)),
+          );
+          playerHp = Math.min(player.maxHealth, playerHp + healed);
+          healsUsed++;
+          events.push({
+            t: round1(t),
+            type: 'heal',
+            message: `✨ ${player.name} casts ${healChosen.name}, healing for ${healed}. ${player.name}: ${playerHp} HP.`,
+            source: player.name,
+            target: player.name,
+            amount: healed,
+            ability: healChosen.name,
+          });
+          continue;
+        }
+      }
       // Zvol první ready ability, kterou lze seslat (cantrip/martial zdarma, kouzlo
       // jen když je volný slot). Když nic → základní úder zbraní.
       let chosen: SignatureAbility | undefined;
@@ -189,7 +242,7 @@ export function simulateQuestEncounter(
         if (kiCost > kiBudget) continue;
         const tier = a.spellTier ?? 0;
         if (tier >= 1) {
-          const used = spendSlotForTier(slotBudget, tier);
+          const used = spendSlotForTier(slotBudget, tier, abilityPrefersUpcast(a));
           if (used == null) continue; // žádný slot → kouzlo fizzles, zkus další
           slotTier = used;
         }
@@ -201,7 +254,7 @@ export function simulateQuestEncounter(
       // Literal D&D spell dice (ADR 0032): kouzla s `dice` (Fireball 8d6) jdou přímo
       // jako kostky (mult = 1); martial techniky/drainy škálují přes `attackPower`
       // (mult = damageMult + execute). Upcast dle slotu, kterým bylo kouzlo sesláno.
-      const spec = chosen ? abilityDamageSpec(chosen, slotTier) : undefined;
+      const spec = chosen ? abilityDamageSpec(chosen, slotTier, player.level) : undefined;
       const mult = chosen && !spec ? abilityDamageMult(chosen, enemyHp / enemy.maxHealth) : 1;
       // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy (Magic
       // Missile = force…); undefined → zdědí typ zbraně/classy útočníka.

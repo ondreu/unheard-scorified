@@ -37,7 +37,7 @@ import {
 import { isAbilityEnabled, shouldCastAbility } from './rotation';
 import { applySpellSave, missMessage, rollTag } from './dnd-combat';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
-import { spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 export type RaidRole = 'tank' | 'healer' | 'dps';
 
@@ -283,7 +283,7 @@ function spendAbilitySlot(
 ): { ok: boolean; tier: number | null } {
   const tier = ability.spellTier ?? 0;
   if (tier < 1) return { ok: true, tier: null };
-  const used = spendSlotForTier(budget, tier);
+  const used = spendSlotForTier(budget, tier, abilityPrefersUpcast(ability));
   return used == null ? { ok: false, tier: null } : { ok: true, tier: used };
 }
 
@@ -558,7 +558,7 @@ function fightBoss(
       // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
       // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
       // kterým bylo kouzlo sesláno (ADR 0034 → raid teď trackuje slot tier).
-      const spec = abilityDamageSpec(ability, slot.tier);
+      const spec = abilityDamageSpec(ability, slot.tier, member.level);
       const mult = spec ? 1 : abilityDamageMult(ability, bossHpPct);
       const executing = !spec && mult > ability.damageMult;
       const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec);

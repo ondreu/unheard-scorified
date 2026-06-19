@@ -134,8 +134,14 @@ function ttkProfile(player: CombatActor, level: number, isBoss: boolean) {
 
 const LEVELS = [1, 5, 10, 14, 20];
 const CLASSES_TO_TEST: Array<Parameters<typeof baseStatsFor>[1]> = ['fighter', 'wizard', 'rogue', 'cleric'];
-/** Martialové = vyladěný baseline (casteři odloženi na „Fix kouzla" — literal spell dice). */
 const MARTIAL_CLASSES: Array<Parameters<typeof baseStatsFor>[1]> = ['fighter', 'rogue'];
+/**
+ * Casteři („Fix kouzla"): cantrip scaling (1→2→3→4 na 5/11/17) + upcast nuke
+ * nejvyšším slotem + healer self-sustain v solo → wizard (glass cannon) i cleric
+ * (healer) jsou na high-level bossech viable. Mírnější laťka než martial (squishy
+ * / delší souboje s healy), ale boj se vyhraje s reálnou ztrátou HP.
+ */
+const CASTER_CLASSES: Array<Parameters<typeof baseStatsFor>[1]> = ['wizard', 'cleric'];
 
 describe('gear-balance harness (report)', () => {
   it('BiS vs naked — efektivní síla + char-sheet čísla', () => {
@@ -222,6 +228,24 @@ describe('gear-balance contract', () => {
         expect(boss.avgSwings).toBeLessThanOrEqual(12);
         expect(boss.avgHpPct).toBeLessThan(90); // boss stojí HP
         expect(boss.avgHpPct).toBeGreaterThan(10); // ale vyhratelný se zbytkem
+      }
+    }
+  });
+
+  // Caster viability („Fix kouzla", blocker z ADR 0035): geared caster na on-level
+  // bossi vyhraje se ztrátou HP. Laťka je mírnější než martial (glass cannon /
+  // healer attrition), ale boss je spolehlivě poražitelný — žádné 0–10 % wipy.
+  it('geared caster on-level: trash rychlý, boss vyhratelný s HP ztrátou', () => {
+    for (const klass of CASTER_CLASSES) {
+      for (const lvl of [5, 10, 14, 20]) {
+        const g = hero(lvl, klass, bisStats(lvl));
+        const trash = ttkProfile(g, lvl, false);
+        const boss = ttkProfile(g, lvl, true);
+        expect(trash.winRate).toBeGreaterThan(0.95);
+        expect(boss.winRate).toBeGreaterThan(0.65);
+        expect(boss.avgSwings).toBeGreaterThanOrEqual(4);
+        expect(boss.avgSwings).toBeLessThanOrEqual(16);
+        expect(boss.avgHpPct).toBeLessThan(90); // boss stojí HP
       }
     }
   });

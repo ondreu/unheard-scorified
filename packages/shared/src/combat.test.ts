@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  abilityDamageSpec,
   aggregateProgression,
   baseStatsFor,
   buildEnemyActor,
+  cantripDiceMultiplier,
   crStatGuide,
   deriveCombatProfile,
   wipeRewardMultiplier,
@@ -11,6 +13,46 @@ import {
   type ProgressionEffects,
   type CombatActor,
 } from './index';
+import type { SignatureAbility } from './data/abilities';
+
+describe('cantrip scaling (Fix kouzla)', () => {
+  it('cantripDiceMultiplier follows D&D 1→2→3→4 at 5/11/17', () => {
+    expect([1, 4, 5, 10, 11, 16, 17, 20].map(cantripDiceMultiplier)).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
+  });
+
+  const fireBolt: SignatureAbility = {
+    id: 'fb',
+    name: 'Fire Bolt',
+    kind: 'strike',
+    cooldownSec: 4,
+    damageMult: 1,
+    spellTier: 0,
+    dice: { count: 1, sides: 10, bonus: 0 },
+  };
+
+  it('cantrip dice count scales with level, bonus/sides unchanged', () => {
+    expect(abilityDamageSpec(fireBolt, null, 1)).toEqual({ count: 1, sides: 10, bonus: 0 });
+    expect(abilityDamageSpec(fireBolt, null, 11)).toEqual({ count: 3, sides: 10, bonus: 0 });
+    expect(abilityDamageSpec(fireBolt, null, 20)).toEqual({ count: 4, sides: 10, bonus: 0 });
+  });
+
+  it('leveled spell ignores cantrip scaling, uses upcast from slot tier', () => {
+    const fireball: SignatureAbility = {
+      id: 'fireball',
+      name: 'Fireball',
+      kind: 'strike',
+      cooldownSec: 9,
+      damageMult: 2.2,
+      spellTier: 3,
+      dice: { count: 8, sides: 6, bonus: 0 },
+      dicePerSlotAbove: 1,
+    };
+    // Žádné cantrip scaling u tier ≥ 1, i na vysokém levelu.
+    expect(abilityDamageSpec(fireball, 3, 20)).toEqual({ count: 8, sides: 6, bonus: 0 });
+    // Upcast 6. slotem = +3 kostky.
+    expect(abilityDamageSpec(fireball, 6, 20)).toEqual({ count: 11, sides: 6, bonus: 0 });
+  });
+});
 
 function featProg(...featIds: FeatId[]): ProgressionEffects {
   return aggregateProgression(
