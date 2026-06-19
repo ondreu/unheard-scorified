@@ -308,12 +308,12 @@ export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
   circle_of_the_moon: ba('moon_wild_shape', 'Wild Shape: Dire Bear', 'Transforms into a dire bear and mauls with two attacks.', 'strike', 9, 2.0, 2),
   champion: ba('champion_heroic_surge', 'Heroic Surge', 'Action Surge grants an extra Attack action this turn.', 'strike', 8, 2.0, 3),
   way_of_the_open_hand: ba('open_hand_flurry', 'Flurry of Blows', 'Two unarmed strikes as a bonus action. Costs 1 Ki.', 'strike', 8, 2.0, 3, { kiCost: 1 }),
-  oath_of_devotion: ba('devotion_sacred_weapon', 'Sacred Weapon', 'A radiant strike for 240% weapon damage.', 'strike', 9, 2.4, 3, { spellTier: 1 }),
+  oath_of_devotion: ba('devotion_sacred_weapon', 'Sacred Weapon', 'Channel Divinity blesses the weapon: a strike that adds 2d4 radiant.', 'strike', 9, 1.0, 3, { damageType: 'radiant', bonusDice: { count: 2, sides: 4, bonus: 0 } }),
   hunter: ba('hunter_colossus_slayer', 'Colossus Slayer', 'A focused shot adding 1d8 to the weapon hit against a wounded foe.', 'strike', 9, 1.0, 3, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
   thief: ba('thief_backstab', 'Backstab', 'A shadow strike struck with advantage, adding full Sneak Attack dice.', 'strike', 9, 1.0, 3, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
-  draconic_bloodline: ba('draconic_elemental_burst', 'Elemental Burst', 'Draconic power erupts for 250% spell damage.', 'strike', 9, 2.5, 1, { spellTier: 2 }),
-  the_fiend: ba('fiend_dark_ones_blessing', "Dark One's Own Luck", 'A fiendish blast for 230% damage, healing you for 20% of the damage dealt.', 'drain', 8, 2.3, 1, { drainHealFraction: 0.2, spellTier: 2 }),
-  school_of_evocation: ba('evocation_overchannel', 'Overchannel', 'Overchanneled arcana for 270% spell damage.', 'strike', 10, 2.7, 2, { spellTier: 3 }),
+  draconic_bloodline: ba('draconic_elemental_burst', 'Elemental Burst', 'Draconic power erupts for 4d6 fire. +1d6 per slot above 2nd.', 'strike', 9, 1.0, 1, { spellTier: 2, damageType: 'fire', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+  the_fiend: ba('fiend_dark_ones_blessing', "Dark One's Blessing", 'A fiendish blast for 3d6 fire, draining 20% of the damage as healing. +1d6 per slot above 2nd.', 'drain', 8, 1.0, 1, { drainHealFraction: 0.2, spellTier: 2, damageType: 'fire', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+  school_of_evocation: ba('evocation_overchannel', 'Overchannel', 'Overchanneled arcana erupts for 6d6 force (maximized evocation). +1d6 per slot above 3rd.', 'strike', 10, 1.0, 2, { spellTier: 3, damageType: 'force', dice: { count: 6, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
 };
 
 /**
