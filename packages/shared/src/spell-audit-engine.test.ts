@@ -3,10 +3,13 @@ import {
   actorProficiency,
   actorSpellMod,
   bonusDiceSpec,
+  deriveCombatProfile,
   healDiceSpec,
   resolveAttack,
   type CombatActor,
 } from './index';
+import { baseStatsFor } from './character';
+import { EMPTY_PROGRESSION } from './levelup';
 import type { SignatureAbility } from './data/abilities';
 import { SeededRng } from './rng';
 
@@ -103,6 +106,36 @@ describe('bonusDiceSpec (weapon-hit rider dice)', () => {
   it('returns undefined without bonusDice (plain attack / dice spell)', () => {
     const plain: SignatureAbility = { id: 'p', name: 'Strike', kind: 'strike', cooldownSec: 4, damageMult: 1 };
     expect(bonusDiceSpec(plain, null, 5)).toBeUndefined();
+  });
+});
+
+describe('concentration buff rider (Hunter\'s Mark / Hex, ADR 0036)', () => {
+  it('ranger / warlock get a passive +1d6 rider; martial fighter does not', () => {
+    const mk = (klass: 'ranger' | 'warlock' | 'fighter') =>
+      deriveCombatProfile({
+        name: 'X', level: 6, klass,
+        primary: baseStatsFor('human', klass, 6),
+        equipment: {}, progression: EMPTY_PROGRESSION,
+      });
+    expect(mk('ranger').weaponRiderDice).toEqual({ count: 1, sides: 6, bonus: 0 });
+    expect(mk('warlock').weaponRiderDice).toEqual({ count: 1, sides: 6, bonus: 0 });
+    expect(mk('fighter').weaponRiderDice).toBeUndefined();
+  });
+
+  it('rider adds damage to every hit vs the same seed without it', () => {
+    const target: CombatActor = {
+      name: 'D', maxHealth: 9999, attackPower: 1, swingInterval: 3, critChance: 0,
+      critMultiplier: 2, armor: 0, lifesteal: 0, shield: 0, armorClass: 1, signatureAbilities: [],
+    };
+    const base = caster({ attackPower: 10, attackBonus: 8, attackDie: 8 });
+    const withRider: CombatActor = { ...base, weaponRiderDice: { count: 1, sides: 6, bonus: 0 } };
+    let withSum = 0;
+    let withoutSum = 0;
+    for (let s = 0; s < 200; s++) {
+      withSum += resolveAttack(withRider, target, new SeededRng(s)).amount;
+      withoutSum += resolveAttack(base, target, new SeededRng(s)).amount;
+    }
+    expect(withSum).toBeGreaterThan(withoutSum);
   });
 });
 

@@ -231,6 +231,14 @@ export interface CombatActor {
   rageDamageBonus?: number;
   /** Caster type (full/half/pact/none) — pact (Warlock) má v Gauntletu per-wave short rest. */
   casterType?: CasterType;
+  /**
+   * Koncentrační buff rider (ADR 0036) — Hunter's Mark / Hex: tyto kostky se přičtou
+   * ke **každému zásahu** aktéra (+1d6). V idle modelu aktivní celý encounter (buff
+   * v D&D trvá ~1 h). `undefined` = bez rideru. Crit zdvojí i jeho kostky.
+   */
+  weaponRiderDice?: DiceSpec;
+  /** Jméno aktivního rider buffu (pro combat log). */
+  riderName?: string;
   signatureAbilities: SignatureAbility[];
   /**
    * Deklarativní rotace (MIL) — řídí, zda/kdy se signature ability sešle.
@@ -421,8 +429,20 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     rageCharges: rageChargesFor(klass, level),
     rageDamageBonus: rageChargesFor(klass, level) > 0 ? rageDamageBonus(level) : 0,
     casterType: ct,
+    // Koncentrační buff rider (ADR 0036): Hunter's Mark / Hex se v idle modelu drží
+    // celý encounter → +riderDice na každý zásah. Jeden naráz (koncentrace) = první.
+    ...riderFromAbilities(abilities),
     signatureAbilities: abilities,
   };
+}
+
+/** Najde první koncentrační buff (Hunter's Mark/Hex) a vrátí jeho rider (ADR 0036). */
+function riderFromAbilities(
+  abilities: SignatureAbility[],
+): { weaponRiderDice?: DiceSpec; riderName?: string } {
+  const buff = abilities.find((a) => a.kind === 'buff' && a.riderDice);
+  if (!buff || !buff.riderDice) return {};
+  return { weaponRiderDice: buff.riderDice, riderName: buff.name };
 }
 
 /** Staty nepřítele (statická data dungeonu). */
@@ -764,6 +784,12 @@ function rollHit(
   if (extra.bonusDice) {
     const bc = crit ? extra.bonusDice.count * 2 : extra.bonusDice.count;
     bonusTotal = rollDice(rng, bc, extra.bonusDice.sides).total + extra.bonusDice.bonus;
+  }
+  // Koncentrační buff rider (ADR 0036 — Hunter's Mark/Hex): +riderDice na každý zásah.
+  if (attacker.weaponRiderDice) {
+    const rd = attacker.weaponRiderDice;
+    const rc = crit ? rd.count * 2 : rd.count;
+    bonusTotal += rollDice(rng, rc, rd.sides).total + rd.bonus;
   }
   const raw = Math.round(((damage.total + spec.bonus) * abilityMult + bonusTotal) * (enraged ? 3 : 1));
   // Resistance / vulnerability / immunity (MR-7): immune ruší poškození úplně,

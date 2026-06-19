@@ -243,7 +243,12 @@ export function effectivePlayerActor(base: CombatActor, picks: GauntletPick[]): 
 
 /** Kompletní ability kit dostupný v runu (základní úder + signatures + drafty). */
 export function gauntletAbilities(base: CombatActor, picks: GauntletPick[]): SignatureAbility[] {
-  return [GAUNTLET_BASIC_ATTACK, ...effectivePlayerActor(base, picks).signatureAbilities];
+  // Koncentrační buffy (Hunter's Mark/Hex, ADR 0036) jsou pasivní (rider na každý
+  // zásah přes weaponRiderDice) — nejsou castable, nenabízíme je v UI.
+  return [
+    GAUNTLET_BASIC_ATTACK,
+    ...effectivePlayerActor(base, picks).signatureAbilities.filter((a) => a.kind !== 'buff'),
+  ];
 }
 
 // ── Generování nepřátel ──────────────────────────────────────────────────────
@@ -408,7 +413,7 @@ export function resolveGauntletTurn(
     abilityId === GAUNTLET_BASIC_ATTACK.id
       ? GAUNTLET_BASIC_ATTACK
       : player.signatureAbilities.find((a) => a.id === abilityId);
-  if (!ability) return { state, events: [] };
+  if (!ability || ability.kind === 'buff') return { state, events: [] }; // buff = pasivní rider
   if (!isGauntletAbilityReady(state, abilityId)) return { state, events: [] };
 
   // Class resources (ADR 0034): rozpočet na celý run. Lazy init pro běhy založené

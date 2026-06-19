@@ -133,7 +133,7 @@ describe('applyAbsorb', () => {
 describe('ability kinds', () => {
   it('class kit abilities carry the right kind', () => {
     const warlock = profile('warlock');
-    expect(warlock.signatureAbilities.find((a) => a.id === 'warlock_hex')?.kind).toBe('dot');
+    expect(warlock.signatureAbilities.find((a) => a.id === 'warlock_hex')?.kind).toBe('buff');
     expect(warlock.signatureAbilities.find((a) => a.id === 'warlock_vampiric_touch')?.kind).toBe('drain');
   });
 });

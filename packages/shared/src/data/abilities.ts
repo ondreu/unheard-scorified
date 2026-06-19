@@ -17,8 +17,12 @@ import type { DiceSpec } from '../dice';
 import type { ClassId, SubclassId } from './classes';
 import type { DamageType } from './damage';
 
-/** Druh abilit — řídí log i mechaniku v enginu. */
-export type AbilityKind = 'strike' | 'drain' | 'dot' | 'heal' | 'shield' | 'mitigation';
+/**
+ * Druh abilit — řídí log i mechaniku v enginu. `buff` (ADR 0036) = koncentrační
+ * buff (Hunter's Mark, Hex): nedělá přímý damage, ale přidává `riderDice` ke každému
+ * zásahu po dobu trvání (v idle modelu = celý encounter, aplikováno pasivně).
+ */
+export type AbilityKind = 'strike' | 'drain' | 'dot' | 'heal' | 'shield' | 'mitigation' | 'buff';
 
 /**
  * Per-spell saving throw (MR-10 / ADR 0032). Cíl si hodí záchranný hod proti spell
@@ -127,6 +131,13 @@ export interface SignatureAbility {
    */
   aoe?: boolean;
   /**
+   * Koncentrační buff rider (ADR 0036) — `kind: 'buff'` (Hunter's Mark, Hex): tyto
+   * kostky se přičtou ke **každému zásahu** útočníka po dobu trvání (+1d6). V idle
+   * modelu aplikováno pasivně na celý encounter (`CombatActor.weaponRiderDice`) —
+   * jeden rider naráz (koncentrace).
+   */
+  riderDice?: DiceSpec;
+  /**
    * Ki body (ADR 0034, Slice 3) — kolik Ki stojí seslání této techniky (Monk).
    * `undefined`/0 = zdarma (např. Martial Arts základní úder). Když nemá hráč
    * dost Ki, technika se „drží" (jako kouzlo bez slotu) → základní úder.
@@ -170,6 +181,8 @@ interface BaselineOpts {
   advantage?: boolean;
   /** AoE — zasáhne všechny nepřátele / ošetří všechny spojence (ADR 0036). */
   aoe?: boolean;
+  /** Koncentrační buff rider (ADR 0036) — Hunter's Mark/Hex +1d6 na každý zásah. */
+  riderDice?: DiceSpec;
 }
 
 function ba(
@@ -205,6 +218,7 @@ function ba(
     ...(opts.bonusDicePerLevels !== undefined ? { bonusDicePerLevels: opts.bonusDicePerLevels } : {}),
     ...(opts.advantage !== undefined ? { advantage: opts.advantage } : {}),
     ...(opts.aoe !== undefined ? { aoe: opts.aoe } : {}),
+    ...(opts.riderDice !== undefined ? { riderDice: opts.riderDice } : {}),
   };
 }
 
@@ -255,7 +269,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('paladin_cure_wounds', 'Cure Wounds', 'A quick prayer restores 1d8 + your spellcasting modifier. +1d8 per slot above 1st.', 'heal', 4, 1.3, 20, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
   ],
   ranger: [
-    ba('ranger_hunters_mark', "Hunter's Mark", 'A marked-prey shot for 155% weapon damage.', 'strike', 5, 1.55, 1, { spellTier: 1 }),
+    ba('ranger_hunters_mark', "Hunter's Mark", 'Marks the prey (concentration): every weapon hit deals +1d6 damage for the fight.', 'buff', 5, 0, 1, { spellTier: 1, riderDice: { count: 1, sides: 6, bonus: 0 } }),
     ba('ranger_serpent_arrow', 'Serpent Arrow', 'A venomed arrow for 1d8 poison that poisons for 1d6 each turn over 10s.', 'dot', 9, 0, 6, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0, dotDice: { count: 1, sides: 6, bonus: 0 } }, spellTier: 1, damageType: 'poison', dice: { count: 1, sides: 8, bonus: 0 } }),
     ba('ranger_volley', 'Volley', 'A rain of arrows dealing 185% weapon damage.', 'strike', 8, 1.85, 14, { spellTier: 2 }),
     ba('ranger_cure_wounds', 'Cure Wounds', 'Restores 1d8 + your spellcasting modifier to a wounded ally. +1d8 per slot above 1st.', 'heal', 6, 1.7, 9, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
@@ -273,7 +287,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   warlock: [
     ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling force for 1d10.', 'strike', 4, 1.45, 1, { spellTier: 0, damageType: 'force', dice: { count: 1, sides: 10, bonus: 0 } }),
-    ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }, spellTier: 1, damageType: 'necrotic' }),
+    ba('warlock_hex', 'Hex', 'Curses the target (concentration): every hit deals +1d6 necrotic for the fight.', 'buff', 9, 0, 6, { spellTier: 1, damageType: 'necrotic', riderDice: { count: 1, sides: 6, bonus: 0 } }),
     ba('warlock_vampiric_touch', 'Vampiric Touch', 'A withering touch for 3d6 necrotic, healing you for half the damage dealt. +1d6 per slot above 3rd.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3, damageType: 'necrotic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
     ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'A void zone where tendrils gnaw for 2d6 cold each turn over 8s.', 'dot', 9, 0, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 2, sides: 6, bonus: 0 } }, spellTier: 3, damageType: 'cold', aoe: true }),
   ],
