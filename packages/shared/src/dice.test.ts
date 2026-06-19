@@ -95,6 +95,27 @@ describe('attack roll vs AC (D&D 5e)', () => {
     expect(attackHits(roll, 17)).toBe(true);
     expect(attackHits(roll, 18)).toBe(false);
   });
+
+  it('advantage takes the higher d20, disadvantage the lower (ADR 0036)', () => {
+    // Stejný seed: advantage ≥ normal-první-kostka, disadvantage ≤ advantage.
+    let advSum = 0;
+    let disSum = 0;
+    const n = 400;
+    for (let s = 0; s < n; s++) {
+      advSum += rollAttack(new SeededRng(s), 0, 'advantage').natural;
+      disSum += rollAttack(new SeededRng(s), 0, 'disadvantage').natural;
+    }
+    // Teoretické průměry: advantage ≈ 13.825, disadvantage ≈ 7.175 (přes shodné páry).
+    expect(advSum / n).toBeGreaterThan(disSum / n);
+    expect(advSum / n).toBeGreaterThan(11);
+    expect(disSum / n).toBeLessThan(10);
+  });
+
+  it('advantage/disadvantage are deterministic for the same seed', () => {
+    expect(rollAttack(new SeededRng(5), 3, 'advantage')).toEqual(
+      rollAttack(new SeededRng(5), 3, 'advantage'),
+    );
+  });
 });
 
 describe('saving throws', () => {

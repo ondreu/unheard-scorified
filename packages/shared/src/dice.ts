@@ -69,9 +69,25 @@ export interface AttackRoll {
   isFumble: boolean;
 }
 
-/** Hod na zásah: d20 + `attackBonus`. Nat 20 = crit, nat 1 = fumble. */
-export function rollAttack(rng: SeededRng, attackBonus: number): AttackRoll {
-  const natural = rollD20(rng);
+/** Výhoda / nevýhoda na hodu na zásah (D&D 5e): hodí se 2× d20, vezme se vyšší/nižší. */
+export type AdvantageMode = 'normal' | 'advantage' | 'disadvantage';
+
+/**
+ * Hod na zásah: d20 + `attackBonus`. Nat 20 = crit, nat 1 = fumble. `mode`
+ * (D&D 5e advantage/disadvantage) hodí 2× d20 a vezme vyšší (advantage) /
+ * nižší (disadvantage) — crit/fumble se vyhodnotí z vybrané kostky.
+ */
+export function rollAttack(
+  rng: SeededRng,
+  attackBonus: number,
+  mode: AdvantageMode = 'normal',
+): AttackRoll {
+  const first = rollD20(rng);
+  let natural = first;
+  if (mode !== 'normal') {
+    const second = rollD20(rng);
+    natural = mode === 'advantage' ? Math.max(first, second) : Math.min(first, second);
+  }
   return {
     natural,
     modifier: attackBonus,

@@ -94,6 +94,25 @@ export interface SignatureAbility {
   /** Automatický zásah (ignoruje hod na AC) — Magic Missile (ADR 0032). */
   autoHit?: boolean;
   /**
+   * Bonus kostky přičtené k **weapon hitu** (ADR 0036, „Fix kouzla") — D&D maneuvery,
+   * které nemají vlastní `dice`, ale přidávají kostky k základnímu úderu zbraní:
+   * Divine Smite `+2d8`, Sneak Attack `+Nd6`, superiority die `+1d8`. Na rozdíl od
+   * `dice` (které weapon damage *nahrazují*) se `bonusDice` **přičtou** k weapon dice.
+   * Crit zdvojí i jejich počet (D&D). Upcast přes `dicePerSlotAbove` (Divine Smite +1d8/slot).
+   */
+  bonusDice?: DiceSpec;
+  /**
+   * Level-scaling počtu `bonusDice` kostek (ADR 0036): počet = `ceil(level / N)`
+   * (Sneak Attack N=2 → 1d6 na lvl 1, 5d6 na lvl 9, 10d6 na lvl 19). `undefined`
+   * = pevný `bonusDice.count`.
+   */
+  bonusDicePerLevels?: number;
+  /**
+   * Advantage na hod na zásah (ADR 0036) — Reckless Attack, Assassinate. Hodí 2× d20,
+   * vezme vyšší. Nahrazuje WoW-style flat damage bonus reálnou D&D mechanikou.
+   */
+  advantage?: boolean;
+  /**
    * Ki body (ADR 0034, Slice 3) — kolik Ki stojí seslání této techniky (Monk).
    * `undefined`/0 = zdarma (např. Martial Arts základní úder). Když nemá hráč
    * dost Ki, technika se „drží" (jako kouzlo bez slotu) → základní úder.
@@ -129,6 +148,12 @@ interface BaselineOpts {
   autoHit?: boolean;
   /** Ki cost (ADR 0034) — Monkovy techniky. */
   kiCost?: number;
+  /** Bonus kostky na weapon hit (ADR 0036) — Divine Smite/Sneak Attack/superiority. */
+  bonusDice?: DiceSpec;
+  /** Level-scaling počtu bonus kostek (ADR 0036) — Sneak Attack ceil(level/N). */
+  bonusDicePerLevels?: number;
+  /** Advantage na hod na zásah (ADR 0036) — Reckless Attack/Assassinate. */
+  advantage?: boolean;
 }
 
 function ba(
@@ -160,6 +185,9 @@ function ba(
     ...(opts.save !== undefined ? { save: opts.save } : {}),
     ...(opts.autoHit !== undefined ? { autoHit: opts.autoHit } : {}),
     ...(opts.kiCost !== undefined ? { kiCost: opts.kiCost } : {}),
+    ...(opts.bonusDice !== undefined ? { bonusDice: opts.bonusDice } : {}),
+    ...(opts.bonusDicePerLevels !== undefined ? { bonusDicePerLevels: opts.bonusDicePerLevels } : {}),
+    ...(opts.advantage !== undefined ? { advantage: opts.advantage } : {}),
   };
 }
 
