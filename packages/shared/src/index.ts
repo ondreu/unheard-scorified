@@ -19,6 +19,7 @@ export * from './data/feats';
 export * from './data/class-features';
 export * from './levelup';
 export * from './level-track';
+export * from './class-progression';
 export * from './rotation';
 export * from './dice';
 export * from './combat';

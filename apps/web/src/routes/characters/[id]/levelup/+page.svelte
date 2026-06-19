@@ -31,6 +31,7 @@
     prof: 'Proficiency',
     feature: 'Feature',
     features: 'Features',
+    classFeature: 'Class feature',
     newSpells: 'New spells',
     spellSlots: 'Spell slots',
     milestone: 'Milestone',
@@ -305,6 +306,20 @@
               {/each}
             </div>
 
+            {#if entry.classFeatures.length}
+              <div class="feat-list">
+                {#each entry.classFeatures as f (f.id)}
+                  <div class="item">
+                    <span class="row gap-sm">
+                      <span class="tag tag-class">{ui.classFeature}</span>
+                      <strong>{f.name}</strong>
+                    </span>
+                    {#if f.description}<span class="muted small">{f.description}</span>{/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
             {#if entry.newFeatures.length}
               <div class="feat-list">
                 {#each entry.newFeatures as f (f.id)}
@@ -511,6 +526,8 @@
   .tag { font-size: 0.7rem; padding: 0.1rem 0.45rem; border-radius: 999px; font-weight: 600; }
   .tag-current { background: var(--r-rare, #0070dd); color: #fff; }
   .tag-milestone { background: rgba(0, 112, 221, 0.18); color: var(--r-rare, #4ea3ff); border: 1px solid var(--r-rare, #0070dd); }
+  .tag-class { background: rgba(30, 255, 0, 0.12); color: var(--r-uncommon, #1eff00); border: 1px solid var(--r-uncommon, #1eff00); }
+  .gap-sm { gap: 0.4rem; }
 
   .grants { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .grant {

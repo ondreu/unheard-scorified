@@ -22,6 +22,7 @@ import {
 import { ASI_LEVELS } from './levelup';
 import { spellSlotsFor, casterTypeOf, type CasterType } from './data/spell-slots';
 import { classFeatureSlotsFor } from './data/class-features';
+import { classProgression } from './class-progression';
 
 /** Milníková volba odemčená na daném levelu (mapuje na `levelUpSlots`). */
 export type LevelTrackChoiceType = 'subclass' | 'asi_or_feat' | 'class_feature';
@@ -61,6 +62,11 @@ export interface LevelTrackEntry {
   newSpellSlots: LevelTrackSlotGain[];
   /** Nově odemčené class/subclass features (techniky, ne kouzla do výběru). */
   newFeatures: LevelTrackEntry_Feature[];
+  /**
+   * Automatické class features na D&D levelech (Slice C): Extra Attack, Rage
+   * uses/damage, Ki, Sneak Attack scaling, … — odvozené z enginu, nedávají volbu.
+   */
+  classFeatures: LevelTrackEntry_Feature[];
   /** Nově dostupná kouzla do Knihy kouzel (caster pool, k přípravě). */
   newSpells: LevelTrackEntry_Feature[];
   /** Milníkové volby odemčené na tomto levelu (subclass / ASI / Feat). */
@@ -112,6 +118,13 @@ export function buildLevelTrack(
   const catalog = classSpellCatalog(klass);
   const subAbility = sub ? SUBCLASS_ABILITIES[sub] : undefined;
   const asiLevels = new Set<number>(ASI_LEVELS);
+  // Automatické class features (Slice C) — předpočítat a indexovat po levelu.
+  const progressionByLevel = new Map<number, LevelTrackEntry_Feature[]>();
+  for (const m of classProgression(klass)) {
+    const list = progressionByLevel.get(m.level) ?? [];
+    list.push({ id: m.id, name: m.name, description: m.description });
+    progressionByLevel.set(m.level, list);
+  }
   // Levely, na kterých se odemyká aspoň jedna class-feature volba (s ohledem na subclass).
   const classFeatureLevels = new Set<number>(
     classFeatureSlotsFor(klass, MAX_LEVEL, sub).map((s) => s.level),
@@ -164,6 +177,7 @@ export function buildLevelTrack(
       totalHp,
       newSpellSlots,
       newFeatures,
+      classFeatures: progressionByLevel.get(level) ?? [],
       newSpells,
       choices,
     });
