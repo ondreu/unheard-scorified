@@ -64,12 +64,23 @@ kde „down hrdiny = konec"); pád jednotlivce ho jen vyřadí.
   `DungeonModule` (stateless, předchází cyklu s `GroupModule`). Integrační flow
   testy (launch z party, vlastnictví, kolo se vyhodnotí po všech, clear + reward).
 
-- **Slice 4c — WebSocket živé push:** `DungeonPartyGateway` (room `party-run:{id}`,
-  arena-style relay) → push stavu + „tvůj tah" notifikace místo pollingu;
-  deadline timer (BullMQ scheduled job / WS tick) → AI fallback. Web živá stránka.
+- **Slice 4c — WebSocket živé push (hotovo):** `DungeonPartyGateway` (Socket.IO,
+  JWT handshake, room `party-run:{runId}`) + `DungeonPartyEventsRelay` (drží
+  server, fan-out přes Redis adaptér). View je per-viewer → push je lehký signál
+  `party:updated`; klient si vyžádá `party:state` (`party:join`/`party:state`/
+  `party:submit`/`party:leave`). **Deadline driver** = BullMQ scheduled job
+  (`DungeonPartyScheduler`, mirror `activity.scheduler`): job v čase deadlinu →
+  `tickDeadline` → AI fallback za nečinné + přeplánování; **atomický `claimDueRound`**
+  (DB CAS, row-lock) brání dvojímu vyhodnocení kola při souběhu submit-resolve vs
+  job (i napříč instancemi). REST cesty (`getRun`/`submit`) zůstávají
+  autoritativním fallbackem (když Redis/WS neběží). Web: živá stránka přešla na
+  WS push (`dungeon-party-socket.ts`) + pomalý REST safety-net (8 s).
 
-- **Slice 4d — 5-player + polish:** velikost 5, initiative ordering (D&D flavor),
-  reconnection, content tuning.
+- **Slice 4d — initiative + reconnection (částečně hotovo):** ✅ **initiative
+  ordering** — pořadí akcí v kole = d20 + DEX mod (rolováno per encounter,
+  deterministicky ze seedu) místo pořadí slotů. ✅ **reconnection** — WS `connect`
+  znovu joinne sezení a dotáhne stav (idempotentní `party:join`). _Zbývá: 5-player
+  content tuning (velikost 5 už technicky funguje přes škálování nepřátel)._
 
 ## Důsledky
 

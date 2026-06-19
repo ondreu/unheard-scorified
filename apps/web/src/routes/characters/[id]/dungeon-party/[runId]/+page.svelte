@@ -12,6 +12,8 @@
   import { ITEMS } from '@game/shared';
   import CombatLog from '$lib/components/CombatLog.svelte';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
+  import type { Socket } from 'socket.io-client';
+  import { connectDungeonParty, joinPartyRun, submitPartyTurn } from '$lib/dungeon-party-socket';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -47,6 +49,8 @@
   let now = $state(Date.now());
   let poll: ReturnType<typeof setInterval> | null = null;
   let clock: ReturnType<typeof setInterval> | null = null;
+  let socket: Socket | null = null;
+  let unjoin: (() => void) | null = null;
 
   const characterId = $derived($page.params.id ?? '');
   const runId = $derived($page.params.runId ?? '');
@@ -57,13 +61,28 @@
 
   onMount(() => {
     load();
-    // Poll the shared run (REST; WS push is Slice 4c).
+    // Realtime push (Slice 4c): join the run room; server signals → re-pull view.
+    socket = connectDungeonParty();
+    unjoin = joinPartyRun(
+      socket,
+      characterId,
+      runId,
+      (r) => {
+        run = r;
+        loading = false;
+        retarget();
+      },
+      (e) => (error = e),
+    );
+    // Slower REST safety net (WS push covers the live path).
     poll = setInterval(() => {
       if (!busy && run?.status === 'in_combat') refresh();
-    }, 2500);
+    }, 8000);
     clock = setInterval(() => (now = Date.now()), 1000);
   });
   onDestroy(() => {
+    if (unjoin) unjoin();
+    if (socket) socket.disconnect();
     if (poll) clearInterval(poll);
     if (clock) clearInterval(clock);
   });
@@ -107,7 +126,11 @@
     busy = true;
     error = null;
     try {
-      run = await submitDungeonParty(characterId, runId, abilityId, targetId);
+      // Preferuj WS (server-authoritative ack); REST fallback, když socket nejede.
+      run =
+        socket && socket.connected
+          ? await submitPartyTurn(socket, characterId, runId, abilityId, targetId)
+          : await submitDungeonParty(characterId, runId, abilityId, targetId);
       retarget();
     } catch (err) {
       error = (err as Error).message;

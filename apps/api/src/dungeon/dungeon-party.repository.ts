@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, lte } from 'drizzle-orm';
 import type { PartyRunState, PartyRunStatus } from '@game/shared';
 import { DB, type Database } from '../db/db.module';
 import {
@@ -42,6 +42,43 @@ export class DungeonPartyRepository {
       .select()
       .from(dungeonPartyParticipants)
       .where(eq(dungeonPartyParticipants.runId, runId));
+  }
+
+  async getParticipant(runId: string, characterId: string): Promise<DungeonPartyParticipant | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(dungeonPartyParticipants)
+      .where(
+        and(
+          eq(dungeonPartyParticipants.runId, runId),
+          eq(dungeonPartyParticipants.characterId, characterId),
+        ),
+      )
+      .limit(1);
+    return row;
+  }
+
+  /**
+   * Atomicky **zabere prošlé kolo** (deadline ≤ teď) — posune deadline a vrátí
+   * řádek, JEN pokud kolo bylo opravdu prošlé. Row-lock serializuje souběh
+   * (submit-resolve vs deadline-job na různých instancích) → jeden vítěz, žádné
+   * dvojí vyhodnocení. `undefined` = nebylo co zabrat.
+   */
+  async claimDueRound(runId: string, newDeadline: Date): Promise<DungeonPartyRun | undefined> {
+    const now = new Date();
+    const [row] = await this.db
+      .update(dungeonPartyRuns)
+      .set({ roundDeadline: newDeadline, updatedAt: now })
+      .where(
+        and(
+          eq(dungeonPartyRuns.id, runId),
+          eq(dungeonPartyRuns.status, 'in_combat'),
+          isNotNull(dungeonPartyRuns.roundDeadline),
+          lte(dungeonPartyRuns.roundDeadline, now),
+        ),
+      )
+      .returning();
+    return row;
   }
 
   /** Je postava účastníkem daného runu? */

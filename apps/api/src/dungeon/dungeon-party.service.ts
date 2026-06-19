@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   computeGroupReward,
   deriveRaidActor,
@@ -37,6 +37,8 @@ import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
 import type { Character, DungeonPartyRun } from '../db/schema';
 import { DungeonPartyRepository } from './dungeon-party.repository';
+import { DungeonPartyEventsRelay } from './dungeon-party.events';
+import { DUNGEON_PARTY_SCHEDULER, type DungeonPartyScheduler } from './dungeon-party.scheduler';
 
 /** Časové okno na tah party (ms). Po něm AI fallback doplní nečinné hráče. */
 const ROUND_DEADLINE_MS = 60_000;
@@ -122,6 +124,8 @@ export class DungeonPartyService {
     private readonly rotation: RotationService,
     private readonly history: HistoryRepository,
     private readonly repo: DungeonPartyRepository,
+    private readonly relay: DungeonPartyEventsRelay,
+    @Inject(DUNGEON_PARTY_SCHEDULER) private readonly scheduler: DungeonPartyScheduler,
   ) {}
 
   /**
@@ -199,6 +203,8 @@ export class DungeonPartyService {
         initiator: p.initiator ? 1 : 0,
       });
     }
+    // Naplánuj deadline prvního kola (AI fallback i bez WS klientů).
+    await this.scheduler.schedule(run.id, ROUND_DEADLINE_MS);
     return this.toView(run, state, characterId);
   }
 
@@ -206,8 +212,8 @@ export class DungeonPartyService {
   async getRun(accountId: string, characterId: string, runId: string): Promise<DungeonPartyRunView> {
     await this.ownedOrThrow(accountId, characterId);
     let run = await this.participantRunOrThrow(characterId, runId);
-    run = await this.progressOverdue(run, characterId);
-    return this.toView(run, run.state, characterId);
+    run = await this.progressOverdue(run);
+    return this.viewWithReward(run, characterId);
   }
 
   /** Postava odešle svou akci pro aktuální kolo (ability + cíl). */
@@ -220,12 +226,11 @@ export class DungeonPartyService {
   ): Promise<DungeonPartyRunView> {
     await this.ownedOrThrow(accountId, characterId);
     let run = await this.participantRunOrThrow(characterId, runId);
-    if (run.status !== 'in_combat') throw new BadRequestException('Run already finished');
     if (!abilityId) throw new BadRequestException('Missing ability');
 
     // Nejdřív dožeň prošlá kola (AI fallback), pak přijmi novou akci.
-    run = await this.progressOverdue(run, characterId);
-    if (run.status !== 'in_combat') return this.toView(run, run.state, characterId);
+    run = await this.progressOverdue(run);
+    if (run.status !== 'in_combat') return this.viewWithReward(run, characterId);
 
     const state = run.state;
     const res = submitPartyAction(state, characterId, abilityId, Number(targetId) || 0);
@@ -233,10 +238,16 @@ export class DungeonPartyService {
 
     if (partyRoundReady(state)) {
       resolvePartyRound(state);
-      return this.persist(run, state, characterId, true);
+      if (state.status !== 'in_combat') return this.finalize(run, state, characterId);
+      const deadline = new Date(Date.now() + ROUND_DEADLINE_MS);
+      await this.repo.updateState(run.id, state, state.status, state.encountersCleared, deadline);
+      await this.scheduler.schedule(run.id, ROUND_DEADLINE_MS);
+      this.relay.notifyUpdated(run.id, state.status);
+      return this.toView({ ...run, state, roundDeadline: deadline }, state, characterId);
     }
     // Čeká se na ostatní — uložit buffer, deadline beze změny.
     await this.repo.updateState(run.id, state, state.status, state.encountersCleared, run.roundDeadline);
+    this.relay.notifyUpdated(run.id, state.status);
     return this.toView({ ...run, state }, state, characterId);
   }
 
@@ -245,67 +256,93 @@ export class DungeonPartyService {
     await this.ownedOrThrow(accountId, characterId);
     const run = await this.participantRunOrThrow(characterId, runId);
     if (run.leaderCharacterId !== characterId) throw new ForbiddenException('Only the leader can abandon');
-    if (run.status !== 'in_combat') return this.toView(run, run.state, characterId);
+    if (run.status !== 'in_combat') return this.viewWithReward(run, characterId);
     const next: PartyRunState = { ...run.state, status: 'wiped', enemies: [] };
     return this.finalize(run, next, characterId);
   }
 
+  /**
+   * Deadline kola vypršel (BullMQ job, Slice 4c) — vyhodnotí prošlá kola s AI
+   * fallbackem za nečinné a přeplánuje další deadline. Bez auth (interní).
+   */
+  async tickDeadline(runId: string): Promise<void> {
+    const run = await this.repo.findRun(runId);
+    if (!run || run.status !== 'in_combat') return;
+    const progressed = await this.progressOverdue(run);
+    if (progressed.status === 'in_combat' && progressed.roundDeadline) {
+      await this.scheduler.schedule(runId, Math.max(0, progressed.roundDeadline.getTime() - Date.now()));
+    }
+  }
+
   // ── Interní ────────────────────────────────────────────────────────────────
 
-  /** Vyhodnotí všechna kola s prošlým deadlinem (AI fallback za nečinné hráče). */
-  private async progressOverdue(run: DungeonPartyRun, viewer: string): Promise<DungeonPartyRun> {
-    if (run.status !== 'in_combat') return run;
-    const state = run.state;
-    let changed = false;
-    let guard = 0;
-    while (
-      state.status === 'in_combat' &&
-      run.roundDeadline != null &&
-      Date.now() > run.roundDeadline.getTime() &&
-      guard++ < MAX_CATCHUP_ROUNDS
-    ) {
-      resolvePartyRound(state);
-      changed = true;
-      run = { ...run, roundDeadline: new Date(Date.now() + ROUND_DEADLINE_MS) };
-    }
-    if (!changed) return run;
-    if (state.status !== 'in_combat') {
-      await this.finalize(run, state, viewer);
-      return { ...run, state, status: state.status, encountersCleared: state.encountersCleared };
-    }
-    await this.repo.updateState(run.id, state, state.status, state.encountersCleared, run.roundDeadline);
-    return { ...run, state, status: state.status, encountersCleared: state.encountersCleared };
-  }
-
-  /** Uloží stav po vyhodnoceném kole; při konci finalizuje (odměny). */
-  private async persist(
-    run: DungeonPartyRun,
-    state: PartyRunState,
-    viewer: string,
-    newRound: boolean,
-  ): Promise<DungeonPartyRunView> {
-    if (state.status !== 'in_combat') return this.finalize(run, state, viewer);
-    const deadline = newRound ? new Date(Date.now() + ROUND_DEADLINE_MS) : run.roundDeadline;
-    await this.repo.updateState(run.id, state, state.status, state.encountersCleared, deadline);
-    return this.toView({ ...run, state, roundDeadline: deadline }, state, viewer);
-  }
-
   /**
-   * Uzavře run: při clearu udělí **každému účastníkovi** personal reward
-   * (computeGroupReward + weekly lockout + reputace + loot), při wipu/abandonu nic.
+   * Vyhodnotí všechna **prošlá** kola (AI fallback za nečinné hráče). Každé kolo
+   * se atomicky „zabere" (`claimDueRound`) → souběh submit-resolve vs deadline-job
+   * (i napříč instancemi) nevyhodnotí kolo dvakrát. Po doběhnutí přeplánuje deadline.
    */
+  private async progressOverdue(run: DungeonPartyRun): Promise<DungeonPartyRun> {
+    if (run.status !== 'in_combat') return run;
+    let guard = 0;
+    let touched = false;
+    while (guard++ < MAX_CATCHUP_ROUNDS) {
+      const claimed = await this.repo.claimDueRound(run.id, new Date(Date.now() + ROUND_DEADLINE_MS));
+      if (!claimed) break;
+      const state = claimed.state;
+      resolvePartyRound(state);
+      touched = true;
+      if (state.status !== 'in_combat') {
+        await this.finalizeRewards(claimed, state);
+        return { ...claimed, state, status: state.status, encountersCleared: state.encountersCleared, roundDeadline: null };
+      }
+      // claimed.roundDeadline = nový deadline (CAS ho posunul) → platí pro další kolo.
+      await this.repo.updateState(claimed.id, state, state.status, state.encountersCleared, claimed.roundDeadline);
+      this.relay.notifyUpdated(claimed.id, state.status);
+      run = { ...claimed, state, status: state.status, encountersCleared: state.encountersCleared };
+    }
+    if (touched && run.status === 'in_combat') await this.scheduler.schedule(run.id, ROUND_DEADLINE_MS);
+    return run;
+  }
+
+  /** Sestaví view pro volajícího; u ukončeného runu doplní jeho personal reward. */
+  private async viewWithReward(run: DungeonPartyRun, viewer: string): Promise<DungeonPartyRunView> {
+    if (run.status === 'in_combat') return this.toView(run, run.state, viewer);
+    const p = await this.repo.getParticipant(run.id, viewer);
+    const reward: RaidReward = p
+      ? { xp: p.rewardXp, gold: p.rewardGold, items: p.rewardItems }
+      : { xp: 0, gold: 0, items: [] };
+    const lockedOut = !!p && run.state.status === 'cleared' && reward.xp === 0 && reward.gold === 0 && reward.items.length === 0;
+    return this.toView(run, run.state, viewer, reward, lockedOut);
+  }
+
+  /** Uzavře run + udělí každému účastníkovi personal reward; vrátí view volajícího. */
   private async finalize(
     run: DungeonPartyRun,
     state: PartyRunState,
     viewer: string,
   ): Promise<DungeonPartyRunView> {
+    const rewards = await this.finalizeRewards(run, state);
+    const mine = rewards.get(viewer) ?? { reward: { xp: 0, gold: 0, items: [] }, lockedOut: false };
+    const finished: DungeonPartyRun = { ...run, state, status: state.status, encountersCleared: state.encountersCleared };
+    return this.toView(finished, state, viewer, mine.reward, mine.lockedOut);
+  }
+
+  /**
+   * Uzavře run a udělí **každému účastníkovi** personal reward (computeGroupReward
+   * + weekly lockout + reputace + loot), zruší deadline job, oznámí WS. Při
+   * wipu/abandonu nic. Vrací mapu characterId → {reward, lockedOut} (pro view).
+   */
+  private async finalizeRewards(
+    run: DungeonPartyRun,
+    state: PartyRunState,
+  ): Promise<Map<string, { reward: RaidReward; lockedOut: boolean }>> {
     const victory = state.status === 'cleared';
     await this.repo.finalizeRun(run.id, state, state.status, state.encountersCleared);
+    await this.scheduler.cancel(run.id);
 
     const participants = await this.repo.listParticipants(run.id);
     const dungeon = DUNGEONS[run.dungeonId];
-    let viewerReward: RaidReward = { xp: 0, gold: 0, items: [] };
-    let viewerLockedOut = false;
+    const out = new Map<string, { reward: RaidReward; lockedOut: boolean }>();
 
     for (const p of participants) {
       let reward: RaidReward = { xp: 0, gold: 0, items: [] };
@@ -331,14 +368,10 @@ export class DungeonPartyService {
       }
       await this.repo.setParticipantReward(run.id, p.characterId, reward);
       this.recordHistory(p.characterId, run.dungeonId, victory, lockedOut, reward);
-      if (p.characterId === viewer) {
-        viewerReward = reward;
-        viewerLockedOut = lockedOut;
-      }
+      out.set(p.characterId, { reward, lockedOut });
     }
-
-    const finished: DungeonPartyRun = { ...run, state, status: state.status, encountersCleared: state.encountersCleared };
-    return this.toView(finished, state, viewer, viewerReward, viewerLockedOut);
+    this.relay.notifyUpdated(run.id, state.status);
+    return out;
   }
 
   private recordHistory(

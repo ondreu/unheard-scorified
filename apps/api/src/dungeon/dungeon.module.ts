@@ -15,6 +15,12 @@ import { DungeonTurnService } from './dungeon-turn.service';
 import { DungeonTurnRepository } from './dungeon-turn.repository';
 import { DungeonPartyService } from './dungeon-party.service';
 import { DungeonPartyRepository } from './dungeon-party.repository';
+import { DungeonPartyGateway } from './dungeon-party.gateway';
+import { DungeonPartyEventsRelay } from './dungeon-party.events';
+import {
+  BullMqDungeonPartyScheduler,
+  DUNGEON_PARTY_SCHEDULER,
+} from './dungeon-party.scheduler';
 import { GroupRepository } from '../group/group.repository';
 
 /**
@@ -45,6 +51,9 @@ import { GroupRepository } from '../group/group.repository';
     DungeonTurnRepository,
     DungeonPartyService,
     DungeonPartyRepository,
+    DungeonPartyGateway,
+    DungeonPartyEventsRelay,
+    { provide: DUNGEON_PARTY_SCHEDULER, useClass: BullMqDungeonPartyScheduler },
     GroupRepository,
   ],
   // GroupModule (ADR 0022) spouští dungeon přes DungeonService.runForGroup.

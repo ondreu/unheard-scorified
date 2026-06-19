@@ -64,6 +64,8 @@ export interface PartyRunMember {
   raging: boolean;
   mitigationTurns: number;
   mitigationPct: number;
+  /** Iniciativa pro aktuální encounter (d20 + DEX mod) — pořadí akcí v kole (4d). */
+  initiative: number;
   /** Plný serializovatelný bojový aktér (RaidActor: role + healPower + rotace). */
   actor: RaidActor;
 }
@@ -200,7 +202,13 @@ function restoreMemberResources(member: PartyRunMember): void {
 
 function spawnEncounter(state: PartyRunState): void {
   state.enemies = buildEncounterEnemies(state);
-  for (const m of state.members) if (m.currentHealth > 0) restoreMemberResources(m);
+  // Iniciativa per encounter (D&D, 4d): d20 + DEX mod → pořadí akcí v kole.
+  const initRng = new SeededRng(seedFromString(`${state.seed}:init:${state.encounterIndex}`));
+  for (const m of state.members) {
+    if (m.currentHealth > 0) restoreMemberResources(m);
+    const dexMod = m.actor.saveMods?.dexterity ?? 0;
+    m.initiative = Math.floor(initRng.next() * 20) + 1 + dexMod;
+  }
   state.pending = {};
   state.status = 'in_combat';
 
@@ -240,6 +248,7 @@ export function startPartyRun(
     raging: false,
     mitigationTurns: 0,
     mitigationPct: 0,
+    initiative: 0,
     actor: seat.actor,
   }));
   const state: PartyRunState = {
@@ -327,8 +336,10 @@ export function resolvePartyRound(state: PartyRunState): { state: PartyRunState;
     return { state, events };
   }
 
-  // (2) Akce členů v pořadí slotů: hráč s buffrovanou akcí ji provede, jinak AI.
-  for (const member of [...state.members].sort((a, b) => a.slot - b.slot)) {
+  // (2) Akce členů v pořadí **iniciativy** (4d; tie-break slot): hráč s buffrovanou
+  // akcí ji provede, jinak AI (fallback za nečinného / AI parťák).
+  const order = [...state.members].sort((a, b) => b.initiative - a.initiative || a.slot - b.slot);
+  for (const member of order) {
     if (member.currentHealth <= 0) continue;
     const action = member.owner != null ? state.pending[member.slot] : undefined;
     takeMemberTurn(state, member, action, rng, t, emit);

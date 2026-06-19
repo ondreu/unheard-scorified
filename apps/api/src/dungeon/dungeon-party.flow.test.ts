@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { JwtService } from '@nestjs/jwt';
 import { drizzle } from 'drizzle-orm/pglite';
+import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthService } from '../auth/auth.service';
@@ -23,6 +24,8 @@ import { HistoryRepository } from '../history/history.repository';
 import { GroupRepository } from '../group/group.repository';
 import { DungeonPartyService, type DungeonPartyRunView } from './dungeon-party.service';
 import { DungeonPartyRepository } from './dungeon-party.repository';
+import { DungeonPartyEventsRelay } from './dungeon-party.events';
+import { NoopDungeonPartyScheduler } from './dungeon-party.scheduler';
 import type { RaidRole } from '@game/shared';
 
 /**
@@ -64,6 +67,8 @@ describe('Slice 4 flow: živé MP tahové dungeon sezení', () => {
       new RotationService(charRepo, new LevelUpRepository(db), new RotationRepository(db), invService),
       new HistoryRepository(db),
       new DungeonPartyRepository(db),
+      new DungeonPartyEventsRelay(),
+      new NoopDungeonPartyScheduler(),
     );
   });
 
@@ -137,6 +142,22 @@ describe('Slice 4 flow: živé MP tahové dungeon sezení', () => {
     }
     expect(run.status).toBe('cleared');
     expect(run.encountersCleared).toBe(run.encounterCount);
+  });
+
+  it('AI fallback: prošlý deadline → kolo se vyhodnotí i bez akcí hráčů', async () => {
+    const p = await makeParty();
+    const launched = await party.launch(p.leader.accountId, p.leader.id, 'ragefire_chasm');
+    const before = launched.enemies.reduce((n, e) => n + e.currentHealth, 0);
+    // Simuluj vypršení deadlinu kola (nikdo nehraje).
+    await db
+      .update(schema.dungeonPartyRuns)
+      .set({ roundDeadline: new Date(Date.now() - 1000) })
+      .where(eq(schema.dungeonPartyRuns.id, launched.runId));
+    // getRun dožene prošlé kolo (AI fallback za všechny).
+    const after = await party.getRun(p.leader.accountId, p.leader.id, launched.runId);
+    const afterHp = after.enemies.reduce((n, e) => n + e.currentHealth, 0);
+    expect(afterHp).toBeLessThan(before); // AI fallback partu rozhýbal
+    expect(after.events.some((e) => e.type === 'attack' || e.type === 'ability')).toBe(true);
   });
 
   it('reward: po clearu dostane každý účastník XP', async () => {
