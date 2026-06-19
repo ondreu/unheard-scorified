@@ -7,6 +7,7 @@
     ApiError,
     enterDungeon,
     enterDungeonTurn,
+    enterDungeonTurnGroup,
     listDungeons,
     type DungeonListItem,
   } from '$lib/api';
@@ -31,6 +32,9 @@
     entering: 'Entering…',
     turnBased: '⚔️ Turn-based',
     turnHint: 'Play it out turn by turn (solo).',
+    turnGroup: '⚔️ Turn-based (party)',
+    turnGroupHint: 'Play it out turn by turn with AI companions filling the party.',
+    role: 'Role',
     boss: 'Boss',
     encounters: 'Encounters',
     locked: 'Locked',
@@ -49,6 +53,8 @@
   let enteringId = $state<string | null>(null);
   // Zvolená velikost party per dungeon (default 1 = solo).
   let sizeById = $state<Record<string, number>>({});
+  // Zvolená role hráče per dungeon pro group tahový mód (default dps).
+  let roleById = $state<Record<string, 'tank' | 'healer' | 'dps'>>({});
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -88,6 +94,19 @@
     error = null;
     try {
       const run = await enterDungeonTurn(characterId, d.id);
+      await goto(`/characters/${characterId}/dungeon-turn/${run.runId}`);
+    } catch (err) {
+      error = (err as Error).message;
+      enteringId = null;
+    }
+  }
+
+  // Tahový group mód (Slice 3) — hráč zvolí roli, AI parťáci doplní 1/1/1.
+  async function enterTurnGroup(d: DungeonListItem): Promise<void> {
+    enteringId = d.id;
+    error = null;
+    try {
+      const run = await enterDungeonTurnGroup(characterId, d.id, roleById[d.id] ?? 'dps');
       await goto(`/characters/${characterId}/dungeon-turn/${run.runId}`);
     } catch (err) {
       error = (err as Error).message;
@@ -170,6 +189,21 @@
                     title={ui.turnHint}
                   >
                     {ui.turnBased}
+                  </button>
+                {:else if (sizeById[d.id] ?? 1) === 3}
+                  <label class="sr-only" for={`role-${d.id}`}>{ui.role}</label>
+                  <select id={`role-${d.id}`} bind:value={roleById[d.id]} class="input w-auto">
+                    <option value="dps">⚔️ DPS</option>
+                    <option value="tank">🛡️ Tank</option>
+                    <option value="healer">✨ Healer</option>
+                  </select>
+                  <button
+                    onclick={() => enterTurnGroup(d)}
+                    disabled={enteringId !== null}
+                    class="btn btn-sm"
+                    title={ui.turnGroupHint}
+                  >
+                    {ui.turnGroup}
                   </button>
                 {/if}
               </div>

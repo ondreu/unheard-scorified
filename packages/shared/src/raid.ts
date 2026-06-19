@@ -114,6 +114,12 @@ export const RAID_PARTY_SIZE = compositionSize(RAID_COMPOSITION);
 const TANK_HP_MULT = 1.6;
 const TANK_DAMAGE_MULT = 0.5;
 const TANK_MITIGATION = 0.65;
+/**
+ * Podíl příchozího poškození, který tank skutečně schytá (po mitigaci). Sdíleno
+ * s tahovým group enginem (`dungeon-run.ts`), aby tankování fungovalo stejně
+ * v auto-resolve i tahovém režimu — jediný zdroj pravdy.
+ */
+export const TANK_INCOMING_DAMAGE_MULT = TANK_MITIGATION;
 /** Healer: léčí (násobek attack power), jen symbolický dmg. */
 const HEALER_HEAL_MULT = 1.6;
 const HEALER_DAMAGE_MULT = 0.15;

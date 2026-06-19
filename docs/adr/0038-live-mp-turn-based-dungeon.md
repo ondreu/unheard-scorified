@@ -1,0 +1,102 @@
+# ADR 0038 — Živé MP tahové dungeon sezení (real players + AI fallback)
+
+Status: **Accepted** (rozhodnutí PM: živé sezení + AI fallback) — realizováno
+inkrementálně (sub-slices). Datum: 2026-06-19.
+Navazuje na ADR 0037 (dungeon overhaul), je to jeho **Slice 4**.
+
+## Kontext
+
+ADR 0037 přinesl tahový dungeon engine: **Slice 2** (solo 1 hráč) a **Slice 3**
+(group s **AI parťáky**, autofill 3-player). Engine (`dungeon-run.ts`) je
+hero-centrický „round model": jeden tah = hráč zvolí ability+cíl → AI parťáci
+jednají automaticky → nepřátelé útočí → údržba.
+
+Slice 4 = **ruční party reálných hráčů** (3/5) v tahovém boji. Rozhodnutí PM
+(model koordinace tahů): **živé sezení + AI fallback** — hráči se sejdou
+(stávající party systém), boj běží tah po tahu; když hráč svůj tah nestihne
+v časovém okně, **převezme ho AI** (recykluje rozhodovací logiku ze Slice 3).
+To je most mezi idle/AFK povahou hry a MP zážitkem (nikdo neblokuje run navždy).
+
+Existující infra (viz mapa): Socket.IO + Redis adaptér (multi-instance,
+`redis-io.adapter.ts`), event-relay gateway vzor (`arena.gateway.ts`,
+`social.gateway.ts`), party systém (`groups`/`group_members`, `group.launch`),
+atomická Redis fronta (`raid.matchmaking.ts`), sdílená run persistence
+(`raid_runs`/`raid_run_participants`), web socket klient (`arena-socket.ts`).
+
+## Rozhodnutí
+
+Postavit **živé, sdílené, server-authoritative tahové dungeon sezení** pro partu
+reálných hráčů, s **AI fallbackem** na timeout tahu. Model boje:
+**simultánní kolo s buffrovanými akcemi** (drží se round modelu ze Slice 2/3 —
+NE plně initiative-interleaved): každé kolo všichni živí lidští hráči zvolí svou
+akci; jakmile všichni odešlou (nebo vyprší deadline → AI doplní chybějící),
+**kolo se vyhodnotí** (akce hráčů v pořadí slotů → AI-obsazené sloty → nepřátelé).
+Server je jediný zdroj pravdy; klient posílá jen volbu (anti-cheat).
+
+Sdílený run (multi-owner) odkazuje členy party (vlastnictví slotu = `characterId`
+nebo `null` pro AI). Prázdné sloty lze doplnit AI (companion roster ze Slice 3) →
+party menší než 3/5 je hratelná. **Wipe** = padne celá party (na rozdíl od solo,
+kde „down hrdiny = konec"); pád jednotlivce ho jen vyřadí.
+
+### Sub-slices
+
+- **Slice 4a — deterministické jádro (`dungeon-party.ts`) + testy (tento commit):**
+  Čistý serializovatelný engine pro **multi-owner partu** (členové = lidé i AI):
+  `startPartyRun`, `submitPartyAction` (buffrování + validace vlastnictví/tahu),
+  `resolvePartyRound` (vyhodnocení kola: lidské akce → AI-obsazené → nepřátelé,
+  advance/wipe). AI volba tahu sdílí logiku se Slice 3. Recykluje sdílené bojové
+  primitivy (`computeHit`/`abilityDamageSpec`/`healDiceSpec`/slot+Ki+rage),
+  `groupEncounters`, `TANK_INCOMING_DAMAGE_MULT`. **Nezasahuje do Slice 2/3**
+  (separátní stav/engine vedle `dungeon-run.ts`). Kontraktní unit testy
+  (determinismus, AI fallback, wipe, clear).
+
+- **Slice 4b — API + persistence + REST (hotovo):** tabulky `dungeon_party_runs`
+  (+ `dungeon_party_participants`), migrace `0042`. `DungeonPartyRepository` +
+  `DungeonPartyService`: `launch` z party leadera (joined členové + role →
+  seaty, velikost 3/5), `submit` (buffrování, ready → `resolvePartyRound`),
+  `getRun`/`submit` **doženou prošlé deadliny** (`progressOverdue` → AI fallback
+  za nečinné, idle-friendly bez WS), `abandon` (leader), `finalize` = per-člen
+  `computeGroupReward` + weekly lockout + reputace + loot + history. Routy
+  `:dungeonId/party/launch` · `party/run/:id` · `party/run/:id/submit` ·
+  `party/run/:id/abandon`. Web: živá stránka `dungeon-party/[runId]` (REST polling
+  2,5 s, party panel + „kdo odeslal", deadline odpočet, ability bar jen na tahu)
+  + „⚔️ Live" launch v group page. `GroupRepository` poskytnut přímo v
+  `DungeonModule` (stateless, předchází cyklu s `GroupModule`). Integrační flow
+  testy (launch z party, vlastnictví, kolo se vyhodnotí po všech, clear + reward).
+
+- **Slice 4c — WebSocket živé push (hotovo):** `DungeonPartyGateway` (Socket.IO,
+  JWT handshake, room `party-run:{runId}`) + `DungeonPartyEventsRelay` (drží
+  server, fan-out přes Redis adaptér). View je per-viewer → push je lehký signál
+  `party:updated`; klient si vyžádá `party:state` (`party:join`/`party:state`/
+  `party:submit`/`party:leave`). **Deadline driver** = BullMQ scheduled job
+  (`DungeonPartyScheduler`, mirror `activity.scheduler`): job v čase deadlinu →
+  `tickDeadline` → AI fallback za nečinné + přeplánování; **atomický `claimDueRound`**
+  (DB CAS, row-lock) brání dvojímu vyhodnocení kola při souběhu submit-resolve vs
+  job (i napříč instancemi). REST cesty (`getRun`/`submit`) zůstávají
+  autoritativním fallbackem (když Redis/WS neběží). Web: živá stránka přešla na
+  WS push (`dungeon-party-socket.ts`) + pomalý REST safety-net (8 s).
+
+- **Slice 4d — initiative + reconnection (částečně hotovo):** ✅ **initiative
+  ordering** — pořadí akcí v kole = d20 + DEX mod (rolováno per encounter,
+  deterministicky ze seedu) místo pořadí slotů. ✅ **reconnection** — WS `connect`
+  znovu joinne sezení a dotáhne stav (idempotentní `party:join`). _Zbývá: 5-player
+  content tuning (velikost 5 už technicky funguje přes škálování nepřátel)._
+
+## Důsledky
+
+- **Determinismus zachován** — vše přes `SeededRng`; kolo se vyhodnotí ze
+  serializovaného stavu + buffrovaných akcí → reprodukovatelné (anti-cheat).
+- **Idle-friendly** — AI fallback na deadline znamená, že odpojený/nečinný hráč
+  neblokuje run; party doběhne i s AI. WS (4c) je enhancement nad REST (4b),
+  konzistentní s tím, jak je v repo arena (REST polling + WS push).
+- **Slice 2/3 nedotčeny** — live engine je separátní (`dungeon-party.ts`); solo
+  a 3-AI autofill (`dungeon-run.ts`) beze změny.
+- **Reward model sdílený** — `computeGroupReward` + weekly lockout + reputace
+  jako auto-resolve i Slice 2/3 (žádná nová ekonomika).
+
+## Reference
+
+- `packages/shared/src/dungeon-party.ts` (live engine, Slice 4a)
+- `packages/shared/src/dungeon-run.ts` (Slice 2/3 engine — nedotčen)
+- `packages/shared/src/data/companions.ts` (AI roster, Slice 3)
+- ADR 0037 (dungeon overhaul), ADR 0014 (group PVE run), ADR 0010 (WS realtime).

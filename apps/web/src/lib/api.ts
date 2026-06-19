@@ -440,6 +440,14 @@ export interface DungeonTurnEnemyView {
   currentHealth: number;
 }
 
+export interface DungeonTurnAllyView {
+  name: string;
+  role: 'tank' | 'healer' | 'dps';
+  maxHealth: number;
+  currentHealth: number;
+  absorb: number;
+}
+
 export interface DungeonTurnRunView {
   runId: string;
   dungeonId: string;
@@ -448,6 +456,8 @@ export interface DungeonTurnRunView {
   encounterIndex: number;
   encounterCount: number;
   encountersCleared: number;
+  size: number;
+  playerRole: 'tank' | 'healer' | 'dps';
   player: {
     name: string;
     maxHealth: number;
@@ -462,6 +472,7 @@ export interface DungeonTurnRunView {
     maxRageCharges: number;
     raging: boolean;
   };
+  allies: DungeonTurnAllyView[];
   enemies: DungeonTurnEnemyView[];
   abilities: DungeonTurnAbilityView[];
   events: CombatEvent[];
@@ -472,6 +483,17 @@ export interface DungeonTurnRunView {
 export function enterDungeonTurn(characterId: string, dungeonId: string): Promise<DungeonTurnRunView> {
   return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/${dungeonId}/turn/enter`, {
     method: 'POST',
+  });
+}
+
+export function enterDungeonTurnGroup(
+  characterId: string,
+  dungeonId: string,
+  role: 'tank' | 'healer' | 'dps',
+): Promise<DungeonTurnRunView> {
+  return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/${dungeonId}/turn/enter-group`, {
+    method: 'POST',
+    body: JSON.stringify({ role, size: 3 }),
   });
 }
 
@@ -493,6 +515,79 @@ export function actDungeonTurn(
 
 export function abandonDungeonTurn(characterId: string, runId: string): Promise<DungeonTurnRunView> {
   return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/turn/run/${runId}/abandon`, {
+    method: 'POST',
+  });
+}
+
+// ── Živé MP tahové sezení (ADR 0038, Slice 4) ──────────────────────────────────
+
+export interface DungeonPartyMemberView {
+  slot: number;
+  name: string;
+  role: 'tank' | 'healer' | 'dps';
+  isAi: boolean;
+  isYou: boolean;
+  currentHealth: number;
+  maxHealth: number;
+  absorb: number;
+  submitted: boolean;
+}
+
+export interface DungeonPartyRunView {
+  runId: string;
+  dungeonId: string;
+  dungeonName: string;
+  status: 'in_combat' | 'cleared' | 'wiped';
+  size: number;
+  encounterIndex: number;
+  encounterCount: number;
+  encountersCleared: number;
+  roundReady: boolean;
+  roundDeadline: number | null;
+  members: DungeonPartyMemberView[];
+  enemies: DungeonTurnEnemyView[];
+  you: {
+    slot: number;
+    role: 'tank' | 'healer' | 'dps';
+    currentHealth: number;
+    maxHealth: number;
+    absorb: number;
+    submitted: boolean;
+    spellSlots: Record<number, number>;
+    maxSpellSlots: Record<number, number>;
+    kiPoints: number;
+    maxKiPoints: number;
+    abilities: DungeonTurnAbilityView[];
+  } | null;
+  events: CombatEvent[];
+  reward: { xp: number; gold: number; items: string[] } | null;
+  myLockedOut: boolean;
+}
+
+export function launchDungeonParty(characterId: string, dungeonId: string): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/${dungeonId}/party/launch`, {
+    method: 'POST',
+  });
+}
+
+export function getDungeonPartyRun(characterId: string, runId: string): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}`);
+}
+
+export function submitDungeonParty(
+  characterId: string,
+  runId: string,
+  abilityId: string,
+  targetId: number,
+): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ abilityId, targetId }),
+  });
+}
+
+export function abandonDungeonParty(characterId: string, runId: string): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}/abandon`, {
     method: 'POST',
   });
 }

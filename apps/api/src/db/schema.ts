@@ -50,6 +50,8 @@ import type {
   GauntletStatus,
   DungeonRunState,
   DungeonRunStatus,
+  PartyRunState,
+  PartyRunStatus,
 } from '@game/shared';
 
 export const healthLog = pgTable('health_log', {
@@ -1020,6 +1022,51 @@ export const dungeonTurnRunsRelations = relations(dungeonTurnRuns, ({ one }) => 
 }));
 
 /**
+ * Živé MP tahové dungeon sezení (ADR 0038, Slice 4) — sdílený multi-owner run
+ * party reálných hráčů (+ případných AI parťáků). Stav (`PartyRunState`) drží
+ * buffrované akce kola; `roundDeadline` = po něm AI fallback doplní nečinné
+ * hráče (idle-friendly). Účastníci žijí v `dungeon_party_participants`.
+ */
+export const dungeonPartyRuns = pgTable('dungeon_party_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  dungeonId: varchar('dungeon_id', { length: 64 }).notNull(),
+  /** Leader (iniciátor) — seeduje běh, smí ho ukončit. */
+  leaderCharacterId: uuid('leader_character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  level: integer('level').notNull(),
+  size: integer('size').notNull(),
+  state: jsonb('state').$type<PartyRunState>().notNull(),
+  status: varchar('status', { length: 16 }).$type<PartyRunStatus>().notNull(),
+  encountersCleared: integer('encounters_cleared').notNull().default(0),
+  /** Deadline aktuálního kola — po něm se vyhodnotí s AI fallbackem za nečinné. */
+  roundDeadline: timestamp('round_deadline', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+});
+
+/** Účastník živého MP tahového runu (reálný hráč). Per-člen personal reward. */
+export const dungeonPartyParticipants = pgTable(
+  'dungeon_party_participants',
+  {
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => dungeonPartyRuns.id, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 8 }).$type<RaidRole>().notNull(),
+    initiator: integer('initiator').notNull().default(0),
+    rewardXp: integer('reward_xp').notNull().default(0),
+    rewardGold: integer('reward_gold').notNull().default(0),
+    rewardItems: jsonb('reward_items').$type<string[]>().notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.runId, t.characterId] })],
+);
+
+/**
  * Denní (UTC) souhrn odměn získaných z Gauntletu — pro denní strop (anti-grind).
  * `dayId` = `YYYY-MM-DD` (UTC). Jeden řádek na postavu a den.
  */
@@ -1132,6 +1179,10 @@ export type GauntletRun = typeof gauntletRuns.$inferSelect;
 export type NewGauntletRun = typeof gauntletRuns.$inferInsert;
 export type DungeonTurnRun = typeof dungeonTurnRuns.$inferSelect;
 export type NewDungeonTurnRun = typeof dungeonTurnRuns.$inferInsert;
+export type DungeonPartyRun = typeof dungeonPartyRuns.$inferSelect;
+export type NewDungeonPartyRun = typeof dungeonPartyRuns.$inferInsert;
+export type DungeonPartyParticipant = typeof dungeonPartyParticipants.$inferSelect;
+export type NewDungeonPartyParticipant = typeof dungeonPartyParticipants.$inferInsert;
 export type GauntletDaily = typeof gauntletDaily.$inferSelect;
 export type NewGauntletDaily = typeof gauntletDaily.$inferInsert;
 

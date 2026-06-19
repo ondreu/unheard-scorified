@@ -140,6 +140,24 @@ describe('Slice 2 flow: turn-based solo dungeon', () => {
     await expect(turn.enter(c.accountId, c.id, 'ragefire_chasm')).resolves.toBeTruthy();
   });
 
+  it('group autofill (Slice 3): hráč zvolí roli, AI doplní partu na 1/1/1', async () => {
+    const c = await strongCharacter('t7', 'Captain');
+    const run = await turn.enterGroup(c.accountId, c.id, 'ragefire_chasm', 'dps');
+    expect(run.size).toBe(3);
+    expect(run.playerRole).toBe('dps');
+    expect(run.allies.length).toBe(2);
+    expect(run.allies.map((a) => a.role).sort()).toEqual(['healer', 'tank']);
+    // Party vyčistí dungeon tah po tahu (hráč mlátí, AI parťáci jednají sami).
+    const done = await play(c.accountId, c.id, run.runId);
+    expect(done.status).toBe('cleared');
+  });
+
+  it('group: neplatná role / nepodporovaná velikost selže', async () => {
+    const c = await strongCharacter('t8', 'Bracer');
+    await expect(turn.enterGroup(c.accountId, c.id, 'ragefire_chasm', 'bogus')).rejects.toThrow();
+    await expect(turn.enterGroup(c.accountId, c.id, 'ragefire_chasm', 'tank', 5)).rejects.toThrow();
+  });
+
   it('cizí účet nemůže číst/hrát cizí run', async () => {
     const owner = await strongCharacter('t6a', 'Owner');
     const intruder = await strongCharacter('t6b', 'Intruder');
