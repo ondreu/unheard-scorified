@@ -27,20 +27,37 @@ export type ClassId =
   | 'warlock'
   | 'wizard';
 
-/** Subclass identifikátory (1 per třída v MVP — D&D Remaster). */
+/**
+ * Subclass identifikátory (D&D Remaster). 2 per třída (ADR 0040 / B3): původní
+ * MVP subclass + 1 nová tematická. Subclassy, které by udělovaly *nové* sesílání
+ * (Eldritch Knight / Arcane Trickster), záměrně vynechány — spell sloty jsou
+ * vázané na classu (`CASTER_TYPE`), ne subclass.
+ */
 export type SubclassId =
   | 'path_of_the_berserker'
+  | 'path_of_the_totem_warrior'
   | 'college_of_lore'
+  | 'college_of_valor'
   | 'life_domain'
+  | 'war_domain'
   | 'circle_of_the_moon'
+  | 'circle_of_the_land'
   | 'champion'
+  | 'battle_master'
   | 'way_of_the_open_hand'
+  | 'way_of_shadow'
   | 'oath_of_devotion'
+  | 'oath_of_vengeance'
   | 'hunter'
+  | 'beast_master'
   | 'thief'
+  | 'assassin'
   | 'draconic_bloodline'
+  | 'wild_magic'
   | 'the_fiend'
-  | 'school_of_evocation';
+  | 'the_great_old_one'
+  | 'school_of_evocation'
+  | 'school_of_abjuration';
 
 export type Role = 'tank' | 'healer' | 'dps';
 
@@ -96,6 +113,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         name: 'Path of the Berserker',
         description: 'Channel rage into a relentless Frenzy of extra attacks.',
       },
+      {
+        id: 'path_of_the_totem_warrior',
+        name: 'Path of the Totem Warrior',
+        description: 'Bear spirit totem — shrug off blows and endure any onslaught.',
+      },
     ],
   },
   bard: {
@@ -113,6 +135,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         id: 'college_of_lore',
         name: 'College of Lore',
         description: 'Cutting Words and a broad repertoire of magical secrets.',
+      },
+      {
+        id: 'college_of_valor',
+        name: 'College of Valor',
+        description: 'A martial battle hymn that empowers weapon strikes.',
       },
     ],
   },
@@ -132,6 +159,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         name: 'Life Domain',
         description: 'Disciple of life — your healing surges with divine power.',
       },
+      {
+        id: 'war_domain',
+        name: 'War Domain',
+        description: 'Channel Divinity guides your weapon to strike true.',
+      },
     ],
   },
   druid: {
@@ -149,6 +181,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         id: 'circle_of_the_moon',
         name: 'Circle of the Moon',
         description: 'Wild Shape into mighty beasts to tank and tear.',
+      },
+      {
+        id: 'circle_of_the_land',
+        name: 'Circle of the Land',
+        description: 'Draw on the land itself — thorns and bramble lash your foes.',
       },
     ],
   },
@@ -168,6 +205,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         name: 'Champion',
         description: 'Improved Critical and raw martial superiority.',
       },
+      {
+        id: 'battle_master',
+        name: 'Battle Master',
+        description: 'Superiority dice fuel precise, extra-damaging combat maneuvers.',
+      },
     ],
   },
   monk: {
@@ -185,6 +227,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         id: 'way_of_the_open_hand',
         name: 'Way of the Open Hand',
         description: 'Flurry of Blows that staggers and strikes vital points.',
+      },
+      {
+        id: 'way_of_shadow',
+        name: 'Way of Shadow',
+        description: 'Strike from darkness with sudden, advantaged blows.',
       },
     ],
   },
@@ -204,6 +251,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         name: 'Oath of Devotion',
         description: 'Sacred Weapon and radiant Divine Smites.',
       },
+      {
+        id: 'oath_of_vengeance',
+        name: 'Oath of Vengeance',
+        description: 'Vow of Enmity — hunt a marked foe with relentless, advantaged strikes.',
+      },
     ],
   },
   ranger: {
@@ -221,6 +273,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         id: 'hunter',
         name: 'Hunter',
         description: "Hunter's Mark and focused fire on a single prey.",
+      },
+      {
+        id: 'beast_master',
+        name: 'Beast Master',
+        description: 'A bonded beast companion that tears into your enemies.',
       },
     ],
   },
@@ -240,6 +297,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         name: 'Thief',
         description: 'Fast Hands and devastating Sneak Attacks from the shadows.',
       },
+      {
+        id: 'assassin',
+        name: 'Assassin',
+        description: 'Assassinate — lethal opening strikes with advantage and full Sneak dice.',
+      },
     ],
   },
   sorcerer: {
@@ -257,6 +319,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         id: 'draconic_bloodline',
         name: 'Draconic Bloodline',
         description: 'Draconic heritage empowers your elemental sorcery.',
+      },
+      {
+        id: 'wild_magic',
+        name: 'Wild Magic',
+        description: 'Untamed chaos magic erupts in unpredictable bursts.',
       },
     ],
   },
@@ -276,6 +343,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         name: 'The Fiend',
         description: 'A fiendish patron fuels relentless Eldritch Blasts.',
       },
+      {
+        id: 'the_great_old_one',
+        name: 'The Great Old One',
+        description: 'An alien patron whispers maddening, mind-rending magic.',
+      },
     ],
   },
   wizard: {
@@ -293,6 +365,11 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         id: 'school_of_evocation',
         name: 'School of Evocation',
         description: 'Sculpt Spells and overwhelming arcane firepower.',
+      },
+      {
+        id: 'school_of_abjuration',
+        name: 'School of Abjuration',
+        description: 'An Arcane Ward absorbs incoming harm, shielding you in battle.',
       },
     ],
   },

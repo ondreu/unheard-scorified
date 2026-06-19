@@ -393,17 +393,29 @@ export function classSpellCatalog(klass: ClassId | string): BaselineAbility[] {
 
 export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
   path_of_the_berserker: ba('berserker_frenzy', 'Frenzy', 'Frenzied rage grants an extra weapon attack each turn.', 'strike', 8, 2.0, 3),
+  path_of_the_totem_warrior: ba('totem_bear_spirit', 'Bear Spirit', 'The bear totem toughens your hide — incoming damage is reduced for a time.', 'mitigation', 24, 0, 3, { mitigation: { mitigationPct: 0.4, mitigationDurationSec: 12 } }),
   college_of_lore: ba('lore_song_of_rest', 'Song of Rest', 'An inspiring melody heals a wounded ally for 2d8 + your spellcasting modifier. +1d8 per slot above 2nd.', 'heal', 8, 2.7, 3, { spellTier: 2, dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
+  college_of_valor: ba('valor_combat_inspiration', 'Combat Inspiration', 'A martial battle hymn empowers a mighty strike, adding 1d6 to the hit.', 'strike', 7, 1.0, 3, { bonusDice: { count: 1, sides: 6, bonus: 0 } }),
   life_domain: ba('life_preserve_life', 'Preserve Life', 'Channel Divinity surges a pool of healing for 5d8 — no spell slot (refreshes on a Long Rest).', 'heal', 26, 3.0, 1, { dice: { count: 5, sides: 8, bonus: 0 } }),
+  war_domain: ba('war_guided_strike', 'Guided Strike', 'Channel Divinity guides your weapon with advantage, adding 2d6 radiant.', 'strike', 9, 1.0, 1, { advantage: true, damageType: 'radiant', bonusDice: { count: 2, sides: 6, bonus: 0 } }),
   circle_of_the_moon: ba('moon_wild_shape', 'Wild Shape: Dire Bear', 'Transforms into a dire bear and mauls with two attacks.', 'strike', 9, 2.0, 2),
+  circle_of_the_land: ba('land_natures_wrath', "Nature's Wrath", 'Thorns and bramble lash a foe for 4d8 piercing. +1d8 per slot above 2nd.', 'strike', 9, 1.0, 2, { spellTier: 2, damageType: 'piercing', dice: { count: 4, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
   champion: ba('champion_heroic_surge', 'Heroic Surge', 'Action Surge grants an extra Attack action this turn.', 'strike', 8, 2.0, 3),
+  battle_master: ba('battlemaster_maneuver', 'Combat Maneuver', 'A superiority die fuels a precise strike, adding 1d10 to the weapon hit.', 'strike', 8, 1.0, 3, { bonusDice: { count: 1, sides: 10, bonus: 0 } }),
   way_of_the_open_hand: ba('open_hand_flurry', 'Flurry of Blows', 'Two unarmed strikes as a bonus action. Costs 1 Ki.', 'strike', 8, 2.0, 3, { kiCost: 1 }),
+  way_of_shadow: ba('shadow_shadow_strike', 'Shadow Strike', 'Strike from darkness with advantage. Costs 1 Ki.', 'strike', 8, 2.0, 3, { advantage: true, kiCost: 1 }),
   oath_of_devotion: ba('devotion_sacred_weapon', 'Sacred Weapon', 'Channel Divinity blesses the weapon: a strike that adds 2d4 radiant.', 'strike', 9, 1.0, 3, { damageType: 'radiant', bonusDice: { count: 2, sides: 4, bonus: 0 } }),
+  oath_of_vengeance: ba('vengeance_vow_of_enmity', 'Vow of Enmity', 'Mark a foe for vengeance — strike with advantage and 2d8 radiant fury.', 'strike', 9, 1.0, 3, { advantage: true, damageType: 'radiant', bonusDice: { count: 2, sides: 8, bonus: 0 } }),
   hunter: ba('hunter_colossus_slayer', 'Colossus Slayer', 'A focused shot adding 1d8 to the weapon hit against a wounded foe.', 'strike', 9, 1.0, 3, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
+  beast_master: ba('beastmaster_companion_strike', 'Companion Strike', 'Your bonded beast tears into the target for heavy damage.', 'strike', 7, 1.75, 3),
   thief: ba('thief_backstab', 'Backstab', 'A shadow strike struck with advantage, adding full Sneak Attack dice.', 'strike', 9, 1.0, 3, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
+  assassin: ba('assassin_assassinate', 'Assassinate', 'A lethal opening strike with advantage and full, level-scaling Sneak dice.', 'strike', 10, 1.0, 3, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
   draconic_bloodline: ba('draconic_elemental_burst', 'Elemental Burst', 'Draconic power erupts for 4d6 fire. +1d6 per slot above 2nd.', 'strike', 9, 1.0, 1, { spellTier: 2, damageType: 'fire', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+  wild_magic: ba('wild_magic_surge', 'Wild Magic Surge', 'Chaotic magic erupts for 4d6 force (DEX save halves). +1d6 per slot above 2nd.', 'strike', 9, 1.0, 1, { spellTier: 2, damageType: 'force', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
   the_fiend: ba('fiend_dark_ones_blessing', "Dark One's Blessing", 'A fiendish blast for 3d6 fire, draining 20% of the damage as healing. +1d6 per slot above 2nd.', 'drain', 8, 1.0, 1, { drainHealFraction: 0.2, spellTier: 2, damageType: 'fire', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+  the_great_old_one: ba('great_old_one_mind_whispers', 'Mind Whispers', 'Alien whispers rend the mind for 3d6 psychic (WIS save halves). +1d6 per slot above 2nd.', 'strike', 8, 1.0, 1, { spellTier: 2, damageType: 'psychic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' } }),
   school_of_evocation: ba('evocation_overchannel', 'Overchannel', 'Overchanneled arcana erupts for 6d6 force (maximized evocation). +1d6 per slot above 3rd.', 'strike', 10, 1.0, 2, { spellTier: 3, damageType: 'force', dice: { count: 6, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+  school_of_abjuration: ba('abjuration_arcane_ward', 'Arcane Ward', 'An arcane ward absorbs incoming harm, reducing damage taken for a time.', 'mitigation', 22, 0, 2, { mitigation: { mitigationPct: 0.4, mitigationDurationSec: 10 } }),
 };
 
 /**

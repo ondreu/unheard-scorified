@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import type { LevelUpChoice, SubclassId } from '@game/shared';
 import { DB, type Database } from '../db/db.module';
 import { characterLevelUpChoices, characters, type CharacterLevelUpChoice } from '../db/schema';
@@ -33,6 +33,19 @@ export class LevelUpRepository {
       .update(characters)
       .set({ subclass })
       .where(eq(characters.id, characterId));
+  }
+
+  /** Smaže konkrétní sloty (např. osiřelé class-feature volby po změně subclassi). */
+  async deleteSlots(characterId: string, slotIds: string[]): Promise<void> {
+    if (slotIds.length === 0) return;
+    await this.db
+      .delete(characterLevelUpChoices)
+      .where(
+        and(
+          eq(characterLevelUpChoices.characterId, characterId),
+          inArray(characterLevelUpChoices.slotId, slotIds),
+        ),
+      );
   }
 
   /** Resetuje všechny level-up volby postavy (i denormalizovanou subclass). */
