@@ -196,6 +196,36 @@ export function spellSlotTiers(slots: SpellSlots): number[] {
     .sort((a, b) => a - b);
 }
 
+/**
+ * Vyčerpá jeden spell slot tieru **>= `minTier`** (nejnižší dostupný → upcast jen
+ * když musí). **Mutuje** předaný rozpočet (lokální kopie per-encounter); vrací
+ * použitý tier, nebo `null` když žádný slot tieru ≥ minTier není (kouzlo „fizzles"
+ * → postava sáhne po zbrani/cantripu). Sdílený slot model napříč VŠEMI bojovými
+ * simulátory (quest / dungeon / PVP) — jediný zdroj per-encounter spotřeby slotů.
+ */
+export function spendSlotForTier(slots: SpellSlots, minTier: number): number | null {
+  for (let tier = Math.max(1, minTier); tier <= 9; tier++) {
+    if ((slots[tier] ?? 0) > 0) {
+      slots[tier] = (slots[tier] ?? 0) - 1;
+      return tier;
+    }
+  }
+  return null;
+}
+
+/**
+ * Je k dispozici alespoň jeden slot tieru **>= `minTier`**? Čistá kontrola (nemutuje)
+ * — pro UI (zašednutí kouzla bez slotu) a server-side validaci tahu, kde se ještě
+ * nesmí utratit. `minTier ≤ 0` (cantrip/martial) → vždy `true` (at-will, bez slotu).
+ */
+export function hasSlotForTier(slots: SpellSlots, minTier: number): boolean {
+  if (minTier < 1) return true;
+  for (let tier = minTier; tier <= 9; tier++) {
+    if ((slots[tier] ?? 0) > 0) return true;
+  }
+  return false;
+}
+
 /** Součet dvou slot map (využito pro „spent" akumulaci). */
 export function addSlots(a: SpellSlots, b: SpellSlots): SpellSlots {
   const out: SpellSlots = { ...a };

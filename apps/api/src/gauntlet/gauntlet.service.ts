@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   applyGauntletDraft,
+  canCastGauntletAbility,
   capGauntletReward,
   CLASSES,
   dailyPeriodId,
   gauntletAbilities,
+  hasSlotForTier,
   gauntletDailyGoldCap,
   gauntletDailyXpCap,
   gauntletRunReward,
@@ -26,6 +28,7 @@ import {
   type GauntletStatComparison,
   type ItemDef,
   type ItemStats,
+  type SpellSlots,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
@@ -45,6 +48,14 @@ export interface GauntletAbilityView {
   cooldownSec: number;
   cooldownRemaining: number;
   ready: boolean;
+  /** Spell tier kouzla (0 = cantrip/martial, zdarma). Slot ekonomika (ADR 0034). */
+  spellTier: number;
+  /** Kouzlo (tier ≥ 1) bez volného slotu → nelze seslat (UI ho zašedne). */
+  outOfSlots: boolean;
+  /** Ki cost techniky (Monk, ADR 0034). 0 = zdarma. */
+  kiCost: number;
+  /** Monkova technika bez dost Ki → nelze seslat (UI ji zašedne). */
+  outOfKi: boolean;
 }
 
 export interface GauntletDailyView {
@@ -65,6 +76,17 @@ export interface GauntletRunView {
     currentHealth: number;
     absorb: number;
     mitigationTurns: number;
+    /** Zbývající spell sloty per tier (ADR 0034) — rozpočet na celý run. */
+    spellSlots: SpellSlots;
+    /** Maximální spell sloty per tier (ze snapshotu) — pro „X/Y" zobrazení. */
+    maxSpellSlots: SpellSlots;
+    /** Zbývající Ki body (Monk) / max — class resource (ADR 0034). 0 = ne-Monk. */
+    kiPoints: number;
+    maxKiPoints: number;
+    /** Zbývající rage charges (Barbarian) / max + zda právě zuří (ADR 0034). */
+    rageCharges: number;
+    maxRageCharges: number;
+    raging: boolean;
   };
   enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
   abilities: GauntletAbilityView[];
@@ -162,10 +184,15 @@ export class GauntletService {
     const snapshot = run.playerSnapshot;
     const state = run.state;
 
-    // Validace: ability musí být v kitu a ready (server-authoritative anti-cheat).
+    // Validace: ability musí být v kitu, ready a mít volný spell slot (server-
+    // authoritative anti-cheat).
     const kit = gauntletAbilities(snapshot, state.picks);
-    if (!kit.some((a) => a.id === abilityId)) throw new BadRequestException('Unknown ability');
+    const ability = kit.find((a) => a.id === abilityId);
+    if (!ability) throw new BadRequestException('Unknown ability');
     if (!isGauntletAbilityReady(state, abilityId)) throw new BadRequestException('Ability on cooldown');
+    if (!canCastGauntletAbility(state, ability)) {
+      throw new BadRequestException('Out of spell slots for that spell');
+    }
 
     const { state: next } = resolveGauntletTurn(snapshot, state, abilityId);
 
@@ -405,6 +432,8 @@ export class GauntletService {
   ): GauntletAbilityView[] {
     return gauntletAbilities(snapshot, state.picks).map((a) => {
       const remaining = state.player.cooldowns[a.id] ?? 0;
+      const spellTier = a.spellTier ?? 0;
+      const kiCost = a.kiCost ?? 0;
       return {
         id: a.id,
         name: a.name,
@@ -413,6 +442,11 @@ export class GauntletService {
         cooldownSec: a.cooldownSec,
         cooldownRemaining: remaining,
         ready: remaining <= 0,
+        spellTier,
+        // Rozliš důvod nedostupnosti (slot vs Ki) pro správný UI štítek.
+        outOfSlots: spellTier >= 1 && !hasSlotForTier(state.player.spellSlots ?? {}, spellTier),
+        kiCost,
+        outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
       };
     });
   }
@@ -439,6 +473,13 @@ export class GauntletService {
         currentHealth: Math.max(0, Math.round(state.player.currentHealth)),
         absorb: Math.round(state.player.absorb),
         mitigationTurns: state.player.mitigationTurns,
+        spellSlots: state.player.spellSlots ?? { ...(run.playerSnapshot.spellSlots ?? {}) },
+        maxSpellSlots: run.playerSnapshot.spellSlots ?? {},
+        kiPoints: state.player.kiPoints ?? run.playerSnapshot.kiPoints ?? 0,
+        maxKiPoints: run.playerSnapshot.kiPoints ?? 0,
+        rageCharges: state.player.rageCharges ?? run.playerSnapshot.rageCharges ?? 0,
+        maxRageCharges: run.playerSnapshot.rageCharges ?? 0,
+        raging: state.player.raging ?? false,
       },
       enemy: state.enemy
         ? {

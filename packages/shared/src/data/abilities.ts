@@ -93,6 +93,12 @@ export interface SignatureAbility {
   save?: SpellSave;
   /** Automatický zásah (ignoruje hod na AC) — Magic Missile (ADR 0032). */
   autoHit?: boolean;
+  /**
+   * Ki body (ADR 0034, Slice 3) — kolik Ki stojí seslání této techniky (Monk).
+   * `undefined`/0 = zdarma (např. Martial Arts základní úder). Když nemá hráč
+   * dost Ki, technika se „drží" (jako kouzlo bez slotu) → základní úder.
+   */
+  kiCost?: number;
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -121,6 +127,8 @@ interface BaselineOpts {
   save?: SpellSave;
   /** Automatický zásah (Magic Missile). */
   autoHit?: boolean;
+  /** Ki cost (ADR 0034) — Monkovy techniky. */
+  kiCost?: number;
 }
 
 function ba(
@@ -151,6 +159,7 @@ function ba(
     ...(opts.dicePerSlotAbove !== undefined ? { dicePerSlotAbove: opts.dicePerSlotAbove } : {}),
     ...(opts.save !== undefined ? { save: opts.save } : {}),
     ...(opts.autoHit !== undefined ? { autoHit: opts.autoHit } : {}),
+    ...(opts.kiCost !== undefined ? { kiCost: opts.kiCost } : {}),
   };
 }
 
@@ -191,8 +200,8 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   monk: [
     ba('monk_martial_arts', 'Martial Arts', 'A swift unarmed strike for 120% weapon damage.', 'strike', 3, 1.2, 1),
-    ba('monk_stunning_strike', 'Stunning Strike', 'A precise blow to a pressure point for 175% weapon damage.', 'strike', 7, 1.75, 5),
-    ba('monk_quivering_palm', 'Quivering Palm', 'Lethal vibrations for 200% damage, rising to 300% against foes below 30% health.', 'strike', 9, 2.0, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 3.0 } }),
+    ba('monk_stunning_strike', 'Stunning Strike', 'A precise blow to a pressure point for 175% weapon damage. Costs 1 Ki.', 'strike', 7, 1.75, 5, { kiCost: 1 }),
+    ba('monk_quivering_palm', 'Quivering Palm', 'Lethal vibrations for 200% damage, rising to 300% against foes below 30% health. Costs 3 Ki.', 'strike', 9, 2.0, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 3.0 }, kiCost: 3 }),
   ],
   paladin: [
     ba('paladin_divine_smite', 'Divine Smite', 'A radiant strike for 180% weapon damage.', 'strike', 5, 1.8, 1, { spellTier: 1 }),
@@ -239,7 +248,7 @@ export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
   life_domain: ba('life_preserve_life', 'Preserve Life', 'Disciple of life surges a heal for 300% of your healing power.', 'heal', 8, 3.0, 1, { spellTier: 2 }),
   circle_of_the_moon: ba('moon_wild_shape', 'Wild Shape: Dire Bear', 'Transforms to maul for 240% weapon damage.', 'strike', 9, 2.4, 2),
   champion: ba('champion_heroic_surge', 'Heroic Surge', 'A champion strike for 230% weapon damage.', 'strike', 8, 2.3, 3),
-  way_of_the_open_hand: ba('open_hand_flurry', 'Flurry of Blows', 'A blinding flurry for 260% weapon damage.', 'strike', 8, 2.6, 3),
+  way_of_the_open_hand: ba('open_hand_flurry', 'Flurry of Blows', 'A blinding flurry for 260% weapon damage. Costs 1 Ki.', 'strike', 8, 2.6, 3, { kiCost: 1 }),
   oath_of_devotion: ba('devotion_sacred_weapon', 'Sacred Weapon', 'A radiant strike for 240% weapon damage.', 'strike', 9, 2.4, 3, { spellTier: 1 }),
   hunter: ba('hunter_colossus_slayer', 'Colossus Slayer', 'A focused shot for 230% damage, rising to 320% against foes below 35% health.', 'strike', 9, 2.3, 3, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
   thief: ba('thief_backstab', 'Backstab', 'A shadow strike for 230% weapon damage, rising to 320% against foes below 35% health.', 'strike', 9, 2.3, 3, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),

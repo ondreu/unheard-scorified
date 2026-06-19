@@ -239,10 +239,22 @@
               <dt class="text-[var(--text-dim)]">Health</dt>
               <dd>{d.sheet.derived.health}</dd>
             </div>
-            <div class="flex justify-between">
-              <dt class="text-[var(--text-dim)] capitalize">{d.sheet.derived.resource.type}</dt>
-              <dd>{d.sheet.derived.resource.max}</dd>
-            </div>
+            {#if d.sheet.derived.kiPoints > 0}
+              <div class="flex justify-between">
+                <dt class="text-[var(--text-dim)]">Ki</dt>
+                <dd>{d.sheet.derived.kiPoints}</dd>
+              </div>
+            {:else if d.sheet.derived.rageCharges > 0}
+              <div class="flex justify-between">
+                <dt class="text-[var(--text-dim)]">Rage</dt>
+                <dd>{d.sheet.derived.rageCharges}</dd>
+              </div>
+            {:else}
+              <div class="flex justify-between">
+                <dt class="text-[var(--text-dim)]">Spell Slots</dt>
+                <dd>{Object.values(d.sheet.derived.spellSlots).reduce((a, b) => a + b, 0) || '—'}</dd>
+              </div>
+            {/if}
             {#each statRows as s (s.key)}
               <div class="flex justify-between">
                 <dt class="text-[var(--text-dim)]">{s.label}</dt>

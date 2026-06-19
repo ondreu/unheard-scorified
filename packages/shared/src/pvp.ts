@@ -13,7 +13,9 @@
 import { SeededRng } from './rng';
 import {
   applyAbsorb,
+  applyRage,
   buildAttackMessage,
+  canRage,
   computeHit,
   round1,
   type CombatActor,
@@ -22,6 +24,7 @@ import {
 import { shouldCastAbility } from './rotation';
 import { missMessage } from './dnd-combat';
 import type { DamageType } from './data/damage';
+import { spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import {
   ARENA_SEASONS,
   ARENA_TIERS,
@@ -63,6 +66,10 @@ interface DuelTimer {
   executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
+  /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot strany. */
+  abilitySpellTier?: number;
+  /** Ki cost techniky (ADR 0034) — čerpá Ki pool strany (Monk). */
+  abilityKiCost?: number;
 }
 
 /**
@@ -73,9 +80,19 @@ interface DuelTimer {
 export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): PvpDuelResult {
   const rng = new SeededRng(seed);
   const events: CombatEvent[] = [];
+  // Rage (ADR 0034): Barbarian se na duel auto-rozzuří (resistance na fyzické + bonus).
+  if (canRage(a)) a = applyRage(a);
+  if (canRage(b)) b = applyRage(b);
   const hp: Record<DuelSide, number> = { a: a.maxHealth, b: b.maxHealth };
   const shield: Record<DuelSide, number> = { a: a.shield ?? 0, b: b.shield ?? 0 };
   const actor: Record<DuelSide, CombatActor> = { a, b };
+  // Spell sloty (ADR 0034) jako per-duel rozpočet kouzel každé strany.
+  const slotBudget: Record<DuelSide, SpellSlots> = {
+    a: { ...(a.spellSlots ?? {}) },
+    b: { ...(b.spellSlots ?? {}) },
+  };
+  // Ki body (ADR 0034) jako per-duel rozpočet Monkových technik každé strany.
+  const kiBudget: Record<DuelSide, number> = { a: a.kiPoints ?? 0, b: b.kiPoints ?? 0 };
   let clock = 0;
 
   events.push({
@@ -101,6 +118,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       executeBelowPct: ab.executeBelowPct,
       executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
+      abilitySpellTier: ab.spellTier,
+      abilityKiCost: ab.kiCost,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -113,6 +132,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       executeBelowPct: ab.executeBelowPct,
       executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
+      abilitySpellTier: ab.spellTier,
+      abilityKiCost: ab.kiCost,
     })),
   ];
 
@@ -144,6 +165,21 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       })
     ) {
       continue;
+    }
+    // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot strany; když
+    // dojdou, se „drží" (postava mlátí basic údery / cantripy). Per-duel rozpočet.
+    if (
+      timer.abilityId &&
+      (timer.abilitySpellTier ?? 0) >= 1 &&
+      spendSlotForTier(slotBudget[attackerSide], timer.abilitySpellTier!) == null
+    ) {
+      continue;
+    }
+    // Ki (ADR 0034): Monkova technika (`kiCost`) čerpá Ki pool strany; bez Ki se „drží".
+    const kiCost = timer.abilityKiCost ?? 0;
+    if (kiCost > 0) {
+      if (kiCost > kiBudget[attackerSide]) continue;
+      kiBudget[attackerSide] -= kiCost;
     }
 
     let effMult = timer.abilityMult ?? 1;
@@ -252,6 +288,10 @@ interface TeamTimer {
   executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
+  /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot daného člena. */
+  abilitySpellTier?: number;
+  /** Ki cost techniky (ADR 0034) — čerpá Ki pool daného člena (Monk). */
+  abilityKiCost?: number;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -277,6 +317,9 @@ export function simulateTeamFight(
 ): TeamFightResult {
   const rng = new SeededRng(seed);
   const events: CombatEvent[] = [];
+  // Rage (ADR 0034): Barbarian-členové obou týmů se auto-rozzuří (resistance + bonus).
+  teamA = teamA.map((m) => (canRage(m) ? applyRage(m) : m));
+  teamB = teamB.map((m) => (canRage(m) ? applyRage(m) : m));
   const team: Record<DuelSide, CombatActor[]> = { a: teamA, b: teamB };
   const hp: Record<DuelSide, number[]> = {
     a: teamA.map((m) => m.maxHealth),
@@ -285,6 +328,16 @@ export function simulateTeamFight(
   const shield: Record<DuelSide, number[]> = {
     a: teamA.map((m) => m.shield ?? 0),
     b: teamB.map((m) => m.shield ?? 0),
+  };
+  // Spell sloty (ADR 0034) jako per-zápas rozpočet kouzel každého člena obou týmů.
+  const slotBudget: Record<DuelSide, SpellSlots[]> = {
+    a: teamA.map((m) => ({ ...(m.spellSlots ?? {}) })),
+    b: teamB.map((m) => ({ ...(m.spellSlots ?? {}) })),
+  };
+  // Ki body (ADR 0034) per člen — rozpočet Monkových technik každého člena.
+  const kiBudget: Record<DuelSide, number[]> = {
+    a: teamA.map((m) => m.kiPoints ?? 0),
+    b: teamB.map((m) => m.kiPoints ?? 0),
   };
   let clock = 0;
 
@@ -310,7 +363,9 @@ export function simulateTeamFight(
           abilityMult: ab.damageMult,
           executeBelowPct: ab.executeBelowPct,
           executeDamageMult: ab.executeDamageMult,
-      abilityDamageType: ab.damageType,
+          abilityDamageType: ab.damageType,
+          abilitySpellTier: ab.spellTier,
+          abilityKiCost: ab.kiCost,
         });
       }
     });
@@ -350,6 +405,21 @@ export function simulateTeamFight(
       })
     ) {
       continue;
+    }
+    // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot člena; když dojdou,
+    // se „drží" (člen mlátí basic údery / cantripy). Per-zápas rozpočet per člen.
+    if (
+      timer.abilityId &&
+      (timer.abilitySpellTier ?? 0) >= 1 &&
+      spendSlotForTier(slotBudget[attackerSide][timer.member]!, timer.abilitySpellTier!) == null
+    ) {
+      continue;
+    }
+    // Ki (ADR 0034): Monkova technika čerpá Ki pool člena; bez Ki se „drží".
+    const kiCost = timer.abilityKiCost ?? 0;
+    if (kiCost > 0) {
+      if (kiCost > kiBudget[attackerSide][timer.member]!) continue;
+      kiBudget[attackerSide][timer.member]! -= kiCost;
     }
     let effMult = timer.abilityMult ?? 1;
     const defHpPct =

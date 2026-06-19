@@ -86,6 +86,29 @@ describe('simulatePvpDuel', () => {
     const result = simulatePvpDuel(caster, actor('Dummy', { maxHealth: 1500 }), 3);
     expect(result.events.some((e) => e.ability === 'Pyroblast')).toBe(true);
   });
+
+  // Spell sloty (ADR 0034): tier ≥ 1 kouzlo čerpá per-duel rozpočet strany; když
+  // dojde, postava mlátí basic údery / cantripy. Dva tankoví aktéři → dlouhý duel
+  // (rampage ho ukončí), takže kouzlo na cd 4 s má mnoho příležitostí se seslat.
+  const slotCaster = (slots: Record<number, number>, tier: number): CombatActor =>
+    actor('Caster', {
+      maxHealth: 4000,
+      attackPower: 30,
+      signatureAbilities: [{ id: 'spell_x', name: 'Spell X', kind: 'strike', cooldownSec: 4, damageMult: 1.5, spellTier: tier }],
+      spellSlots: slots,
+    });
+  const duelCasts = (slots: Record<number, number>, tier: number): number =>
+    simulatePvpDuel(slotCaster(slots, tier), actor('Foe', { maxHealth: 4000, attackPower: 30 }), 11)
+      .events.filter((e) => e.ability === 'Spell X').length;
+
+  it('spell sloty (ADR 0034): tier ≥ 1 kouzlo je omezené počtem slotů', () => {
+    expect(duelCasts({ 1: 2 }, 1)).toBe(2);
+    expect(duelCasts({}, 1)).toBe(0);
+  });
+
+  it('spell sloty (ADR 0034): cantrip (tier 0) je neomezený i bez slotů', () => {
+    expect(duelCasts({}, 0)).toBeGreaterThan(2);
+  });
 });
 
 describe('Elo rating', () => {

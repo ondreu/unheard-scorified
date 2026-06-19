@@ -64,7 +64,7 @@ describe('M1 flow: účet + postava', () => {
       class: 'druid',
     });
     expect(char.sheet.level).toBe(1);
-    expect(char.sheet.derived.resource.type).toBe('mana');
+    expect(char.sheet.derived.casterType).toBe('full');
 
     const list = await characters.list(accountId);
     expect(list).toHaveLength(1);

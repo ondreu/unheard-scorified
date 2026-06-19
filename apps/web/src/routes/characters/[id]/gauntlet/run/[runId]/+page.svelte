@@ -33,9 +33,16 @@
     waysCleared: 'waves cleared',
     backToArena: 'Back to The Gauntlet',
     cooldown: 'CD',
+    noSlots: 'No slot',
+    noKi: 'No Ki',
     vs: 'vs',
     takeIt: 'Take it',
   };
+
+  /** Součet slotů napříč tiery (kompaktní „zbývá / max" v panelu hráče). */
+  function slotTotal(map: Record<number, number>): number {
+    return Object.values(map).reduce((a, b) => a + b, 0);
+  }
 
   let run = $state<GauntletRunView | null>(null);
   let loading = $state(true);
@@ -167,6 +174,21 @@
         <span class="text-sm text-[var(--text-dim)]">
           {r.player.currentHealth} / {r.player.maxHealth}
           {#if r.player.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {r.player.absorb}</span>{/if}
+          {#if slotTotal(r.player.maxSpellSlots) > 0}
+            <span class="ml-1 text-[var(--accent)]" title="Spell slots remaining this run">
+              ✨ {slotTotal(r.player.spellSlots)}/{slotTotal(r.player.maxSpellSlots)}
+            </span>
+          {/if}
+          {#if r.player.maxKiPoints > 0}
+            <span class="ml-1 text-[var(--info)]" title="Ki remaining this run">
+              🌀 {r.player.kiPoints}/{r.player.maxKiPoints}
+            </span>
+          {/if}
+          {#if r.player.maxRageCharges > 0}
+            <span class="ml-1 text-[var(--danger)]" title="Rage charges left{r.player.raging ? ' — raging!' : ''}">
+              💢 {r.player.rageCharges}/{r.player.maxRageCharges}{r.player.raging ? '🔥' : ''}
+            </span>
+          {/if}
         </span>
       </div>
       <div class="bar mt-2">
@@ -181,14 +203,22 @@
           {#each r.abilities as a (a.id)}
             <button
               class="btn flex items-center gap-2 text-left"
-              disabled={busy || !a.ready}
-              title={a.description}
+              disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
+              title={a.outOfSlots
+                ? `${a.description} (out of spell slots)`
+                : a.outOfKi
+                  ? `${a.description} (not enough Ki)`
+                  : a.description}
               onclick={() => act(a.id)}
             >
               <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
               <span class="min-w-0 flex-1 truncate">{a.name}</span>
               {#if !a.ready}
                 <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
+              {:else if a.outOfSlots}
+                <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
+              {:else if a.outOfKi}
+                <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
               {/if}
             </button>
           {/each}

@@ -26,6 +26,27 @@ stropu vln. Idle hra zůstává „set & forget"; tohle je bonus.
 5. **Konec** (smrt / retire / strop) → odměna škálovaná počtem vyčištěných vln,
    omezená **denním stropem**.
 
+## Spell sloty (ADR 0034)
+
+- **Rozpočet na celý run** (rozhodnutí PM): caster vstupuje s max sloty ze snapshotu
+  (`GauntletPlayerState.spellSlots`), které se **NEresetují mezi vlnami** → roguelite
+  hospodaření „šetři Fireball na elite vlnu". Cantripy / basic attack jdou zdarma.
+- **Kouzlo (tier ≥ 1) čerpá slot** při seslání (upcast dle slotu). Bez volného slotu
+  je kouzlo v combat baru **zašedlé** (`outOfSlots`, štítek „No slot") — server tah
+  validuje (`canCastGauntletAbility`). Panel hráče ukazuje **✨ zbývá/max** slotů.
+- **Bez slot-refill draftu** zatím (rozhodnutí PM) — připravený ventil pro budoucí
+  balanc, pokud bude per-run rationing příliš tvrdý.
+
+### Class resources (Slice 3)
+
+- **Ki** (Monk) — per-run bodový pool; Monkovy techniky (`kiCost`) ho čerpají,
+  bez Ki je technika v baru zašedlá („No Ki"). Panel hráče ukazuje 🌀 Ki/max.
+- **Rage** (Barbarian) — auto-zuří na začátku vlny, dokud má charge (per-run
+  rationing): během zuření resistance na fyzické poškození + damage bonus. Panel
+  ukazuje 💢 charges (+🔥 když zuří).
+- **Pact** (Warlock) — spell sloty se rechargují **každou vlnu** (short rest),
+  na rozdíl od ostatních casterů (per-run rozpočet).
+
 ## Léčení & fall-off (anti heal+DoT spam)
 
 - **HP se mezi vlnami NEregeneruje automaticky** — co utržíš, to si neseš dál.

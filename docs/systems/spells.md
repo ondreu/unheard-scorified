@@ -56,15 +56,53 @@ Spellbook.
 ## Character sheet
 
 `DerivedStats.casterType` + `DerivedStats.spellSlots` (max) → spell sloty jsou
-součástí sheetu (overview/inspect) bez extra dotazu.
+součástí sheetu (overview/inspect) bez extra dotazu. Sheet/inspect zobrazují
+souhrn **„Spell Slots"** (součet max slotů; martial bez slotů = „—"), detailní
+rozpad per tier je na `/characters/[id]/spells`.
 
-## Follow-up (MR-5+)
+## Scrap mana — spell sloty jako jediný resource (ADR 0034)
 
-- Per-encounter depletion řídící **dice-roll combat** (slabší rotace bez slotů,
-  „šetři sloty na bosse").
-- Spotřeba u dungeonů/raidů/arén/Gauntletu (mimo `ActivityService`).
-- Short Rest časová granularita (Warlock).
-- Balanc spotřeby a dopadu (MR-10).
+Zjednodušený `ResourceType` (`mana`/`energy`/`rage` proxy z WoW-éry) **scrapnut** —
+byl to mrtvý kosmetický stav v `DerivedStats.resource`, který se nikdy v boji
+nečetl. Jediný resource model hry = **D&D spell sloty** (tento dokument), v budoucnu
+doplněné o class resources (Rage/Ki/Pact Magic).
+
+### Per-encounter spotřeba slotů napříč simulátory (Slice 2 ✅)
+
+Sdílený primitiv **`spendSlotForTier(slots, minTier)`** (`data/spell-slots.ts`):
+vyčerpá nejnižší dostupný slot tieru ≥ kouzla (upcast jen když musí), nebo vrátí
+`null` (kouzlo „fizzles" → zbraň/cantrip). Každý bojový simulátor si na startu
+encounteru vezme **lokální kopii** `actor.spellSlots` jako rozpočet:
+
+| Simulátor                         | Stav | Pozn.                                         |
+| --------------------------------- | ---- | --------------------------------------------- |
+| Quest / Gone Questing (`quest-run.ts`) | ✅ | Od MR-4; upcast + saving throwy (ADR 0032).   |
+| Dungeon (`raid.ts` `fightBoss`)   | ✅ | Per-pull rozpočet, **upcast**; healer free basic-swing heal. |
+| PVP / arény (`pvp.ts`)            | ✅ | Per-duel / per-člen rozpočet (1v1 i 3v3/5v5). |
+| Gauntlet (`gauntlet.ts`)          | ✅ | **Per-run** rozpočet (NEresetuje se po vlně — roguelite), UI „zobrazit + zablokovat" (`outOfSlots`), upcast. |
+
+Cantripy (tier 0) a martial techniky (bez `spellTier`) jdou **zdarma** (at-will);
+kouzla (tier ≥ 1) čerpají slot. Idle auto-resolve módy mají rozpočet **per-encounter**
+(reset každý souboj), Gauntlet **per-run** (interaktivní rationing). Long Rest =
+reset při claimu/návratu (beze změny).
+
+## Class resources (Slice 3 ✅, ADR 0034)
+
+Non-caster zdroje sjednocené na D&D (`data/class-resources.ts`), stejný gating
+mechanismus jako spell sloty:
+
+- **Ki** (Monk) — bodový pool (= level); techniky mají `kiCost` (Stunning Strike 1,
+  Quivering Palm 3, Flurry 1). Per-encounter (idle) / per-run (Gauntlet).
+- **Rage** (Barbarian) — `applyRage` = varianta aktéra s **resistance na fyzické**
+  poškození (×0.5) + flat damage bonus. Auto-zuření na začátku encounteru/vlny
+  (charge-gated), projde centrálním `computeHit`. Idle = per-encounter, Gauntlet = per-run.
+- **Pact** (Warlock) — per-encounter sloty (idle) + **per-wave recharge** v Gauntletu
+  (short rest).
+
+## Follow-up
+
+- Gauntlet slot-refill draft odměna (ventil pro per-run rationing) — ADR 0034.
+- Rage tuning (flat bonus magnituda / durace) — laditelné.
 
 ## MR-10e — literal spell dice + saving throwy ✅ (ADR 0032)
 

@@ -8,13 +8,14 @@
  * Armor Class, saving throw bonusy, spell save DC, spell attack bonus, initiative,
  * attack bonus. Balanc (přesné magnitudy / dice combat) se ladí v MR-5/MR-10.
  */
-import { CLASSES, type ClassId, type ResourceType } from './data/classes';
+import { CLASSES, type ClassId } from './data/classes';
 import { RACES, type RaceId } from './data/races';
 import { levelFromTotalXp } from './leveling';
 import { casterTypeOf, spellSlotsFor, type CasterType, type SpellSlots } from './data/spell-slots';
+import { kiPointsFor, rageChargesFor } from './data/class-resources';
 import type { ItemStats } from './data/items';
 
-export type { ClassId, ResourceType, Role } from './data/classes';
+export type { ClassId, Role } from './data/classes';
 export type { RaceId } from './data/races';
 
 /** Šest D&D atributů (ability scores). */
@@ -156,7 +157,6 @@ export function dndMaxHp(hitDie: number, level: number, conMod: number): number 
 
 export interface DerivedStats {
   health: number;
-  resource: { type: ResourceType; max: number };
   /** Modifikátory všech 6 atributů. */
   modifiers: AbilityScores;
   /** Proficiency bonus dle levelu. */
@@ -177,11 +177,14 @@ export interface DerivedStats {
   casterType: CasterType;
   /** Maximální spell sloty (plně odpočaté) per tier — D&D tabulka (MR-4). */
   spellSlots: SpellSlots;
+  /** Max Ki body (Monk) — class resource (ADR 0034). 0 = ne-Monk. */
+  kiPoints: number;
+  /** Počet rage charges (Barbarian) — class resource (ADR 0034). 0 = ne-Barbarian. */
+  rageCharges: number;
 }
 
 /** Odvozené staty z atributů dle D&D 5e. Placeholder magnitudy (laděno v MR-10). */
 export function deriveStats(primary: AbilityScores, level: number, klass: ClassId): DerivedStats {
-  const resourceType = CLASSES[klass].resource;
   const mods = abilityModifiers(primary);
   const prof = proficiencyBonus(level);
   const castingMod = mods[CLASSES[klass].spellcastingAbility];
@@ -189,22 +192,8 @@ export function deriveStats(primary: AbilityScores, level: number, klass: ClassI
   // HP: literal D&D hit dice (ADR 0032) — hit die (lvl 1 max) + (level−1)·(avg + CON mod).
   const health = dndMaxHp(CLASSES[klass].hitDie, level, mods.constitution);
 
-  let max: number;
-  switch (resourceType) {
-    case 'mana':
-      max = 100 + primary.intelligence * 15;
-      break;
-    case 'energy':
-      max = 100;
-      break;
-    case 'rage':
-      max = 100;
-      break;
-  }
-
   return {
     health,
-    resource: { type: resourceType, max },
     modifiers: mods,
     proficiencyBonus: prof,
     armorClass: 10 + mods.dexterity,
@@ -215,6 +204,8 @@ export function deriveStats(primary: AbilityScores, level: number, klass: ClassI
     attackBonus: prof + Math.max(mods.strength, mods.dexterity),
     casterType: casterTypeOf(klass),
     spellSlots: spellSlotsFor(klass, level),
+    kiPoints: kiPointsFor(klass, level),
+    rageCharges: rageChargesFor(klass, level),
   };
 }
 

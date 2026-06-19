@@ -40,16 +40,18 @@ describe('baseStatsFor', () => {
 });
 
 describe('deriveStats', () => {
-  it('mana classa má manu odvozenou z intellectu', () => {
+  it('full caster má spell sloty (Wizard lvl 1 = 2× tier 1)', () => {
     const primary = baseStatsFor('gnome', 'wizard', 1);
     const d = deriveStats(primary, 1, 'wizard');
-    expect(d.resource.type).toBe('mana');
-    expect(d.resource.max).toBeGreaterThan(100);
+    expect(d.casterType).toBe('full');
+    expect(d.spellSlots).toEqual({ 1: 2 });
   });
 
-  it('barbarian používá rage (fixní 100)', () => {
+  it('martial classa nemá spell sloty (Barbarian)', () => {
     const primary = baseStatsFor('half_orc', 'barbarian', 1);
-    expect(deriveStats(primary, 1, 'barbarian').resource).toEqual({ type: 'rage', max: 100 });
+    const d = deriveStats(primary, 1, 'barbarian');
+    expect(d.casterType).toBe('none');
+    expect(d.spellSlots).toEqual({});
   });
 });
 

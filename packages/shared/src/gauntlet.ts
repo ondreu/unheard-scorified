@@ -23,6 +23,7 @@ import { SeededRng, seedFromString } from './rng';
 import {
   abilityDamageMult,
   abilityDamageSpec,
+  applyRage,
   buildAttackMessage,
   buildEnemyActor,
   computeHit,
@@ -35,6 +36,7 @@ import {
 } from './combat';
 import { applySpellSave, missMessage } from './dnd-combat';
 import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
+import { hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
 
@@ -113,6 +115,18 @@ export interface GauntletPlayerState {
   absorb: number;
   /** abilityId → zbývající počet tahů do dostupnosti. */
   cooldowns: Record<string, number>;
+  /**
+   * Zbývající spell sloty (ADR 0034) — **rozpočet na celý run** (NEresetuje se po
+   * vlně, roguelite hospodaření: šetři nejlepší kouzla na elite). Kouzlo (tier ≥ 1)
+   * čerpá slot; cantripy/martial jdou zdarma. Odvozeno ze snapshotu (max) na startu.
+   */
+  spellSlots: SpellSlots;
+  /** Zbývající Ki body (ADR 0034) — per-run rozpočet Monkových technik (`kiCost`). */
+  kiPoints?: number;
+  /** Zbývající rage charges (ADR 0034) — kolikrát se Barbarian ještě umí rozzuřit. */
+  rageCharges?: number;
+  /** Je hráč právě rozzuřený (aktuální vlna)? Auto-zapnuto na vlnu, dokud má charge. */
+  raging?: boolean;
   /** Zbývající tahy aktivního mitigation okna (0 = neaktivní). */
   mitigationTurns: number;
   /** Podíl redukce příchozího poškození během mitigation okna (0..1). */
@@ -298,6 +312,13 @@ export function startGauntletRun(base: CombatActor, level: number, seed: number)
       currentHealth: eff.maxHealth,
       absorb: 0,
       cooldowns: {},
+      // Per-run rozpočty class resources (ADR 0034) = max ze snapshotu. Spell sloty
+      // a Ki se NEresetují po vlně (refill = budoucí ventil); rage charges se čerpají
+      // auto-zuřením po vlnu. Pact (Warlock) recharguje sloty per-vlnu (short rest).
+      spellSlots: { ...(base.spellSlots ?? {}) },
+      kiPoints: base.kiPoints ?? 0,
+      rageCharges: base.rageCharges ?? 0,
+      raging: false,
       mitigationTurns: 0,
       mitigationPct: 0,
     },
@@ -308,18 +329,29 @@ export function startGauntletRun(base: CombatActor, level: number, seed: number)
     wavesCleared: 0,
     healsUsed: 0,
   };
-  spawnWave(state, level);
+  spawnWave(base, state, level);
   return state;
 }
 
 /** Nastaví nepřítele aktuální vlny + resetuje per-vlnu stav hráče (cd/štít/mitigace). */
-function spawnWave(state: GauntletRunState, level: number): void {
+function spawnWave(base: CombatActor, state: GauntletRunState, level: number): void {
   const rng = new SeededRng(seedFromString(`${state.seed}:enemy:${state.wave}`));
   state.enemy = buildGauntletEnemy(level, state.wave, rng);
   state.player.cooldowns = {};
   state.player.absorb = 0;
   state.player.mitigationTurns = 0;
   state.player.mitigationPct = 0;
+  // Pact Magic (Warlock, ADR 0034): „short rest" recharge — sloty se obnoví KAŽDOU
+  // vlnu (ostatní casteři mají per-run rozpočet). Faithful D&D pact recovery v idle.
+  if (base.casterType === 'pact') state.player.spellSlots = { ...(base.spellSlots ?? {}) };
+  // Rage (ADR 0034): Barbarian se auto-rozzuří na vlnu, dokud má charge (per-run
+  // rationing) → resistance na fyzické + bonus po celou vlnu (idle abstrakce).
+  if ((state.player.rageCharges ?? 0) > 0) {
+    state.player.rageCharges = (state.player.rageCharges ?? 0) - 1;
+    state.player.raging = true;
+  } else {
+    state.player.raging = false;
+  }
   state.status = 'in_combat';
 }
 
@@ -332,6 +364,19 @@ function cooldownTurns(ability: SignatureAbility): number {
 /** Je ability právě použitelná (v kitu a bez aktivního cooldownu)? */
 export function isGauntletAbilityReady(state: GauntletRunState, abilityId: string): boolean {
   return (state.player.cooldowns[abilityId] ?? 0) <= 0;
+}
+
+/**
+ * Má hráč na seslání ability dost zdrojů (ADR 0034)? Cantripy (tier 0) a martial
+ * techniky bez nákladů jdou vždy → `true`. Kouzlo (tier ≥ 1) potřebuje spell slot
+ * ≥ tieru; Monkova technika potřebuje dost **Ki**. Čistá kontrola (nemutuje) — pro
+ * UI (zašednutí) i validaci tahu. `kiPoints`/`spellSlots` undefined (běhy z doby
+ * před slice) = netrackováno → neblokuje.
+ */
+export function canCastGauntletAbility(state: GauntletRunState, ability: SignatureAbility): boolean {
+  const kiLeft = state.player.kiPoints ?? Infinity;
+  if ((ability.kiCost ?? 0) > kiLeft) return false;
+  return hasSlotForTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0);
 }
 
 function trimLog(state: GauntletRunState): void {
@@ -353,13 +398,32 @@ export function resolveGauntletTurn(
 ): { state: GauntletRunState; events: CombatEvent[] } {
   if (state.status !== 'in_combat' || !state.enemy) return { state, events: [] };
 
-  const player = effectivePlayerActor(base, state.picks);
+  // Rage (ADR 0034): rozzuřený Barbarian (auto na vlnu, viz spawnWave) → varianta
+  // aktéra s resistance na fyzické + rage bonusem (projde computeHit jako útočník i cíl).
+  const baseActor = effectivePlayerActor(base, state.picks);
+  const player = state.player.raging ? applyRage(baseActor) : baseActor;
   const ability =
     abilityId === GAUNTLET_BASIC_ATTACK.id
       ? GAUNTLET_BASIC_ATTACK
       : player.signatureAbilities.find((a) => a.id === abilityId);
   if (!ability) return { state, events: [] };
   if (!isGauntletAbilityReady(state, abilityId)) return { state, events: [] };
+
+  // Class resources (ADR 0034): rozpočet na celý run. Lazy init pro běhy založené
+  // před slice (JSON bez pole). Kontrola dostupnosti teď (bez zdroje = neplatný tah,
+  // UI ho blokuje); samotná spotřeba až při commitu (po DoT — viz níže), aby DoT-kill
+  // nepřítele neutratil zdroj za ability, která už nedopadne.
+  if (state.player.spellSlots === undefined) {
+    state.player.spellSlots = { ...(base.spellSlots ?? {}) };
+  }
+  if (state.player.kiPoints === undefined) {
+    state.player.kiPoints = base.kiPoints ?? 0;
+  }
+  const abilityTier = ability.spellTier ?? 0;
+  if (!hasSlotForTier(state.player.spellSlots, abilityTier)) return { state, events: [] };
+  const kiCost = ability.kiCost ?? 0;
+  if (kiCost > (state.player.kiPoints ?? 0)) return { state, events: [] };
+  let usedSlotTier: number | null = null;
 
   const enemy = state.enemy;
   const rng = new SeededRng(seedFromString(`${state.seed}:turn:${state.wave}:${state.turn}`));
@@ -388,6 +452,11 @@ export function resolveGauntletTurn(
   }
   enemy.dots = enemy.dots.filter((d) => d.remainingTicks > 0);
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
+
+  // Class resources (ADR 0034): commit — utratí slot (kouzlo, upcast přes `usedSlotTier`)
+  // resp. Ki (Monkova technika). Dostupnost ověřena výše; DoT nepřítele nezabil → ability dopadne.
+  if (abilityTier >= 1) usedSlotTier = spendSlotForTier(state.player.spellSlots, abilityTier);
+  if (kiCost > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - kiCost;
 
   // (2) Hráčova ability.
   const enemyAsActor = enemyActor(enemy);
@@ -435,8 +504,9 @@ export function resolveGauntletTurn(
     // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
     const targetHpPct = enemy.currentHealth / enemy.maxHealth;
     // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-    // jinak škálují přes attackPower (damageMult + execute).
-    const spec = abilityDamageSpec(ability, null);
+    // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
+    // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
+    const spec = abilityDamageSpec(ability, usedSlotTier);
     const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
     // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
     const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec);
@@ -715,7 +785,7 @@ export function applyGauntletDraft(
     state.enemy = null;
     return state;
   }
-  spawnWave(state, level);
+  spawnWave(base, state, level);
   return state;
 }
 
