@@ -108,6 +108,9 @@
         throw new Error(body.message ?? `HTTP ${res.status}`);
       }
       view = (await res.json()) as LevelUpView;
+      // Vyčistí rozpracovanou lokální ASI volbu tohoto slotu — po uložení (ASI
+      // i feat) ať nezůstane „pending" pick, který by omylem přepsal volbu.
+      asiPick = { ...asiPick, [slotId]: {} };
     } catch (err) {
       error = (err as Error).message;
     } finally {
@@ -141,8 +144,8 @@
   function bumpAsi(slotId: string, ability: AbilityScore): void {
     const m = { ...(asiPick[slotId] ?? {}) };
     const cur = m[ability] ?? 0;
-    if (asiTotal(slotId) >= 2 && cur === 0) return; // already spent 2
-    if (cur >= 2) return; // max +2 per ability
+    if (asiTotal(slotId) >= 2) return; // už rozdáno max +2 celkem
+    if (cur >= 2) return; // max +2 do jednoho atributu
     m[ability] = cur + 1;
     asiPick = { ...asiPick, [slotId]: m };
   }
@@ -302,13 +305,17 @@
                       {/each}
                     </div>
                   {:else}
-                    <div class="two-col">
+                    <div class="choice-cols">
                       <div class="stack">
                         <h4>{ui.asi}</h4>
                         <p class="muted small">{ui.asiHint}</p>
                         <div class="asi-grid">
                           {#each ABILITY_SCORES as ab (ab)}
-                            <button class="asi-btn" disabled={pendingSlot === slot.id} onclick={() => bumpAsi(slot.id, ab)}>
+                            <button
+                              class="asi-btn {(asiPick[slot.id]?.[ab] ?? 0) > 0 ? 'asi-on' : ''}"
+                              disabled={pendingSlot === slot.id || asiTotal(slot.id) >= 2 || (asiPick[slot.id]?.[ab] ?? 0) >= 2}
+                              onclick={() => bumpAsi(slot.id, ab)}
+                            >
                               {ABILITY_ABBREV[ab]}
                               {#if (asiPick[slot.id]?.[ab] ?? 0) > 0}<span class="pick">+{asiPick[slot.id]?.[ab]}</span>{/if}
                             </button>
@@ -408,8 +415,8 @@
   .choice h3 { margin: 0; font-size: 0.95rem; }
   .choice h4 { margin: 0; font-size: 0.85rem; }
 
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-  @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+  /* Volba ASI/Feat: staty nahoře, featy pod nimi (stack, ne vedle sebe). */
+  .choice-cols { display: flex; flex-direction: column; gap: 1.1rem; }
   .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.5rem; }
   .option {
     display: flex; flex-direction: column; gap: 0.25rem; text-align: left;
@@ -423,7 +430,9 @@
     padding: 0.5rem; border: 1px solid var(--border, #333); border-radius: 8px;
     background: var(--surface-2, #1a1a22); color: inherit; cursor: pointer; font-weight: 600;
   }
-  .asi-btn:hover { border-color: var(--r-uncommon, #1eff00); }
+  .asi-btn:hover:not(:disabled) { border-color: var(--r-uncommon, #1eff00); }
+  .asi-btn.asi-on { border-color: var(--r-uncommon, #1eff00); box-shadow: 0 0 0 1px var(--r-uncommon, #1eff00); }
+  .asi-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .pick { color: var(--r-uncommon, #1eff00); margin-left: 0.25rem; }
   .badge { font-size: 0.8rem; padding: 0.15rem 0.5rem; border-radius: 6px; background: var(--surface-3, #232330); }
 </style>
