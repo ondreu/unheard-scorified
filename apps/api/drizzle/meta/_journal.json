@@ -288,6 +288,13 @@
       "when": 1781797484866,
       "tag": "0040_dnd_class_remap",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1781872267362,
+      "tag": "0041_bouncy_impossible_man",
+      "breakpoints": true
     }
   ]
 }

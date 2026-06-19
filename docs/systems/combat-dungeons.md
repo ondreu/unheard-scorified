@@ -75,8 +75,13 @@ stav (stateless, škálovatelné). Klient polluje (REST) / WS (M7).
 ## Dungeony (`packages/shared/src/data/dungeons.ts`)
 
 PVE neutrální (obě frakce), gated `requiredLevel` (content gating). Každý
-dungeon = sekvence `EnemyDef` (trash → boss) + `baseXp`/`baseGold` + odkaz na
-boss loot tabulku.
+dungeon = **sekvence encounterů** (`EncounterDef`), kde každý encounter je
+**skupina nepřátel** (`enemies: EnemyDef[]`) bojovaná naráz — trash packy (2–3,
+„oslabení minioni" s nižším CR), sólo bossové i boss+adds (dungeon overhaul,
+**ADR 0037**). Plus `baseXp`/`baseGold` + odkaz na boss loot tabulku. Engine
+`fightEncounter` (`raid.ts`) tým fokusuje nejslabšího nepřítele, nepřátelé útočí
+na tanka/threat; AoE útoky/heal zasáhnou všechny živé cíle. Helpery
+`dungeonEnemies` / `dungeonBoss`.
 
 | Dungeon            | Req lvl | Boss                          | Attunement (gate quest)            | Pozn.          |
 | ------------------ | ------- | ----------------------------- | ---------------------------------- | -------------- |
@@ -103,6 +108,20 @@ group-run model, combat engine i web/API se nemění (vše iteruje přes `DUNGEO
 Vyšší šance na drop než questy + dungeon-only itemy (`items.ts`, např.
 `whitemane_chapeau`, `herod_shoulder`, `commanders_crest`). Loot se rolluje při
 **vítězství** na deterministicky odvozeném seedu (neinterferuje s combat RNG).
+
+## Tahový (solo) dungeon (dungeon overhaul Slice 2, ADR 0037)
+
+Vedle idle auto-resolve běhu lze dungeon hrát **interaktivně tahově** (zatím
+**solo**). Engine `packages/shared/src/dungeon-run.ts` je stateful, serializovatelný
+(uložený jako JSON v `dungeon_turn_runs`), deterministický (seed per tah). Hráč
+kolo po kole volí **ability + cíl** (multi-enemy → klik na nepřítele):
+`resolveDungeonTurn` vyhodnotí DoT tiky → hráčovu ability (AoE = všichni živí) →
+protiútok všech živých nepřátel → údržbu cooldownů. Mezi encountery **short rest**
+(refill slotů/Ki/cooldownů + částečné doléčení). Smrt = konec runu (bez wipe/retry
+determination — ta je výhradně v idle auto-resolve). Odměna při vyčištění sdílí
+`computeGroupReward` + weekly lockout + reputaci s auto-resolve. API: routy pod
+`characters/:id/dungeons/turn/*` (`enter`/`run/:id`/`act`/`abandon`); web
+`dungeon-turn/[runId]`. **Group/AI tahový = Slice 3+.**
 
 ## API (`apps/api/src/dungeon/`)
 

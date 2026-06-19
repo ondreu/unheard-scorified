@@ -24,19 +24,25 @@ describe('group content sizes & composition', () => {
 });
 
 describe('groupEncounters', () => {
-  it('SP dungeon (size 1) = unscaled encounters', () => {
+  it('SP dungeon (size 1) = unscaled encounter groups (ADR 0037)', () => {
     const enc = groupEncounters('dungeon', 'ragefire_chasm', 1);
+    // Dungeon overhaul: každý encounter je SKUPINA nepřátel (CombatActor[]).
     expect(enc).toHaveLength(DUNGEONS.ragefire_chasm!.encounters.length);
     // ADR 0032: HP se odvozuje z CR (data už nenesou maxHealth); solo (size 1) je
     // unscaled → kladné CR-based HP. Škálování ×size ověřuje další test.
-    expect(enc[0]!.maxHealth).toBeGreaterThan(0);
+    expect(enc[0]![0]!.maxHealth).toBeGreaterThan(0);
+  });
+
+  it('multi-enemy pack: první encounter ragefire má víc nepřátel', () => {
+    const enc = groupEncounters('dungeon', 'ragefire_chasm', 1);
+    expect(enc[0]!.length).toBeGreaterThan(1);
   });
 
   it('group dungeon scales enemy HP/dmg with party size', () => {
     const solo = groupEncounters('dungeon', 'ragefire_chasm', 1);
     const five = groupEncounters('dungeon', 'ragefire_chasm', 5);
-    expect(five[0]!.maxHealth).toBe(solo[0]!.maxHealth * 5);
-    expect(five[0]!.attackPower).toBeCloseTo(solo[0]!.attackPower * 5);
+    expect(five[0]![0]!.maxHealth).toBe(solo[0]![0]!.maxHealth * 5);
+    expect(five[0]![0]!.attackPower).toBeCloseTo(solo[0]![0]!.attackPower * 5);
   });
 });
 

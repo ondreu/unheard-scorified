@@ -48,6 +48,8 @@ import type {
   TradeStatus,
   GauntletRunState,
   GauntletStatus,
+  DungeonRunState,
+  DungeonRunStatus,
 } from '@game/shared';
 
 export const healthLog = pgTable('health_log', {
@@ -980,6 +982,44 @@ export const gauntletRunsRelations = relations(gauntletRuns, ({ one }) => ({
 }));
 
 /**
+ * Tahový dungeon run (dungeon overhaul Slice 2, ADR 0037) — interaktivní
+ * alternativa k idle auto-resolve (`raid_runs`). Stejně jako Gauntlet je
+ * **stateful**: `state` (JSON, engine `DungeonRunState`) drží kompletní mutabilní
+ * průběh (encounter, HP nepřátel, cooldowny, sloty, log). `playerSnapshot` =
+ * neměnný bojový profil ze vstupu (anti-cheat/determinismus). Odměna se uděluje
+ * až při vyčištění (sdílí `computeGroupReward` + weekly lockout s auto-resolve).
+ */
+export const dungeonTurnRuns = pgTable('dungeon_turn_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  dungeonId: varchar('dungeon_id', { length: 64 }).notNull(),
+  /** Bojový profil postavy při vstupu (snapshot — anti-cheat/determinismus). */
+  playerSnapshot: jsonb('player_snapshot').$type<CombatActor>().notNull(),
+  level: integer('level').notNull(),
+  /** Velikost party pro škálování nepřátel (solo = 1; group tahový = Slice 3+). */
+  size: integer('size').notNull().default(1),
+  /** Kompletní mutabilní stav runu (engine `DungeonRunState`). */
+  state: jsonb('state').$type<DungeonRunState>().notNull(),
+  status: varchar('status', { length: 16 }).$type<DungeonRunStatus>().notNull(),
+  encountersCleared: integer('encounters_cleared').notNull().default(0),
+  rewardXp: integer('reward_xp').notNull().default(0),
+  rewardGold: integer('reward_gold').notNull().default(0),
+  rewardItems: jsonb('reward_items').$type<string[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+});
+
+export const dungeonTurnRunsRelations = relations(dungeonTurnRuns, ({ one }) => ({
+  character: one(characters, {
+    fields: [dungeonTurnRuns.characterId],
+    references: [characters.id],
+  }),
+}));
+
+/**
  * Denní (UTC) souhrn odměn získaných z Gauntletu — pro denní strop (anti-grind).
  * `dayId` = `YYYY-MM-DD` (UTC). Jeden řádek na postavu a den.
  */
@@ -1090,6 +1130,8 @@ export type MailItem = typeof mailItems.$inferSelect;
 export type NewMailItem = typeof mailItems.$inferInsert;
 export type GauntletRun = typeof gauntletRuns.$inferSelect;
 export type NewGauntletRun = typeof gauntletRuns.$inferInsert;
+export type DungeonTurnRun = typeof dungeonTurnRuns.$inferSelect;
+export type NewDungeonTurnRun = typeof dungeonTurnRuns.$inferInsert;
 export type GauntletDaily = typeof gauntletDaily.$inferSelect;
 export type NewGauntletDaily = typeof gauntletDaily.$inferInsert;
 

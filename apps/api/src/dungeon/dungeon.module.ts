@@ -11,6 +11,8 @@ import { RaidModule } from '../raid/raid.module';
 import { RotationModule } from '../rotation/rotation.module';
 import { DungeonController } from './dungeon.controller';
 import { DungeonService } from './dungeon.service';
+import { DungeonTurnService } from './dungeon-turn.service';
+import { DungeonTurnRepository } from './dungeon-turn.repository';
 
 /**
  * Dungeony (M5, sjednoceno M8.5-B na group PVE run model). SP i group (3/5) běží
@@ -32,7 +34,7 @@ import { DungeonService } from './dungeon.service';
     ProfessionDataModule,
   ],
   controllers: [DungeonController],
-  providers: [DungeonService],
+  providers: [DungeonService, DungeonTurnService, DungeonTurnRepository],
   // GroupModule (ADR 0022) spouští dungeon přes DungeonService.runForGroup.
   exports: [DungeonService],
 })

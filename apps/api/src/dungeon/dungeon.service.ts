@@ -9,6 +9,7 @@ import {
   computeGroupReward,
   deriveRaidActor,
   dungeonAttunementQuests,
+  dungeonBoss,
   dungeonReputationGain,
   DUNGEON_SIZES,
   DUNGEONS,
@@ -177,7 +178,7 @@ export class DungeonService {
         requiredLevel: d.requiredLevel,
         recommendedLevel: d.recommendedLevel,
         encounterCount: d.encounters.length,
-        bossName: d.encounters.at(-1)?.name ?? '',
+        bossName: dungeonBoss(d)?.name ?? '',
         sizes: [...DUNGEON_SIZES],
         unlocked: isDungeonUnlocked(d.id, level, completedSet),
         requiresAttunement: attunementQuests.length > 0,
@@ -406,8 +407,11 @@ export class DungeonService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  /** `CombatActor[]` encounterů (škálované velikostí party) přes group helper. */
-  private encountersFor(dungeonId: string, partySize: number): CombatActor[] {
+  /**
+   * Encountery dungeonu jako **skupiny nepřátel** (`CombatActor[][]`, škálované
+   * velikostí party) přes group helper — dungeon overhaul (ADR 0037).
+   */
+  private encountersFor(dungeonId: string, partySize: number): CombatActor[][] {
     return groupEncounters('dungeon', dungeonId, partySize);
   }
 
@@ -550,7 +554,17 @@ export class DungeonService {
         role: a.role,
         maxHealth: a.maxHealth,
       })),
-      encounters: (dungeon?.encounters ?? []).map((e) => ({ name: e.name, isBoss: e.isBoss ?? false })),
+      // Dungeon overhaul (ADR 0037): encounter = skupina nepřátel. Reprezentativní
+      // jméno = boss skupiny (jinak souhrn packu); isBoss = skupina obsahuje bosse.
+      encounters: (dungeon?.encounters ?? []).map((enc) => {
+        const boss = enc.enemies.find((e) => e.isBoss);
+        const name = boss
+          ? boss.name
+          : enc.enemies.length === 1
+            ? enc.enemies[0]!.name
+            : `Pack of ${enc.enemies.length}`;
+        return { name, isBoss: boss !== undefined };
+      }),
       events: visible,
       victory: completed ? run.victory === 1 : null,
       wipes: completed ? result.wipes : null,

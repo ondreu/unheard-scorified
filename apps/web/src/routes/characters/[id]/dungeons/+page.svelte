@@ -3,7 +3,13 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
-  import { ApiError, enterDungeon, listDungeons, type DungeonListItem } from '$lib/api';
+  import {
+    ApiError,
+    enterDungeon,
+    enterDungeonTurn,
+    listDungeons,
+    type DungeonListItem,
+  } from '$lib/api';
   import SceneBanner from '$lib/components/SceneBanner.svelte';
   import CardAccent from '$lib/components/CardAccent.svelte';
   import { sceneCardStyle } from '$lib/pixelart/scene-bg';
@@ -23,6 +29,8 @@
     empty: 'No dungeons known.',
     enter: 'Enter',
     entering: 'Entering…',
+    turnBased: '⚔️ Turn-based',
+    turnHint: 'Play it out turn by turn (solo).',
     boss: 'Boss',
     encounters: 'Encounters',
     locked: 'Locked',
@@ -68,6 +76,19 @@
       const size = sizeById[d.id] ?? 1;
       const run = await enterDungeon(characterId, d.id, size);
       await goto(`/characters/${characterId}/dungeon/${run.runId}`);
+    } catch (err) {
+      error = (err as Error).message;
+      enteringId = null;
+    }
+  }
+
+  // Tahový (solo) mód — interaktivní run (dungeon overhaul Slice 2).
+  async function enterTurn(d: DungeonListItem): Promise<void> {
+    enteringId = d.id;
+    error = null;
+    try {
+      const run = await enterDungeonTurn(characterId, d.id);
+      await goto(`/characters/${characterId}/dungeon-turn/${run.runId}`);
     } catch (err) {
       error = (err as Error).message;
       enteringId = null;
@@ -141,6 +162,16 @@
                 >
                   {enteringId === d.id ? ui.entering : ui.enter}
                 </button>
+                {#if (sizeById[d.id] ?? 1) === 1}
+                  <button
+                    onclick={() => enterTurn(d)}
+                    disabled={enteringId !== null}
+                    class="btn btn-sm"
+                    title={ui.turnHint}
+                  >
+                    {ui.turnBased}
+                  </button>
+                {/if}
               </div>
             {:else}
               <span class="chip shrink-0">

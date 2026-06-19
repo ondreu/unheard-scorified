@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DUNGEONS } from './dungeons';
+import { DUNGEONS, dungeonBoss, dungeonEnemies } from './dungeons';
 import { buildEnemyActor, deriveCombatProfile, resolveAttack, type CombatActor } from '../combat';
 import { baseStatsFor } from '../character';
 import { EMPTY_PROGRESSION } from '../levelup';
@@ -28,7 +28,7 @@ function totalDamage(attacker: CombatActor, defender: CombatActor): number {
 
 describe('MR-10d — typed late-game content', () => {
   it('Pyrehold (Stratholme) undead are vulnerable to radiant — holy classes shine', () => {
-    const baron = buildEnemyActor(DUNGEONS.stratholme!.encounters.at(-1)!);
+    const baron = buildEnemyActor(dungeonBoss(DUNGEONS.stratholme!)!);
     expect(baron.vulnerabilities).toContain('radiant');
     const cleric = hero('cleric'); // radiant
     const rogue = hero('rogue'); // piercing
@@ -39,7 +39,7 @@ describe('MR-10d — typed late-game content', () => {
   });
 
   it('Maradoth (Maraudon) treant resists physical but is vulnerable to fire', () => {
-    const treant = DUNGEONS.maraudon!.encounters.find((e) => e.id === 'mar_treant')!;
+    const treant = dungeonEnemies(DUNGEONS.maraudon!).find((e) => e.id === 'mar_treant')!;
     expect(treant.resistances).toEqual(expect.arrayContaining(['bludgeoning', 'piercing']));
     expect(treant.vulnerabilities).toContain('fire');
     const actor = buildEnemyActor(treant);
@@ -49,16 +49,44 @@ describe('MR-10d — typed late-game content', () => {
   });
 
   it('Cinderdeep (Blackrock) fire dwellers resist fire — fire casters do less', () => {
-    const emperor = buildEnemyActor(DUNGEONS.blackrock_depths!.encounters.at(-1)!);
+    const emperor = buildEnemyActor(dungeonBoss(DUNGEONS.blackrock_depths!)!);
     expect(emperor.resistances).toContain('fire');
     const wizard = hero('wizard'); // fire → resisted
     const fighter = hero('fighter'); // slashing → normal
     expect(totalDamage(wizard, emperor)).toBeLessThan(totalDamage(fighter, emperor));
   });
 
+  it('every dungeon ends on a boss encounter (dungeonBoss resolves a boss)', () => {
+    for (const d of Object.values(DUNGEONS)) {
+      const boss = dungeonBoss(d);
+      expect(boss, `${d.id} has no boss`).toBeDefined();
+      expect(boss!.isBoss, `${d.id} last encounter is not a boss`).toBe(true);
+      // Boss žije v posledním encounteru.
+      expect(d.encounters.at(-1)!.enemies).toContain(boss);
+    }
+  });
+
+  it('dungeon overhaul (ADR 0037): multi-enemy packy s oslabenými miniony', () => {
+    // Aspoň jeden dungeon má encounter s víc nepřáteli (pack).
+    const hasPack = Object.values(DUNGEONS).some((d) =>
+      d.encounters.some((e) => e.enemies.length > 1),
+    );
+    expect(hasPack).toBe(true);
+    // Trash minioni v packu mají nižší efektivní level než requiredLevel (slabší CR).
+    for (const d of Object.values(DUNGEONS)) {
+      for (const enc of d.encounters) {
+        if (enc.enemies.length < 2) continue;
+        const minions = enc.enemies.filter((e) => !e.isBoss && e.level !== undefined);
+        for (const m of minions) {
+          expect(m.level!, `${d.id}/${m.id} minion not weakened`).toBeLessThan(d.requiredLevel);
+        }
+      }
+    }
+  });
+
   it('every late-game (14+) dungeon has at least one typed enemy', () => {
     for (const id of ['zulfarrak', 'maraudon', 'blackrock_depths', 'stratholme']) {
-      const typed = DUNGEONS[id]!.encounters.some(
+      const typed = dungeonEnemies(DUNGEONS[id]!).some(
         (e) => e.damageType || e.resistances || e.vulnerabilities || e.immunities,
       );
       expect(typed, `dungeon ${id} has no typed enemy`).toBe(true);
