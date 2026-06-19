@@ -1,6 +1,6 @@
 # ADR 0040 — Level-up overhaul: D&D featy, class-feature volby, víc subclass
 
-- **Stav:** přijato (B1 hotové; B2 + B3 plánované)
+- **Stav:** přijato (B1 + B3 hotové; B2 plánované)
 - **Kontext:** navazuje na MR-2 (level-up systém, ASI/Feat, talent stromy zrušeny),
   ADR 0036 (D&D-věrné abilities / engine efekty) a Slice A (level track 1–20).
 - **Rozsah:** `packages/shared` (feats data + validace), `apps/api` (LevelUpModule),
@@ -27,10 +27,15 @@ classa** a class-feature volby (Fighting Style, Metamagic, …) chybí úplně. 
 
 ## Krájení na slice
 
-- **B1 — D&D feat roster (tento ADR, hotové).**
-- **B2 — class-feature volby.** Nový typ level-up slotu (class+level gated),
-  class-specific nabídka, napojení na engine (ADR 0036 efekty).
-- **B3 — víc subclass.** Data (subclass def + signature ability) + picker.
+- **B1 — D&D feat roster (hotové).**
+- **B3 — víc subclass (hotové).** Ke stávající 1 přidána 1 nová D&D subclass ke
+  každé z 12 tříd (24 celkem) se signature ability (`SUBCLASS_ABILITIES`, unlock na
+  `subclassLevel`). Využívá existující engine cesty (ADR 0036) → žádný nový kód v
+  enginu, magnitudy v úrovni stávajících signatur. Subclassy udělující *nové*
+  sesílání (Eldritch Knight/Arcane Trickster) vynechány — spell sloty jsou vázané
+  na classu (`CASTER_TYPE`), ne subclass. Bez DB migrace (`SubclassId` = string sloupec).
+- **B2 — class-feature volby (plánované).** Nový typ level-up slotu (class+level
+  gated), class-specific nabídka, napojení na engine (ADR 0036 efekty).
 
 ## Architektura B1 (`packages/shared/src/data/feats.ts`)
 
