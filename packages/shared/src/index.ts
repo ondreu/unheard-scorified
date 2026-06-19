@@ -17,6 +17,7 @@ export * from './data/items';
 export * from './data/backgrounds';
 export * from './data/feats';
 export * from './levelup';
+export * from './level-track';
 export * from './rotation';
 export * from './dice';
 export * from './combat';
