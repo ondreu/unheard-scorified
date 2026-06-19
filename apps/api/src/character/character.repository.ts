@@ -104,6 +104,19 @@ export class CharacterRepository {
     return row!;
   }
 
+  /**
+   * Uloží aktivní (prepared) kouzla postavy (Kniha kouzel, ADR 0039). `null` =
+   * vrátit na legacy baseline kit (auto). Vrací aktualizovaný řádek.
+   */
+  async setPreparedSpells(id: string, prepared: string[] | null): Promise<Character> {
+    const [row] = await this.db
+      .update(characters)
+      .set({ preparedSpells: prepared })
+      .where(eq(characters.id, id))
+      .returning();
+    return row!;
+  }
+
   /** Smaže postavu (cascade FK smaže i inventář/aktivity/guild membership atd.). */
   async delete(id: string): Promise<void> {
     await this.db.delete(characters).where(eq(characters.id, id));

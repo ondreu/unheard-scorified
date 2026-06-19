@@ -17,7 +17,15 @@
  * testovatelné, sdílené API↔web.
  */
 import type { ClassId, SubclassId } from './classes';
-import { resolveAbilities, type AbilityKind } from './abilities';
+import {
+  classSpellCatalog,
+  resolveAbilities,
+  CLASS_BASELINE_ABILITIES,
+  SUBCLASS_ABILITIES,
+  type AbilityKind,
+  type BaselineAbility,
+  type SignatureAbility,
+} from './abilities';
 
 /**
  * Typ sesilatele (D&D 5e):
@@ -394,4 +402,165 @@ export function spellbookFor(
     .map((tier) => ({ tier, spells: byTier.get(tier)! }));
 
   return { casterType, cantrips, spellsByTier };
+}
+
+// ── Prepared spells (Kniha kouzel / ADR 0039) ────────────────────────────────
+//
+// Caster si z `classSpellCatalog` volí aktivní (prepared) kouzla — cantripy a
+// leveled spelly zvlášť, každé se svým limitem. „Always-on" abilities (baseline
+// bez `spellTier` = martial techniky/class features + subclass signature) jsou
+// dostupné vždy a do limitů se nepočítají. Swap je zdarma (gate = Long Rest /
+// level-up, řeší API), tady jen čistá data + validace.
+
+/** Limit aktivních kouzel: kolik cantripů a leveled kouzel smí mít postava připravených. */
+export interface PreparedLimits {
+  cantrips: number;
+  leveled: number;
+}
+
+/**
+ * Limity prepared kouzel dle classy/levelu (záměrně štědré — rozhodnutí PM:
+ * „ať je z čeho vybírat a hráč nemá problém"). Cantripy škálují 2→3→4 (lvl 4/10);
+ * leveled dle caster typu (full nejvíc, half/pact méně). Non-caster → 0/0.
+ */
+export function preparedLimits(klass: ClassId, level: number): PreparedLimits {
+  const lvl = clampLevel(level);
+  switch (casterTypeOf(klass)) {
+    case 'full':
+      return { cantrips: 2 + (lvl >= 4 ? 1 : 0) + (lvl >= 10 ? 1 : 0), leveled: 4 + Math.floor(lvl / 2) };
+    case 'pact':
+      return { cantrips: 2 + (lvl >= 4 ? 1 : 0) + (lvl >= 10 ? 1 : 0), leveled: 2 + Math.floor(lvl / 3) };
+    case 'half':
+      // Paladin/Ranger — bez cantripů v D&D; leveled poloviční tempo.
+      return { cantrips: 0, leveled: 2 + Math.floor(lvl / 4) };
+    case 'none':
+    default:
+      return { cantrips: 0, leveled: 0 };
+  }
+}
+
+/**
+ * Volitelná kouzla (pool nabídky) classy do daného levelu — cantripy a leveled
+ * zvlášť. **Bez** subclass signature a bez martial technik (always-on). Pro UI
+ * editoru Knihy kouzel.
+ */
+export function spellPoolFor(
+  klass: ClassId,
+  level: number,
+): { cantrips: SpellbookEntry[]; leveled: SpellbookEntry[] } {
+  const cantrips: SpellbookEntry[] = [];
+  const leveled: SpellbookEntry[] = [];
+  for (const ab of classSpellCatalog(klass)) {
+    if (ab.spellTier === undefined) continue; // martial technika / class feature
+    if (level < ab.unlockLevel) continue;
+    const entry: SpellbookEntry = {
+      id: ab.id,
+      name: ab.name,
+      description: ab.description,
+      kind: ab.kind,
+      spellTier: ab.spellTier,
+    };
+    if (ab.spellTier === 0) cantrips.push(entry);
+    else leveled.push(entry);
+  }
+  leveled.sort((a, b) => a.spellTier - b.spellTier || a.name.localeCompare(b.name));
+  cantrips.sort((a, b) => a.name.localeCompare(b.name));
+  return { cantrips, leveled };
+}
+
+/** Baseline kouzla (legacy kit) classy do levelu — výchozí prepared sada (zpětná kompatibilita). */
+function baselineSpellIds(klass: ClassId, level: number): string[] {
+  return (CLASS_BASELINE_ABILITIES[klass] ?? [])
+    .filter((ab) => ab.spellTier !== undefined && level >= ab.unlockLevel)
+    .map((ab) => ab.id);
+}
+
+/**
+ * Výchozí (auto) prepared sada — legacy baseline kit. Postavy bez uložené volby
+ * (nebo po resetu) dostanou přesně dřívější kit → žádná regrese v boji; rozšiřující
+ * pool je čistě opt-in přes editor.
+ */
+export function defaultPreparedSpellIds(klass: ClassId, level: number): string[] {
+  return baselineSpellIds(klass, level);
+}
+
+/**
+ * Validuje výběr prepared kouzel: každé id musí být v poolu classy do levelu a
+ * počty (cantrip/leveled) nesmí přesáhnout limity. Always-on (subclass/martial)
+ * se sem nepředávají.
+ */
+export function isValidPreparedSelection(
+  klass: ClassId,
+  level: number,
+  ids: readonly string[],
+): boolean {
+  const pool = spellPoolFor(klass, level);
+  const byId = new Map<string, SpellbookEntry>();
+  for (const e of [...pool.cantrips, ...pool.leveled]) byId.set(e.id, e);
+  const unique = new Set(ids);
+  if (unique.size !== ids.length) return false; // duplicity
+  let cantrips = 0;
+  let leveled = 0;
+  for (const id of unique) {
+    const e = byId.get(id);
+    if (!e) return false; // mimo pool / pod levelem
+    if (e.spellTier === 0) cantrips++;
+    else leveled++;
+  }
+  const limits = preparedLimits(klass, level);
+  return cantrips <= limits.cantrips && leveled <= limits.leveled;
+}
+
+/**
+ * Bojový abilit set postavy s ohledem na prepared volbu (Kniha kouzel). Vrací:
+ *  - **always-on** abilities (baseline bez `spellTier` + subclass signature) — vždy,
+ *  - **vybraná kouzla** z poolu (cantripy + leveled) dle `prepared`.
+ *
+ * `prepared == null/undefined` → legacy: vrátí přesně `resolveAbilities` (baseline
+ * kit + subclass) → zpětná kompatibilita pro postavy bez uložené volby. Neplatná id
+ * v `prepared` (mimo pool / nad limit) se bezpečně ignorují (defenzivní clamp).
+ */
+export function resolvePreparedAbilities(
+  klass: ClassId,
+  subclass: SubclassId | null | undefined,
+  level: number,
+  prepared: readonly string[] | null | undefined,
+): SignatureAbility[] {
+  if (prepared == null) return resolveAbilities(klass, subclass ?? null, level);
+
+  const out: SignatureAbility[] = [];
+  const strip = (ab: BaselineAbility): SignatureAbility => {
+    const { unlockLevel: _u, ...sig } = ab;
+    return sig;
+  };
+
+  // Always-on: baseline bez spellTier (martial techniky / class features).
+  for (const ab of CLASS_BASELINE_ABILITIES[klass] ?? []) {
+    if (ab.spellTier === undefined && level >= ab.unlockLevel) out.push(strip(ab));
+  }
+
+  // Vybraná kouzla z poolu (cantrip + leveled), v limitech (defenzivní clamp).
+  const wanted = new Set(prepared);
+  const limits = preparedLimits(klass, level);
+  let cantrips = 0;
+  let leveled = 0;
+  for (const ab of classSpellCatalog(klass)) {
+    if (ab.spellTier === undefined || level < ab.unlockLevel) continue;
+    if (!wanted.has(ab.id)) continue;
+    if (ab.spellTier === 0) {
+      if (cantrips >= limits.cantrips) continue;
+      cantrips++;
+    } else {
+      if (leveled >= limits.leveled) continue;
+      leveled++;
+    }
+    out.push(strip(ab));
+  }
+
+  // Subclass signature — always-on (class identita).
+  if (subclass) {
+    const sub = SUBCLASS_ABILITIES[subclass];
+    if (sub && level >= sub.unlockLevel) out.push(strip(sub));
+  }
+  return out;
 }

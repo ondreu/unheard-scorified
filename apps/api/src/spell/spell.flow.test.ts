@@ -94,6 +94,59 @@ describe('MR-4 flow: spell sloty + spellbook', () => {
     expect(after.totalAvailable).toBe(after.totalMax);
   });
 
+  it('prepared: default (no explicit choice) = legacy baseline, preparedExplicit false', async () => {
+    const accountId = await registerAndGetId('prep-default');
+    const char = await characters.create(accountId, { name: 'Aegwynn', race: 'human', class: 'wizard' });
+    const view = await spells.getSpells(accountId, char.id);
+    expect(view.preparedExplicit).toBe(false);
+    expect(view.prepared.length).toBeGreaterThan(0);
+    expect(view.pool.cantrips.length + view.pool.leveled.length).toBeGreaterThan(view.prepared.length);
+    expect(view.canEdit).toBe(true); // rested
+  });
+
+  it('prepared: saving a valid selection (rested) persists and reflects in view', async () => {
+    const accountId = await registerAndGetId('prep-save');
+    const char = await characters.create(accountId, { name: 'Rhonin', race: 'human', class: 'wizard' });
+    const before = await spells.getSpells(accountId, char.id);
+    const chosen = [
+      ...before.pool.cantrips.slice(0, before.limits.cantrips).map((s) => s.id),
+      ...before.pool.leveled.slice(0, before.limits.leveled).map((s) => s.id),
+    ];
+    const after = await spells.setPrepared(accountId, char.id, chosen);
+    expect(after.preparedExplicit).toBe(true);
+    expect([...after.prepared].sort()).toEqual([...chosen].sort());
+    // round-trip přes DB
+    const reloaded = await spells.getSpells(accountId, char.id);
+    expect([...reloaded.prepared].sort()).toEqual([...chosen].sort());
+  });
+
+  it('prepared: rejects over-limit / unknown selections', async () => {
+    const accountId = await registerAndGetId('prep-bad');
+    const char = await characters.create(accountId, { name: 'Arugal', race: 'human', class: 'wizard' });
+    const view = await spells.getSpells(accountId, char.id);
+    // víc cantripů než limit
+    const tooManyCantrips = view.pool.cantrips.slice(0, view.limits.cantrips + 1).map((s) => s.id);
+    if (tooManyCantrips.length > view.limits.cantrips) {
+      await expect(spells.setPrepared(accountId, char.id, tooManyCantrips)).rejects.toThrow();
+    }
+    await expect(spells.setPrepared(accountId, char.id, ['not_a_spell'])).rejects.toThrow();
+  });
+
+  it('prepared: blocked while not rested (Long Rest gate)', async () => {
+    const accountId = await registerAndGetId('prep-rest');
+    const char = await characters.create(accountId, { name: 'Kel', race: 'human', class: 'wizard' });
+    await charRepo.setSpentSpellSlots(char.id, { 1: 1 });
+    const view = await spells.getSpells(accountId, char.id);
+    expect(view.canEdit).toBe(false);
+    await expect(spells.setPrepared(accountId, char.id, [])).rejects.toThrow('Long Rest');
+  });
+
+  it('prepared: non-caster rejects preparing spells', async () => {
+    const accountId = await registerAndGetId('prep-martial');
+    const char = await characters.create(accountId, { name: 'Garrosh', race: 'human', class: 'fighter' });
+    await expect(spells.setPrepared(accountId, char.id, [])).rejects.toThrow('does not prepare');
+  });
+
   it('rejects access to a character the account does not own', async () => {
     const a = await registerAndGetId('owner-a');
     const b = await registerAndGetId('owner-b');

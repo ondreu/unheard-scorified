@@ -89,6 +89,10 @@ export const characters = pgTable('characters', {
   // spotřebuje, Long Rest při claimu/návratu dobije (reset na {}). Available =
   // max (z třídy/levelu, viz @game/shared) − spent.
   spentSpellSlots: jsonb('spent_spell_slots').$type<SpellSlots>().notNull().default({}),
+  // Aktivní (prepared) kouzla z Knihy kouzel (ADR 0039) — pole ids zvolených
+  // kouzel z poolu classy. NULL = postava nemá uloženou volbu → legacy baseline
+  // kit (zpětná kompatibilita). Swap zdarma při Long Rest / level-up.
+  preparedSpells: jsonb('prepared_spells').$type<string[]>(),
   totalXp: integer('total_xp').notNull().default(0),
   gold: integer('gold').notNull().default(0),
   // Kosmeticky zvolený („active") mount (M10+). Power je odvozený z vlastněných

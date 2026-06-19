@@ -16,7 +16,13 @@
 import { SeededRng } from './rng';
 import { ABILITY_SCORE_CAP, abilityModifier, dndMaxHp, proficiencyBonus, type AbilityScore, type AbilityScores } from './character';
 import { CLASSES, type ClassId, type SubclassId } from './data/classes';
-import { casterTypeOf, spellSlotsFor, type CasterType, type SpellSlots } from './data/spell-slots';
+import {
+  casterTypeOf,
+  resolvePreparedAbilities,
+  spellSlotsFor,
+  type CasterType,
+  type SpellSlots,
+} from './data/spell-slots';
 import {
   kiPointsFor,
   rageChargesFor,
@@ -26,7 +32,7 @@ import {
 import { attackHits, diceAverage, diceNotation, rollAttack, rollDice, type AdvantageMode, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
-import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
+import { SHIELD_TAGS, type SignatureAbility } from './data/abilities';
 import {
   applyDamageInteraction,
   crForContentLevel,
@@ -316,6 +322,13 @@ export interface CombatProfileInput {
   equipment: ItemStats;
   /** Agregované D&D level-up efekty (ASI/Feat) — stat bonusy + combat tagy. */
   progression: ProgressionEffects;
+  /**
+   * Aktivní (prepared) kouzla z Knihy kouzel (ADR 0039) — ids zvolených kouzel.
+   * `undefined` = postava nemá uloženou volbu → legacy baseline kit (zpětná
+   * kompatibilita). Always-on abilities (martial techniky + subclass) jsou
+   * dostupné vždy nezávisle na výběru.
+   */
+  preparedSpells?: readonly string[] | null;
 }
 
 /**
@@ -324,7 +337,7 @@ export interface CombatProfileInput {
  * tagy mění crit/haste/damage/lifesteal, class+subclass+level odemykají abilit kit.
  */
 export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
-  const { level, klass, subclass, primary, equipment, progression } = input;
+  const { level, klass, subclass, primary, equipment, progression, preparedSpells } = input;
   const primaryStat: AbilityScore = CLASSES[klass].primaryStat;
 
   // D&D strop: innate skóre (array + rasa + ASI) je clampnuto na 20; magic-item
@@ -366,8 +379,9 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     shieldMult += (SHIELD_TAGS[tag] ?? 0) * ranks;
   }
 
-  // Abilit kit = class kit (level) + subclass signature — jediný zdroj pravdy.
-  const abilities = resolveAbilities(klass, subclass, level);
+  // Abilit kit = always-on techniky + vybraná (prepared) kouzla z Knihy kouzel
+  // (ADR 0039). Bez uložené volby → legacy baseline kit (zpětná kompatibilita).
+  const abilities = resolvePreparedAbilities(klass, subclass ?? null, level, preparedSpells);
 
   // D&D dice-roll staty (MR-5) — odvozené z efektivních atributů dle D&D 5e.
   const prof = proficiencyBonus(level);
