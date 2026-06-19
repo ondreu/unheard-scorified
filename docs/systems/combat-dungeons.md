@@ -109,6 +109,20 @@ Vyšší šance na drop než questy + dungeon-only itemy (`items.ts`, např.
 `whitemane_chapeau`, `herod_shoulder`, `commanders_crest`). Loot se rolluje při
 **vítězství** na deterministicky odvozeném seedu (neinterferuje s combat RNG).
 
+## Tahový (solo) dungeon (dungeon overhaul Slice 2, ADR 0037)
+
+Vedle idle auto-resolve běhu lze dungeon hrát **interaktivně tahově** (zatím
+**solo**). Engine `packages/shared/src/dungeon-run.ts` je stateful, serializovatelný
+(uložený jako JSON v `dungeon_turn_runs`), deterministický (seed per tah). Hráč
+kolo po kole volí **ability + cíl** (multi-enemy → klik na nepřítele):
+`resolveDungeonTurn` vyhodnotí DoT tiky → hráčovu ability (AoE = všichni živí) →
+protiútok všech živých nepřátel → údržbu cooldownů. Mezi encountery **short rest**
+(refill slotů/Ki/cooldownů + částečné doléčení). Smrt = konec runu (bez wipe/retry
+determination — ta je výhradně v idle auto-resolve). Odměna při vyčištění sdílí
+`computeGroupReward` + weekly lockout + reputaci s auto-resolve. API: routy pod
+`characters/:id/dungeons/turn/*` (`enter`/`run/:id`/`act`/`abandon`); web
+`dungeon-turn/[runId]`. **Group/AI tahový = Slice 3+.**
+
 ## API (`apps/api/src/dungeon/`)
 
 | Endpoint                                            | Popis                              |

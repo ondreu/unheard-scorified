@@ -416,6 +416,87 @@ export function leaveDungeonQueue(
   });
 }
 
+// ── Tahový (solo) dungeon (dungeon overhaul Slice 2, ADR 0037) ────────────────
+
+export interface DungeonTurnAbilityView {
+  id: string;
+  name: string;
+  description: string;
+  kind: string;
+  cooldownSec: number;
+  cooldownRemaining: number;
+  ready: boolean;
+  spellTier: number;
+  outOfSlots: boolean;
+  kiCost: number;
+  outOfKi: boolean;
+}
+
+export interface DungeonTurnEnemyView {
+  idx: number;
+  name: string;
+  isBoss: boolean;
+  maxHealth: number;
+  currentHealth: number;
+}
+
+export interface DungeonTurnRunView {
+  runId: string;
+  dungeonId: string;
+  dungeonName: string;
+  status: 'in_combat' | 'cleared' | 'dead';
+  encounterIndex: number;
+  encounterCount: number;
+  encountersCleared: number;
+  player: {
+    name: string;
+    maxHealth: number;
+    currentHealth: number;
+    absorb: number;
+    mitigationTurns: number;
+    spellSlots: Record<number, number>;
+    maxSpellSlots: Record<number, number>;
+    kiPoints: number;
+    maxKiPoints: number;
+    rageCharges: number;
+    maxRageCharges: number;
+    raging: boolean;
+  };
+  enemies: DungeonTurnEnemyView[];
+  abilities: DungeonTurnAbilityView[];
+  events: CombatEvent[];
+  reward: { xp: number; gold: number; items: string[] } | null;
+  myLockedOut: boolean;
+}
+
+export function enterDungeonTurn(characterId: string, dungeonId: string): Promise<DungeonTurnRunView> {
+  return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/${dungeonId}/turn/enter`, {
+    method: 'POST',
+  });
+}
+
+export function getDungeonTurnRun(characterId: string, runId: string): Promise<DungeonTurnRunView> {
+  return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/turn/run/${runId}`);
+}
+
+export function actDungeonTurn(
+  characterId: string,
+  runId: string,
+  abilityId: string,
+  targetId: number,
+): Promise<DungeonTurnRunView> {
+  return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/turn/run/${runId}/act`, {
+    method: 'POST',
+    body: JSON.stringify({ abilityId, targetId }),
+  });
+}
+
+export function abandonDungeonTurn(characterId: string, runId: string): Promise<DungeonTurnRunView> {
+  return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/turn/run/${runId}/abandon`, {
+    method: 'POST',
+  });
+}
+
 export interface ProfessionSkillView {
   id: string;
   name: string;

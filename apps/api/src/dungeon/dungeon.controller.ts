@@ -7,12 +7,16 @@ import {
   type DungeonRunSummary,
   type DungeonRunView,
 } from './dungeon.service';
+import { DungeonTurnService, type DungeonTurnRunView } from './dungeon-turn.service';
 import type { RaidComposition, RaidRole } from '@game/shared';
 
 @Controller('characters/:characterId/dungeons')
 @UseGuards(JwtAuthGuard)
 export class DungeonController {
-  constructor(private readonly dungeons: DungeonService) {}
+  constructor(
+    private readonly dungeons: DungeonService,
+    private readonly turn: DungeonTurnService,
+  ) {}
 
   /** Seznam dungeonů (s flagem unlocked dle levelu + stav fronty). */
   @Get()
@@ -79,5 +83,57 @@ export class DungeonController {
       body?.role,
       body?.composition,
     );
+  }
+
+  // ── Tahový (solo) dungeon (dungeon overhaul Slice 2, ADR 0037) ──────────────
+
+  /** Nedávné tahové runy postavy. */
+  @Get('turn/runs')
+  turnRuns(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+  ) {
+    return this.turn.recentRuns(user.accountId, characterId);
+  }
+
+  /** Detail/aktuální stav tahového runu. */
+  @Get('turn/run/:runId')
+  turnRun(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('runId') runId: string,
+  ): Promise<DungeonTurnRunView> {
+    return this.turn.getRun(user.accountId, characterId, runId);
+  }
+
+  /** Vstup do tahového (solo) dungeonu — založí interaktivní run. */
+  @Post(':dungeonId/turn/enter')
+  turnEnter(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('dungeonId') dungeonId: string,
+  ): Promise<DungeonTurnRunView> {
+    return this.turn.enter(user.accountId, characterId, dungeonId);
+  }
+
+  /** Jeden tah: hráč zvolí ability + cíl (index nepřítele). */
+  @Post('turn/run/:runId/act')
+  turnAct(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('runId') runId: string,
+    @Body() body: { abilityId: string; targetId?: number },
+  ): Promise<DungeonTurnRunView> {
+    return this.turn.act(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0);
+  }
+
+  /** Předčasné opuštění tahového runu (žádná odměna). */
+  @Post('turn/run/:runId/abandon')
+  turnAbandon(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('runId') runId: string,
+  ): Promise<DungeonTurnRunView> {
+    return this.turn.abandon(user.accountId, characterId, runId);
   }
 }

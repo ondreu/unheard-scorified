@@ -33,6 +33,7 @@ export * from './data/arenas';
 export * from './pvp';
 export * from './raid';
 export * from './gauntlet';
+export * from './dungeon-run';
 export * from './group';
 export * from './lockout';
 export * from './auction';

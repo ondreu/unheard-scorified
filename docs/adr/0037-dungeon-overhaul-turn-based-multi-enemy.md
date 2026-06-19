@@ -50,9 +50,24 @@ interaktivní mód** vedle zachovaného idle auto-resolve. Realizováno ve slice
   - **API/web**: `groupEncounters` vrací `CombatActor[][]`; dungeon list `bossName`
     z `dungeonBoss`; run view mapuje encounter-skupiny na `{ name, isBoss }`.
 
-- **Slice 2 — tahový solo engine (navazuje):** zobecnit gauntlet-styl tahový,
-  serializovaný, server-validovaný run na **1 hráč vs sekvence multi-enemy
-  encounterů** s výběrem cíle; idle solo zůstává jako alternativní mód.
+- **Slice 2 — tahový solo engine (hotovo):**
+  - **Engine** `dungeon-run.ts` (čistý, serializovatelný, seed per tah) — 1 hráč
+    vs **sekvence multi-enemy encounterů** dungeonu. Hráč volí **ability + cíl**
+    (`resolveDungeonTurn(base, state, abilityId, targetId)`): DoT tiky → hráčova
+    ability (AoE = všichni živí) → protiútok všech živých nepřátel → údržba.
+    Mezi encountery **short rest** (per-encounter refill slotů/Ki/cooldownů +
+    částečné doléčení, jako auto-resolve pull). Smrt = konec (bez determination
+    retry — to má idle auto-resolve). Recykluje `computeHit`/`abilityDamageSpec`/
+    `healDiceSpec`/slot+Ki+rage helpery (žádná duplikace).
+  - **DB**: nová tabulka `dungeon_turn_runs` (stateful JSON `DungeonRunState` +
+    snapshot, mirror `gauntlet_runs`), migrace `0041`.
+  - **API**: `DungeonTurnService`/`DungeonTurnRepository` + routy pod
+    `characters/:id/dungeons/turn/*` (`enter`/`run/:id`/`act`/`abandon`). Odměna
+    při vyčištění sdílí `computeGroupReward` + weekly lockout + reputaci s
+    auto-resolve. Nejvýše jeden aktivní run; server validuje každý tah (anti-cheat).
+  - **Web**: tlačítko „⚔️ Turn-based" u solo dungeonu + interaktivní stránka
+    `dungeon-turn/[runId]` (výběr cíle klikem na nepřítele, ability bar, combat log).
+  - Idle solo (`enter`) zůstává jako alternativní mód vedle tahového.
 
 - **Slice 3 — tahový group + AI parťáci:** N-aktérový tahový boj, AI spojenci
   řízení rotací/rolí/sloty (mimikují hráče), 3-player autofill.
