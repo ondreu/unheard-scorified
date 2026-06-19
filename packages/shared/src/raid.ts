@@ -566,11 +566,10 @@ function fightBoss(
       if (kiCost > 0) kiBudget[i]! -= kiCost;
       const bossHpPct = boss.maxHealth > 0 ? bossHp / boss.maxHealth : 0;
       // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-      // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
+      // jinak škálují přes attackPower (damageMult). Upcast dle slotu,
       // kterým bylo kouzlo sesláno (ADR 0034 → raid teď trackuje slot tier).
       const spec = abilityDamageSpec(ability, slot.tier, member.level);
       const mult = spec ? 1 : abilityDamageMult(ability, bossHpPct);
-      const executing = !spec && mult > ability.damageMult;
       // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
       const bonusDice = bonusDiceSpec(ability, slot.tier, member.level);
       const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec, {
@@ -588,7 +587,6 @@ function fightBoss(
       const healed = hit.hit && healFrac > 0 ? Math.round(hit.amount * healFrac) : 0;
       if (healed > 0) hp[i] = Math.min(member.maxHealth, hp[i]! + healed);
       if (hit.hit && ability.kind === 'dot') scheduleDot(timers, member, boss, ability, clock);
-      const exec = executing ? ' (execute!)' : '';
       events.push({
         t: round1(clock),
         type: healed > 0 ? 'drain' : 'ability',
@@ -601,10 +599,10 @@ function fightBoss(
         message: !hit.hit
           ? `${member.name} casts ${ability.name} at ${boss.name} — MISS ${rollTag(hit)}`
           : healed > 0
-            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
+            ? `🩸 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, healed for ${healed}. ${boss.name}: ${bossHp} HP`
             : ability.kind === 'dot'
-              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}, leaving a burn. ${boss.name}: ${bossHp} HP`
-              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}${exec}. ${boss.name}: ${bossHp} HP`,
+              ? `🔥 ${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}, leaving a burn. ${boss.name}: ${bossHp} HP`
+              : `${member.name} casts ${ability.name} on ${boss.name} for ${hit.amount}${hit.crit ? ' (crit!)' : ''}. ${boss.name}: ${bossHp} HP`,
       });
     } else {
       // Boss útočí.
@@ -761,7 +759,7 @@ export function simulateRaidRun(
 
 // ── Trénovací terč / sandbox (MIL) ──────────────────────────────────────────
 // „Testovací target/healing dummy" — ladění rotace bez nutnosti soupeře/party.
-// Recykluje `fightBoss` (role routing, mitigation, heal, DoT, execute — žádná
+// Recykluje `fightBoss` (role routing, mitigation, heal, DoT — žádná
 // duplikace), jen s časovým stropem místo ukončení na smrti bosse/party.
 
 /** HP terče — dost vysoko, aby v rozumné délce testu nikdy nepadl. */

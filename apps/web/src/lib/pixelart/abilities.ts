@@ -24,6 +24,7 @@ const KIND_COLOR: Record<AbilityKind, RGB> = {
   heal: 0x5fb87a, // life
   shield: 0x6cb6e0, // ward
   mitigation: 0x9aa6b2, // iron
+  buff: 0xb887d6, // hex/mark — arcane violet
 };
 
 /** Klíčové slovo v názvu → barva živlu (pořadí = priorita, specifické první). */

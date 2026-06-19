@@ -512,7 +512,7 @@ export function resolveGauntletTurn(
     // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
     const targetHpPct = enemy.currentHealth / enemy.maxHealth;
     // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-    // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
+    // jinak škálují přes attackPower (damageMult). Upcast dle slotu,
     // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
     const spec = abilityDamageSpec(ability, usedSlotTier, player.level);
     const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);

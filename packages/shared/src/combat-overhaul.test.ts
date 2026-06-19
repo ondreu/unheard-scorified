@@ -42,11 +42,12 @@ describe('ability descriptions & execute', () => {
   });
 
   it('no ability uses the WoW execute mechanic anymore (ADR 0036)', () => {
-    // „Fix kouzla": execute (víc damage pod prahem HP) je WoW-ismus, ne D&D — smazán.
+    // „Fix kouzla": execute (víc damage pod prahem HP) je WoW-ismus, ne D&D — pole
+    // smazána z typu i dat. Žádná ability nenese reziduální execute klíče.
     for (const kit of Object.values(CLASS_BASELINE_ABILITIES)) {
       for (const ab of kit) {
-        expect(ab.executeBelowPct).toBeUndefined();
-        expect(ab.executeDamageMult).toBeUndefined();
+        expect('executeBelowPct' in ab).toBe(false);
+        expect('executeDamageMult' in ab).toBe(false);
       }
     }
   });

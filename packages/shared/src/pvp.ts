@@ -65,8 +65,6 @@ interface DuelTimer {
   abilityId?: string;
   abilityKind?: string;
   abilityMult?: number;
-  executeBelowPct?: number;
-  executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
   /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot strany. */
@@ -124,8 +122,6 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityId: ab.id,
       abilityKind: ab.kind,
       abilityMult: ab.damageMult,
-      executeBelowPct: ab.executeBelowPct,
-      executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
       abilitySpellTier: ab.spellTier,
       abilityKiCost: ab.kiCost,
@@ -141,8 +137,6 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityId: ab.id,
       abilityKind: ab.kind,
       abilityMult: ab.damageMult,
-      executeBelowPct: ab.executeBelowPct,
-      executeDamageMult: ab.executeDamageMult,
       abilityDamageType: ab.damageType,
       abilitySpellTier: ab.spellTier,
       abilityKiCost: ab.kiCost,
@@ -197,11 +191,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       kiBudget[attackerSide] -= kiCost;
     }
 
-    let effMult = timer.abilityMult ?? 1;
-    const defHpPct = defender.maxHealth > 0 ? hp[defenderSide] / defender.maxHealth : 0;
-    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
-      effMult = timer.executeDamageMult ?? effMult;
-    }
+    const effMult = timer.abilityMult ?? 1;
     const spec = timer.abilityDamageSpec;
     const hit = computeHit(attacker, defender, rng, spec ? 1 : effMult, enraged, timer.abilityDamageType, spec, {
       advantage: timer.abilityAdvantage ? 'advantage' : undefined,
@@ -303,8 +293,6 @@ interface TeamTimer {
   abilityId?: string;
   abilityKind?: string;
   abilityMult?: number;
-  executeBelowPct?: number;
-  executeDamageMult?: number;
   /** Typ poškození kouzla (MR-10d) — přebíjí typ classy útočníka. */
   abilityDamageType?: DamageType;
   /** Spell tier kouzla (ADR 0034) — tier ≥ 1 čerpá spell slot daného člena. */
@@ -386,8 +374,6 @@ export function simulateTeamFight(
           abilityId: ab.id,
           abilityKind: ab.kind,
           abilityMult: ab.damageMult,
-          executeBelowPct: ab.executeBelowPct,
-          executeDamageMult: ab.executeDamageMult,
           abilityDamageType: ab.damageType,
           abilitySpellTier: ab.spellTier,
           abilityKiCost: ab.kiCost,
@@ -449,12 +435,7 @@ export function simulateTeamFight(
       if (kiCost > kiBudget[attackerSide][timer.member]!) continue;
       kiBudget[attackerSide][timer.member]! -= kiCost;
     }
-    let effMult = timer.abilityMult ?? 1;
-    const defHpPct =
-      defender.maxHealth > 0 ? hp[defenderSide][targetIdx]! / defender.maxHealth : 0;
-    if (timer.executeBelowPct != null && defHpPct <= timer.executeBelowPct) {
-      effMult = timer.executeDamageMult ?? effMult;
-    }
+    const effMult = timer.abilityMult ?? 1;
     const spec = timer.abilityDamageSpec;
     const hit = computeHit(attacker, defender, rng, spec ? 1 : effMult, enraged, timer.abilityDamageType, spec, {
       advantage: timer.abilityAdvantage ? 'advantage' : undefined,

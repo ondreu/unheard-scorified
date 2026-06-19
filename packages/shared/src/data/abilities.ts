@@ -65,10 +65,6 @@ export interface SignatureAbility {
   dotDice?: DiceSpec;
   /** Drain: podíl uděleného poškození, který útočníka vyléčí (navíc k lifestealu). */
   drainHealFraction?: number;
-  /** Execute: pod tímto podílem HP cíle (0..1) se použije `executeDamageMult`. */
-  executeBelowPct?: number;
-  /** Execute: zvýšený damage multiplier proti cíli pod `executeBelowPct`. */
-  executeDamageMult?: number;
   /** Mitigation: podíl sníženého příchozího poškození (0..1) po dobu trvání. */
   mitigationPct?: number;
   /** Mitigation: doba trvání obranného okna v sekundách. */
@@ -157,7 +153,6 @@ export interface BaselineAbility extends SignatureAbility {
 interface BaselineOpts {
   dot?: { dotDurationSec: number; dotTicks: number; dotTickMult: number; dotDice?: DiceSpec };
   drainHealFraction?: number;
-  execute?: { executeBelowPct: number; executeDamageMult: number };
   mitigation?: { mitigationPct: number; mitigationDurationSec: number };
   /** D&D spell tier (0 = cantrip, 1..9 = kouzlo). Jen pro caster classy. */
   spellTier?: number;
@@ -205,7 +200,6 @@ function ba(
     unlockLevel,
     ...opts.dot,
     ...(opts.drainHealFraction ? { drainHealFraction: opts.drainHealFraction } : {}),
-    ...(opts.execute ?? {}),
     ...(opts.mitigation ?? {}),
     ...(opts.spellTier !== undefined ? { spellTier: opts.spellTier } : {}),
     ...(opts.damageType !== undefined ? { damageType: opts.damageType } : {}),
@@ -361,14 +355,11 @@ export function resolveAbilities(
 }
 
 /**
- * Efektivní damage multiplier ability proti cíli s daným HP% (0..1). Aplikuje
- * **execute** bonus (víc poškození pod prahem HP cíle). Bez execute polí vrací
- * base `damageMult`.
+ * Damage multiplier ability (ADR 0036: execute „pod 30 % HP" = WoW-ismus, smazán).
+ * Vrací `damageMult` — sim-knob magnitudy pro ability bez literal `dice`. `targetHpPct`
+ * se zachovává v signatuře (call-sites) pro případné budoucí HP-aware efekty.
  */
-export function abilityDamageMult(ability: SignatureAbility, targetHpPct: number): number {
-  if (ability.executeBelowPct != null && targetHpPct <= ability.executeBelowPct) {
-    return ability.executeDamageMult ?? ability.damageMult;
-  }
+export function abilityDamageMult(ability: SignatureAbility, _targetHpPct: number): number {
   return ability.damageMult;
 }
 
