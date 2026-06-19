@@ -51,6 +51,22 @@ describe('isValidChoice', () => {
     expect(isValidChoice('fighter', asiSlot, { kind: 'feat', featId: 'tough' })).toBe(true);
     expect(isValidChoice('fighter', asiSlot, { kind: 'subclass', subclassId: 'champion' })).toBe(false);
   });
+
+  it('odmítne feat mimo class filtr (caster feat na fighteru)', () => {
+    expect(isValidChoice('fighter', asiSlot, { kind: 'feat', featId: 'war_caster' })).toBe(false);
+    expect(isValidChoice('wizard', asiSlot, { kind: 'feat', featId: 'war_caster' })).toBe(true);
+  });
+
+  it('half-feat vyžaduje platný abilityChoice', () => {
+    const wizSlot = levelUpSlots('wizard', 20).find((s) => s.type === 'asi_or_feat')!;
+    expect(isValidChoice('wizard', wizSlot, { kind: 'feat', featId: 'fey_touched' })).toBe(false);
+    expect(
+      isValidChoice('wizard', wizSlot, { kind: 'feat', featId: 'fey_touched', abilityChoice: 'intelligence' }),
+    ).toBe(true);
+    expect(
+      isValidChoice('wizard', wizSlot, { kind: 'feat', featId: 'fey_touched', abilityChoice: 'strength' }),
+    ).toBe(false);
+  });
 });
 
 describe('aggregateProgression', () => {
@@ -66,6 +82,18 @@ describe('aggregateProgression', () => {
     expect(p.statBonus.constitution).toBe(1); // z resilient
     expect(p.healthBonus).toBe(60); // tough 40 + resilient 20
     expect(p.tags.find((t) => t.tag === 'hp_minor')?.ranks).toBe(3);
+  });
+
+  it('half-feat aplikuje +1 do zvoleného atributu', () => {
+    const p = aggregateProgression([
+      { slotId: 'asi@4', choice: { kind: 'feat', featId: 'athlete', abilityChoice: 'dexterity' } },
+    ]);
+    expect(p.statBonus.dexterity).toBe(1);
+    // bez abilityChoice se half-feat stat neaplikuje
+    const p2 = aggregateProgression([
+      { slotId: 'asi@4', choice: { kind: 'feat', featId: 'athlete' } },
+    ]);
+    expect(p2.statBonus.dexterity ?? 0).toBe(0);
   });
 
   it('selectedSubclass vrátí zvolenou subclass', () => {

@@ -14,7 +14,7 @@
 import type { AbilityScore } from './character';
 import { ABILITY_SCORES } from './character';
 import { CLASSES, isSubclassOf, type ClassId, type SubclassId } from './data/classes';
-import { FEATS, type FeatId } from './data/feats';
+import { FEATS, isFeatForClass, isValidFeatAbilityChoice, type FeatId } from './data/feats';
 
 /** D&D 5e ASI/Feat levely (zjednodušeno; class-specific extra sloty = follow-up). */
 export const ASI_LEVELS = [4, 8, 12, 16, 19] as const;
@@ -39,6 +39,8 @@ export interface AsiChoice {
 export interface FeatChoice {
   kind: 'feat';
   featId: FeatId;
+  /** Half-feat: zvolený atribut pro +1 (musí být z `effect.statChoice.options`). */
+  abilityChoice?: AbilityScore;
 }
 /** Volba subclass. */
 export interface SubclassChoice {
@@ -92,7 +94,14 @@ export function isValidChoice(klass: ClassId, slot: LevelUpSlot, choice: LevelUp
   }
   // asi_or_feat
   if (choice.kind === 'asi') return isValidAsi(choice.increases);
-  if (choice.kind === 'feat') return choice.featId in FEATS;
+  if (choice.kind === 'feat') {
+    const feat = FEATS[choice.featId];
+    if (!feat) return false;
+    if (!isFeatForClass(feat, klass)) return false;
+    // Prereky (level/atribut/caster) ověřuje API service (potřebuje staty) — tady
+    // jen tvar volby: existence + class filtr + (half-feat) platný atribut.
+    return isValidFeatAbilityChoice(feat, choice.abilityChoice);
+  }
   return false;
 }
 
@@ -131,6 +140,10 @@ export function aggregateProgression(choices: readonly StoredLevelUpChoice[]): P
           const v = eff.statBonus[key] ?? 0;
           if (v) addStat(key, v);
         }
+      }
+      // Half-feat: +amount do zvoleného atributu (musí být z nabídky).
+      if (eff.statChoice && choice.abilityChoice && eff.statChoice.options.includes(choice.abilityChoice)) {
+        addStat(choice.abilityChoice, eff.statChoice.amount);
       }
       healthBonus += eff.healthBonus ?? 0;
       for (const { tag, ranks } of eff.combatTags ?? []) {

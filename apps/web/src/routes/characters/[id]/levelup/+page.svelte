@@ -46,6 +46,9 @@
     id: string;
     name: string;
     description: string;
+    prerequisite: string;
+    eligible: boolean;
+    abilityOptions: AbilityScore[];
   }
   interface SubclassView {
     id: string;
@@ -168,7 +171,10 @@
 
   function choiceLabel(c: LevelUpChoice): string {
     if (c.kind === 'subclass') return `Subclass: ${subclassName(c.subclassId)}`;
-    if (c.kind === 'feat') return `Feat: ${featName(c.featId)}`;
+    if (c.kind === 'feat') {
+      const ab = c.abilityChoice ? ` (+1 ${ABILITY_ABBREV[c.abilityChoice]})` : '';
+      return `Feat: ${featName(c.featId)}${ab}`;
+    }
     const parts = ABILITY_SCORES.filter((k) => (c.increases[k] ?? 0) > 0).map(
       (k) => `+${c.increases[k]} ${ABILITY_ABBREV[k]}`,
     );
@@ -333,14 +339,39 @@
                         <h4>{ui.feat}</h4>
                         <div class="grid-cards">
                           {#each view.feats as feat (feat.id)}
-                            <button
-                              class="option {slot.choice?.kind === 'feat' && slot.choice.featId === feat.id ? 'option-active' : ''}"
-                              disabled={pendingSlot === slot.id}
-                              onclick={() => choose(slot.id, { kind: 'feat', featId: feat.id as never })}
-                            >
-                              <strong>{feat.name}</strong>
+                            {@const chosen = slot.choice?.kind === 'feat' && slot.choice.featId === feat.id}
+                            {@const disabled = pendingSlot === slot.id || !feat.eligible}
+                            <div class="feat-card {chosen ? 'option-active' : ''} {!feat.eligible ? 'ineligible' : ''}">
+                              <div class="feat-card-head">
+                                <strong>{feat.name}</strong>
+                                {#if feat.prerequisite}
+                                  <span class="req {feat.eligible ? '' : 'req-fail'}">{feat.prerequisite}</span>
+                                {/if}
+                              </div>
                               <span class="muted small">{feat.description}</span>
-                            </button>
+                              {#if feat.abilityOptions.length}
+                                <!-- Half-feat: zvol atribut pro +1. -->
+                                <div class="ab-options">
+                                  {#each feat.abilityOptions as ab (ab)}
+                                    <button
+                                      class="ab-chip {chosen && slot.choice?.kind === 'feat' && slot.choice.abilityChoice === ab ? 'ab-on' : ''}"
+                                      {disabled}
+                                      onclick={() => choose(slot.id, { kind: 'feat', featId: feat.id as never, abilityChoice: ab })}
+                                    >
+                                      +1 {ABILITY_ABBREV[ab]}
+                                    </button>
+                                  {/each}
+                                </div>
+                              {:else}
+                                <button
+                                  class="btn btn-ghost feat-pick"
+                                  {disabled}
+                                  onclick={() => choose(slot.id, { kind: 'feat', featId: feat.id as never })}
+                                >
+                                  {chosen ? 'Selected' : 'Take feat'}
+                                </button>
+                              {/if}
+                            </div>
                           {/each}
                         </div>
                       </div>
@@ -425,6 +456,27 @@
   }
   .option:hover { border-color: var(--r-uncommon, #1eff00); }
   .option-active { border-color: var(--r-rare, #0070dd); box-shadow: 0 0 0 1px var(--r-rare, #0070dd); }
+
+  /* Feat karta — prereq label, half-feat atribut volby. */
+  .feat-card {
+    display: flex; flex-direction: column; gap: 0.35rem; text-align: left;
+    padding: 0.6rem 0.7rem; border: 1px solid var(--border, #333); border-radius: 8px;
+    background: var(--surface-2, #1a1a22);
+  }
+  .feat-card.ineligible { opacity: 0.5; }
+  .feat-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.4rem; }
+  .req { font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--surface-3, #232330); white-space: nowrap; }
+  .req-fail { color: var(--r-poor, #9d9d9d); border: 1px solid var(--r-poor, #9d9d9d); }
+  .ab-options { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .ab-chip {
+    padding: 0.3rem 0.55rem; border: 1px solid var(--border, #333); border-radius: 6px;
+    background: var(--surface-3, #232330); color: inherit; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+  }
+  .ab-chip:hover:not(:disabled) { border-color: var(--r-uncommon, #1eff00); }
+  .ab-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ab-chip.ab-on { border-color: var(--r-rare, #0070dd); box-shadow: 0 0 0 1px var(--r-rare, #0070dd); }
+  .feat-pick { align-self: flex-start; font-size: 0.8rem; padding: 0.3rem 0.6rem; }
+  .feat-pick:disabled { opacity: 0.5; cursor: not-allowed; }
   .asi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.4rem; }
   .asi-btn {
     padding: 0.5rem; border: 1px solid var(--border, #333); border-radius: 8px;

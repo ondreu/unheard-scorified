@@ -1,13 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ABILITY_SCORES,
   CLASSES,
   FEATS,
+  aggregateProgression,
   buildCharacterSheet,
   buildLevelTrack,
+  featPrerequisiteLabel,
+  featsForClass,
+  isCaster,
   levelFromXp,
   levelUpSlots,
   isValidChoice,
+  meetsFeatPrerequisites,
   selectedSubclass,
+  type AbilityScore,
   type ClassId,
   type FeatId,
   type LevelTrack,
@@ -28,6 +35,12 @@ export interface FeatView {
   id: FeatId;
   name: string;
   description: string;
+  /** Lidsky čitelný popis prereků (prázdné = bez prereku). */
+  prerequisite: string;
+  /** Splňuje postava prereky featu (UI: zašednutí). */
+  eligible: boolean;
+  /** Half-feat: atributy na výběr pro +1 (prázdné = ne-half-feat). */
+  abilityOptions: AbilityScore[];
 }
 
 export interface SubclassView {
@@ -76,10 +89,21 @@ export class LevelUpService {
     const sheet = buildCharacterSheet(character.race, klass, character.totalXp, undefined, character.baseScores);
     const conMod = sheet.derived.modifiers.constitution;
 
+    // Efektivní skóre (base + uložená ASI/feat progrese) pro vyhodnocení prereků.
+    const prereqCtx = this.prereqContext(klass, level, sheet.primary, stored);
+    const feats: FeatView[] = featsForClass(klass).map((f) => ({
+      id: f.id,
+      name: f.name,
+      description: f.description,
+      prerequisite: featPrerequisiteLabel(f),
+      eligible: meetsFeatPrerequisites(f, prereqCtx),
+      abilityOptions: f.effect.statChoice?.options ?? [],
+    }));
+
     return {
       level,
       slots,
-      feats: Object.values(FEATS).map((f) => ({ id: f.id, name: f.name, description: f.description })),
+      feats,
       subclasses: CLASSES[klass].subclasses.map((s) => ({
         id: s.id,
         name: s.name,
@@ -105,6 +129,18 @@ export class LevelUpService {
     if (!slot) throw new BadRequestException('Level-up slot not available yet');
     if (!isValidChoice(klass, slot, choice)) throw new BadRequestException('Invalid choice for slot');
 
+    // Feat: ověř prereky (level/atribut/caster) proti efektivním statům (potřebuje
+    // staty → nepatří do čistého `isValidChoice`).
+    if (choice.kind === 'feat') {
+      const feat = FEATS[choice.featId];
+      const sheet = buildCharacterSheet(character.race, klass, character.totalXp, undefined, character.baseScores);
+      const stored = await this.repo.listChoices(characterId);
+      const ctx = this.prereqContext(klass, level, sheet.primary, stored);
+      if (feat && !meetsFeatPrerequisites(feat, ctx)) {
+        throw new BadRequestException('Feat prerequisites not met');
+      }
+    }
+
     await this.repo.setChoice(characterId, slotId, choice);
     if (choice.kind === 'subclass') await this.repo.setSubclass(characterId, choice.subclassId);
 
@@ -117,6 +153,21 @@ export class LevelUpService {
     if (!character) throw new NotFoundException('Character not found');
     await this.repo.resetAll(characterId);
     return this.getLevelUp(accountId, characterId);
+  }
+
+  /** Kontext pro vyhodnocení feat prereků: efektivní skóre (base + ASI/feat) + caster. */
+  private prereqContext(
+    klass: ClassId,
+    level: number,
+    baseScores: Record<AbilityScore, number>,
+    stored: StoredLevelUpChoice[],
+  ): { level: number; scores: Partial<Record<AbilityScore, number>>; isCaster: boolean } {
+    const prog = aggregateProgression(stored);
+    const scores: Partial<Record<AbilityScore, number>> = {};
+    for (const k of ABILITY_SCORES) {
+      scores[k] = (baseScores[k] ?? 0) + (prog.statBonus[k] ?? 0);
+    }
+    return { level, scores, isCaster: isCaster(klass) };
   }
 }
 
