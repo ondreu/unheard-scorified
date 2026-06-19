@@ -24,6 +24,7 @@ import {
   abilityDamageSpec,
   applyAbsorb,
   applyRage,
+  bonusDiceSpec,
   buildAttackMessage,
   buildEnemyActor,
   canRage,
@@ -570,7 +571,12 @@ function fightBoss(
       const spec = abilityDamageSpec(ability, slot.tier, member.level);
       const mult = spec ? 1 : abilityDamageMult(ability, bossHpPct);
       const executing = !spec && mult > ability.damageMult;
-      const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec);
+      // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
+      const bonusDice = bonusDiceSpec(ability, slot.tier, member.level);
+      const hit = computeHit(member, boss, rng, mult, false, ability.damageType, spec, {
+        advantage: ability.advantage ? 'advantage' : undefined,
+        bonusDice,
+      });
       // Per-spell saving throw (ADR 0032) → boss si hodí proti spell save DC člena.
       if (hit.hit && ability.save) {
         const outcome = applySpellSave(ability, member, boss, rng, hit.amount);

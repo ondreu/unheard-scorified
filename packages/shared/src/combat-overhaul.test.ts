@@ -41,15 +41,17 @@ describe('ability descriptions & execute', () => {
     }
   });
 
-  it('abilityDamageMult applies the execute bonus below the threshold', () => {
-    const execute = CLASS_BASELINE_ABILITIES.fighter!.find((a) => a.id === 'fighter_execute')!;
-    expect(execute.executeBelowPct).toBe(0.3);
-    expect(abilityDamageMult(execute, 0.5)).toBe(execute.damageMult);
-    expect(abilityDamageMult(execute, 0.3)).toBe(execute.executeDamageMult);
-    expect(abilityDamageMult(execute, 0.1)).toBe(execute.executeDamageMult);
+  it('no ability uses the WoW execute mechanic anymore (ADR 0036)', () => {
+    // „Fix kouzla": execute (víc damage pod prahem HP) je WoW-ismus, ne D&D — smazán.
+    for (const kit of Object.values(CLASS_BASELINE_ABILITIES)) {
+      for (const ab of kit) {
+        expect(ab.executeBelowPct).toBeUndefined();
+        expect(ab.executeDamageMult).toBeUndefined();
+      }
+    }
   });
 
-  it('a plain ability ignores execute (returns base mult)', () => {
+  it('abilityDamageMult returns the base mult (execute fields gone)', () => {
     const strike = CLASS_BASELINE_ABILITIES.fighter!.find((a) => a.id === 'fighter_weapon_strike')!;
     expect(abilityDamageMult(strike, 0.1)).toBe(strike.damageMult);
   });
@@ -59,10 +61,10 @@ describe('resolveAbilities (class kit + subclass)', () => {
   it('grants class abilities by level, gating higher ones', () => {
     const low = resolveAbilities('fighter', null, 1).map((a) => a.id);
     expect(low).toContain('fighter_weapon_strike'); // unlock 1
-    expect(low).not.toContain('fighter_execute'); // unlock 20
+    expect(low).not.toContain('fighter_onslaught'); // unlock 20
     const high = resolveAbilities('fighter', null, 40).map((a) => a.id);
     expect(high).toContain('fighter_action_surge');
-    expect(high).toContain('fighter_execute');
+    expect(high).toContain('fighter_onslaught');
   });
 
   it('adds the subclass signature ability at the subclass level', () => {

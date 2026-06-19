@@ -24,6 +24,7 @@ import {
   abilityDamageMult,
   abilityDamageSpec,
   applyRage,
+  bonusDiceSpec,
   buildAttackMessage,
   buildEnemyActor,
   computeHit,
@@ -510,8 +511,13 @@ export function resolveGauntletTurn(
     // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
     const spec = abilityDamageSpec(ability, usedSlotTier, player.level);
     const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
+    // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
+    const bonusDice = bonusDiceSpec(ability, usedSlotTier, player.level);
     // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
-    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec);
+    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec, {
+      advantage: ability.advantage ? 'advantage' : undefined,
+      bonusDice,
+    });
     // Per-spell saving throw (ADR 0032) → nepřítel hodí proti spell save DC hráče.
     if (hit.hit && ability.save) {
       const outcome = applySpellSave(ability, player, enemyAsActor, rng, hit.amount);

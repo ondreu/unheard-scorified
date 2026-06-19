@@ -216,9 +216,9 @@ function ba(
 
 export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   barbarian: [
-    ba('barb_reckless_attack', 'Reckless Attack', 'Throws caution aside for a 120% weapon-damage blow.', 'strike', 4, 1.2, 1),
-    ba('barb_rage_strike', 'Rage', 'Channels fury into a 160% weapon-damage smash.', 'strike', 6, 1.6, 5),
-    ba('barb_brutal_strike', 'Brutal Strike', 'A crushing 180% blow, rising to 280% against foes below 30% health.', 'strike', 8, 1.8, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.8 } }),
+    ba('barb_reckless_attack', 'Reckless Attack', 'Attacks with reckless abandon — rolls with advantage to hit.', 'strike', 4, 1.0, 1, { advantage: true }),
+    ba('barb_frenzied_strikes', 'Frenzied Strikes', 'Extra Attack — a second weapon swing in the same turn.', 'strike', 6, 2.0, 5),
+    ba('barb_brutal_strike', 'Brutal Strike', 'A reckless blow that adds 1d10 to the weapon hit.', 'strike', 8, 1.0, 11, { bonusDice: { count: 1, sides: 10, bonus: 0 } }),
   ],
   bard: [
     ba('bard_vicious_mockery', 'Vicious Mockery', 'A WIS save or take 1d4 psychic damage and bleed over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0, damageType: 'psychic', save: { ability: 'wisdom', effect: 'negate' } }),
@@ -238,15 +238,15 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 3d10 lightning (DEX save halves). +1d10 per slot above 3rd.', 'strike', 7, 1.9, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
   ],
   fighter: [
-    ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined 115% weapon-damage strike.', 'strike', 4, 1.15, 1),
-    ba('fighter_action_surge', 'Action Surge', 'A burst of speed unleashes a 170% weapon-damage flurry.', 'strike', 8, 1.7, 6),
-    ba('fighter_trip_attack', 'Trip Attack', 'Sweeps the enemy for 140% damage and bleeds for 80% over 6s.', 'dot', 7, 0.5, 12, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.27 } }),
-    ba('fighter_execute', 'Killing Blow', 'A finisher for 180% weapon damage, rising to 270% against foes below 30% health.', 'strike', 8, 1.8, 20, { execute: { executeBelowPct: 0.3, executeDamageMult: 2.7 } }),
+    ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined weapon strike.', 'strike', 4, 1.0, 1),
+    ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action this turn.', 'strike', 8, 2.0, 6),
+    ba('fighter_trip_attack', 'Trip Attack', 'A Battle Master maneuver: weapon hit plus a 1d8 superiority die (and a knockdown).', 'strike', 7, 1.0, 12, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('fighter_onslaught', 'Onslaught', 'Unleashes the fighter\'s extra attacks in a single devastating turn.', 'strike', 8, 2.0, 20),
   ],
   monk: [
-    ba('monk_martial_arts', 'Martial Arts', 'A swift unarmed strike for 120% weapon damage.', 'strike', 3, 1.2, 1),
-    ba('monk_stunning_strike', 'Stunning Strike', 'A precise blow to a pressure point for 175% weapon damage. Costs 1 Ki.', 'strike', 7, 1.75, 5, { kiCost: 1 }),
-    ba('monk_quivering_palm', 'Quivering Palm', 'Lethal vibrations for 200% damage, rising to 300% against foes below 30% health. Costs 3 Ki.', 'strike', 9, 2.0, 11, { execute: { executeBelowPct: 0.3, executeDamageMult: 3.0 }, kiCost: 3 }),
+    ba('monk_martial_arts', 'Martial Arts', 'A swift unarmed strike.', 'strike', 3, 1.0, 1),
+    ba('monk_stunning_strike', 'Stunning Strike', 'A precise blow to a pressure point that can stun (CON save). Costs 1 Ki.', 'strike', 7, 1.0, 5, { kiCost: 1 }),
+    ba('monk_quivering_palm', 'Quivering Palm', 'Lethal vibrations for 10d10 necrotic (CON save halves). Costs 3 Ki.', 'strike', 9, 1.0, 11, { kiCost: 3, damageType: 'necrotic', dice: { count: 10, sides: 10, bonus: 0 }, save: { ability: 'constitution', effect: 'half' } }),
   ],
   paladin: [
     ba('paladin_divine_smite', 'Divine Smite', 'A radiant strike for 180% weapon damage.', 'strike', 5, 1.8, 1, { spellTier: 1 }),
@@ -261,9 +261,9 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('ranger_cure_wounds', 'Cure Wounds', 'Restores 1d8 + your spellcasting modifier to a wounded ally. +1d8 per slot above 1st.', 'heal', 6, 1.7, 9, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
   ],
   rogue: [
-    ba('rogue_sneak_attack', 'Sneak Attack', 'A vital strike for 140% weapon damage, rising to 250% against foes below 35% health.', 'strike', 4, 1.4, 1, { execute: { executeBelowPct: 0.35, executeDamageMult: 2.5 } }),
-    ba('rogue_poisoned_blade', 'Poisoned Blade', 'A coated blade for 45% on impact and 120% over 8s.', 'dot', 9, 0.45, 8, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.3 } }),
-    ba('rogue_assassinate', 'Assassinate', 'A killing strike for 200% weapon damage, rising to 320% against foes below 35% health.', 'strike', 8, 2.0, 14, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
+    ba('rogue_sneak_attack', 'Sneak Attack', 'A vital strike adding 1d6 per two levels of damage (1d6 at 1, up to 10d6 at 19).', 'strike', 4, 1.0, 1, { bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
+    ba('rogue_poisoned_blade', 'Poisoned Blade', 'A coated blade for 1d4 piercing that poisons for 1d6 each turn over 8s.', 'dot', 9, 0, 8, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 1, sides: 6, bonus: 0 } }, damageType: 'poison', dice: { count: 1, sides: 4, bonus: 0 } }),
+    ba('rogue_assassinate', 'Assassinate', 'A deadly opener struck with advantage, adding full Sneak Attack dice.', 'strike', 8, 1.0, 14, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
   ],
   sorcerer: [
     ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.1, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 10, bonus: 0 } }),
@@ -288,15 +288,15 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
 // ── Subclass signature ability (1 per subclass v MVP) — odemčeno subclassLevel ─
 
 export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
-  path_of_the_berserker: ba('berserker_frenzy', 'Frenzy', 'Berserk fury strikes for 250% weapon damage.', 'strike', 8, 2.5, 3),
+  path_of_the_berserker: ba('berserker_frenzy', 'Frenzy', 'Frenzied rage grants an extra weapon attack each turn.', 'strike', 8, 2.0, 3),
   college_of_lore: ba('lore_song_of_rest', 'Song of Rest', 'An inspiring melody heals a wounded ally for 2d8 + your spellcasting modifier. +1d8 per slot above 2nd.', 'heal', 8, 2.7, 3, { spellTier: 2, dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
   life_domain: ba('life_preserve_life', 'Preserve Life', 'Channel Divinity surges a pool of healing for 5d8 — no spell slot (refreshes on a Long Rest).', 'heal', 26, 3.0, 1, { dice: { count: 5, sides: 8, bonus: 0 } }),
-  circle_of_the_moon: ba('moon_wild_shape', 'Wild Shape: Dire Bear', 'Transforms to maul for 240% weapon damage.', 'strike', 9, 2.4, 2),
-  champion: ba('champion_heroic_surge', 'Heroic Surge', 'A champion strike for 230% weapon damage.', 'strike', 8, 2.3, 3),
-  way_of_the_open_hand: ba('open_hand_flurry', 'Flurry of Blows', 'A blinding flurry for 260% weapon damage. Costs 1 Ki.', 'strike', 8, 2.6, 3, { kiCost: 1 }),
+  circle_of_the_moon: ba('moon_wild_shape', 'Wild Shape: Dire Bear', 'Transforms into a dire bear and mauls with two attacks.', 'strike', 9, 2.0, 2),
+  champion: ba('champion_heroic_surge', 'Heroic Surge', 'Action Surge grants an extra Attack action this turn.', 'strike', 8, 2.0, 3),
+  way_of_the_open_hand: ba('open_hand_flurry', 'Flurry of Blows', 'Two unarmed strikes as a bonus action. Costs 1 Ki.', 'strike', 8, 2.0, 3, { kiCost: 1 }),
   oath_of_devotion: ba('devotion_sacred_weapon', 'Sacred Weapon', 'A radiant strike for 240% weapon damage.', 'strike', 9, 2.4, 3, { spellTier: 1 }),
-  hunter: ba('hunter_colossus_slayer', 'Colossus Slayer', 'A focused shot for 230% damage, rising to 320% against foes below 35% health.', 'strike', 9, 2.3, 3, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
-  thief: ba('thief_backstab', 'Backstab', 'A shadow strike for 230% weapon damage, rising to 320% against foes below 35% health.', 'strike', 9, 2.3, 3, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
+  hunter: ba('hunter_colossus_slayer', 'Colossus Slayer', 'A focused shot adding 1d8 to the weapon hit against a wounded foe.', 'strike', 9, 1.0, 3, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
+  thief: ba('thief_backstab', 'Backstab', 'A shadow strike struck with advantage, adding full Sneak Attack dice.', 'strike', 9, 1.0, 3, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
   draconic_bloodline: ba('draconic_elemental_burst', 'Elemental Burst', 'Draconic power erupts for 250% spell damage.', 'strike', 9, 2.5, 1, { spellTier: 2 }),
   the_fiend: ba('fiend_dark_ones_blessing', "Dark One's Own Luck", 'A fiendish blast for 230% damage, healing you for 20% of the damage dealt.', 'drain', 8, 2.3, 1, { drainHealFraction: 0.2, spellTier: 2 }),
   school_of_evocation: ba('evocation_overchannel', 'Overchannel', 'Overchanneled arcana for 270% spell damage.', 'strike', 10, 2.7, 2, { spellTier: 3 }),

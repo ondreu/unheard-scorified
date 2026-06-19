@@ -22,6 +22,7 @@ import {
   actorSpellSaveDc,
   applyAbsorb,
   applyRage,
+  bonusDiceSpec,
   buildEnemyActor,
   canRage,
   dotTickRaw,
@@ -317,6 +318,9 @@ export function simulateQuestEncounter(
       // (mult = damageMult + execute). Upcast dle slotu, kterým bylo kouzlo sesláno.
       const spec = chosen ? abilityDamageSpec(chosen, slotTier, player.level) : undefined;
       const mult = chosen && !spec ? abilityDamageMult(chosen, enemyHp / enemy.maxHealth) : 1;
+      // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery
+      // (Sneak Attack +Nd6, Divine Smite +2d8, Reckless Attack advantage).
+      const bonus = chosen ? bonusDiceSpec(chosen, slotTier, player.level) : undefined;
       // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy (Magic
       // Missile = force…); undefined → zdědí typ zbraně/classy útočníka.
       const result = resolveAttack(player, enemy, rng, {
@@ -324,6 +328,8 @@ export function simulateQuestEncounter(
         damageType: chosen?.damageType,
         damageSpec: spec,
         autoHit: chosen?.autoHit,
+        advantage: chosen?.advantage ? 'advantage' : undefined,
+        bonusDice: bonus,
       });
 
       // Per-spell saving throw (ADR 0032): kouzlo s `save` → nepřítel si hodí
