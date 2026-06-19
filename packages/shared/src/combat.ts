@@ -23,7 +23,7 @@ import {
   rageDamageBonus,
   RAGE_RESIST_TYPES,
 } from './data/class-resources';
-import { attackHits, diceNotation, rollAttack, rollDice, type AdvantageMode, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
+import { attackHits, diceAverage, diceNotation, rollAttack, rollDice, type AdvantageMode, type AttackRoll, type DiceRoll, type DiceSpec } from './dice';
 import type { ItemStats } from './data/items';
 import type { ProgressionEffects } from './levelup';
 import { SHIELD_TAGS, resolveAbilities, type SignatureAbility } from './data/abilities';
@@ -680,6 +680,20 @@ export function healDiceSpec(
     sides: base.sides,
     bonus: base.bonus + actorSpellMod(healer),
   };
+}
+
+/**
+ * Deterministické poškození jednoho DoT tiku (ADR 0036). Literal D&D DoT (Moonbeam
+ * 2d10, Spirit Guardians 3d8) → `diceAverage` per tik (bez RNG — DoT tiky jsou fixní,
+ * nesmí rozhodit pořadí draws v simulátorech). Bez `dice` → stará cesta `attackPower ×
+ * dotTickMult`. Vrací raw poškození před aplikací resistance/immunity (to řeší volající).
+ */
+export function dotTickRaw(ability: SignatureAbility, source: CombatActor): number {
+  if (ability.dice) {
+    const spec = abilityDamageSpec(ability, null, source.level ?? 1);
+    return spec ? Math.round(diceAverage(spec)) : 0;
+  }
+  return Math.round(source.attackPower * (ability.dotTickMult ?? 0));
 }
 
 /** Výsledek jednoho hodu na zásah + poškození (D&D dice-roll). */

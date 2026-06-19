@@ -209,9 +209,9 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 3d6 psychic damage (WIS save halves). +1d6 per slot above 1st.', 'strike', 7, 1.75, 9, { spellTier: 1, damageType: 'psychic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' } }),
   ],
   cleric: [
-    ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame for 1d8 (DEX save negates).', 'strike', 5, 1.5, 1, { spellTier: 0, dice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'dexterity', effect: 'negate' } }),
+    ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame for 1d8 (DEX save negates).', 'strike', 5, 1.5, 1, { spellTier: 0, damageType: 'radiant', dice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'dexterity', effect: 'negate' } }),
     ba('cleric_cure_wounds', 'Cure Wounds', 'Channels divine power to heal an ally for 230% of your healing power.', 'heal', 6, 2.3, 1, { spellTier: 1 }),
-    ba('cleric_guiding_bolt', 'Guiding Bolt', 'A bolt of light strikes for 4d6 radiant. +1d6 per slot above 1st.', 'strike', 7, 2.1, 8, { spellTier: 1, dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('cleric_guiding_bolt', 'Guiding Bolt', 'A bolt of light strikes for 4d6 radiant. +1d6 per slot above 1st.', 'strike', 7, 2.1, 8, { spellTier: 1, damageType: 'radiant', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
     ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians harry the enemy over 9s (WIS save halves).', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 }, spellTier: 3, save: { ability: 'wisdom', effect: 'half' } }),
   ],
   druid: [
@@ -249,21 +249,21 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('rogue_assassinate', 'Assassinate', 'A killing strike for 200% weapon damage, rising to 320% against foes below 35% health.', 'strike', 8, 2.0, 14, { execute: { executeBelowPct: 0.35, executeDamageMult: 3.2 } }),
   ],
   sorcerer: [
-    ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.1, 1, { spellTier: 0, dice: { count: 1, sides: 10, bonus: 0 } }),
+    ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.1, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 10, bonus: 0 } }),
     ba('sorc_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 3d8. +1d8 per slot above 1st.', 'strike', 6, 1.65, 5, { spellTier: 1, damageType: 'lightning', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
-    ba('sorc_scorching_ray', 'Scorching Ray', 'Searing rays for 140% damage plus 90% over 6s.', 'dot', 8, 0.4, 9, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 2 }),
+    ba('sorc_scorching_ray', 'Scorching Ray', 'Three searing rays for 6d6 fire (2d6 each), each a separate hit. +2d6 per slot above 2nd.', 'strike', 8, 1.6, 9, { spellTier: 2, damageType: 'fire', dice: { count: 6, sides: 6, bonus: 0 }, dicePerSlotAbove: 2 }),
     ba('sorc_fireball', 'Fireball', 'A roaring explosion for 8d6 fire (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.2, 14, { spellTier: 3, dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } }),
   ],
   warlock: [
-    ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling force for 1d10.', 'strike', 4, 1.45, 1, { spellTier: 0, dice: { count: 1, sides: 10, bonus: 0 } }),
+    ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling force for 1d10.', 'strike', 4, 1.45, 1, { spellTier: 0, damageType: 'force', dice: { count: 1, sides: 10, bonus: 0 } }),
     ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }, spellTier: 1, damageType: 'necrotic' }),
-    ba('warlock_drain_life', 'Drain Life', 'Drains 100% damage, healing you for 50% of the damage dealt.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3, damageType: 'necrotic' }),
+    ba('warlock_vampiric_touch', 'Vampiric Touch', 'A withering touch for 3d6 necrotic, healing you for half the damage dealt. +1d6 per slot above 3rd.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3, damageType: 'necrotic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
     ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'Void tendrils gnaw for 40% on impact and 110% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.27 }, spellTier: 3, damageType: 'necrotic' }),
   ],
   wizard: [
-    ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.05, 1, { spellTier: 0, dice: { count: 1, sides: 10, bonus: 0 } }),
+    ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.05, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 10, bonus: 0 } }),
     ba('wiz_magic_missile', 'Magic Missile', 'Three darts of force for 3d4+3 (auto-hit). +1d4+1 per slot above 1st.', 'strike', 4, 1.3, 1, { spellTier: 1, damageType: 'force', dice: { count: 3, sides: 4, bonus: 3 }, dicePerSlotAbove: 1, autoHit: true }),
-    ba('wiz_scorching_ray', 'Scorching Ray', 'Searing rays for 40% on impact and 75% over 6s.', 'dot', 8, 0.4, 8, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.25 }, spellTier: 2 }),
+    ba('wiz_scorching_ray', 'Scorching Ray', 'Three searing rays for 6d6 fire (2d6 each), each a separate hit. +2d6 per slot above 2nd.', 'strike', 8, 1.6, 8, { spellTier: 2, damageType: 'fire', dice: { count: 6, sides: 6, bonus: 0 }, dicePerSlotAbove: 2 }),
     ba('wiz_fireball', 'Fireball', 'A roaring explosion for 8d6 fire (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.3, 14, { spellTier: 3, dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } }),
   ],
 };
@@ -292,13 +292,13 @@ export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
 export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   fireball: { name: 'Fireball', description: 'A roaring explosion for 8d6 fire (DEX save halves).', kind: 'strike', cooldownSec: 10, damageMult: 2.5, damageType: 'fire', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } },
   lightning_bolt: { name: 'Lightning Bolt', description: 'A line of lightning for 8d6 (DEX save halves).', kind: 'strike', cooldownSec: 9, damageMult: 2.4, damageType: 'lightning', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } },
-  ice_storm: { name: 'Ice Storm', description: 'Battering ice for 175% damage plus 120% over 6s.', kind: 'dot', cooldownSec: 10, damageMult: 1.75, dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.4, damageType: 'cold' },
-  inflict_wounds: { name: 'Inflict Wounds', description: 'Necrotic touch for 200% damage, healing you for 25% of the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 2.0, drainHealFraction: 0.25, damageType: 'necrotic' },
+  ice_storm: { name: 'Ice Storm', description: 'A hail of ice for 4d6 cold (DEX save halves).', kind: 'strike', cooldownSec: 10, damageMult: 1.75, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } },
+  inflict_wounds: { name: 'Inflict Wounds', description: 'A necrotic touch for 3d10. +1d10 per slot above 1st.', kind: 'strike', cooldownSec: 8, damageMult: 2.0, damageType: 'necrotic', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1 },
   guiding_bolt: { name: 'Guiding Bolt', description: 'A bolt of light for 4d6 radiant.', kind: 'strike', cooldownSec: 8, damageMult: 2.1, damageType: 'radiant', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 },
-  spiritual_weapon: { name: 'Spiritual Weapon', description: 'A floating blade strikes for 185% damage.', kind: 'strike', cooldownSec: 7, damageMult: 1.85, damageType: 'force' },
+  spiritual_weapon: { name: 'Spiritual Weapon', description: 'A floating blade strikes for 1d8 force.', kind: 'strike', cooldownSec: 7, damageMult: 1.85, damageType: 'force', dice: { count: 1, sides: 8, bonus: 0 } },
   mass_healing_word: { name: 'Mass Healing Word', description: 'Restores 280% of your healing power to a wounded ally.', kind: 'heal', cooldownSec: 9, damageMult: 2.8 },
-  flame_blade: { name: 'Flame Blade', description: 'A blade of fire for 200% weapon damage.', kind: 'strike', cooldownSec: 8, damageMult: 2.0, damageType: 'fire' },
-  vampiric_touch: { name: 'Vampiric Touch', description: 'Drains 160% damage, healing you for 40% of the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 1.6, drainHealFraction: 0.4, damageType: 'necrotic' },
+  flame_blade: { name: 'Flame Blade', description: 'A blade of fire for 3d6 fire.', kind: 'strike', cooldownSec: 8, damageMult: 2.0, damageType: 'fire', dice: { count: 3, sides: 6, bonus: 0 } },
+  vampiric_touch: { name: 'Vampiric Touch', description: 'A withering touch for 3d6 necrotic, healing you for half the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 1.6, drainHealFraction: 0.5, damageType: 'necrotic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 },
   shield_of_faith: { name: 'Shield of Faith', description: 'A shimmering field reduces damage taken by 40% for 10s.', kind: 'mitigation', cooldownSec: 22, damageMult: 0, mitigationPct: 0.4, mitigationDurationSec: 10 },
 };
 

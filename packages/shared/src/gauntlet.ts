@@ -28,6 +28,7 @@ import {
   buildEnemyActor,
   computeHit,
   crEnemyMagnitude,
+  dotTickRaw,
   applyAbsorb,
   SIGNATURE_ABILITIES,
   type CombatActor,
@@ -527,11 +528,11 @@ export function resolveGauntletTurn(
       state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + healed);
     }
 
-    if (hit.hit && ability.kind === 'dot' && ability.dotTicks && ability.dotTickMult) {
+    if (hit.hit && ability.kind === 'dot' && ability.dotTicks) {
       // DoT tik respektuje typ + obrany cíle (MR-10d), stejně jako přímý zásah.
       const dotType = ability.damageType ?? player.damageType ?? 'bludgeoning';
       const interaction = damageInteraction(dotType, enemyAsActor);
-      const raw = Math.round(player.attackPower * ability.dotTickMult);
+      const raw = dotTickRaw(ability, player);
       const tickDamage = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
       enemy.dots.push({
         remainingTicks: ability.dotTicks,

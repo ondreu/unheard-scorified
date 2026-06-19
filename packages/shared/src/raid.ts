@@ -29,6 +29,7 @@ import {
   canRage,
   computeHit,
   determinationFactor,
+  dotTickRaw,
   round1,
   type CombatActor,
   type CombatEvent,
@@ -257,7 +258,7 @@ function scheduleDot(
   // jako přímý zásah (jinak by fire DoT „protekl" fire-immune cílem). Cíl je
   // statický, tak interakci spočítáme jednou při scheduleru.
   const dotType = ability.damageType ?? source.damageType ?? 'bludgeoning';
-  const raw = Math.round(source.attackPower * (ability.dotTickMult ?? 0));
+  const raw = dotTickRaw(ability, source);
   const interaction = damageInteraction(dotType, target);
   const dmg = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
   timers.push({
