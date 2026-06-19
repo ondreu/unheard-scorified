@@ -240,8 +240,8 @@
               <dd>{d.sheet.derived.health}</dd>
             </div>
             <div class="flex justify-between">
-              <dt class="text-[var(--text-dim)] capitalize">{d.sheet.derived.resource.type}</dt>
-              <dd>{d.sheet.derived.resource.max}</dd>
+              <dt class="text-[var(--text-dim)]">Spell Slots</dt>
+              <dd>{Object.values(d.sheet.derived.spellSlots).reduce((a, b) => a + b, 0) || '—'}</dd>
             </div>
             {#each statRows as s (s.key)}
               <div class="flex justify-between">

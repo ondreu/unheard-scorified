@@ -133,7 +133,10 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 
 ## Spell sloty & resource
 
-- [ ] **Spell sloty všude** — zavést D&D spell sloty do všech bojových režimů (dungeony/Gauntlet/…); **scrap mana** = odstranit zjednodušený `ResourceType` (mana/energy/rage proxy), sjednotit na D&D spell sloty (+ class resources Rage/Ki/Pact Magic). ADR.
+- [ ] **Spell sloty všude** — zavést D&D spell sloty do všech bojových režimů (dungeony/Gauntlet/…); **scrap mana** = odstranit zjednodušený `ResourceType` (mana/energy/rage proxy), sjednotit na D&D spell sloty (+ class resources Rage/Ki/Pact Magic). **ADR 0034** (krájeno na 3 slices):
+  - [x] **Slice 1 — scrap mana** ✅ — `ResourceType` (mana/energy/rage proxy) smazán z `@game/shared` (`ClassDef.resource` + `DerivedStats.resource`), byl to mrtvý kosmetický stav (nikdy se v boji nečetl). Resource ekonomika = spell sloty (MR-4) zůstává jediným zdrojem pravdy. Web sheet/inspect ukazuje „Spell Slots" (součet max; martial = „—") místo mrtvého resource. Bez DB migrace, bez změny bojových výsledků.
+  - [ ] **Slice 2 — sloty do všech combat módů** — retrofit per-encounter slot spotřeby (vzor `quest-run.ts`) do dungeonů (`raid.ts`), Gauntletu, PVP/arén. _Mění bojové výsledky → vlastní balanc ověření._
+  - [ ] **Slice 3 — class resources** — reálné non-caster resources: Rage (Barbarian), Ki (Monk), Pact Magic recharge granularita (Warlock).
 - [ ] **Fix kouzla nesedící na D&D** — narovnat ability, které neodpovídají D&D mechanice (např. **Hunter's Mark** = momentálně jen weapon strike; v D&D je to concentration buff +1d6 na zásah). Audit celého katalogu `abilities.ts` proti D&D 5e.
 - [ ] **Kniha kouzel — hráč si volí aktivní spelly** — místo fixního kitu (`resolveAbilities` = class+subclass+level) si hráč **vybere aktivní kouzla**, která má v boji k dispozici. Pool nabídky = **+- všechna kouzla, ke kterým by měl v D&D přístup** (spell list dané classy do jeho úrovně). Navazuje na rotaci (`CharacterRotation`) a spell sloty.
   - **❓ k rozhodnutí — model Wizarda.** V D&D má wizard **spellbook** (učí se kouzla → velký „known" pool, z něj denně **připravuje** podmnožinu), ostatní classy mají „known spells". Vymyslet, jak to namodelovat: učení kouzel wizardem (level-up + scrolls/scribování?), prepared vs known, a sjednocení s ostatními classami.

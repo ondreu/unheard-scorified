@@ -242,10 +242,10 @@
           <div class="font-semibold">{c.sheet.derived.health}</div>
         </div>
         <div class="rounded-lg bg-black/20 px-3 py-2">
-          <div class="text-xs capitalize text-[var(--text-faint)]">
-            {c.sheet.derived.resource.type}
+          <div class="text-xs text-[var(--text-faint)]">Spell Slots</div>
+          <div class="font-semibold">
+            {Object.values(c.sheet.derived.spellSlots).reduce((a, b) => a + b, 0) || '—'}
           </div>
-          <div class="font-semibold">{c.sheet.derived.resource.max}</div>
         </div>
         {#each stats as s (s.key)}
           <div class="rounded-lg bg-black/20 px-3 py-2">

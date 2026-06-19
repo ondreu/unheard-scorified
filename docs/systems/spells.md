@@ -56,7 +56,17 @@ Spellbook.
 ## Character sheet
 
 `DerivedStats.casterType` + `DerivedStats.spellSlots` (max) → spell sloty jsou
-součástí sheetu (overview/inspect) bez extra dotazu.
+součástí sheetu (overview/inspect) bez extra dotazu. Sheet/inspect zobrazují
+souhrn **„Spell Slots"** (součet max slotů; martial bez slotů = „—"), detailní
+rozpad per tier je na `/characters/[id]/spells`.
+
+## Scrap mana — spell sloty jako jediný resource (ADR 0034)
+
+Zjednodušený `ResourceType` (`mana`/`energy`/`rage` proxy z WoW-éry) **scrapnut** —
+byl to mrtvý kosmetický stav v `DerivedStats.resource`, který se nikdy v boji
+nečetl. Jediný resource model hry = **D&D spell sloty** (tento dokument), v budoucnu
+doplněné o class resources (Rage/Ki/Pact Magic). Follow-up (ADR 0034): spotřeba
+slotů i v dungeonech/Gauntletu/PVP (Slice 2) + class resources (Slice 3).
 
 ## Follow-up (MR-5+)
 

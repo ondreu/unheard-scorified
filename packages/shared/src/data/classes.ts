@@ -42,9 +42,6 @@ export type SubclassId =
   | 'the_fiend'
   | 'school_of_evocation';
 
-/** Zjednodušený typ zdroje (resource). Plné D&D resources v MR-4/MR-15. */
-export type ResourceType = 'rage' | 'energy' | 'mana';
-
 export type Role = 'tank' | 'healer' | 'dps';
 
 export interface SubclassDef {
@@ -60,7 +57,6 @@ export interface ClassDef {
   primaryStat: AbilityScore;
   /** D&D spellcasting atribut (spell save DC, spell attack bonus). */
   spellcastingAbility: AbilityScore;
-  resource: ResourceType;
   /** D&D kostka životů (HP per level). */
   hitDie: number;
   /**
@@ -89,7 +85,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Barbarian',
     primaryStat: 'strength',
     spellcastingAbility: 'strength',
-    resource: 'rage',
     hitDie: 12,
     attackDie: 12,
     attackDamageType: 'slashing',
@@ -108,7 +103,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Bard',
     primaryStat: 'charisma',
     spellcastingAbility: 'charisma',
-    resource: 'mana',
     hitDie: 8,
     attackDie: 8,
     attackDamageType: 'piercing',
@@ -127,7 +121,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Cleric',
     primaryStat: 'wisdom',
     spellcastingAbility: 'wisdom',
-    resource: 'mana',
     hitDie: 8,
     attackDie: 6,
     attackDamageType: 'radiant',
@@ -146,7 +139,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Druid',
     primaryStat: 'wisdom',
     spellcastingAbility: 'wisdom',
-    resource: 'mana',
     hitDie: 8,
     attackDie: 6,
     attackDamageType: 'bludgeoning',
@@ -165,7 +157,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Fighter',
     primaryStat: 'strength',
     spellcastingAbility: 'intelligence',
-    resource: 'energy',
     hitDie: 10,
     attackDie: 8,
     attackDamageType: 'slashing',
@@ -184,7 +175,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Monk',
     primaryStat: 'dexterity',
     spellcastingAbility: 'wisdom',
-    resource: 'energy',
     hitDie: 8,
     attackDie: 6,
     attackDamageType: 'bludgeoning',
@@ -203,7 +193,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Paladin',
     primaryStat: 'strength',
     spellcastingAbility: 'charisma',
-    resource: 'mana',
     hitDie: 10,
     attackDie: 8,
     attackDamageType: 'radiant',
@@ -222,7 +211,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Ranger',
     primaryStat: 'dexterity',
     spellcastingAbility: 'wisdom',
-    resource: 'mana',
     hitDie: 10,
     attackDie: 8,
     attackDamageType: 'piercing',
@@ -241,7 +229,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Rogue',
     primaryStat: 'dexterity',
     spellcastingAbility: 'intelligence',
-    resource: 'energy',
     hitDie: 8,
     attackDie: 6,
     attackDamageType: 'piercing',
@@ -260,7 +247,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Sorcerer',
     primaryStat: 'charisma',
     spellcastingAbility: 'charisma',
-    resource: 'mana',
     hitDie: 6,
     attackDie: 10,
     attackDamageType: 'fire',
@@ -279,7 +265,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Warlock',
     primaryStat: 'charisma',
     spellcastingAbility: 'charisma',
-    resource: 'mana',
     hitDie: 8,
     attackDie: 10,
     attackDamageType: 'force',
@@ -298,7 +283,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     name: 'Wizard',
     primaryStat: 'intelligence',
     spellcastingAbility: 'intelligence',
-    resource: 'mana',
     hitDie: 6,
     attackDie: 10,
     attackDamageType: 'fire',
