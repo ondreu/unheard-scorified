@@ -65,8 +65,13 @@ export function isValidStandardArray(scores: AbilityScores): boolean {
   return got.length === want.length && got.every((v, i) => v === want[i]);
 }
 
-/** Přírůstek atributu na level (jednoduchý lineární růst; D&D ASI přijde v MR-6). */
-const PER_LEVEL_GROWTH = 1;
+/**
+ * D&D strop ability skóre (PHB): innate skóre (standard array + rasa + ASI) nikdy
+ * nepřesáhne 20. Magic items (gear) smí přidat navrch (vzácně). Per-level lineární
+ * růst byl odstraněn — skóre rostou jen přes ASI (4/8/12/16/19), jako v D&D 5e
+ * (gear & balance follow-up / „D&D-ifikace base"). Drží bounded accuracy.
+ */
+export const ABILITY_SCORE_CAP = 20;
 
 /** D&D ability modifikátor: `floor((score - 10) / 2)`. */
 export function abilityModifier(score: number): number {
@@ -90,21 +95,25 @@ export function isValidRaceClass(race: RaceId, klass: ClassId): boolean {
 export function baseStatsFor(race: RaceId, klass: ClassId, level = 1): AbilityScores {
   const raceDef = RACES[race];
   const classDef = CLASSES[klass];
-  const growth = (level - 1) * PER_LEVEL_GROWTH;
 
+  // D&D-věrné innate skóre (bez per-level růstu): baseline + rasa + class bonus,
+  // clampnuto na 20. `level` ponecháno v signatuře kvůli kompatibilitě volajících
+  // (skóre už na levelu nezávisí — růst plyne jen z ASI přes ProgressionEffects).
+  void level;
   const stats: AbilityScores = {
-    strength: BASELINE_SCORE + raceDef.statMods.strength + growth,
-    dexterity: BASELINE_SCORE + raceDef.statMods.dexterity + growth,
-    constitution: BASELINE_SCORE + raceDef.statMods.constitution + growth,
-    intelligence: BASELINE_SCORE + raceDef.statMods.intelligence + growth,
-    wisdom: BASELINE_SCORE + raceDef.statMods.wisdom + growth,
-    charisma: BASELINE_SCORE + raceDef.statMods.charisma + growth,
+    strength: BASELINE_SCORE + raceDef.statMods.strength,
+    dexterity: BASELINE_SCORE + raceDef.statMods.dexterity,
+    constitution: BASELINE_SCORE + raceDef.statMods.constitution,
+    intelligence: BASELINE_SCORE + raceDef.statMods.intelligence,
+    wisdom: BASELINE_SCORE + raceDef.statMods.wisdom,
+    charisma: BASELINE_SCORE + raceDef.statMods.charisma,
   };
 
   // Bonus classy: +3 k primárnímu atributu, +1 constitution (výdrž).
   stats[classDef.primaryStat] += 3;
   stats.constitution += 1;
 
+  for (const k of ABILITY_SCORES) stats[k] = Math.min(ABILITY_SCORE_CAP, stats[k]);
   return stats;
 }
 
@@ -120,10 +129,13 @@ export function abilityScoresFor(
   level = 1,
 ): AbilityScores {
   const raceDef = RACES[race];
-  const growth = (level - 1) * PER_LEVEL_GROWTH;
+  // D&D-věrné: assigned array + rasové mody, clampnuto na 20. Žádný per-level růst
+  // (ASI se přidává odděleně přes ProgressionEffects v combat enginu). `level`
+  // ponecháno v signatuře kvůli kompatibilitě volajících.
+  void level;
   const out = {} as AbilityScores;
   for (const k of ABILITY_SCORES) {
-    out[k] = baseScores[k] + raceDef.statMods[k] + growth;
+    out[k] = Math.min(ABILITY_SCORE_CAP, baseScores[k] + raceDef.statMods[k]);
   }
   return out;
 }

@@ -32,10 +32,15 @@ describe('baseStatsFor', () => {
     expect(dragonbornFighter.strength).toBe(20);
   });
 
-  it('roste s levelem', () => {
+  it('NEroste s levelem (D&D — skóre plynou jen z array/rasy + ASI, ne lineárně)', () => {
     const l1 = baseStatsFor('human', 'wizard', 1);
     const l10 = baseStatsFor('human', 'wizard', 10);
-    expect(l10.intelligence).toBeGreaterThan(l1.intelligence);
+    expect(l10.intelligence).toBe(l1.intelligence);
+  });
+
+  it('innate skóre je clampnuto na 20 (D&D cap)', () => {
+    // dragonborn STR +2 + barbarian primary +3 → 15+2+3 = 20 (na cap, ne nad)
+    expect(baseStatsFor('dragonborn', 'barbarian', 20).strength).toBe(20);
   });
 });
 

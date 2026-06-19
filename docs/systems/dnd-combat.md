@@ -147,5 +147,41 @@ DoT-CON / boss-DEX savy jednotným per-ability mechanismem ve všech simulátore
 DoT/heal power) — jen re-derived z D&D. Dungeon/raid data převedena na CR-odvození
 (`enemy()`/`boss()` helpery už nenesou HP/AP, bossové gradují přes `challengeRating`).
 
-_Follow-up: rescale gear stat škály (attack_power/spell_power) vůči nové D&D magnitudě
-+ finální tuning `ENEMY_DPR_TO_SWING` / upcast hodnot (čísla, ne model)._
+## Gear & balance follow-up — D&D-věrný gear + bounded ability skóre ✅ (ADR 0035)
+
+Dokončení MR-10e follow-upu. Verification-first: kalibrační harness
+`gear-balance.test.ts` měří poměr efektivní síly full-BiS / nahá postava a délku
+on-level 1v1 (TTK / win-rate / zbylé HP) přes seedované simulace — slouží jako
+kontrakt i ladicí nástroj.
+
+**Konec per-level růstu skóre (bounded accuracy).** `PER_LEVEL_GROWTH` (dříve +1 ke
+každému atributu za level → na lvl 20 +19, primár ~39, mod +14) **odstraněn**. Ability
+skóre teď plynou jen ze standard array + rasy + **ASI** (4/8/12/16/19) a innate skóre
+je **clampnuto na 20** (`ABILITY_SCORE_CAP`, D&D PHB) v `baseStatsFor`/`abilityScoresFor`
+i v combat enginu (`min(20, innate+ASI) + gear`). Naked lvl 20 je tak na D&D škále
+(AC ~13–14, attack bonus +10, spell DC ~17), ne 2× nafouklé.
+
+**D&D-věrný gear (`scripts/rescale-gear.py`).** Katalog `items.ts` (≈340 statových
+kusů) přepsán z WoW magnitud na D&D budget odvozený z (itemLevel, rarity, slot, role):
+zbraně/šperky → `attack_power`/`spell_power` (martial vs caster z role), armor sloty →
+`armor` (→ AC), trinkety → `crit_rating`, ability skóre **jen vzácně** (epic+ trinket
++1, „stat stick"; cap +2 z celého setu) → žádná kaskáda přes AC/attack/DC. Full BiS na
+lvl 20 ≈ **1.5–2× efektivní síla** nahé postavy (rozhodnutí PM; bounded accuracy).
+
+**`armor` → AC.** `ARMOR_PER_AC = 40` (jediný zdroj pravdy; gear `armor`/40 = +AC).
+Full BiS ≈ +3 AC nad naked. Po rescale gearu (armor desítky, ne stovky) nezpůsobuje
+explozi AC.
+
+**Enemy 1v1 kalibrace (re-tune).** Po D&D-ifikaci base (nižší HP/AP hráče) přeladěny
+idle 1v1 faktory: `ENEMY_HP_FACTOR` 0.26 trash / 0.40 boss, `ENEMY_DPR_TO_SWING` 0.08
+trash / 0.10 boss → geared **martial** on-level: trash rychlý (3–5 úderů, drobná HP
+ztráta), boss 5–8 úderů s vítězstvím a ~45–62 % HP; naked výrazně riskantnější (gear
+má váhu).
+
+**Známé omezení — casteři (odloženo na „Fix kouzla").** Leveled kouzla/cantripy běží
+na **literal D&D kostkách** (Fire Bolt 1d10, Fireball 8d6), které jsou na idle škále
+hluboko pod martial `attackPower` (~40–70/úder), a cantripy navíc neškálují s levelem.
+Po odstranění HP crutche (growth) tak wizard/cleric nejsou na high-level bossech
+viable. Náprava = samostatný milník **„Fix kouzla nesedící na D&D"** (rozhodnutí PM):
+škálování cantripů (D&D 1→2→3→4 kostek) + sustained leveled kouzel. Gear/base/enemy
+čísla z tohoto passu zůstávají.
