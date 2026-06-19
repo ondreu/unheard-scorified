@@ -33,7 +33,10 @@
     cooldown: 'CD',
     noSlots: 'No slot',
     noKi: 'No Ki',
+    party: 'Party',
   };
+
+  const roleIcon: Record<string, string> = { tank: '🛡️', healer: '✨', dps: '⚔️' };
 
   function slotTotal(map: Record<number, number>): number {
     return Object.values(map).reduce((a, b) => a + b, 0);
@@ -171,7 +174,9 @@
     <!-- Player -->
     <section class="panel panel-pad">
       <div class="flex items-center justify-between">
-        <span class="font-semibold">{r.player.name}</span>
+        <span class="font-semibold">
+          {roleIcon[r.playerRole] ?? ''} {r.player.name}
+        </span>
         <span class="text-sm text-[var(--text-dim)]">
           {r.player.currentHealth} / {r.player.maxHealth}
           {#if r.player.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {r.player.absorb}</span>{/if}
@@ -194,6 +199,27 @@
         <div class="bar-fill" style={`width:${hpPct(r.player.currentHealth, r.player.maxHealth)}%;background:var(--success)`}></div>
       </div>
     </section>
+
+    <!-- AI party allies (group, Slice 3) -->
+    {#if r.allies.length > 0}
+      <section class="space-y-2">
+        <p class="text-xs uppercase tracking-wide text-[var(--text-dim)]">{ui.party}</p>
+        {#each r.allies as a (a.name)}
+          <div class="panel panel-pad {a.currentHealth <= 0 ? 'opacity-40' : ''}">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold">{roleIcon[a.role] ?? ''} {a.name}</span>
+              <span class="text-sm text-[var(--text-dim)]">
+                {a.currentHealth} / {a.maxHealth}
+                {#if a.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {a.absorb}</span>{/if}
+              </span>
+            </div>
+            <div class="bar mt-2">
+              <div class="bar-fill" style={`width:${hpPct(a.currentHealth, a.maxHealth)}%;background:var(--success)`}></div>
+            </div>
+          </div>
+        {/each}
+      </section>
+    {/if}
 
     <!-- Ability bar -->
     {#if r.status === 'in_combat'}

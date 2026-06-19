@@ -440,6 +440,14 @@ export interface DungeonTurnEnemyView {
   currentHealth: number;
 }
 
+export interface DungeonTurnAllyView {
+  name: string;
+  role: 'tank' | 'healer' | 'dps';
+  maxHealth: number;
+  currentHealth: number;
+  absorb: number;
+}
+
 export interface DungeonTurnRunView {
   runId: string;
   dungeonId: string;
@@ -448,6 +456,8 @@ export interface DungeonTurnRunView {
   encounterIndex: number;
   encounterCount: number;
   encountersCleared: number;
+  size: number;
+  playerRole: 'tank' | 'healer' | 'dps';
   player: {
     name: string;
     maxHealth: number;
@@ -462,6 +472,7 @@ export interface DungeonTurnRunView {
     maxRageCharges: number;
     raging: boolean;
   };
+  allies: DungeonTurnAllyView[];
   enemies: DungeonTurnEnemyView[];
   abilities: DungeonTurnAbilityView[];
   events: CombatEvent[];
@@ -472,6 +483,17 @@ export interface DungeonTurnRunView {
 export function enterDungeonTurn(characterId: string, dungeonId: string): Promise<DungeonTurnRunView> {
   return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/${dungeonId}/turn/enter`, {
     method: 'POST',
+  });
+}
+
+export function enterDungeonTurnGroup(
+  characterId: string,
+  dungeonId: string,
+  role: 'tank' | 'healer' | 'dps',
+): Promise<DungeonTurnRunView> {
+  return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/${dungeonId}/turn/enter-group`, {
+    method: 'POST',
+    body: JSON.stringify({ role, size: 3 }),
   });
 }
 

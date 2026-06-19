@@ -1,19 +1,19 @@
 /**
- * Tahový dungeon run (dungeon overhaul Slice 2, ADR 0037).
+ * Tahový dungeon run (dungeon overhaul Slice 2+3, ADR 0037).
  *
- * Interaktivní **tahový** boj postavy proti **sekvenci multi-enemy encounterů**
- * dungeonu — alternativa k idle auto-resolve (`simulateRaidRun`). Hráč kolo po
- * kole volí **ability + cíl** (multi-enemy → výběr nepřítele); server tah
- * vyhodnotí. Mezi encountery se per-encounter zdroje obnoví (sloty/Ki/cooldowny,
- * short-rest abstrakce) a postava se částečně doléčí.
+ * Interaktivní **tahový** boj proti **sekvenci multi-enemy encounterů** dungeonu —
+ * alternativa k idle auto-resolve (`simulateRaidRun`). Hráč kolo po kole volí
+ * **ability + cíl**; server tah vyhodnotí. **Slice 2** = solo (1 hráč). **Slice 3**
+ * = group s **AI parťáky** (autofill 3-player, 1 tank / 1 healer / 1 dps): hráč
+ * řídí svou postavu, parťáci jednají automaticky (role + rotace + sloty → mimikují
+ * hráče), nepřátelé útočí na threat (tank). Mezi encountery short rest (refill
+ * zdrojů + částečné doléčení).
  *
  * Tenhle modul je **čistý deterministický engine** (seed per tah → server-
  * authoritative, klient posílá jen volbu). Recykluje sdílené bojové primitivy
  * (`computeHit`, `abilityDamageSpec`, `healDiceSpec`, slot/Ki/rage helpery) —
  * žádná duplikace combat vzorců. Stav je plně serializovatelný (uloží se do DB
  * jako JSON, jako Gauntlet). Herní stringy anglicky (EN), komentáře česky.
- *
- * Solo = `size` 1 (Slice 2). Group/AI tahový = Slice 3+ (engine přijímá `size`).
  */
 import { SeededRng, seedFromString } from './rng';
 import {
@@ -34,6 +34,8 @@ import { rollDice } from './dice';
 import { applySpellSave, missMessage } from './dnd-combat';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
 import { groupEncounters } from './group';
+import { TANK_INCOMING_DAMAGE_MULT, type RaidActor, type RaidRole } from './raid';
+import { shouldCastAbility, shouldCastHeal } from './rotation';
 import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 /** Délka jednoho „tahu" v sekundách — převádí cooldown abilit (s) na počet tahů. */
@@ -57,7 +59,7 @@ export const DUNGEON_BASIC_ATTACK: SignatureAbility = {
 
 export type DungeonRunStatus = 'in_combat' | 'cleared' | 'dead';
 
-/** DoT „nalepený" na nepříteli (krvácení/hoření z hráčovy ability). */
+/** DoT „nalepený" na nepříteli (krvácení/hoření z hráčovy/parťákovy ability). */
 export interface DungeonRunDot {
   remainingTicks: number;
   tickDamage: number;
@@ -99,13 +101,39 @@ export interface DungeonRunPlayer {
   mitigationPct: number;
 }
 
+/**
+ * AI parťák (Slice 3) — mutabilní bojový stav + plný serializovatelný snapshot
+ * aktéra (`RaidActor`: role + healPower + rotace + ability kit). Parťák jedná
+ * automaticky každý tah (role + rotace → mimikuje hráče).
+ */
+export interface DungeonRunAlly {
+  name: string;
+  role: RaidRole;
+  maxHealth: number;
+  currentHealth: number;
+  absorb: number;
+  cooldowns: Record<string, number>;
+  spellSlots: SpellSlots;
+  kiPoints: number;
+  rageCharges: number;
+  raging: boolean;
+  mitigationTurns: number;
+  mitigationPct: number;
+  /** Plný bojový aktér parťáka (snapshot do DB). */
+  actor: RaidActor;
+}
+
 /** Kompletní stav tahového dungeon runu (persistovaný jako JSON). */
 export interface DungeonRunState {
   seed: number;
   dungeonId: string;
-  /** Velikost party pro škálování nepřátel (solo = 1). */
+  /** Velikost party pro škálování nepřátel (solo = 1, group = 3). */
   size: number;
   level: number;
+  /** Jméno hráče (pro combat log u group heal/threat). */
+  playerName: string;
+  /** Role hráče (group: tank/healer/dps; solo = 'dps'). Řídí threat + mitigaci. */
+  playerRole: RaidRole;
   /** Globální čítač tahů (pro seedování + řazení logu). */
   turn: number;
   /** Index aktuálního encounteru (0-based). */
@@ -114,6 +142,8 @@ export interface DungeonRunState {
   encounterCount: number;
   status: DungeonRunStatus;
   player: DungeonRunPlayer;
+  /** AI parťáci (Slice 3); solo = prázdné pole. */
+  allies: DungeonRunAlly[];
   enemies: DungeonRunEnemy[];
   /** Posledních pár událostí logu (oříznuto kvůli velikosti). */
   log: CombatEvent[];
@@ -123,10 +153,19 @@ export interface DungeonRunState {
 
 // ── Odvození efektivního aktéra ──────────────────────────────────────────────
 
+/** Crit šanci ořízne na strop (sdíleno hráč/parťák). */
+function clampCrit(actor: CombatActor): CombatActor {
+  return { ...actor, critChance: Math.min(MAX_CRIT_CHANCE, actor.critChance) };
+}
+
 /** Efektivní bojový aktér hráče (rage varianta, pokud zuří). */
 function effectivePlayer(base: CombatActor, state: DungeonRunState): CombatActor {
-  const actor = state.player.raging ? applyRage(base) : base;
-  return { ...actor, critChance: Math.min(MAX_CRIT_CHANCE, actor.critChance) };
+  return clampCrit(state.player.raging ? applyRage(base) : base);
+}
+
+/** Efektivní bojový aktér parťáka (rage varianta, pokud zuří). */
+function effectiveAlly(ally: DungeonRunAlly): RaidActor {
+  return clampCrit(ally.raging ? applyRage(ally.actor) : ally.actor) as RaidActor;
 }
 
 /** Kompletní ability kit v runu (základní úder + signatures bez pasivních buffů). */
@@ -151,23 +190,31 @@ function buildEncounterEnemies(state: DungeonRunState): DungeonRunEnemy[] {
   }));
 }
 
-/** Nastaví aktuální encounter + obnoví per-encounter zdroje hráče (short rest). */
+/** Obnoví per-encounter zdroje jednoho aktéra (short rest: sloty/Ki + rage charge). */
+function restoreEncounterResources(
+  combatant: DungeonRunPlayer | DungeonRunAlly,
+  base: CombatActor,
+): void {
+  combatant.cooldowns = {};
+  combatant.absorb = base.shield ?? 0;
+  combatant.mitigationTurns = 0;
+  combatant.mitigationPct = 0;
+  combatant.spellSlots = { ...(base.spellSlots ?? {}) };
+  combatant.kiPoints = base.kiPoints ?? 0;
+  // Rage (ADR 0034): auto-zuření na encounter, dokud má charge (per-run rationing).
+  if (combatant.rageCharges > 0 && (base.rageCharges ?? 0) > 0) {
+    combatant.rageCharges -= 1;
+    combatant.raging = true;
+  } else {
+    combatant.raging = false;
+  }
+}
+
+/** Nastaví aktuální encounter + obnoví per-encounter zdroje hráče i parťáků. */
 function spawnEncounter(base: CombatActor, state: DungeonRunState): void {
   state.enemies = buildEncounterEnemies(state);
-  state.player.cooldowns = {};
-  state.player.absorb = base.shield ?? 0;
-  state.player.mitigationTurns = 0;
-  state.player.mitigationPct = 0;
-  // Per-encounter refill slotů/Ki (short-rest abstrakce, jako auto-resolve pull).
-  state.player.spellSlots = { ...(base.spellSlots ?? {}) };
-  state.player.kiPoints = base.kiPoints ?? 0;
-  // Rage (ADR 0034): auto-zuření na encounter, dokud má charge (per-run rationing).
-  if (state.player.rageCharges > 0 && (base.rageCharges ?? 0) > 0) {
-    state.player.rageCharges -= 1;
-    state.player.raging = true;
-  } else {
-    state.player.raging = false;
-  }
+  restoreEncounterResources(state.player, base);
+  for (const ally of state.allies) restoreEncounterResources(ally, ally.actor);
   state.status = 'in_combat';
 
   const names = state.enemies.map((e) => e.name);
@@ -178,24 +225,51 @@ function spawnEncounter(base: CombatActor, state: DungeonRunState): void {
   pushLog(state, {
     t: state.turn,
     type: 'encounter_start',
-    message: `⚔️ Encounter ${state.encounterIndex + 1}/${state.encounterCount}: ${label} engages ${base.name}!`,
+    message: `⚔️ Encounter ${state.encounterIndex + 1}/${state.encounterCount}: ${label} engages ${base.name}${state.allies.length > 0 ? "'s party" : ''}!`,
     target: names[0],
   });
 }
 
-/** Spustí nový tahový dungeon run (plné HP, encounter 0). */
+/** Vytvoří mutabilní stav parťáka z jeho aktéra (plné HP, čerstvé zdroje). */
+function makeAlly(actor: RaidActor): DungeonRunAlly {
+  return {
+    name: actor.name,
+    role: actor.role,
+    maxHealth: actor.maxHealth,
+    currentHealth: actor.maxHealth,
+    absorb: actor.shield ?? 0,
+    cooldowns: {},
+    spellSlots: { ...(actor.spellSlots ?? {}) },
+    kiPoints: actor.kiPoints ?? 0,
+    rageCharges: actor.rageCharges ?? 0,
+    raging: false,
+    mitigationTurns: 0,
+    mitigationPct: 0,
+    actor,
+  };
+}
+
+/**
+ * Spustí nový tahový dungeon run (plné HP, encounter 0). `allies` (Slice 3) =
+ * AI parťáci; solo = prázdné/vynechané. `playerRole` řídí threat + mitigaci
+ * (solo `RaidActor`-nebýt → 'dps').
+ */
 export function startDungeonRun(
   base: CombatActor,
   dungeonId: string,
   size: number,
   level: number,
   seed: number,
+  allies: RaidActor[] = [],
 ): DungeonRunState {
+  const playerRole: RaidRole = (base as Partial<RaidActor>).role ?? 'dps';
   const state: DungeonRunState = {
     seed,
     dungeonId,
     size,
     level,
+    playerName: base.name,
+    playerRole,
     turn: 0,
     encounterIndex: 0,
     encounterCount: groupEncounters('dungeon', dungeonId, size).length,
@@ -212,6 +286,7 @@ export function startDungeonRun(
       mitigationTurns: 0,
       mitigationPct: 0,
     },
+    allies: allies.map(makeAlly),
     enemies: [],
     log: [],
     encountersCleared: 0,
@@ -263,12 +338,41 @@ function weakestEnemy(state: DungeonRunState): number {
   return idx;
 }
 
+// ── Party (hráč + parťáci) jako jednotné cíle pro léčení/threat ──────────────
+
+/** Stav léčitelného/zasažitelného člena party (hráč i parťák). */
+interface PartyMember {
+  currentHealth: number;
+  maxHealth: number;
+}
+
+/** Všichni členové party (hráč jako index 0, parťáci dál). */
+function partyMembers(state: DungeonRunState): PartyMember[] {
+  return [state.player, ...state.allies];
+}
+
+/** Nejzraněnější živý člen party (největší chybějící HP); -1 když nikdo. */
+function mostInjured(state: DungeonRunState): PartyMember | null {
+  let worst: PartyMember | null = null;
+  let worstMissing = 0;
+  for (const m of partyMembers(state)) {
+    if (m.currentHealth <= 0) continue;
+    const missing = m.maxHealth - m.currentHealth;
+    if (missing > worstMissing) {
+      worstMissing = missing;
+      worst = m;
+    }
+  }
+  return worst;
+}
+
 // ── Tah ──────────────────────────────────────────────────────────────────────
 
 /**
- * Vyhodnotí jeden tah: (1) DoT tiky na nepřátelích, (2) hráčova ability na cíl
- * (AoE = všichni živí), (3) protiútok všech živých nepřátel, (4) údržba. Vrací
- * nový stav + události tahu. Deterministické (seed per tah). Předpokládá validní
+ * Vyhodnotí jeden tah: (1) DoT tiky, (2) hráčova ability na cíl (AoE = všichni
+ * živí / heal = nejzraněnější člen party), (3) **AI parťáci** (role + rotace),
+ * (4) protiútok všech živých nepřátel na threat (tank), (5) údržba. Vrací nový
+ * stav + události tahu. Deterministické (seed per tah). Předpokládá validní
  * vstup (status in_combat, ability v kitu/ready/má zdroj) — ověří volající.
  */
 export function resolveDungeonTurn(
@@ -301,28 +405,7 @@ export function resolveDungeonTurn(
   };
 
   // (1) DoT tiky na všech nepřátelích.
-  for (const enemy of state.enemies) {
-    if (enemy.currentHealth <= 0) continue;
-    for (const dot of enemy.dots) {
-      if (dot.remainingTicks <= 0) continue;
-      enemy.currentHealth = Math.max(0, enemy.currentHealth - dot.tickDamage);
-      dot.remainingTicks -= 1;
-      emit({
-        t,
-        type: 'dot',
-        message: `🔥 ${enemy.name} suffers ${dot.tickDamage} from ${dot.abilityName}. ${enemy.name}: ${Math.round(enemy.currentHealth)} HP`,
-        source: dot.sourceName,
-        target: enemy.name,
-        amount: dot.tickDamage,
-        ability: dot.abilityName,
-        targetHealthRemaining: Math.round(enemy.currentHealth),
-      });
-    }
-    enemy.dots = enemy.dots.filter((d) => d.remainingTicks > 0);
-    if (enemy.currentHealth <= 0) {
-      emit({ t, type: 'enemy_defeated', target: enemy.name, message: `☠️ ${enemy.name} is defeated!` });
-    }
-  }
+  tickEnemyDots(state, t, emit);
   if (livingEnemies(state).length === 0) {
     return { state: advanceEncounter(base, state, t, events), events };
   }
@@ -334,17 +417,17 @@ export function resolveDungeonTurn(
 
   // (2) Hráčova ability.
   if (ability.kind === 'heal') {
-    const spec = healDiceSpec(ability, usedSlotTier, player);
-    const healed = spec
-      ? Math.max(1, rollDice(rng, spec.count, spec.sides).total + spec.bonus)
-      : Math.max(1, Math.round(player.attackPower * ability.damageMult * HEAL_POWER_FACTOR));
-    state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + healed);
+    const healed = healAmount(player, ability, usedSlotTier, rng, false);
+    // Solo = self; group = nejzraněnější člen party (vč. sebe).
+    const target = state.allies.length > 0 ? (mostInjured(state) ?? state.player) : state.player;
+    target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
+    const targetName = target === state.player ? player.name : (target as DungeonRunAlly).name;
     emit({
       t,
       type: 'heal',
-      message: `✨ ${player.name} casts ${ability.name}, healing for ${healed}. ${player.name}: ${Math.round(state.player.currentHealth)} HP`,
+      message: `✨ ${player.name} casts ${ability.name}, healing ${targetName} for ${healed}. ${targetName}: ${Math.round(target.currentHealth)} HP`,
       source: player.name,
-      target: player.name,
+      target: targetName,
       amount: healed,
       ability: ability.name,
     });
@@ -384,7 +467,7 @@ export function resolveDungeonTurn(
     for (const ei of targets) {
       const enemy = state.enemies[ei]!;
       if (enemy.currentHealth <= 0) continue;
-      playerHitEnemy(player, state, enemy, ability, usedSlotTier, rng, t, emit);
+      combatantHitEnemy(player, state.player, state, enemy, ability, usedSlotTier, rng, t, emit);
     }
   }
 
@@ -396,59 +479,207 @@ export function resolveDungeonTurn(
     return { state: advanceEncounter(base, state, t, events), events };
   }
 
-  // (3) Protiútok všech živých nepřátel.
-  for (const enemy of state.enemies) {
-    if (enemy.currentHealth <= 0) continue;
-    const enemyHit = computeHit(enemy.actor, player, rng, 1, false);
-    let incoming = enemyHit.amount;
-    if (state.player.mitigationTurns > 0 && state.player.mitigationPct > 0) {
-      incoming = Math.max(1, Math.round(incoming * (1 - state.player.mitigationPct)));
-    }
-    const absorbResult = applyAbsorb(incoming, state.player.absorb);
-    state.player.absorb = absorbResult.shieldRemaining;
-    state.player.currentHealth -= absorbResult.netDamage;
-    const absorbSuffix = absorbResult.absorbed > 0 ? ` (${absorbResult.absorbed} absorbed)` : '';
-    emit({
-      t,
-      type: 'attack',
-      message: enemyHit.hit
-        ? `${enemy.name} hits ${player.name} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. You: ${Math.max(0, Math.round(state.player.currentHealth))} HP`
-        : missMessage(enemy.name, player.name, enemyHit),
-      source: enemy.name,
-      target: player.name,
-      amount: absorbResult.netDamage,
-      crit: enemyHit.crit,
-      targetHealthRemaining: Math.max(0, Math.round(state.player.currentHealth)),
-    });
-    if (state.player.currentHealth <= 0) {
-      state.player.currentHealth = 0;
-      state.status = 'dead';
-      emit({
-        t,
-        type: 'player_defeated',
-        message: `💀 ${player.name} has fallen in ${state.dungeonId} (encounter ${state.encounterIndex + 1}).`,
-        source: enemy.name,
-        target: player.name,
-      });
-      return { state, events };
+  // (3) AI parťáci (Slice 3) — každý živý parťák odehraje svůj tah (role + rotace).
+  for (let i = 0; i < state.allies.length; i++) {
+    if (state.allies[i]!.currentHealth <= 0) continue;
+    allyTakeTurn(state, i, rng, t, emit);
+    if (livingEnemies(state).length === 0) {
+      return { state: advanceEncounter(base, state, t, events), events };
     }
   }
 
-  // (4) Údržba: dekrement cooldownů + mitigace, posun tahu.
-  for (const id of Object.keys(state.player.cooldowns)) {
-    state.player.cooldowns[id] = Math.max(0, (state.player.cooldowns[id] ?? 0) - 1);
+  // (4) Protiútok všech živých nepřátel na threat (tank/nejodolnější člen party).
+  for (const enemy of state.enemies) {
+    if (enemy.currentHealth <= 0) continue;
+    const playerDead = enemyAttackParty(base, player, state, enemy, rng, t, emit);
+    if (playerDead) return { state, events };
   }
-  if (state.player.mitigationTurns > 0) {
-    state.player.mitigationTurns -= 1;
-    if (state.player.mitigationTurns === 0) state.player.mitigationPct = 0;
-  }
+
+  // (5) Údržba: dekrement cooldownů + mitigace pro hráče i parťáky, posun tahu.
+  tickDownTurn(state.player);
+  for (const ally of state.allies) if (ally.currentHealth > 0) tickDownTurn(ally);
   state.turn += 1;
   return { state, events };
 }
 
-/** Aplikuje jeden hráčův útok na konkrétního nepřítele (sdíleno basic/ability/AoE). */
-function playerHitEnemy(
-  player: CombatActor,
+/** DoT tiky na všech nepřátelích (sdíleno; vyšle případný `enemy_defeated`). */
+function tickEnemyDots(state: DungeonRunState, t: number, emit: (e: CombatEvent) => void): void {
+  for (const enemy of state.enemies) {
+    if (enemy.currentHealth <= 0) continue;
+    for (const dot of enemy.dots) {
+      if (dot.remainingTicks <= 0) continue;
+      enemy.currentHealth = Math.max(0, enemy.currentHealth - dot.tickDamage);
+      dot.remainingTicks -= 1;
+      emit({
+        t,
+        type: 'dot',
+        message: `🔥 ${enemy.name} suffers ${dot.tickDamage} from ${dot.abilityName}. ${enemy.name}: ${Math.round(enemy.currentHealth)} HP`,
+        source: dot.sourceName,
+        target: enemy.name,
+        amount: dot.tickDamage,
+        ability: dot.abilityName,
+        targetHealthRemaining: Math.round(enemy.currentHealth),
+      });
+    }
+    enemy.dots = enemy.dots.filter((d) => d.remainingTicks > 0);
+    if (enemy.currentHealth <= 0) {
+      emit({ t, type: 'enemy_defeated', target: enemy.name, message: `☠️ ${enemy.name} is defeated!` });
+    }
+  }
+}
+
+/** Dekrement cooldownů + mitigation okna jednoho aktéra po tahu. */
+function tickDownTurn(c: DungeonRunPlayer | DungeonRunAlly): void {
+  for (const id of Object.keys(c.cooldowns)) {
+    c.cooldowns[id] = Math.max(0, (c.cooldowns[id] ?? 0) - 1);
+  }
+  if (c.mitigationTurns > 0) {
+    c.mitigationTurns -= 1;
+    if (c.mitigationTurns === 0) c.mitigationPct = 0;
+  }
+}
+
+/** Heal magnituda aktéra: literal dice (healDiceSpec) > healPower (RaidActor) > proxy. */
+function healAmount(
+  actor: CombatActor,
+  ability: SignatureAbility,
+  slotTier: number | null,
+  rng: SeededRng,
+  variance: boolean,
+): number {
+  const spec = healDiceSpec(ability, slotTier, actor);
+  if (spec) return Math.max(1, rollDice(rng, spec.count, spec.sides).total + spec.bonus);
+  const healPower = (actor as Partial<RaidActor>).healPower ?? 0;
+  const base = healPower > 0 ? healPower : actor.attackPower * HEAL_POWER_FACTOR;
+  const v = variance ? 0.9 + rng.next() * 0.2 : 1;
+  return Math.max(1, Math.round(base * ability.damageMult * v));
+}
+
+/**
+ * Odehraje tah jednoho AI parťáka (role + rotace → mimikuje hráče). Healer léčí
+ * nejzraněnějšího člena party (jinak DPSí), tank/dps sešle první použitelnou
+ * ability dle rotace (jinak basic úder). Deterministické (sdílený rng tahu).
+ */
+function allyTakeTurn(
+  state: DungeonRunState,
+  allyIdx: number,
+  rng: SeededRng,
+  t: number,
+  emit: (e: CombatEvent) => void,
+): void {
+  const ally = state.allies[allyIdx]!;
+  const eff = effectiveAlly(ally);
+  const living = livingEnemies(state);
+  if (living.length === 0) return;
+
+  const wi = weakestEnemy(state);
+  const enemyHpPct = wi >= 0 && state.enemies[wi]!.maxHealth > 0 ? state.enemies[wi]!.currentHealth / state.enemies[wi]!.maxHealth : 0;
+  const selfHpPct = ally.maxHealth > 0 ? ally.currentHealth / ally.maxHealth : 0;
+  const ctx = { enemyHpPct, selfHpPct };
+  const injured = mostInjured(state);
+
+  for (const ability of eff.signatureAbilities) {
+    if (ability.kind === 'buff') continue;
+    if ((ally.cooldowns[ability.id] ?? 0) > 0) continue;
+    const tier = ability.spellTier ?? 0;
+    if (tier >= 1 && !hasSlotForTier(ally.spellSlots, tier)) continue;
+    const kiCost = ability.kiCost ?? 0;
+    if (kiCost > ally.kiPoints) continue;
+
+    if (ability.kind === 'heal') {
+      // Jen healer s koho léčit; default heal-rotace = `self_hp_below` práh, ale
+      // pro parťáka léčíme i spojence → vyhodnotíme heal pravidlo proti party.
+      if (ally.role !== 'healer' || (ally.actor.healPower ?? 0) <= 0 || !injured) continue;
+      if (!shouldCastHeal(eff.rotation, ability.id, { enemyHpPct, selfHpPct: injured.maxHealth > 0 ? injured.currentHealth / injured.maxHealth : 0 })) continue;
+      const slotTier = tier >= 1 ? spendSlotForTier(ally.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
+      const targets = ability.aoe ? injuredMembers(state) : [injured];
+      for (const target of targets) {
+        const healed = healAmount(eff, ability, slotTier, rng, true);
+        target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
+        const targetName = target === state.player ? playerName(state) : (target as DungeonRunAlly).name;
+        emit({
+          t,
+          type: 'heal',
+          message: `💚 ${ally.name} casts ${ability.name} on ${targetName} for ${healed}. ${targetName}: ${Math.round(target.currentHealth)} HP`,
+          source: ally.name,
+          target: targetName,
+          amount: healed,
+          ability: ability.name,
+        });
+      }
+      ally.cooldowns[ability.id] = cooldownTurns(ability);
+      return;
+    }
+
+    if (ability.kind === 'mitigation') {
+      if (ally.role !== 'tank' || ally.mitigationTurns > 0) continue;
+      if (!shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
+      ally.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? DUNGEON_TURN_SEC) / DUNGEON_TURN_SEC));
+      ally.mitigationPct = ability.mitigationPct ?? 0;
+      emit({ t, type: 'ability', source: ally.name, ability: ability.name, message: `🛡️ ${ally.name} uses ${ability.name}, bracing against the next blows.` });
+      ally.cooldowns[ability.id] = cooldownTurns(ability);
+      return;
+    }
+
+    if (ability.kind === 'shield') {
+      if (!shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
+      ally.absorb += Math.round(eff.attackPower * ability.damageMult);
+      emit({ t, type: 'absorb', source: ally.name, target: ally.name, ability: ability.name, message: `🛡️ ${ally.name} casts ${ability.name}.` });
+      ally.cooldowns[ability.id] = cooldownTurns(ability);
+      return;
+    }
+
+    // Útočná ability (strike/drain/dot) → potřebuje živý cíl + dovolení rotace.
+    if (wi < 0 || !shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
+    const slotTier = tier >= 1 ? spendSlotForTier(ally.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
+    if (kiCost > 0) ally.kiPoints -= kiCost;
+    const targets = ability.aoe ? living : [wi];
+    for (const ei of targets) {
+      const enemy = state.enemies[ei]!;
+      if (enemy.currentHealth <= 0) continue;
+      combatantHitEnemy(eff, ally, state, enemy, ability, slotTier, rng, t, emit);
+    }
+    ally.cooldowns[ability.id] = cooldownTurns(ability);
+    return;
+  }
+
+  // Fallback: healer s raněným spojencem a bez slotu/heal-ability → free basic heal;
+  // jinak základní úder nejslabšího nepřítele.
+  if (ally.role === 'healer' && injured) {
+    const healed = healAmount(eff, DUNGEON_BASIC_ATTACK, null, rng, true);
+    injured.currentHealth = Math.min(injured.maxHealth, injured.currentHealth + healed);
+    const targetName = injured === state.player ? playerName(state) : (injured as DungeonRunAlly).name;
+    emit({
+      t,
+      type: 'heal',
+      message: `💚 ${ally.name} mends ${targetName} for ${healed}. ${targetName}: ${Math.round(injured.currentHealth)} HP`,
+      source: ally.name,
+      target: targetName,
+      amount: healed,
+    });
+    return;
+  }
+  if (wi >= 0) combatantHitEnemy(eff, ally, state, state.enemies[wi]!, DUNGEON_BASIC_ATTACK, null, rng, t, emit);
+}
+
+/** Zranění (živí, pod max HP) členové party — cíle AoE heal. */
+function injuredMembers(state: DungeonRunState): PartyMember[] {
+  return partyMembers(state).filter((m) => m.currentHealth > 0 && m.currentHealth < m.maxHealth);
+}
+
+/** Jméno hráče (pro combat log u group heal). */
+function playerName(state: DungeonRunState): string {
+  return state.playerName;
+}
+
+/**
+ * Aplikuje jeden útok aktéra (hráč/parťák) na konkrétního nepřítele. `self` je
+ * léčitelný stav útočníka (lifesteal/drain heal). Sdíleno player/ally — žádná
+ * duplikace damage vzorců.
+ */
+function combatantHitEnemy(
+  attacker: CombatActor,
+  self: PartyMember,
   state: DungeonRunState,
   enemy: DungeonRunEnemy,
   ability: SignatureAbility,
@@ -458,30 +689,30 @@ function playerHitEnemy(
   emit: (e: CombatEvent) => void,
 ): void {
   const targetHpPct = enemy.maxHealth > 0 ? enemy.currentHealth / enemy.maxHealth : 0;
-  const spec = abilityDamageSpec(ability, slotTier, player.level);
+  const spec = abilityDamageSpec(ability, slotTier, attacker.level);
   const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
-  const bonusDice = bonusDiceSpec(ability, slotTier, player.level);
-  const hit = computeHit(player, enemy.actor, rng, mult, false, ability.damageType, spec, {
+  const bonusDice = bonusDiceSpec(ability, slotTier, attacker.level);
+  const hit = computeHit(attacker, enemy.actor, rng, mult, false, ability.damageType, spec, {
     advantage: ability.advantage ? 'advantage' : undefined,
     bonusDice,
   });
   if (hit.hit && ability.save) {
-    const outcome = applySpellSave(ability, player, enemy.actor, rng, hit.amount);
+    const outcome = applySpellSave(ability, attacker, enemy.actor, rng, hit.amount);
     hit.amount = outcome.amount;
-    if (outcome.message) emit({ t, type: 'ability', message: outcome.message, source: enemy.name, target: player.name });
+    if (outcome.message) emit({ t, type: 'ability', message: outcome.message, source: enemy.name, target: attacker.name });
   }
   enemy.currentHealth = Math.max(0, enemy.currentHealth - hit.amount);
 
-  let healed = hit.hit ? Math.round(hit.amount * player.lifesteal) : 0;
+  let healed = hit.hit ? Math.round(hit.amount * attacker.lifesteal) : 0;
   if (hit.hit && ability.kind === 'drain') healed += Math.round(hit.amount * (ability.drainHealFraction ?? 0));
-  if (healed > 0) state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + healed);
+  if (healed > 0) self.currentHealth = Math.min(self.maxHealth, self.currentHealth + healed);
 
   if (hit.hit && ability.kind === 'dot' && ability.dotTicks) {
-    const dotType = ability.damageType ?? player.damageType ?? 'bludgeoning';
+    const dotType = ability.damageType ?? attacker.damageType ?? 'bludgeoning';
     const interaction = damageInteraction(dotType, enemy.actor);
-    const raw = dotTickRaw(ability, player);
+    const raw = dotTickRaw(ability, attacker);
     const tickDamage = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
-    enemy.dots.push({ remainingTicks: ability.dotTicks, tickDamage, sourceName: player.name, abilityName: ability.name });
+    enemy.dots.push({ remainingTicks: ability.dotTicks, tickDamage, sourceName: attacker.name, abilityName: ability.name });
   }
 
   const remaining = Math.round(enemy.currentHealth);
@@ -491,7 +722,7 @@ function playerHitEnemy(
     type: named ? 'ability' : 'attack',
     message: hit.hit
       ? buildAttackMessage({
-          attacker: player,
+          attacker,
           targetName: enemy.name,
           amount: hit.amount,
           crit: hit.crit,
@@ -499,8 +730,8 @@ function playerHitEnemy(
           abilityName: named,
           suffix: `. ${enemy.name}: ${remaining} HP`,
         })
-      : missMessage(player.name, enemy.name, hit),
-    source: player.name,
+      : missMessage(attacker.name, enemy.name, hit),
+    source: attacker.name,
     target: enemy.name,
     amount: hit.amount,
     crit: hit.crit,
@@ -510,6 +741,106 @@ function playerHitEnemy(
   if (enemy.currentHealth <= 0) {
     emit({ t, type: 'enemy_defeated', target: enemy.name, message: `☠️ ${enemy.name} is defeated!` });
   }
+}
+
+/** Vybere threat cíl nepřátelského úderu: první živý tank, jinak nejodolnější člen. */
+function chooseThreatTarget(
+  base: CombatActor,
+  player: CombatActor,
+  state: DungeonRunState,
+): { isPlayer: boolean; allyIdx: number } {
+  // Tank má prioritu (hráč-tank nebo parťák-tank).
+  if (state.playerRole === 'tank' && state.player.currentHealth > 0) return { isPlayer: true, allyIdx: -1 };
+  for (let i = 0; i < state.allies.length; i++) {
+    const a = state.allies[i]!;
+    if (a.currentHealth > 0 && a.role === 'tank') return { isPlayer: false, allyIdx: i };
+  }
+  // Bez tanka: nejodolnější (max HP) živý člen.
+  const bestPlayer = state.player.currentHealth > 0 ? player.maxHealth : -1;
+  let isPlayer = bestPlayer >= 0;
+  let allyIdx = -1;
+  let best = bestPlayer;
+  for (let i = 0; i < state.allies.length; i++) {
+    const a = state.allies[i]!;
+    if (a.currentHealth <= 0) continue;
+    if (a.actor.maxHealth > best) {
+      best = a.actor.maxHealth;
+      isPlayer = false;
+      allyIdx = i;
+    }
+  }
+  void base;
+  return { isPlayer, allyIdx };
+}
+
+/**
+ * Jeden nepřítel udeří na threat cíl (tank → nejodolnější člen). Aplikuje
+ * tank-mitigaci, aktivní mitigation okno, absorpční štít. Vrací `true`, pokud
+ * **padl hráč** (run končí — viz ADR: down hrdiny = konec runu). Pád parťáka
+ * jen vyřadí parťáka, party bojuje dál.
+ */
+function enemyAttackParty(
+  base: CombatActor,
+  player: CombatActor,
+  state: DungeonRunState,
+  enemy: DungeonRunEnemy,
+  rng: SeededRng,
+  t: number,
+  emit: (e: CombatEvent) => void,
+): boolean {
+  const threat = chooseThreatTarget(base, player, state);
+  const isPlayer = threat.isPlayer;
+  const member: PartyMember = isPlayer ? state.player : state.allies[threat.allyIdx]!;
+  if (!member || member.currentHealth <= 0) return false;
+  const targetActor = isPlayer ? player : effectiveAlly(state.allies[threat.allyIdx]!);
+  const targetName = isPlayer ? player.name : state.allies[threat.allyIdx]!.name;
+  const role: RaidRole = isPlayer ? state.playerRole : state.allies[threat.allyIdx]!.role;
+  const mit = isPlayer ? state.player : state.allies[threat.allyIdx]!;
+
+  const enemyHit = computeHit(enemy.actor, targetActor, rng, 1, false);
+  let incoming = enemyHit.amount;
+  if (role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
+  if (mit.mitigationTurns > 0 && mit.mitigationPct > 0) {
+    incoming = Math.max(1, Math.round(incoming * (1 - mit.mitigationPct)));
+  }
+  const absorbResult = applyAbsorb(incoming, mit.absorb);
+  mit.absorb = absorbResult.shieldRemaining;
+  member.currentHealth -= absorbResult.netDamage;
+  const absorbSuffix = absorbResult.absorbed > 0 ? ` (${absorbResult.absorbed} absorbed)` : '';
+  emit({
+    t,
+    type: 'attack',
+    message: enemyHit.hit
+      ? `${enemy.name} hits ${targetName} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. ${targetName}: ${Math.max(0, Math.round(member.currentHealth))} HP`
+      : missMessage(enemy.name, targetName, enemyHit),
+    source: enemy.name,
+    target: targetName,
+    amount: absorbResult.netDamage,
+    crit: enemyHit.crit,
+    targetHealthRemaining: Math.max(0, Math.round(member.currentHealth)),
+  });
+  if (member.currentHealth <= 0) {
+    member.currentHealth = 0;
+    if (isPlayer) {
+      state.status = 'dead';
+      emit({
+        t,
+        type: 'player_defeated',
+        message: `💀 ${targetName} has fallen in ${state.dungeonId} (encounter ${state.encounterIndex + 1}).`,
+        source: enemy.name,
+        target: targetName,
+      });
+      return true;
+    }
+    emit({
+      t,
+      type: 'player_defeated',
+      message: `💀 ${targetName} has fallen! The party fights on.`,
+      source: enemy.name,
+      target: targetName,
+    });
+  }
+  return false;
 }
 
 /** Encounter vyčištěn → další encounter (short rest + partial heal), nebo clear runu. */
@@ -533,16 +864,21 @@ function advanceEncounter(
     return state;
   }
 
-  // Short rest mezi encountery: částečné doléčení (jako auto-resolve).
-  const heal = Math.round(state.player.maxHealth * REST_HEAL_FRACTION);
-  state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + heal);
+  // Short rest mezi encountery: částečné doléčení živých členů (jako auto-resolve).
+  const restHeal = (m: PartyMember): void => {
+    if (m.currentHealth <= 0) return;
+    const heal = Math.round(m.maxHealth * REST_HEAL_FRACTION);
+    m.currentHealth = Math.min(m.maxHealth, m.currentHealth + heal);
+  };
+  restHeal(state.player);
+  for (const ally of state.allies) restHeal(ally);
   push({
     t,
     type: 'heal',
     message: `🩹 The party catches its breath. ${base.name}: ${Math.round(state.player.currentHealth)} HP`,
     source: base.name,
     target: base.name,
-    amount: heal,
+    amount: Math.round(state.player.maxHealth * REST_HEAL_FRACTION),
   });
 
   state.encounterIndex += 1;

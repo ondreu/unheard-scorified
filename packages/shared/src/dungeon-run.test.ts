@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
+  COMPANIONS,
   DUNGEON_BASIC_ATTACK,
   DUNGEONS,
   EMPTY_PROGRESSION,
   baseStatsFor,
+  buildCompanionParty,
   deriveCombatProfile,
+  deriveRaidActor,
   dungeonRunAbilities,
   resolveDungeonTurn,
   startDungeonRun,
   type ClassId,
   type CombatActor,
   type DungeonRunState,
+  type RaidRole,
 } from './index';
 
 function hero(klass: ClassId, level = 20): CombatActor {
@@ -113,6 +117,55 @@ describe('determinismus', () => {
     const base = hero('fighter');
     const a = autoplay(base, startDungeonRun(base, 'ragefire_chasm', 1, 20, 42));
     const b = autoplay(base, startDungeonRun(base, 'ragefire_chasm', 1, 20, 42));
+    expect(a.status).toBe(b.status);
+    expect(a.log.length).toBe(b.log.length);
+    expect(a.turn).toBe(b.turn);
+  });
+});
+
+describe('group tahový run (Slice 3) — AI parťáci', () => {
+  function groupState(playerRole: RaidRole, dungeonId = 'ragefire_chasm', seed = 11): {
+    base: CombatActor;
+    state: DungeonRunState;
+  } {
+    const player = deriveRaidActor(hero('fighter'), playerRole);
+    const allies = buildCompanionParty(playerRole, 20);
+    return { base: player, state: startDungeonRun(player, dungeonId, 3, 20, seed, allies) };
+  }
+
+  it('autofill doplní 2 parťáky do 1/1/1 (zbývající role)', () => {
+    const { state } = groupState('dps');
+    expect(state.allies.length).toBe(2);
+    expect(state.allies.map((a) => a.role).sort()).toEqual(['healer', 'tank']);
+    expect(state.size).toBe(3);
+    expect(state.playerRole).toBe('dps');
+  });
+
+  it('parťáci dostanou plné HP a vlastní jména z rosteru', () => {
+    const { state } = groupState('tank');
+    expect(state.allies.map((a) => a.role).sort()).toEqual(['dps', 'healer']);
+    expect(state.allies.every((a) => a.currentHealth === a.maxHealth)).toBe(true);
+    expect(state.allies.some((a) => a.name === COMPANIONS.healer.name)).toBe(true);
+  });
+
+  it('parťáci jednají každý tah (combat log obsahuje jejich akce)', () => {
+    const { base, state } = groupState('dps');
+    const allyNames = new Set(state.allies.map((a) => a.name));
+    resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, pickTarget(state));
+    const allyActed = state.log.some((e) => e.source && allyNames.has(e.source));
+    expect(allyActed).toBe(true);
+  });
+
+  it('group party (hráč + AI) vyčistí dungeon', () => {
+    const { base, state } = groupState('dps', 'ragefire_chasm', 2024);
+    const cleared = autoplay(base, state);
+    expect(cleared.status).toBe('cleared');
+    expect(cleared.encountersCleared).toBe(cleared.encounterCount);
+  });
+
+  it('determinismus: stejný seed + volby → stejný výsledek', () => {
+    const a = autoplay(groupState('healer', 'deadmines', 99).base, groupState('healer', 'deadmines', 99).state);
+    const b = autoplay(groupState('healer', 'deadmines', 99).base, groupState('healer', 'deadmines', 99).state);
     expect(a.status).toBe(b.status);
     expect(a.log.length).toBe(b.log.length);
     expect(a.turn).toBe(b.turn);

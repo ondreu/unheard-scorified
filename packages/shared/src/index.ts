@@ -35,6 +35,7 @@ export * from './raid';
 export * from './gauntlet';
 export * from './dungeon-run';
 export * from './group';
+export * from './data/companions';
 export * from './lockout';
 export * from './auction';
 export * from './npc-auction';

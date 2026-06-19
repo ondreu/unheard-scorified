@@ -116,6 +116,17 @@ export class DungeonController {
     return this.turn.enter(user.accountId, characterId, dungeonId);
   }
 
+  /** Vstup do group tahového dungeonu (Slice 3) — role + AI autofill 3-player. */
+  @Post(':dungeonId/turn/enter-group')
+  turnEnterGroup(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('dungeonId') dungeonId: string,
+    @Body() body: { role: string; size?: number },
+  ): Promise<DungeonTurnRunView> {
+    return this.turn.enterGroup(user.accountId, characterId, dungeonId, body?.role, body?.size ?? 3);
+  }
+
   /** Jeden tah: hráč zvolí ability + cíl (index nepřítele). */
   @Post('turn/run/:runId/act')
   turnAct(

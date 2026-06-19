@@ -69,8 +69,35 @@ interaktivní mód** vedle zachovaného idle auto-resolve. Realizováno ve slice
     `dungeon-turn/[runId]` (výběr cíle klikem na nepřítele, ability bar, combat log).
   - Idle solo (`enter`) zůstává jako alternativní mód vedle tahového.
 
-- **Slice 3 — tahový group + AI parťáci:** N-aktérový tahový boj, AI spojenci
-  řízení rotací/rolí/sloty (mimikují hráče), 3-player autofill.
+- **Slice 3 — tahový group + AI parťáci (hotovo):**
+  - **Engine** (`dungeon-run.ts`): tahový boj rozšířen z 1 aktéra na **partu N**
+    (hráč + AI parťáci). `DungeonRunState` dostal `allies: DungeonRunAlly[]` +
+    `playerRole`/`playerName`; solo = prázdné pole → **plně zpětně kompatibilní**
+    (Slice 2 chování beze změny). Pořadí tahu: DoT tiky → **hráčova** ability
+    (heal cílí nejzraněnějšího člena party; solo = self) → **AI parťáci** (každý
+    živý jeden tah) → protiútok nepřátel na **threat** (tank → jinak nejodolnější
+    člen) → údržba (cooldowny/mitigace hráče i parťáků). Short rest mezi
+    encountery doléčí + refillne zdroje **všem** členům. Sdílený `combatantHitEnemy`
+    (hráč i parťák) — žádná duplikace damage vzorců; tank-mitigace přes
+    `TANK_INCOMING_DAMAGE_MULT` (sdíleno s auto-resolve `raid.ts`).
+  - **AI parťáci** (`data/companions.ts`): pevný **D&D companion roster** (Gareth
+    fighter-tank, Lyra cleric-healer, Vex rogue-dps). Profil se staví **stejnou
+    cestou jako hráč** (`deriveCombatProfile` → `deriveRaidActor`) na úrovni hráče
+    se standard-array atributy a bez gearu → parťák „mimikuje hráče" (role, ability
+    kit, spell sloty, rotace). `allyTakeTurn` jedná dle role + rotace: healer léčí
+    nejzraněnějšího (jinak DPSí + free basic-heal fallback bez slotu), tank/dps
+    sešle první použitelnou ability dle rotace (sloty/Ki/cooldown gating), jinak
+    basic úder. Determinismus zachován (sdílený rng tahu).
+  - **API/web**: `enterGroup` (hráč zvolí roli, `buildCompanionParty` autofillne
+    zbytek do **1/1/1**, 3-player), route `:dungeonId/turn/enter-group`. Web:
+    dungeon list nabídne „⚔️ Turn-based (party)" s volbou role při velikosti 3;
+    tahová stránka kreslí **party panel** (HP bary parťáků s rolemi). Odměna sdílí
+    `computeGroupReward` + lockout + reputaci se solo/auto-resolve. Bez DB migrace
+    (parťáci žijí v JSON run-stavu).
+  - **Zjednodušení (rozhodnutí PM, Slice 3):** **down hrdiny = konec runu**
+    (`status: 'dead'`) — hráč ovládá jen sebe, takže pád hráče ukončí interaktivní
+    run; pád **parťáka** ho jen vyřadí a party bojuje dál (žádný battlefield-revive
+    zatím). Jen **autofill 3-player** (reální hráči 3/5 = Slice 4).
 
 - **Slice 4 — ruční party 3/5 (reální hráči):** lobby/matchmaking do tahového
   boje, 5-player jen ruční. **Otevřená otázka** (vlastní ADR): model koordinace

@@ -1,15 +1,19 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  buildCompanionParty,
   canCastDungeonAbility,
   computeGroupReward,
+  deriveRaidActor,
   DUNGEONS,
   dungeonReputationGain,
   dungeonRunAbilities,
   GENERALIST_FACTION,
+  groupContentSizes,
   hasSlotForTier,
   isDungeonAbilityReady,
   isDungeonId,
   isDungeonUnlocked,
+  isRaidRole,
   levelFromXp,
   lockoutIdForContent,
   resolveDungeonTurn,
@@ -21,6 +25,7 @@ import {
   type DungeonRunState,
   type DungeonRunStatus,
   type RaidReward,
+  type RaidRole,
   type SpellSlots,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
@@ -57,6 +62,15 @@ export interface DungeonTurnEnemyView {
   currentHealth: number;
 }
 
+/** AI parťák (Slice 3) — pro UI panel party. */
+export interface DungeonTurnAllyView {
+  name: string;
+  role: RaidRole;
+  maxHealth: number;
+  currentHealth: number;
+  absorb: number;
+}
+
 export interface DungeonTurnRunView {
   runId: string;
   dungeonId: string;
@@ -65,6 +79,10 @@ export interface DungeonTurnRunView {
   encounterIndex: number;
   encounterCount: number;
   encountersCleared: number;
+  /** Velikost party (1 = solo, 3 = group autofill). */
+  size: number;
+  /** Role hráče (group). */
+  playerRole: RaidRole;
   player: {
     name: string;
     maxHealth: number;
@@ -79,6 +97,8 @@ export interface DungeonTurnRunView {
     maxRageCharges: number;
     raging: boolean;
   };
+  /** AI parťáci (group, Slice 3); solo = prázdné. */
+  allies: DungeonTurnAllyView[];
   enemies: DungeonTurnEnemyView[];
   abilities: DungeonTurnAbilityView[];
   events: CombatEvent[];
@@ -132,6 +152,57 @@ export class DungeonTurnService {
       playerSnapshot: snapshot,
       level,
       size: 1,
+      state,
+      status: state.status,
+      encountersCleared: state.encountersCleared,
+    });
+    return this.toRunView(run, state);
+  }
+
+  /**
+   * Vstup do **group** tahového dungeonu (Slice 3, ADR 0037) — hráč zvolí roli,
+   * AI parťáci autofillnou zbytek do 1/1/1 (3-player). Hráč řídí svou postavu;
+   * parťáci jednají automaticky. Odměna sdílí model se solo/auto-resolve.
+   */
+  async enterGroup(
+    accountId: string,
+    characterId: string,
+    dungeonId: string,
+    role: string,
+    size = 3,
+  ): Promise<DungeonTurnRunView> {
+    const character = await this.ownedOrThrow(accountId, characterId);
+    if (!isDungeonId(dungeonId)) throw new BadRequestException('Unknown dungeon');
+    if (!isRaidRole(role)) throw new BadRequestException('Invalid role');
+    if (size <= 1 || !groupContentSizes('dungeon', dungeonId).includes(size)) {
+      throw new BadRequestException('Unsupported party size');
+    }
+    // Slice 3: jen autofill 3-player (reální hráči = Slice 4).
+    if (size !== 3) throw new BadRequestException('Only 3-player autofill is supported for now');
+
+    const existing = await this.repo.findActiveForCharacter(characterId);
+    if (existing) throw new BadRequestException('Finish or abandon your current run first');
+
+    const level = levelFromXp(character.totalXp);
+    const completedSet = new Set(await this.completed.completedIds(characterId));
+    if (!isDungeonUnlocked(dungeonId, level, completedSet)) {
+      throw new ForbiddenException('Dungeon locked (level or attunement)');
+    }
+
+    const playerRole = role as RaidRole;
+    const base = await this.rotation.buildCombatProfile(character, level);
+    // Hráč jako RaidActor (role tuning: tank víc HP/míň dmg, healer healPower…).
+    const playerActor = deriveRaidActor(base, playerRole);
+    const allies = buildCompanionParty(playerRole, level);
+    const seed = seedFromString(`dungeon-turn-group:${characterId}:${Date.now()}`);
+    const state = startDungeonRun(playerActor, dungeonId, size, level, seed, allies);
+
+    const run = await this.repo.createRun({
+      characterId,
+      dungeonId,
+      playerSnapshot: playerActor,
+      level,
+      size,
       state,
       status: state.status,
       encountersCleared: state.encountersCleared,
@@ -319,6 +390,8 @@ export class DungeonTurnService {
       encounterIndex: state.encounterIndex,
       encounterCount: state.encounterCount,
       encountersCleared: state.encountersCleared,
+      size: state.size,
+      playerRole: state.playerRole,
       player: {
         name: run.playerSnapshot.name,
         maxHealth: state.player.maxHealth,
@@ -333,6 +406,13 @@ export class DungeonTurnService {
         maxRageCharges: run.playerSnapshot.rageCharges ?? 0,
         raging: state.player.raging ?? false,
       },
+      allies: (state.allies ?? []).map((a) => ({
+        name: a.name,
+        role: a.role,
+        maxHealth: a.maxHealth,
+        currentHealth: Math.max(0, Math.round(a.currentHealth)),
+        absorb: Math.round(a.absorb),
+      })),
       enemies: state.enemies.map((e) => ({
         idx: e.idx,
         name: e.name,
