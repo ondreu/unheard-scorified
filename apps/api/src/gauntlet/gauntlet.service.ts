@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   applyGauntletDraft,
+  canCastGauntletAbility,
   capGauntletReward,
   CLASSES,
   dailyPeriodId,
@@ -26,6 +27,7 @@ import {
   type GauntletStatComparison,
   type ItemDef,
   type ItemStats,
+  type SpellSlots,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryService } from '../inventory/inventory.service';
@@ -45,6 +47,10 @@ export interface GauntletAbilityView {
   cooldownSec: number;
   cooldownRemaining: number;
   ready: boolean;
+  /** Spell tier kouzla (0 = cantrip/martial, zdarma). Slot ekonomika (ADR 0034). */
+  spellTier: number;
+  /** Kouzlo (tier ≥ 1) bez volného slotu → nelze seslat (UI ho zašedne). */
+  outOfSlots: boolean;
 }
 
 export interface GauntletDailyView {
@@ -65,6 +71,10 @@ export interface GauntletRunView {
     currentHealth: number;
     absorb: number;
     mitigationTurns: number;
+    /** Zbývající spell sloty per tier (ADR 0034) — rozpočet na celý run. */
+    spellSlots: SpellSlots;
+    /** Maximální spell sloty per tier (ze snapshotu) — pro „X/Y" zobrazení. */
+    maxSpellSlots: SpellSlots;
   };
   enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
   abilities: GauntletAbilityView[];
@@ -162,10 +172,15 @@ export class GauntletService {
     const snapshot = run.playerSnapshot;
     const state = run.state;
 
-    // Validace: ability musí být v kitu a ready (server-authoritative anti-cheat).
+    // Validace: ability musí být v kitu, ready a mít volný spell slot (server-
+    // authoritative anti-cheat).
     const kit = gauntletAbilities(snapshot, state.picks);
-    if (!kit.some((a) => a.id === abilityId)) throw new BadRequestException('Unknown ability');
+    const ability = kit.find((a) => a.id === abilityId);
+    if (!ability) throw new BadRequestException('Unknown ability');
     if (!isGauntletAbilityReady(state, abilityId)) throw new BadRequestException('Ability on cooldown');
+    if (!canCastGauntletAbility(state, ability)) {
+      throw new BadRequestException('Out of spell slots for that spell');
+    }
 
     const { state: next } = resolveGauntletTurn(snapshot, state, abilityId);
 
@@ -413,6 +428,8 @@ export class GauntletService {
         cooldownSec: a.cooldownSec,
         cooldownRemaining: remaining,
         ready: remaining <= 0,
+        spellTier: a.spellTier ?? 0,
+        outOfSlots: !canCastGauntletAbility(state, a),
       };
     });
   }
@@ -439,6 +456,8 @@ export class GauntletService {
         currentHealth: Math.max(0, Math.round(state.player.currentHealth)),
         absorb: Math.round(state.player.absorb),
         mitigationTurns: state.player.mitigationTurns,
+        spellSlots: state.player.spellSlots ?? { ...(run.playerSnapshot.spellSlots ?? {}) },
+        maxSpellSlots: run.playerSnapshot.spellSlots ?? {},
       },
       enemy: state.enemy
         ? {

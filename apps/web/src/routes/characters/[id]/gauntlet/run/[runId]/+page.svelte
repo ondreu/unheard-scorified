@@ -33,9 +33,15 @@
     waysCleared: 'waves cleared',
     backToArena: 'Back to The Gauntlet',
     cooldown: 'CD',
+    noSlots: 'No slot',
     vs: 'vs',
     takeIt: 'Take it',
   };
+
+  /** Součet slotů napříč tiery (kompaktní „zbývá / max" v panelu hráče). */
+  function slotTotal(map: Record<number, number>): number {
+    return Object.values(map).reduce((a, b) => a + b, 0);
+  }
 
   let run = $state<GauntletRunView | null>(null);
   let loading = $state(true);
@@ -167,6 +173,11 @@
         <span class="text-sm text-[var(--text-dim)]">
           {r.player.currentHealth} / {r.player.maxHealth}
           {#if r.player.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {r.player.absorb}</span>{/if}
+          {#if slotTotal(r.player.maxSpellSlots) > 0}
+            <span class="ml-1 text-[var(--accent)]" title="Spell slots remaining this run">
+              ✨ {slotTotal(r.player.spellSlots)}/{slotTotal(r.player.maxSpellSlots)}
+            </span>
+          {/if}
         </span>
       </div>
       <div class="bar mt-2">
@@ -181,14 +192,16 @@
           {#each r.abilities as a (a.id)}
             <button
               class="btn flex items-center gap-2 text-left"
-              disabled={busy || !a.ready}
-              title={a.description}
+              disabled={busy || !a.ready || a.outOfSlots}
+              title={a.outOfSlots ? `${a.description} (out of spell slots)` : a.description}
               onclick={() => act(a.id)}
             >
               <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
               <span class="min-w-0 flex-1 truncate">{a.name}</span>
               {#if !a.ready}
                 <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
+              {:else if a.outOfSlots}
+                <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
               {/if}
             </button>
           {/each}

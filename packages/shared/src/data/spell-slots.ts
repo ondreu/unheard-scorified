@@ -213,6 +213,19 @@ export function spendSlotForTier(slots: SpellSlots, minTier: number): number | n
   return null;
 }
 
+/**
+ * Je k dispozici alespoň jeden slot tieru **>= `minTier`**? Čistá kontrola (nemutuje)
+ * — pro UI (zašednutí kouzla bez slotu) a server-side validaci tahu, kde se ještě
+ * nesmí utratit. `minTier ≤ 0` (cantrip/martial) → vždy `true` (at-will, bez slotu).
+ */
+export function hasSlotForTier(slots: SpellSlots, minTier: number): boolean {
+  if (minTier < 1) return true;
+  for (let tier = minTier; tier <= 9; tier++) {
+    if ((slots[tier] ?? 0) > 0) return true;
+  }
+  return false;
+}
+
 /** Součet dvou slot map (využito pro „spent" akumulaci). */
 export function addSlots(a: SpellSlots, b: SpellSlots): SpellSlots {
   const out: SpellSlots = { ...a };

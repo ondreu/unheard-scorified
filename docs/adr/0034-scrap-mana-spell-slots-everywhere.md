@@ -88,18 +88,27 @@ sešle nejvýš `available slots`-krát a cantrip neomezeně.
 > build/test/lint/typecheck zelené, dungeon + arena integrační flows beze změny
 > (winnability zachována — fallback na cantrip/basic + wipe/retry determination).
 
-### Slice 2b — Sloty v Gauntletu (follow-up)
+### Slice 2b — Sloty v Gauntletu ✅
 
-Gauntlet (`gauntlet.ts`) **záměrně oddělen** — není idle auto-resolve, ale
-**interaktivní** (hráč volí tah), **persistovaný** JSON run-stav napříč vlnami,
-s **drafty** (přidávají spelly za běhu) a bez HP regenerace. Sloty tam vyžadují
-vlastní rozhodnutí, a proto samostatný slice:
+Gauntlet (`gauntlet.ts`) je jiný než idle auto-resolve moduly — **interaktivní**
+(hráč volí tah), **persistovaný** JSON run-stav napříč vlnami, s **drafty**
+(přidávají spelly), bez HP regenerace. Slot model proto dle rozhodnutí PM:
 
-- **persistence** slot rozpočtu v `GauntletPlayerState` (JSON, bez migrace),
-- **recharge kadence** (per-vlnu = encounter? per-run? — design decision),
-- **UI**: zobrazení dostupných slotů + **odmítnutí tahu** (kouzlo bez slotu jako
-  „not ready", analogicky cooldownu) ve web kliencie,
-- interakce s ability draftem (nové kouzlo vs. dostupné sloty).
+- **Rozpočet na celý run** (rozhodnutí PM): `GauntletPlayerState.spellSlots` =
+  max sloty ze snapshotu na startu, **NEresetuje se po vlně** (`spawnWave` slotů
+  nedotýká) → roguelite hospodaření „šetři Fireball na elite vlnu". Persistováno
+  v JSON run-stavu — **bez DB migrace**; běhy z doby před slice se **lazy
+  inicializují** ze snapshotu při prvním tahu.
+- **Spotřeba**: `resolveGauntletTurn` při commitu kouzla (tier ≥ 1) utratí slot
+  (`spendSlotForTier`) → upcast dle slotu (Gauntlet teď trackuje slot tier, dřív
+  base dice). Cantripy / basic attack zdarma.
+- **UI „zobrazit + zablokovat"** (rozhodnutí PM): kouzlo bez slotu je v combat
+  baru **zašedlé** (`outOfSlots`, disabled, štítek „No slot") — analogicky
+  cooldownu; panel hráče ukazuje **✨ zbývá/max** slotů. Server validuje
+  (`canCastGauntletAbility`) → anti-cheat (tah bez slotu = `BadRequestException`).
+- **Bez refill draftu** zatím (rozhodnutí PM) — slot-restore draft odměna
+  („Arcane Recovery / Long Rest") je připravený **ventil** pro budoucí balanc,
+  pokud se per-run rationing ukáže příliš tvrdý.
 
 ### Slice 3 — Class resources (follow-up)
 
@@ -113,16 +122,17 @@ Sjednotí model „resource per třída" bez návratu k `ResourceType` proxy.
   jako jediný zdroj.
 - (+) Slice 1 je čistá deletion bez DB migrace a bez změny bojových výsledků
   (resource se nikdy nečetl) → nízkoriziková, plně testovaná.
-- (+) Slot ekonomika je po Slice 2 bojově relevantní v **questu/grindu + dungeonech
-  + PVP/arénách** — caster front-loaduje nejlepší kouzla, pak padá na cantripy
-  (D&D depletion). Jediný sdílený primitiv (`spendSlotForTier`).
+- (+) Slot ekonomika je po Slice 2/2b bojově relevantní **napříč všemi módy** —
+  quest/grind, dungeon, PVP/arény (per-encounter) i Gauntlet (per-run). Caster
+  front-loaduje nejlepší kouzla, pak padá na cantripy (D&D depletion). Jediný
+  sdílený primitiv (`spendSlotForTier` / `hasSlotForTier`).
 - (−) Martial třídy mezi Slice 1 a Slice 3 bez explicitního resource (jejich
   techniky jsou ale už at-will, takže funkčně beze změny).
-- (−) Gauntlet (Slice 2b) zatím sloty nečerpá — vyžaduje persistenci + UI +
-  recharge rozhodnutí (interaktivní mód).
-- (−) Slot rozpočet je **per-encounter** (fresh per pull/duel), ne sdílený přes
-  celý dungeon run — jednodušší a bezpečnější (žádné dry-caster unwinnable
-  retries); plný „one Long Rest per adventure" model = případný budoucí tuning.
+- (−) **Dva modely recharge** dle povahy módu: idle auto-resolve = **per-encounter**
+  (fresh per pull/duel, bezpečné — žádné dry-caster unwinnable retries), Gauntlet
+  = **per-run** (roguelite rationing, interaktivní). Vědomý rozdíl, ne nekonzistence.
+- (−) Gauntlet per-run rationing může být bez refill draftu pro nízkoúrovňové
+  castery tvrdý (málo slotů) → připravený ventil (refill draft) = budoucí balanc.
 
 ## Alternativy
 

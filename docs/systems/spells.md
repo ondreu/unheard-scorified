@@ -79,14 +79,16 @@ encounteru vezme **lokální kopii** `actor.spellSlots` jako rozpočet:
 | Quest / Gone Questing (`quest-run.ts`) | ✅ | Od MR-4; upcast + saving throwy (ADR 0032).   |
 | Dungeon (`raid.ts` `fightBoss`)   | ✅ | Per-pull rozpočet, **upcast**; healer free basic-swing heal. |
 | PVP / arény (`pvp.ts`)            | ✅ | Per-duel / per-člen rozpočet (1v1 i 3v3/5v5). |
-| Gauntlet (`gauntlet.ts`)          | ⏳ | Slice 2b (interaktivní, persistovaný stav).   |
+| Gauntlet (`gauntlet.ts`)          | ✅ | **Per-run** rozpočet (NEresetuje se po vlně — roguelite), UI „zobrazit + zablokovat" (`outOfSlots`), upcast. |
 
 Cantripy (tier 0) a martial techniky (bez `spellTier`) jdou **zdarma** (at-will);
-kouzla (tier ≥ 1) čerpají slot. Long Rest = reset při claimu/návratu (beze změny).
+kouzla (tier ≥ 1) čerpají slot. Idle auto-resolve módy mají rozpočet **per-encounter**
+(reset každý souboj), Gauntlet **per-run** (interaktivní rationing). Long Rest =
+reset při claimu/návratu (beze změny).
 
 ## Follow-up
 
-- Gauntlet slot spotřeba (Slice 2b) — persistence + recharge + UI.
+- Gauntlet slot-refill draft odměna (ventil pro per-run rationing) — ADR 0034.
 - Short Rest časová granularita (Warlock).
 - Class resources (Rage/Ki/Pact, Slice 3 ADR 0034).
 

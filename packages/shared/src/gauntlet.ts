@@ -35,6 +35,7 @@ import {
 } from './combat';
 import { applySpellSave, missMessage } from './dnd-combat';
 import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
+import { hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
 
@@ -113,6 +114,12 @@ export interface GauntletPlayerState {
   absorb: number;
   /** abilityId → zbývající počet tahů do dostupnosti. */
   cooldowns: Record<string, number>;
+  /**
+   * Zbývající spell sloty (ADR 0034) — **rozpočet na celý run** (NEresetuje se po
+   * vlně, roguelite hospodaření: šetři nejlepší kouzla na elite). Kouzlo (tier ≥ 1)
+   * čerpá slot; cantripy/martial jdou zdarma. Odvozeno ze snapshotu (max) na startu.
+   */
+  spellSlots: SpellSlots;
   /** Zbývající tahy aktivního mitigation okna (0 = neaktivní). */
   mitigationTurns: number;
   /** Podíl redukce příchozího poškození během mitigation okna (0..1). */
@@ -298,6 +305,9 @@ export function startGauntletRun(base: CombatActor, level: number, seed: number)
       currentHealth: eff.maxHealth,
       absorb: 0,
       cooldowns: {},
+      // Per-run slot rozpočet = max sloty ze snapshotu (ADR 0034). Drafty mohou
+      // přidat kouzla, ale ne sloty (refill draft = budoucí ventil).
+      spellSlots: { ...(base.spellSlots ?? {}) },
       mitigationTurns: 0,
       mitigationPct: 0,
     },
@@ -334,6 +344,15 @@ export function isGauntletAbilityReady(state: GauntletRunState, abilityId: strin
   return (state.player.cooldowns[abilityId] ?? 0) <= 0;
 }
 
+/**
+ * Má hráč na seslání kouzla volný spell slot (ADR 0034)? Cantripy (tier 0) a
+ * martial techniky (bez `spellTier`) jdou vždy zdarma → `true`. Kouzlo (tier ≥ 1)
+ * potřebuje slot tieru ≥ kouzla. Čistá kontrola (nemutuje) — pro UI i validaci tahu.
+ */
+export function canCastGauntletAbility(state: GauntletRunState, ability: SignatureAbility): boolean {
+  return hasSlotForTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0);
+}
+
 function trimLog(state: GauntletRunState): void {
   if (state.log.length > 80) state.log = state.log.slice(-80);
 }
@@ -360,6 +379,17 @@ export function resolveGauntletTurn(
       : player.signatureAbilities.find((a) => a.id === abilityId);
   if (!ability) return { state, events: [] };
   if (!isGauntletAbilityReady(state, abilityId)) return { state, events: [] };
+
+  // Spell sloty (ADR 0034): rozpočet na celý run. Lazy init pro běhy založené před
+  // zavedením slotů (JSON bez pole). Kontrola dostupnosti teď (bez slotu = neplatný
+  // tah, UI ho blokuje); samotná spotřeba až při commitu kouzla (po DoT — viz níže),
+  // aby DoT-kill nepřítele neutratil slot za kouzlo, které už nedopadne.
+  if (state.player.spellSlots === undefined) {
+    state.player.spellSlots = { ...(base.spellSlots ?? {}) };
+  }
+  const abilityTier = ability.spellTier ?? 0;
+  if (!hasSlotForTier(state.player.spellSlots, abilityTier)) return { state, events: [] };
+  let usedSlotTier: number | null = null;
 
   const enemy = state.enemy;
   const rng = new SeededRng(seedFromString(`${state.seed}:turn:${state.wave}:${state.turn}`));
@@ -388,6 +418,10 @@ export function resolveGauntletTurn(
   }
   enemy.dots = enemy.dots.filter((d) => d.remainingTicks > 0);
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
+
+  // Spell sloty (ADR 0034): commit kouzla (tier ≥ 1) — utratí slot (dostupnost
+  // ověřena výše) → `usedSlotTier` řídí upcast. DoT nepřítele nezabil, kouzlo dopadne.
+  if (abilityTier >= 1) usedSlotTier = spendSlotForTier(state.player.spellSlots, abilityTier);
 
   // (2) Hráčova ability.
   const enemyAsActor = enemyActor(enemy);
@@ -435,8 +469,9 @@ export function resolveGauntletTurn(
     // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
     const targetHpPct = enemy.currentHealth / enemy.maxHealth;
     // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-    // jinak škálují přes attackPower (damageMult + execute).
-    const spec = abilityDamageSpec(ability, null);
+    // jinak škálují přes attackPower (damageMult + execute). Upcast dle slotu,
+    // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
+    const spec = abilityDamageSpec(ability, usedSlotTier);
     const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
     // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
     const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec);

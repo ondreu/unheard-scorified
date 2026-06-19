@@ -3,6 +3,7 @@ import {
   applyGauntletDraft,
   baseStatsFor,
   buildGauntletEnemy,
+  canCastGauntletAbility,
   capGauntletReward,
   deriveCombatProfile,
   effectivePlayerActor,
@@ -40,6 +41,57 @@ function clearWave(base: CombatActor, state: GauntletRunState): GauntletRunState
   }
   return s;
 }
+
+describe('spell sloty v Gauntletu (ADR 0034)', () => {
+  const total = (m: Record<number, number>): number =>
+    Object.values(m).reduce((a, b) => a + b, 0);
+
+  it('rozpočet slotů se inicializuje ze snapshotu (max sloty)', () => {
+    const base = hero(8, 'wizard');
+    const s = startGauntletRun(base, 8, 1);
+    expect(s.player.spellSlots).toEqual(base.spellSlots);
+    expect(total(s.player.spellSlots)).toBeGreaterThan(0);
+  });
+
+  it('kouzlo (tier ≥ 1) bez slotu nelze seslat; cantrip i basic vždy', () => {
+    const base = hero(8, 'wizard');
+    const s = startGauntletRun(base, 8, 1);
+    const kit = gauntletAbilities(base, s.picks);
+    const spell = kit.find((a) => (a.spellTier ?? 0) >= 1)!;
+    const cantrip = kit.find((a) => a.spellTier === 0)!;
+    expect(canCastGauntletAbility(s, spell)).toBe(true);
+    s.player.spellSlots = {}; // vyčerpáno
+    expect(canCastGauntletAbility(s, spell)).toBe(false);
+    expect(canCastGauntletAbility(s, cantrip)).toBe(true);
+    expect(canCastGauntletAbility(s, GAUNTLET_BASIC_ATTACK)).toBe(true);
+  });
+
+  it('tah kouzlem bez slotu je neplatný (stav beze změny)', () => {
+    const base = hero(8, 'wizard');
+    const s = startGauntletRun(base, 8, 1);
+    const spell = gauntletAbilities(base, s.picks).find((a) => (a.spellTier ?? 0) >= 1)!;
+    s.player.spellSlots = {};
+    const turnBefore = s.turn;
+    const res = resolveGauntletTurn(base, s, spell.id);
+    expect(res.events).toEqual([]);
+    expect(res.state.turn).toBe(turnBefore);
+  });
+
+  it('seslání kouzla utratí slot a sloty se NEresetují mezi vlnami (per-run rozpočet)', () => {
+    const base = hero(8, 'wizard');
+    let s = startGauntletRun(base, 8, 1);
+    const spell = gauntletAbilities(base, s.picks).find((a) => (a.spellTier ?? 0) >= 1)!;
+    const start = total(s.player.spellSlots);
+    s = resolveGauntletTurn(base, s, spell.id).state;
+    const afterCast = total(s.player.spellSlots);
+    expect(afterCast).toBe(start - 1);
+    // Dotáhni vlnu (basic údery = zdarma) + draft → další vlna.
+    s = clearWave(base, s);
+    if (s.status === 'drafting' && s.draft) s = applyGauntletDraft(base, s, s.draft[0]!.id, 8);
+    // Utracený slot zůstává — žádný per-wave reset na max.
+    expect(total(s.player.spellSlots)).toBe(afterCast);
+  });
+});
 
 describe('buildGauntletEnemy', () => {
   it('HP i dmg rostou s vlnou; elite vlna je silnější', () => {

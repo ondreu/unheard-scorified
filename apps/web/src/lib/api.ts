@@ -1762,6 +1762,8 @@ export interface GauntletAbilityView {
   cooldownSec: number;
   cooldownRemaining: number;
   ready: boolean;
+  spellTier: number;
+  outOfSlots: boolean;
 }
 
 export interface GauntletDailyView {
@@ -1796,6 +1798,8 @@ export interface GauntletRunView {
     currentHealth: number;
     absorb: number;
     mitigationTurns: number;
+    spellSlots: Record<number, number>;
+    maxSpellSlots: Record<number, number>;
   };
   enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
   abilities: GauntletAbilityView[];
