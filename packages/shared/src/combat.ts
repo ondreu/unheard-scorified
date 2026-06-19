@@ -689,10 +689,7 @@ export function healDiceSpec(
  * dotTickMult`. Vrací raw poškození před aplikací resistance/immunity (to řeší volající).
  */
 export function dotTickRaw(ability: SignatureAbility, source: CombatActor): number {
-  if (ability.dice) {
-    const spec = abilityDamageSpec(ability, null, source.level ?? 1);
-    return spec ? Math.round(diceAverage(spec)) : 0;
-  }
+  if (ability.dotDice) return Math.round(diceAverage(ability.dotDice));
   return Math.round(source.attackPower * (ability.dotTickMult ?? 0));
 }
 

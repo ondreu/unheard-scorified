@@ -24,6 +24,7 @@ import {
   applyRage,
   buildEnemyActor,
   canRage,
+  dotTickRaw,
   resolveAttack,
   round1,
   type CombatActor,
@@ -31,7 +32,7 @@ import {
   type EnemyStats,
 } from './combat';
 import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
-import { crForContentLevel } from './data/damage';
+import { applyDamageInteraction, crForContentLevel, damageInteraction, type DamageType } from './data/damage';
 import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import { shouldCastHeal } from './rotation';
 import type { SignatureAbility } from './data/abilities';
@@ -197,7 +198,45 @@ export function simulateQuestEncounter(
   const hardStop = startT + QUEST_ENCOUNTER_MAX_SEC;
   let playerDown = false;
   let enemyTurns = 0;
+  // Aktivní DoTy na nepříteli (ADR 0036) — DoT reálně tiká v čase (Moonbeam, Spirit
+  // Guardians…), ne jeden zásah. Tiky jsou deterministické (žádný RNG).
+  interface QuestDot {
+    next: number;
+    interval: number;
+    ticksLeft: number;
+    damage: number;
+    name: string;
+  }
+  const dots: QuestDot[] = [];
   while (enemyHp > 0 && t < hardStop) {
+    // Nejbližší DoT tik — když nastane dřív než další úder, vyřeš ho.
+    let dotIdx = -1;
+    let dotAt = Infinity;
+    for (let i = 0; i < dots.length; i++) {
+      const d = dots[i]!;
+      if (d.ticksLeft > 0 && d.next < dotAt) {
+        dotAt = d.next;
+        dotIdx = i;
+      }
+    }
+    if (dotIdx >= 0 && dotAt <= pNext && dotAt <= eNext) {
+      const d = dots[dotIdx]!;
+      t = dotAt;
+      enemyHp = Math.max(0, enemyHp - d.damage);
+      d.ticksLeft -= 1;
+      d.next += d.interval;
+      events.push({
+        t: round1(t),
+        type: 'dot',
+        source: player.name,
+        target: enemy.name,
+        amount: d.damage,
+        ability: d.name,
+        targetHealthRemaining: enemyHp,
+        message: `🔥 ${enemy.name} suffers ${d.damage} from ${d.name}. ${enemy.name}: ${enemyHp} HP.`,
+      });
+      continue;
+    }
     if (pNext <= eNext) {
       t = pNext;
       pNext = t + player.swingInterval;
@@ -289,6 +328,26 @@ export function simulateQuestEncounter(
           healed += Math.round(result.amount * chosen.drainHealFraction);
         }
         if (healed > 0) playerHp = Math.min(player.maxHealth, playerHp + healed);
+      }
+
+      // DoT (ADR 0036): kouzlo typu „dot" na zásah aplikuje poškození v čase —
+      // tiky se zařadí do časové smyčky (Moonbeam 2d10/tik, Spirit Guardians 3d8/tik).
+      // Tik respektuje typ + obrany cíle (jako přímý zásah). Refresh při dalším seslání.
+      if (result.hit && chosen?.kind === 'dot' && chosen.dotTicks && chosen.dotDurationSec) {
+        const dotType: DamageType = chosen.damageType ?? player.damageType ?? 'bludgeoning';
+        const interaction = damageInteraction(dotType, enemy);
+        const raw = dotTickRaw(chosen, player);
+        const tick = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
+        const existing = dots.find((d) => d.name === chosen.name);
+        const interval = chosen.dotDurationSec / chosen.dotTicks;
+        if (existing) {
+          existing.ticksLeft = chosen.dotTicks;
+          existing.damage = tick;
+          existing.interval = interval;
+          existing.next = t + interval;
+        } else {
+          dots.push({ next: t + interval, interval, ticksLeft: chosen.dotTicks, damage: tick, name: chosen.name });
+        }
       }
 
       const slotNote = slotTier != null ? ` (${ordinal(slotTier)}-level slot)` : undefined;

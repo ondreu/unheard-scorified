@@ -52,6 +52,13 @@ export interface SignatureAbility {
   dotTicks?: number;
   /** DoT: násobek poškození jednoho tiku (z attack power útočníka). */
   dotTickMult?: number;
+  /**
+   * Literal D&D kostky **jednoho DoT tiku** (ADR 0036) — odlišné od `dice` (impact/
+   * strike): Moonbeam 2d10/tik, Spirit Guardians 3d8/tik. Když je vyplněné, per-tik
+   * poškození = `diceAverage(dotDice)` (deterministicky), `dotTickMult` se ignoruje.
+   * Pure-aura DoT má `damageMult: 0` (žádný impact) → veškeré poškození jde z tiků.
+   */
+  dotDice?: DiceSpec;
   /** Drain: podíl uděleného poškození, který útočníka vyléčí (navíc k lifestealu). */
   drainHealFraction?: number;
   /** Execute: pod tímto podílem HP cíle (0..1) se použije `executeDamageMult`. */
@@ -130,7 +137,7 @@ export interface BaselineAbility extends SignatureAbility {
 }
 
 interface BaselineOpts {
-  dot?: { dotDurationSec: number; dotTicks: number; dotTickMult: number };
+  dot?: { dotDurationSec: number; dotTicks: number; dotTickMult: number; dotDice?: DiceSpec };
   drainHealFraction?: number;
   execute?: { executeBelowPct: number; executeDamageMult: number };
   mitigation?: { mitigationPct: number; mitigationDurationSec: number };
@@ -212,12 +219,12 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('cleric_sacred_flame', 'Sacred Flame', 'Radiant flame for 1d8 (DEX save negates).', 'strike', 5, 1.5, 1, { spellTier: 0, damageType: 'radiant', dice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'dexterity', effect: 'negate' } }),
     ba('cleric_cure_wounds', 'Cure Wounds', 'Channels divine power to heal an ally for 230% of your healing power.', 'heal', 6, 2.3, 1, { spellTier: 1 }),
     ba('cleric_guiding_bolt', 'Guiding Bolt', 'A bolt of light strikes for 4d6 radiant. +1d6 per slot above 1st.', 'strike', 7, 2.1, 8, { spellTier: 1, damageType: 'radiant', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
-    ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians harry the enemy over 9s (WIS save halves).', 'dot', 8, 0.4, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.4 }, spellTier: 3, save: { ability: 'wisdom', effect: 'half' } }),
+    ba('cleric_spirit_guardians', 'Spirit Guardians', 'Spectral guardians sear the enemy for 3d8 radiant each turn over 9s (WIS save halves).', 'dot', 8, 0, 14, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0, dotDice: { count: 3, sides: 8, bonus: 0 } }, spellTier: 3, damageType: 'radiant', save: { ability: 'wisdom', effect: 'half' } }),
   ],
   druid: [
     ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 1d8.', 'strike', 5, 1.5, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 8, bonus: 0 } }),
     ba('druid_healing_word', 'Healing Word', 'Nature mends an ally for 220% of your healing power.', 'heal', 5, 2.2, 1, { spellTier: 1 }),
-    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears over 9s (CON save halves).', 'dot', 8, 0.5, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0.45 }, spellTier: 2, damageType: 'radiant', save: { ability: 'constitution', effect: 'half' } }),
+    ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears for 2d10 radiant each turn over 9s (CON save halves).', 'dot', 8, 0, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0, dotDice: { count: 2, sides: 10, bonus: 0 } }, spellTier: 2, damageType: 'radiant', save: { ability: 'constitution', effect: 'half' } }),
     ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 3d10 lightning (DEX save halves). +1d10 per slot above 3rd.', 'strike', 7, 1.9, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } }),
   ],
   fighter: [
@@ -234,12 +241,12 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   paladin: [
     ba('paladin_divine_smite', 'Divine Smite', 'A radiant strike for 180% weapon damage.', 'strike', 5, 1.8, 1, { spellTier: 1 }),
     ba('paladin_lay_on_hands', 'Lay on Hands', 'Restores 220% of your healing power to a wounded ally.', 'heal', 6, 2.2, 1, { spellTier: 1 }),
-    ba('paladin_searing_smite', 'Searing Smite', 'A flaming blow for 140% damage that burns for 100% over 8s.', 'dot', 8, 0.4, 12, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.3 }, spellTier: 2 }),
+    ba('paladin_searing_smite', 'Searing Smite', 'A flaming blow for 1d6 fire that ignites the foe for 1d6 fire each turn over 8s.', 'dot', 8, 0, 12, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 1, sides: 6, bonus: 0 } }, spellTier: 1, damageType: 'fire', dice: { count: 1, sides: 6, bonus: 0 } }),
     ba('paladin_flash_of_light', 'Flash of Light', 'A quick heal restoring 130% of your healing power.', 'heal', 4, 1.3, 20, { spellTier: 1 }),
   ],
   ranger: [
     ba('ranger_hunters_mark', "Hunter's Mark", 'A marked-prey shot for 155% weapon damage.', 'strike', 5, 1.55, 1, { spellTier: 1 }),
-    ba('ranger_serpent_arrow', 'Serpent Arrow', 'A venomed arrow for 40% on impact and 125% over 10s.', 'dot', 9, 0.4, 6, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0.25 }, spellTier: 1, damageType: 'poison' }),
+    ba('ranger_serpent_arrow', 'Serpent Arrow', 'A venomed arrow for 1d8 poison that poisons for 1d6 each turn over 10s.', 'dot', 9, 0, 6, { dot: { dotDurationSec: 10, dotTicks: 5, dotTickMult: 0, dotDice: { count: 1, sides: 6, bonus: 0 } }, spellTier: 1, damageType: 'poison', dice: { count: 1, sides: 8, bonus: 0 } }),
     ba('ranger_volley', 'Volley', 'A rain of arrows dealing 185% weapon damage.', 'strike', 8, 1.85, 14, { spellTier: 2 }),
     ba('ranger_cure_wounds', 'Cure Wounds', 'Restores 170% of your healing power to a wounded ally.', 'heal', 6, 1.7, 9, { spellTier: 1 }),
   ],
@@ -258,7 +265,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('warlock_eldritch_blast', 'Eldritch Blast', 'A beam of crackling force for 1d10.', 'strike', 4, 1.45, 1, { spellTier: 0, damageType: 'force', dice: { count: 1, sides: 10, bonus: 0 } }),
     ba('warlock_hex', 'Hex', 'A curse dealing 45% on impact and 130% over 12s.', 'dot', 9, 0.45, 6, { dot: { dotDurationSec: 12, dotTicks: 6, dotTickMult: 0.22 }, spellTier: 1, damageType: 'necrotic' }),
     ba('warlock_vampiric_touch', 'Vampiric Touch', 'A withering touch for 3d6 necrotic, healing you for half the damage dealt. +1d6 per slot above 3rd.', 'drain', 6, 1.0, 10, { drainHealFraction: 0.5, spellTier: 3, damageType: 'necrotic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
-    ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'Void tendrils gnaw for 40% on impact and 110% over 8s.', 'dot', 9, 0.4, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0.27 }, spellTier: 3, damageType: 'necrotic' }),
+    ba('warlock_hunger_of_hadar', 'Hunger of Hadar', 'A void zone where tendrils gnaw for 2d6 cold each turn over 8s.', 'dot', 9, 0, 20, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 2, sides: 6, bonus: 0 } }, spellTier: 3, damageType: 'cold' }),
   ],
   wizard: [
     ba('wiz_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.05, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 10, bonus: 0 } }),
