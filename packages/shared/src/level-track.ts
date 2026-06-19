@@ -21,9 +21,10 @@ import {
 } from './data/abilities';
 import { ASI_LEVELS } from './levelup';
 import { spellSlotsFor, casterTypeOf, type CasterType } from './data/spell-slots';
+import { classFeatureSlotsFor } from './data/class-features';
 
 /** Milníková volba odemčená na daném levelu (mapuje na `levelUpSlots`). */
-export type LevelTrackChoiceType = 'subclass' | 'asi_or_feat';
+export type LevelTrackChoiceType = 'subclass' | 'asi_or_feat' | 'class_feature';
 
 /** Nově odemčená feature / kouzlo (čistá prezentace). */
 export interface LevelTrackEntry_Feature {
@@ -111,6 +112,10 @@ export function buildLevelTrack(
   const catalog = classSpellCatalog(klass);
   const subAbility = sub ? SUBCLASS_ABILITIES[sub] : undefined;
   const asiLevels = new Set<number>(ASI_LEVELS);
+  // Levely, na kterých se odemyká aspoň jedna class-feature volba (s ohledem na subclass).
+  const classFeatureLevels = new Set<number>(
+    classFeatureSlotsFor(klass, MAX_LEVEL, sub).map((s) => s.level),
+  );
 
   const entries: LevelTrackEntry[] = [];
   for (let level = 1; level <= MAX_LEVEL; level++) {
@@ -148,6 +153,7 @@ export function buildLevelTrack(
     const choices: LevelTrackChoiceType[] = [];
     if (level === def.subclassLevel) choices.push('subclass');
     if (asiLevels.has(level)) choices.push('asi_or_feat');
+    if (classFeatureLevels.has(level)) choices.push('class_feature');
 
     entries.push({
       level,

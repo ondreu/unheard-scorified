@@ -41,6 +41,7 @@
     type: LevelTrackChoiceType;
     level: number;
     choice: LevelUpChoice | null;
+    group?: string;
   }
   interface FeatView {
     id: string;
@@ -55,11 +56,23 @@
     name: string;
     description: string;
   }
+  interface FeatureOptionView {
+    id: string;
+    name: string;
+    description: string;
+  }
+  interface FeatureGroupView {
+    id: string;
+    name: string;
+    description: string;
+    options: FeatureOptionView[];
+  }
   interface LevelUpView {
     level: number;
     slots: SlotView[];
     feats: FeatView[];
     subclasses: SubclassView[];
+    featureGroups: FeatureGroupView[];
     track: LevelTrack;
   }
 
@@ -168,6 +181,12 @@
   function featName(id: string): string {
     return view?.feats.find((f) => f.id === id)?.name ?? id;
   }
+  function featureGroup(groupId: string): FeatureGroupView | undefined {
+    return view?.featureGroups.find((g) => g.id === groupId);
+  }
+  function featureOptionName(groupId: string, optionId: string): string {
+    return featureGroup(groupId)?.options.find((o) => o.id === optionId)?.name ?? optionId;
+  }
 
   function choiceLabel(c: LevelUpChoice): string {
     if (c.kind === 'subclass') return `Subclass: ${subclassName(c.subclassId)}`;
@@ -175,6 +194,7 @@
       const ab = c.abilityChoice ? ` (+1 ${ABILITY_ABBREV[c.abilityChoice]})` : '';
       return `Feat: ${featName(c.featId)}${ab}`;
     }
+    if (c.kind === 'class_feature') return featureOptionName(c.groupId, c.optionId);
     const parts = ABILITY_SCORES.filter((k) => (c.increases[k] ?? 0) > 0).map(
       (k) => `+${c.increases[k]} ${ABILITY_ABBREV[k]}`,
     );
@@ -185,6 +205,36 @@
   function slotFor(level: number, type: LevelTrackChoiceType): SlotView | undefined {
     if (!view) return undefined;
     return view.slots.find((s) => s.type === type && s.level === level);
+  }
+
+  // Class-feature sloty odemčené na daném levelu, seskupené po skupině (group id).
+  function featureSlotsAt(level: number): { group: FeatureGroupView; slots: SlotView[] }[] {
+    if (!view) return [];
+    const byGroup = new Map<string, SlotView[]>();
+    for (const s of view.slots) {
+      if (s.type !== 'class_feature' || s.level !== level || !s.group) continue;
+      const list = byGroup.get(s.group) ?? [];
+      list.push(s);
+      byGroup.set(s.group, list);
+    }
+    const out: { group: FeatureGroupView; slots: SlotView[] }[] = [];
+    for (const [groupId, slots] of byGroup) {
+      const group = featureGroup(groupId);
+      if (group) out.push({ group, slots });
+    }
+    return out;
+  }
+
+  // Option id už zvolené v JINÉM slotu téže skupiny (nelze 2× totéž).
+  function optionTakenElsewhere(groupId: string, optionId: string, exceptSlotId: string): boolean {
+    if (!view) return false;
+    return view.slots.some(
+      (s) =>
+        s.id !== exceptSlotId &&
+        s.choice?.kind === 'class_feature' &&
+        s.choice.groupId === groupId &&
+        s.choice.optionId === optionId,
+    );
   }
 
   function tierLabel(tier: number): string {
@@ -284,6 +334,43 @@
             <!-- Milníkové volby (subclass / ASI / Feat) — zvýrazněné, interaktivní po dosažení levelu. -->
             {#if milestone}
               {#each entry.choices as choiceType (choiceType)}
+                {#if choiceType === 'class_feature'}
+                  {#each featureSlotsAt(entry.level) as fg (fg.group.id)}
+                    <section class="choice">
+                      <div class="row spread wrap">
+                        <h3>{fg.group.name}</h3>
+                        <span class="muted small">{fg.slots.length} {fg.slots.length === 1 ? 'choice' : 'choices'}</span>
+                      </div>
+                      <p class="muted small">{fg.group.description}</p>
+                      {#if !entry.reached}
+                        <p class="muted small">{ui.locked} {entry.level}.</p>
+                      {:else}
+                        {#each fg.slots as cfslot, i (cfslot.id)}
+                          <div class="cf-slot">
+                            <div class="row spread wrap">
+                              <span class="muted small">Choice {i + 1}</span>
+                              {#if cfslot.choice}<span class="badge">{ui.chosen}: {choiceLabel(cfslot.choice)}</span>{/if}
+                            </div>
+                            <div class="grid-cards">
+                              {#each fg.group.options as opt (opt.id)}
+                                {@const chosen = cfslot.choice?.kind === 'class_feature' && cfslot.choice.optionId === opt.id}
+                                {@const taken = optionTakenElsewhere(fg.group.id, opt.id, cfslot.id)}
+                                <button
+                                  class="option {chosen ? 'option-active' : ''} {taken && !chosen ? 'ineligible' : ''}"
+                                  disabled={pendingSlot === cfslot.id || (taken && !chosen)}
+                                  onclick={() => choose(cfslot.id, { kind: 'class_feature', groupId: fg.group.id, optionId: opt.id })}
+                                >
+                                  <strong>{opt.name}</strong>
+                                  <span class="muted small">{opt.description}</span>
+                                </button>
+                              {/each}
+                            </div>
+                          </div>
+                        {/each}
+                      {/if}
+                    </section>
+                  {/each}
+                {:else}
                 {@const slot = slotFor(entry.level, choiceType)}
                 <section class="choice">
                   <div class="row spread wrap">
@@ -378,6 +465,7 @@
                     </div>
                   {/if}
                 </section>
+                {/if}
               {/each}
             {/if}
           </div>
@@ -456,6 +544,12 @@
   }
   .option:hover { border-color: var(--r-uncommon, #1eff00); }
   .option-active { border-color: var(--r-rare, #0070dd); box-shadow: 0 0 0 1px var(--r-rare, #0070dd); }
+  .option.ineligible { opacity: 0.4; cursor: not-allowed; }
+  .option:disabled { cursor: not-allowed; }
+
+  /* Class-feature volba (Fighting Style / Metamagic / Invocation / manévr). */
+  .cf-slot { display: flex; flex-direction: column; gap: 0.4rem; padding-top: 0.3rem; }
+  .cf-slot + .cf-slot { border-top: 1px solid var(--border, #333); padding-top: 0.6rem; }
 
   /* Feat karta — prereq label, half-feat atribut volby. */
   .feat-card {

@@ -14,20 +14,28 @@
 import type { AbilityScore } from './character';
 import { ABILITY_SCORES } from './character';
 import { CLASSES, isSubclassOf, type ClassId, type SubclassId } from './data/classes';
-import { FEATS, isFeatForClass, isValidFeatAbilityChoice, type FeatId } from './data/feats';
+import { FEATS, isFeatForClass, isValidFeatAbilityChoice, type FeatEffect, type FeatId } from './data/feats';
+import {
+  classFeatureSlotsFor,
+  featureSlotId,
+  findFeatureGroup,
+  findFeatureOption,
+} from './data/class-features';
 
 /** D&D 5e ASI/Feat levely (zjednodušeno; class-specific extra sloty = follow-up). */
 export const ASI_LEVELS = [4, 8, 12, 16, 19] as const;
 
-export type LevelUpSlotType = 'subclass' | 'asi_or_feat';
+export type LevelUpSlotType = 'subclass' | 'asi_or_feat' | 'class_feature';
 
 /** Jeden nárok na volbu, který postava na svém levelu má. */
 export interface LevelUpSlot {
-  /** Stabilní id slotu (např. `subclass`, `asi@4`). */
+  /** Stabilní id slotu (např. `subclass`, `asi@4`, `cf:sorcerer_metamagic#1`). */
   id: string;
   type: LevelUpSlotType;
   /** Level, na kterém se slot odemyká. */
   level: number;
+  /** Class-feature slot: id skupiny voleb (jinak undefined). */
+  group?: string;
 }
 
 /** Volba ASI: rozdělení +2 mezi atributy (1×+2 nebo 2×+1). */
@@ -47,8 +55,14 @@ export interface SubclassChoice {
   kind: 'subclass';
   subclassId: SubclassId;
 }
+/** Volba class feature (Fighting Style / Metamagic / Invocation / manévr). */
+export interface ClassFeatureChoice {
+  kind: 'class_feature';
+  groupId: string;
+  optionId: string;
+}
 
-export type LevelUpChoice = AsiChoice | FeatChoice | SubclassChoice;
+export type LevelUpChoice = AsiChoice | FeatChoice | SubclassChoice | ClassFeatureChoice;
 
 /** Uložená volba (slot id → volba). */
 export interface StoredLevelUpChoice {
@@ -63,8 +77,16 @@ export interface ProgressionEffects {
   tags: { tag: string; ranks: number }[];
 }
 
-/** Sloty volby, na které má postava dané třídy a levelu nárok. */
-export function levelUpSlots(klass: ClassId, level: number): LevelUpSlot[] {
+/**
+ * Sloty volby, na které má postava dané třídy a levelu nárok. `subclass` (volitelná)
+ * odemyká class-feature skupiny gated subclassem (Battle Master manévry) — bez ní se
+ * subclass-gated sloty nenabízejí.
+ */
+export function levelUpSlots(
+  klass: ClassId,
+  level: number,
+  subclass?: SubclassId | null,
+): LevelUpSlot[] {
   const slots: LevelUpSlot[] = [];
   const subLevel = CLASSES[klass].subclassLevel;
   if (level >= subLevel) {
@@ -72,6 +94,14 @@ export function levelUpSlots(klass: ClassId, level: number): LevelUpSlot[] {
   }
   for (const lvl of ASI_LEVELS) {
     if (level >= lvl) slots.push({ id: `asi@${lvl}`, type: 'asi_or_feat', level: lvl });
+  }
+  for (const s of classFeatureSlotsFor(klass, level, subclass)) {
+    slots.push({
+      id: featureSlotId(s.groupId, s.index),
+      type: 'class_feature',
+      level: s.level,
+      group: s.groupId,
+    });
   }
   return slots;
 }
@@ -91,6 +121,15 @@ export function isValidAsi(increases: Partial<Record<AbilityScore, number>>): bo
 export function isValidChoice(klass: ClassId, slot: LevelUpSlot, choice: LevelUpChoice): boolean {
   if (slot.type === 'subclass') {
     return choice.kind === 'subclass' && isSubclassOf(klass, choice.subclassId);
+  }
+  if (slot.type === 'class_feature') {
+    if (choice.kind !== 'class_feature') return false;
+    if (slot.group !== choice.groupId) return false;
+    const group = findFeatureGroup(choice.groupId);
+    if (!group || group.klass !== klass) return false;
+    // Unikátnost napříč sourozeneckými sloty (nelze 2× stejnou volbu) řeší API
+    // service (potřebuje všechny uložené volby) — tady jen existence option.
+    return findFeatureOption(choice.groupId, choice.optionId) !== undefined;
   }
   // asi_or_feat
   if (choice.kind === 'asi') return isValidAsi(choice.increases);
@@ -125,6 +164,24 @@ export function aggregateProgression(choices: readonly StoredLevelUpChoice[]): P
     statBonus[k] = (statBonus[k] ?? 0) + v;
   };
 
+  // Aplikuje FeatEffect (sdílené pro featy i class-feature volby). `abilityChoice`
+  // jen pro half-featy (statChoice).
+  const applyEffect = (eff: FeatEffect, abilityChoice?: AbilityScore): void => {
+    if (eff.statBonus) {
+      for (const key of ABILITY_SCORES) {
+        const v = eff.statBonus[key] ?? 0;
+        if (v) addStat(key, v);
+      }
+    }
+    if (eff.statChoice && abilityChoice && eff.statChoice.options.includes(abilityChoice)) {
+      addStat(abilityChoice, eff.statChoice.amount);
+    }
+    healthBonus += eff.healthBonus ?? 0;
+    for (const { tag, ranks } of eff.combatTags ?? []) {
+      tagMap.set(tag, (tagMap.get(tag) ?? 0) + ranks);
+    }
+  };
+
   for (const { choice } of choices) {
     if (choice.kind === 'asi') {
       for (const key of ABILITY_SCORES) {
@@ -133,22 +190,10 @@ export function aggregateProgression(choices: readonly StoredLevelUpChoice[]): P
       }
     } else if (choice.kind === 'feat') {
       const feat = FEATS[choice.featId];
-      if (!feat) continue;
-      const eff = feat.effect;
-      if (eff.statBonus) {
-        for (const key of ABILITY_SCORES) {
-          const v = eff.statBonus[key] ?? 0;
-          if (v) addStat(key, v);
-        }
-      }
-      // Half-feat: +amount do zvoleného atributu (musí být z nabídky).
-      if (eff.statChoice && choice.abilityChoice && eff.statChoice.options.includes(choice.abilityChoice)) {
-        addStat(choice.abilityChoice, eff.statChoice.amount);
-      }
-      healthBonus += eff.healthBonus ?? 0;
-      for (const { tag, ranks } of eff.combatTags ?? []) {
-        tagMap.set(tag, (tagMap.get(tag) ?? 0) + ranks);
-      }
+      if (feat) applyEffect(feat.effect, choice.abilityChoice);
+    } else if (choice.kind === 'class_feature') {
+      const option = findFeatureOption(choice.groupId, choice.optionId);
+      if (option) applyEffect(option.effect);
     }
   }
 

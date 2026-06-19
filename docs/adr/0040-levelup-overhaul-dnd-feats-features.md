@@ -1,6 +1,6 @@
 # ADR 0040 — Level-up overhaul: D&D featy, class-feature volby, víc subclass
 
-- **Stav:** přijato (B1 + B3 hotové; B2 plánované)
+- **Stav:** přijato (B1 + B2 + B3 hotové — celý Slice B)
 - **Kontext:** navazuje na MR-2 (level-up systém, ASI/Feat, talent stromy zrušeny),
   ADR 0036 (D&D-věrné abilities / engine efekty) a Slice A (level track 1–20).
 - **Rozsah:** `packages/shared` (feats data + validace), `apps/api` (LevelUpModule),
@@ -34,8 +34,15 @@ classa** a class-feature volby (Fighting Style, Metamagic, …) chybí úplně. 
   enginu, magnitudy v úrovni stávajících signatur. Subclassy udělující *nové*
   sesílání (Eldritch Knight/Arcane Trickster) vynechány — spell sloty jsou vázané
   na classu (`CASTER_TYPE`), ne subclass. Bez DB migrace (`SubclassId` = string sloupec).
-- **B2 — class-feature volby (plánované).** Nový typ level-up slotu (class+level
-  gated), class-specific nabídka, napojení na engine (ADR 0036 efekty).
+- **B2 — class-feature volby (hotové).** Nový typ slotu `class_feature`
+  (`data/class-features.ts`): Fighting Style, Metamagic, Eldritch Invocations,
+  Battle Master manévry. Model: `ClassFeatureGroup` s rozvrhem (`schedule` =
+  kumulativní počet voleb dle levelu) → každá volba = vlastní slot
+  `cf:<groupId>#<index>` (recykluje `character_levelup_choices`, bez migrace).
+  Volby mají `FeatEffect` → engine combat-tagy (žádný nový kód v enginu).
+  `levelUpSlots(klass, level, subclass?)` rozšířeno o subclass-gating (Battle
+  Master manévry vyžadují `battle_master`). Unikátnost voleb napříč sourozeneckými
+  sloty + pruning osiřelých voleb po změně subclassi = API service.
 
 ## Architektura B1 (`packages/shared/src/data/feats.ts`)
 
