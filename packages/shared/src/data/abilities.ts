@@ -293,6 +293,102 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
 };
 
+/**
+ * Rozšiřující pool kouzel (Kniha kouzel / ADR 0039). Navíc k baseline kitu —
+ * dohromady tvoří **nabídku**, ze které si caster volí aktivní (prepared) kouzla.
+ * Jen caster classy (`CASTER_TYPE !== 'none'`); martialové (Barbarian/Fighter/
+ * Monk/Rogue) mají fixní bojové techniky → prázdný pool (nevolí kouzla).
+ *
+ * Záměrně „velký, ale ne kompletní" (rozhodnutí PM): dost variety, ať je z čeho
+ * vybírat, ne celý PHB. Dice/typy/saves jsou D&D-věrné (stejný styl jako baseline);
+ * upcast (`dicePerSlotAbove`) u kouzel, kterým v D&D pomáhá.
+ */
+export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
+  barbarian: [],
+  fighter: [],
+  monk: [],
+  rogue: [],
+  bard: [
+    ba('bard_mind_sliver', 'Mind Sliver', 'A spike of psychic energy for 1d6 (scales with level).', 'strike', 4, 1.0, 1, { spellTier: 0, damageType: 'psychic', dice: { count: 1, sides: 6, bonus: 0 } }),
+    ba('bard_thunderwave', 'Thunderwave', 'A wave of force for 2d8 thunder (CON save halves). +1d8 per slot above 1st.', 'strike', 7, 1.6, 1, { spellTier: 1, damageType: 'thunder', dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('bard_cure_wounds', 'Cure Wounds', 'A touch restores 1d8 + your spellcasting modifier. +1d8 per slot above 1st.', 'heal', 6, 2.1, 1, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('bard_heat_metal', 'Heat Metal', 'Searing metal burns for 2d8 fire each turn over 8s.', 'dot', 8, 0, 5, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 2, sides: 8, bonus: 0 } }, spellTier: 2, damageType: 'fire' }),
+    ba('bard_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.8, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('bard_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
+    ba('bard_phantasmal_killer', 'Phantasmal Killer', "A vision of the target's worst fear for 4d10 psychic (WIS save halves). +1d10 per slot above 4th.", 'strike', 9, 2.0, 16, { spellTier: 4, damageType: 'psychic', dice: { count: 4, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' } }),
+    ba('bard_synaptic_static', 'Synaptic Static', 'An explosion of psychic energy for 8d6 (INT save halves). +1d6 per slot above 5th.', 'strike', 10, 2.2, 17, { spellTier: 5, damageType: 'psychic', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'intelligence', effect: 'half' }, aoe: true }),
+  ],
+  cleric: [
+    ba('cleric_toll_the_dead', 'Toll the Dead', 'A mournful bell tolls for 1d8 necrotic (WIS save negates; scales with level).', 'strike', 4, 1.0, 1, { spellTier: 0, damageType: 'necrotic', dice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'wisdom', effect: 'negate' } }),
+    ba('cleric_healing_word', 'Healing Word', 'A word of power heals an ally for 1d4 + your spellcasting modifier. +1d4 per slot above 1st.', 'heal', 5, 1.9, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('cleric_inflict_wounds', 'Inflict Wounds', 'A necrotic touch for 3d10. +1d10 per slot above 1st.', 'strike', 7, 2.0, 1, { spellTier: 1, damageType: 'necrotic', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('cleric_spiritual_weapon', 'Spiritual Weapon', 'A floating blade strikes for 1d8 + your spellcasting modifier force.', 'strike', 6, 1.85, 5, { spellTier: 2, damageType: 'force', dice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('cleric_prayer_of_healing', 'Prayer of Healing', 'A prayer heals all wounded allies for 2d8 + your spellcasting modifier. +1d8 per slot above 2nd.', 'heal', 9, 2.5, 5, { spellTier: 2, dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
+    ba('cleric_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
+    ba('cleric_flame_strike', 'Flame Strike', 'A column of divine fire for 8d6 (4d6 fire + 4d6 radiant; DEX save halves). +1d6 per slot above 5th.', 'strike', 10, 2.2, 17, { spellTier: 5, damageType: 'radiant', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+  ],
+  druid: [
+    ba('druid_thorn_whip', 'Thorn Whip', 'A vine lashes the target for 1d6 piercing (scales with level).', 'strike', 4, 1.0, 1, { spellTier: 0, damageType: 'piercing', dice: { count: 1, sides: 6, bonus: 0 } }),
+    ba('druid_cure_wounds', 'Cure Wounds', "Nature's touch restores 1d8 + your spellcasting modifier. +1d8 per slot above 1st.", 'heal', 6, 2.1, 1, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('druid_thunderwave', 'Thunderwave', 'A wave of force for 2d8 thunder (CON save halves). +1d8 per slot above 1st.', 'strike', 7, 1.6, 1, { spellTier: 1, damageType: 'thunder', dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('druid_flaming_sphere', 'Flaming Sphere', 'A rolling sphere of fire sears for 2d6 fire each turn over 8s (DEX save halves).', 'dot', 8, 0, 5, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 2, sides: 6, bonus: 0 } }, spellTier: 2, damageType: 'fire', save: { ability: 'dexterity', effect: 'half' } }),
+    ba('druid_mass_cure_wounds', 'Mass Cure Wounds', 'A surge of life heals all wounded allies for 3d8 + your spellcasting modifier. +1d8 per slot above 5th.', 'heal', 10, 2.8, 17, { spellTier: 5, dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
+    ba('druid_ice_storm', 'Ice Storm', 'A hail of ice for 4d6 cold (DEX save halves). +1d6 per slot above 4th.', 'strike', 9, 1.9, 16, { spellTier: 4, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+    ba('druid_insect_plague', 'Insect Plague', 'A biting swarm gnaws for 4d10 piercing each turn over 8s (CON save halves).', 'dot', 10, 0, 17, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 4, sides: 10, bonus: 0 } }, spellTier: 5, damageType: 'piercing', save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+  ],
+  paladin: [
+    ba('paladin_thunderous_smite', 'Thunderous Smite', 'A thunderclap blow adding 2d6 thunder to the weapon hit. +1d6 per slot above 1st.', 'strike', 7, 1.0, 5, { spellTier: 1, damageType: 'thunder', bonusDice: { count: 2, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('paladin_wrathful_smite', 'Wrathful Smite', 'A frightening blow adding 1d6 psychic to the weapon hit.', 'strike', 6, 1.0, 5, { spellTier: 1, damageType: 'psychic', bonusDice: { count: 1, sides: 6, bonus: 0 } }),
+    ba('paladin_branding_smite', 'Branding Smite', 'A radiant brand adding 2d6 radiant to the weapon hit. +1d6 per slot above 2nd.', 'strike', 7, 1.0, 9, { spellTier: 2, damageType: 'radiant', bonusDice: { count: 2, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('paladin_blinding_smite', 'Blinding Smite', 'A flash of light adding 3d8 radiant to the weapon hit.', 'strike', 8, 1.0, 13, { spellTier: 3, damageType: 'radiant', bonusDice: { count: 3, sides: 8, bonus: 0 } }),
+  ],
+  ranger: [
+    ba('ranger_zephyr_strike', 'Zephyr Strike', 'A wind-quick strike made with advantage, adding 1d8 force to the hit.', 'strike', 7, 1.0, 5, { spellTier: 1, damageType: 'force', advantage: true, bonusDice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('ranger_hail_of_thorns', 'Hail of Thorns', 'A rain of thorns for 1d10 piercing to all foes (DEX save halves). +1d10 per slot above 1st.', 'strike', 8, 1.0, 5, { spellTier: 1, damageType: 'piercing', dice: { count: 1, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+    ba('ranger_lightning_arrow', 'Lightning Arrow', 'An arrow becomes a bolt of lightning for 4d8 (DEX save halves). +1d8 per slot above 3rd.', 'strike', 8, 1.0, 13, { spellTier: 3, damageType: 'lightning', dice: { count: 4, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' } }),
+    ba('ranger_conjure_barrage', 'Conjure Barrage', 'A volley of conjured weapons for 3d8 to all foes (DEX save halves).', 'strike', 9, 1.0, 13, { spellTier: 3, damageType: 'piercing', dice: { count: 3, sides: 8, bonus: 0 }, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+  ],
+  sorcerer: [
+    ba('sorc_ray_of_frost', 'Ray of Frost', 'A frigid beam for 1d8 cold (scales with level).', 'strike', 4, 1.1, 1, { spellTier: 0, damageType: 'cold', dice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('sorc_shocking_grasp', 'Shocking Grasp', 'A jolt of lightning for 1d8 (scales with level).', 'strike', 4, 1.1, 1, { spellTier: 0, damageType: 'lightning', dice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('sorc_magic_missile', 'Magic Missile', 'Three darts of force for 3d4+3 (auto-hit). +1d4+1 per slot above 1st.', 'strike', 4, 1.3, 1, { spellTier: 1, damageType: 'force', dice: { count: 3, sides: 4, bonus: 3 }, dicePerSlotAbove: 1, autoHit: true }),
+    ba('sorc_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.7, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('sorc_lightning_bolt', 'Lightning Bolt', 'A stroke of lightning for 8d6 (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.2, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+    ba('sorc_ice_storm', 'Ice Storm', 'A hail of ice for 4d6 cold (DEX save halves). +1d6 per slot above 4th.', 'strike', 9, 1.9, 16, { spellTier: 4, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+    ba('sorc_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+  ],
+  warlock: [
+    ba('warlock_chill_touch', 'Chill Touch', 'A ghostly hand for 1d8 necrotic (scales with level).', 'strike', 4, 1.2, 1, { spellTier: 0, damageType: 'necrotic', dice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('warlock_witch_bolt', 'Witch Bolt', 'A sustained arc of lightning for 1d12 each turn over 8s.', 'dot', 7, 0, 1, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 1, sides: 12, bonus: 0 } }, spellTier: 1, damageType: 'lightning' }),
+    ba('warlock_arms_of_hadar', 'Arms of Hadar', 'Tendrils of dark energy lash all foes for 2d6 necrotic (STR save halves). +1d6 per slot above 1st.', 'strike', 8, 1.5, 1, { spellTier: 1, damageType: 'necrotic', dice: { count: 2, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'strength', effect: 'half' }, aoe: true }),
+    ba('warlock_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.7, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('warlock_blight', 'Blight', 'Necrotic energy withers the target for 8d8 (CON save halves). +1d8 per slot above 4th.', 'strike', 9, 2.3, 16, { spellTier: 4, damageType: 'necrotic', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' } }),
+  ],
+  wizard: [
+    ba('wiz_ray_of_frost', 'Ray of Frost', 'A frigid beam for 1d8 cold (scales with level).', 'strike', 4, 1.05, 1, { spellTier: 0, damageType: 'cold', dice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('wiz_shocking_grasp', 'Shocking Grasp', 'A jolt of lightning for 1d8 (scales with level).', 'strike', 4, 1.05, 1, { spellTier: 0, damageType: 'lightning', dice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('wiz_chromatic_orb', 'Chromatic Orb', 'An orb of elemental energy for 3d8. +1d8 per slot above 1st.', 'strike', 6, 1.65, 1, { spellTier: 1, damageType: 'cold', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('wiz_thunderwave', 'Thunderwave', 'A wave of force for 2d8 thunder (CON save halves). +1d8 per slot above 1st.', 'strike', 7, 1.6, 1, { spellTier: 1, damageType: 'thunder', dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('wiz_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.7, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('wiz_lightning_bolt', 'Lightning Bolt', 'A stroke of lightning for 8d6 (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.3, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+    ba('wiz_ice_storm', 'Ice Storm', 'A hail of ice for 4d6 cold (DEX save halves). +1d6 per slot above 4th.', 'strike', 9, 1.9, 16, { spellTier: 4, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
+    ba('wiz_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('wiz_disintegrate', 'Disintegrate', 'A thin green ray for 10d6+40 force (DEX save halves). +3d6 per slot above 6th.', 'strike', 11, 2.6, 17, { spellTier: 6, damageType: 'force', dice: { count: 10, sides: 6, bonus: 40 }, dicePerSlotAbove: 3, save: { ability: 'dexterity', effect: 'half' } }),
+  ],
+};
+
+/**
+ * Plný katalog kouzel classy = baseline kit + rozšiřující pool (`EXTRA_SPELLS`),
+ * **bez** subclass signature. Jediný zdroj nabídky pro Knihu kouzel. Deduplikuje
+ * podle `id` (baseline má přednost) → bezpečné i kdyby se id překrylo.
+ */
+export function classSpellCatalog(klass: ClassId | string): BaselineAbility[] {
+  const baseline = CLASS_BASELINE_ABILITIES[klass as ClassId] ?? [];
+  const extra = EXTRA_SPELLS[klass as ClassId] ?? [];
+  const seen = new Set(baseline.map((a) => a.id));
+  return [...baseline, ...extra.filter((a) => !seen.has(a.id))];
+}
+
 // ── Subclass signature ability (1 per subclass v MVP) — odemčeno subclassLevel ─
 
 export const SUBCLASS_ABILITIES: Record<SubclassId, BaselineAbility> = {
