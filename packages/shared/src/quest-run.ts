@@ -33,6 +33,7 @@ import {
 import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
 import { crForContentLevel } from './data/damage';
 import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import { shouldCastHeal } from './rotation';
 import type { SignatureAbility } from './data/abilities';
 import {
   type QuestDef,
@@ -124,11 +125,11 @@ function healAbilities(player: CombatActor) {
 
 /**
  * Healer self-sustain (solo quest combat): healer (cleric/druid/bard/paladin/ranger)
- * se sám léčí, když klesne pod tento podíl HP. V group obsahu léčí spoluhráče; v
- * sólo questu by jinak „neměl koho léčit" a padal — proto se ošetří sám. Léčení
- * čerpá spell slot (tier ≥ 1) jako každé jiné kouzlo.
+ * se v sólo questu „nemá koho léčit", proto ošetří sebe. **Kdy** se léčí řídí
+ * rotace postavy (`shouldCastHeal`): „když pod N % HP použij X spell" — hráč nastaví
+ * práh/spell/vypnutí; bez pravidla = default `self_hp_below` 0.5. Léčení čerpá spell
+ * slot (tier ≥ 1) jako každé jiné kouzlo.
  */
-const HEAL_HP_THRESHOLD = 0.5;
 /** Heal = `attackPower × damageMult × HEAL_POWER_FACTOR × falloff` (sdílí konvenci s Gauntletem). */
 const HEAL_POWER_FACTOR = 0.6;
 /** Spam-ochrana: každý další heal v souboji je slabší (jako Gauntlet `healFalloff`). */
@@ -200,12 +201,18 @@ export function simulateQuestEncounter(
     if (pNext <= eNext) {
       t = pNext;
       pNext = t + player.swingInterval;
-      // Healer self-sustain (solo): pod prahem HP sešle heal (spálí slot) místo útoku
-      // → healer questící sám se udrží. Group obsah léčí spoluhráče (jiný engine).
-      if (heals.length > 0 && playerHp / player.maxHealth < HEAL_HP_THRESHOLD) {
+      // Healer self-sustain (solo): když to dovolí rotace (default `self_hp_below`
+      // 0.5; hráč přebije prahem/always/vypnutím) a postava není na plné HP, sešle
+      // heal (spálí slot) místo útoku. Group obsah léčí spoluhráče (jiný engine).
+      if (heals.length > 0 && playerHp < player.maxHealth) {
+        const healCtx = {
+          enemyHpPct: enemy.maxHealth > 0 ? enemyHp / enemy.maxHealth : 0,
+          selfHpPct: player.maxHealth > 0 ? playerHp / player.maxHealth : 0,
+        };
         let healChosen: SignatureAbility | undefined;
         for (const h of heals) {
           if ((readyAt[h.id] ?? startT) > t) continue;
+          if (!shouldCastHeal(player.rotation, h.id, healCtx)) continue; // rotace rozhoduje
           const tier = h.spellTier ?? 0;
           if (tier >= 1 && spendSlotForTier(slotBudget, tier) == null) continue; // bez slotu → drží
           healChosen = h;

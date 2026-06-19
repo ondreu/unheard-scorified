@@ -196,8 +196,10 @@ wizard/cleric neviable na high-level bossech) **vyřešeno** třemi D&D-věrným
 1. **cantrip scaling** (1→2→3→4 kostek na 5/11/17) — at-will damage roste s levelem;
 2. **upcast nuke nejvyšším slotem** — high-level sloty konečně škálují damage;
 3. **healer self-sustain v solo questu** — healer (cleric/druid/bard/paladin/ranger),
-   který v sólo questu „nemá koho léčit", se pod 50 % HP ošetří sám (spálí slot,
-   diminishing přes `healFalloff`) → squishy healer souboj vydrží.
+   který v sólo questu „nemá koho léčit", ošetří sebe. **Kdy** řídí rotace
+   (`shouldCastHeal`, podmínka `self_hp_below` „když pod N % HP použij X spell";
+   default bez pravidla = 0.5, hráč přebije prahem / `always` / vypnutím), heal spálí
+   slot a slábne přes `healFalloff` → squishy healer souboj vydrží, ale neléčí naprázdno.
 
 Měřeno harnessem (`gear-balance.test.ts`, kontrakt `CASTER_CLASSES`): geared on-level
 boss BiS — **wizard** (glass cannon) ~72–98 % win / 6–9 úderů, **cleric** (healer)

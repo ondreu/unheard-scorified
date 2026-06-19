@@ -21,10 +21,12 @@
     title: 'Combat Rotation',
     intro:
       'Set the priority and conditions for your unlocked abilities. Higher rules fire first; ' +
-      'when a rule is held back, you fall back to auto-attacks. Applies to dungeons and arenas.',
+      'when a rule is held back, you fall back to auto-attacks. Applies to quests, dungeons and arenas.',
     healerNote:
       'Healers: disable your damage spells to focus purely on healing (HPS), keep both for a ' +
-      'hybrid that also helps with damage, or disable your heals for a niche damage rotation.',
+      'hybrid that also helps with damage, or disable your heals for a niche damage rotation. ' +
+      'Questing solo, healers cast their heals on themselves — use a "Self HP below" condition ' +
+      'to choose when (defaults to below 50%).',
     empty: 'No active abilities yet — unlock a capstone talent to add abilities to your rotation.',
     save: 'Save Rotation',
     saving: 'Saving…',
