@@ -2,11 +2,15 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   CLASSES,
   FEATS,
+  buildCharacterSheet,
+  buildLevelTrack,
   levelFromXp,
   levelUpSlots,
   isValidChoice,
+  selectedSubclass,
   type ClassId,
   type FeatId,
+  type LevelTrack,
   type LevelUpChoice,
   type LevelUpSlot,
   type StoredLevelUpChoice,
@@ -40,6 +44,8 @@ export interface LevelUpView {
   feats: FeatView[];
   /** Subclassy dané třídy (1 v MVP). */
   subclasses: SubclassView[];
+  /** Level track 1–20 — co přináší každý level (Slice A). */
+  track: LevelTrack;
 }
 
 @Injectable()
@@ -64,6 +70,12 @@ export class LevelUpService {
       choice: bySlot.get(s.id) ?? null,
     }));
 
+    // Vybraná subclass (uložená volba má přednost, jinak persistovaný sloupec).
+    const subclass = selectedSubclass(stored) ?? (character.subclass as SubclassId | null);
+    // CON modifikátor pro HP v track (čistě prezentační, bez ASI/feat progrese).
+    const sheet = buildCharacterSheet(character.race, klass, character.totalXp, undefined, character.baseScores);
+    const conMod = sheet.derived.modifiers.constitution;
+
     return {
       level,
       slots,
@@ -73,6 +85,7 @@ export class LevelUpService {
         name: s.name,
         description: s.description,
       })),
+      track: buildLevelTrack(klass, subclass, level, conMod),
     };
   }
 
