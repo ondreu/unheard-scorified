@@ -244,7 +244,10 @@ describe('gear-balance contract', () => {
         expect(trash.winRate).toBeGreaterThan(0.95);
         expect(boss.winRate).toBeGreaterThan(0.65);
         expect(boss.avgSwings).toBeGreaterThanOrEqual(4);
-        expect(boss.avgSwings).toBeLessThanOrEqual(16);
+        // Literal D&D heal (ADR 0036): healeři (cleric) vedou delší attrition souboje
+        // — léčení v boji je v D&D záměrně pomalé (Cure Wounds upcast drží krok s HP,
+        // ne přestřelí). Strop 18 (dříve 16) reflektuje literal-heal model.
+        expect(boss.avgSwings).toBeLessThanOrEqual(18);
         expect(boss.avgHpPct).toBeLessThan(90); // boss stojí HP
       }
     }

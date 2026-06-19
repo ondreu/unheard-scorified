@@ -25,12 +25,14 @@ import {
   buildEnemyActor,
   canRage,
   dotTickRaw,
+  healDiceSpec,
   resolveAttack,
   round1,
   type CombatActor,
   type CombatEvent,
   type EnemyStats,
 } from './combat';
+import { rollDice } from './dice';
 import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
 import { applyDamageInteraction, crForContentLevel, damageInteraction, type DamageType } from './data/damage';
 import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
@@ -249,20 +251,33 @@ export function simulateQuestEncounter(
           selfHpPct: player.maxHealth > 0 ? playerHp / player.maxHealth : 0,
         };
         let healChosen: SignatureAbility | undefined;
+        let healSlotTier: number | null = null;
         for (const h of heals) {
           if ((readyAt[h.id] ?? startT) > t) continue;
           if (!shouldCastHeal(player.rotation, h.id, healCtx)) continue; // rotace rozhoduje
           const tier = h.spellTier ?? 0;
-          if (tier >= 1 && spendSlotForTier(slotBudget, tier) == null) continue; // bez slotu → drží
+          if (tier >= 1) {
+            // Upcast healu nejvyšším slotem (ADR 0036): Cure Wounds 1d8 → na vyšším
+            // levelu 6d8+ (D&D upcasting) → literal heal drží krok s magnitudou HP/boss.
+            const used = spendSlotForTier(slotBudget, tier, abilityPrefersUpcast(h) || h.dicePerSlotAbove != null);
+            if (used == null) continue; // bez slotu → drží
+            healSlotTier = used;
+          }
           healChosen = h;
           readyAt[h.id] = t + h.cooldownSec;
           break;
         }
         if (healChosen) {
-          const healed = Math.max(
-            1,
-            Math.round(player.attackPower * healChosen.damageMult * HEAL_POWER_FACTOR * healFalloff(healsUsed)),
-          );
+          // Literal D&D heal (ADR 0036): Cure Wounds 1d8 + spellMod (+ upcast), žádné
+          // „% healing power". Limit = spell sloty (ne falloff). Legacy heal bez
+          // literal kostek (raid sim knob) škáluje dál přes attackPower.
+          const healSpec = healDiceSpec(healChosen, healSlotTier, player);
+          const healed = healSpec
+            ? Math.max(1, rollDice(rng, healSpec.count, healSpec.sides).total + healSpec.bonus)
+            : Math.max(
+                1,
+                Math.round(player.attackPower * healChosen.damageMult * HEAL_POWER_FACTOR * healFalloff(healsUsed)),
+              );
           playerHp = Math.min(player.maxHealth, playerHp + healed);
           healsUsed++;
           events.push({

@@ -516,35 +516,43 @@ function fightBoss(
       // Heal-kind ability: jen healer, jen když je koho léčit (jinak se „drží").
       if (ability.kind === 'heal') {
         if (member.role !== 'healer' || member.healPower <= 0) continue;
-        let tIdx = -1;
+        // Zranění spojenci (živí, pod max HP). AoE heal (Mass Healing Word) ošetří
+        // VŠECHNY (ADR 0036), jednocílový heal jen nejzraněnějšího.
+        const hurt: number[] = [];
+        let worstIdx = -1;
         let worstMissing = 0;
         for (let k = 0; k < party.length; k++) {
           if (hp[k]! <= 0) continue;
           const missing = party[k]!.maxHealth - hp[k]!;
+          if (missing <= 0) continue;
+          hurt.push(k);
           if (missing > worstMissing) {
             worstMissing = missing;
-            tIdx = k;
+            worstIdx = k;
           }
         }
-        if (tIdx < 0 || worstMissing <= 0) continue;
+        if (worstIdx < 0) continue;
         // Spell sloty (ADR 0034): heal-kouzlo (tier ≥ 1) čerpá slot; když dojdou,
         // ability-heal se „drží" (healer pořád léčí slabší basic swingem zdarma).
         if (!spendAbilitySlot(slotBudget[i]!, ability).ok) continue;
-        const amount = Math.max(
-          1,
-          Math.round(member.healPower * ability.damageMult * (0.9 + rng.next() * 0.2)),
-        );
-        hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
-        events.push({
-          t: round1(clock),
-          type: 'heal',
-          source: member.name,
-          target: party[tIdx]!.name,
-          amount,
-          ability: ability.name,
-          targetHealthRemaining: hp[tIdx],
-          message: `💚 ${member.name} casts ${ability.name} on ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
-        });
+        const targets = ability.aoe ? hurt : [worstIdx];
+        for (const tIdx of targets) {
+          const amount = Math.max(
+            1,
+            Math.round(member.healPower * ability.damageMult * (0.9 + rng.next() * 0.2)),
+          );
+          hp[tIdx] = Math.min(party[tIdx]!.maxHealth, hp[tIdx]! + amount);
+          events.push({
+            t: round1(clock),
+            type: 'heal',
+            source: member.name,
+            target: party[tIdx]!.name,
+            amount,
+            ability: ability.name,
+            targetHealthRemaining: hp[tIdx],
+            message: `💚 ${member.name} casts ${ability.name} on ${party[tIdx]!.name} for ${amount}. ${party[tIdx]!.name}: ${hp[tIdx]} HP`,
+          });
+        }
         continue;
       }
       // Ki (ADR 0034): Monkova technika (`kiCost`) potřebuje dost Ki; jinak se „drží".
