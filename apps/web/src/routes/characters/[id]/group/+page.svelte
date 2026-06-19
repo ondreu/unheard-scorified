@@ -11,6 +11,7 @@
     inviteToGroup,
     kickGroupMember,
     launchGroup,
+    launchDungeonParty,
     leaveGroup,
     listDungeons,
     getTeamArena,
@@ -114,6 +115,21 @@
     error = null;
     try {
       gs = await fn();
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  // Živé MP tahové sezení (ADR 0038) — leader spustí z party, navigace na live run.
+  async function launchLive(): Promise<void> {
+    if (busy || !dungeonId) return;
+    busy = true;
+    error = null;
+    try {
+      const res = await launchDungeonParty(characterId, dungeonId);
+      await goto(`/characters/${characterId}/dungeon-party/${res.runId}`);
     } catch (err) {
       error = (err as Error).message;
     } finally {
@@ -277,6 +293,7 @@
                 {#each dungeons as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
               </select>
               <button disabled={busy || !dungeonId} onclick={() => launch('dungeon')} class="btn btn-primary btn-sm">{ui.dungeon} {ui.launch}</button>
+              <button disabled={busy || !dungeonId} onclick={launchLive} class="btn btn-sm" title="Live turn-based session (idle players covered by AI)">⚔️ Live</button>
             </div>
             <div class="flex items-center justify-between">
               <span class="text-xs text-[var(--text-faint)]">

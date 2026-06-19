@@ -50,11 +50,19 @@ kde „down hrdiny = konec"); pád jednotlivce ho jen vyřadí.
   (separátní stav/engine vedle `dungeon-run.ts`). Kontraktní unit testy
   (determinismus, AI fallback, wipe, clear).
 
-- **Slice 4b — API + persistence + REST:** multi-owner run tabulka (+ participanti),
-  `DungeonPartyService` (launch z party přes `group.launch`, `submitAction`,
-  deadline → AI fallback resolve, finalize = `computeGroupReward` + lockout +
-  per-člen loot), routy. REST polling klient (jako group page 4s polling) —
-  funkční bez WS.
+- **Slice 4b — API + persistence + REST (hotovo):** tabulky `dungeon_party_runs`
+  (+ `dungeon_party_participants`), migrace `0042`. `DungeonPartyRepository` +
+  `DungeonPartyService`: `launch` z party leadera (joined členové + role →
+  seaty, velikost 3/5), `submit` (buffrování, ready → `resolvePartyRound`),
+  `getRun`/`submit` **doženou prošlé deadliny** (`progressOverdue` → AI fallback
+  za nečinné, idle-friendly bez WS), `abandon` (leader), `finalize` = per-člen
+  `computeGroupReward` + weekly lockout + reputace + loot + history. Routy
+  `:dungeonId/party/launch` · `party/run/:id` · `party/run/:id/submit` ·
+  `party/run/:id/abandon`. Web: živá stránka `dungeon-party/[runId]` (REST polling
+  2,5 s, party panel + „kdo odeslal", deadline odpočet, ability bar jen na tahu)
+  + „⚔️ Live" launch v group page. `GroupRepository` poskytnut přímo v
+  `DungeonModule` (stateless, předchází cyklu s `GroupModule`). Integrační flow
+  testy (launch z party, vlastnictví, kolo se vyhodnotí po všech, clear + reward).
 
 - **Slice 4c — WebSocket živé push:** `DungeonPartyGateway` (room `party-run:{id}`,
   arena-style relay) → push stavu + „tvůj tah" notifikace místo pollingu;

@@ -519,6 +519,79 @@ export function abandonDungeonTurn(characterId: string, runId: string): Promise<
   });
 }
 
+// ── Živé MP tahové sezení (ADR 0038, Slice 4) ──────────────────────────────────
+
+export interface DungeonPartyMemberView {
+  slot: number;
+  name: string;
+  role: 'tank' | 'healer' | 'dps';
+  isAi: boolean;
+  isYou: boolean;
+  currentHealth: number;
+  maxHealth: number;
+  absorb: number;
+  submitted: boolean;
+}
+
+export interface DungeonPartyRunView {
+  runId: string;
+  dungeonId: string;
+  dungeonName: string;
+  status: 'in_combat' | 'cleared' | 'wiped';
+  size: number;
+  encounterIndex: number;
+  encounterCount: number;
+  encountersCleared: number;
+  roundReady: boolean;
+  roundDeadline: number | null;
+  members: DungeonPartyMemberView[];
+  enemies: DungeonTurnEnemyView[];
+  you: {
+    slot: number;
+    role: 'tank' | 'healer' | 'dps';
+    currentHealth: number;
+    maxHealth: number;
+    absorb: number;
+    submitted: boolean;
+    spellSlots: Record<number, number>;
+    maxSpellSlots: Record<number, number>;
+    kiPoints: number;
+    maxKiPoints: number;
+    abilities: DungeonTurnAbilityView[];
+  } | null;
+  events: CombatEvent[];
+  reward: { xp: number; gold: number; items: string[] } | null;
+  myLockedOut: boolean;
+}
+
+export function launchDungeonParty(characterId: string, dungeonId: string): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/${dungeonId}/party/launch`, {
+    method: 'POST',
+  });
+}
+
+export function getDungeonPartyRun(characterId: string, runId: string): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}`);
+}
+
+export function submitDungeonParty(
+  characterId: string,
+  runId: string,
+  abilityId: string,
+  targetId: number,
+): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ abilityId, targetId }),
+  });
+}
+
+export function abandonDungeonParty(characterId: string, runId: string): Promise<DungeonPartyRunView> {
+  return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}/abandon`, {
+    method: 'POST',
+  });
+}
+
 export interface ProfessionSkillView {
   id: string;
   name: string;

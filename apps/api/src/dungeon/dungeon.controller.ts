@@ -8,6 +8,7 @@ import {
   type DungeonRunView,
 } from './dungeon.service';
 import { DungeonTurnService, type DungeonTurnRunView } from './dungeon-turn.service';
+import { DungeonPartyService, type DungeonPartyRunView } from './dungeon-party.service';
 import type { RaidComposition, RaidRole } from '@game/shared';
 
 @Controller('characters/:characterId/dungeons')
@@ -16,6 +17,7 @@ export class DungeonController {
   constructor(
     private readonly dungeons: DungeonService,
     private readonly turn: DungeonTurnService,
+    private readonly party: DungeonPartyService,
   ) {}
 
   /** Seznam dungeonů (s flagem unlocked dle levelu + stav fronty). */
@@ -146,5 +148,48 @@ export class DungeonController {
     @Param('runId') runId: string,
   ): Promise<DungeonTurnRunView> {
     return this.turn.abandon(user.accountId, characterId, runId);
+  }
+
+  // ── Živé MP tahové sezení (Slice 4, ADR 0038) ───────────────────────────────
+
+  /** Leader spustí živé MP tahové sezení z party (joined členové + role). */
+  @Post(':dungeonId/party/launch')
+  partyLaunch(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('dungeonId') dungeonId: string,
+  ): Promise<DungeonPartyRunView> {
+    return this.party.launch(user.accountId, characterId, dungeonId);
+  }
+
+  /** Aktuální stav živého MP runu (řídí i AI fallback pro prošlé deadliny). */
+  @Get('party/run/:runId')
+  partyRun(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('runId') runId: string,
+  ): Promise<DungeonPartyRunView> {
+    return this.party.getRun(user.accountId, characterId, runId);
+  }
+
+  /** Postava odešle svou akci pro aktuální kolo (ability + cíl). */
+  @Post('party/run/:runId/submit')
+  partySubmit(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('runId') runId: string,
+    @Body() body: { abilityId: string; targetId?: number },
+  ): Promise<DungeonPartyRunView> {
+    return this.party.submit(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0);
+  }
+
+  /** Leader ukončí běh předčasně (žádná odměna). */
+  @Post('party/run/:runId/abandon')
+  partyAbandon(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('runId') runId: string,
+  ): Promise<DungeonPartyRunView> {
+    return this.party.abandon(user.accountId, characterId, runId);
   }
 }

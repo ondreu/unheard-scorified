@@ -295,6 +295,13 @@
       "when": 1781872267362,
       "tag": "0041_bouncy_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1781885299914,
+      "tag": "0042_charming_the_spike",
+      "breakpoints": true
     }
   ]
 }
