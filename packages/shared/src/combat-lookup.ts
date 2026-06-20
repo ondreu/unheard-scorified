@@ -13,6 +13,8 @@ import { crForContentLevel } from './data/damage';
 import {
   SIGNATURE_ABILITIES,
   CLASS_BASELINE_ABILITIES,
+  EXTRA_SPELLS,
+  SUBCLASS_ABILITIES,
   type SignatureAbility,
 } from './data/abilities';
 
@@ -90,4 +92,34 @@ function buildAbilityIndex(): Map<string, SignatureAbility> {
 export function findAbilityByName(name: string): SignatureAbility | undefined {
   if (!abilityIndex) abilityIndex = buildAbilityIndex();
   return abilityIndex.get(name);
+}
+
+let abilityByIdIndex: Map<string, SignatureAbility> | null = null;
+
+/**
+ * Index abilit podle `id` (na rozdíl od `findAbilityByName`) — combat UI
+ * (Gauntlet/dungeon tlačítka) nese `id`, a id je jednoznačné (jméno se může opakovat
+ * mezi tříd-variantami / draft-poolem, viz `sorc_fireball` vs `wiz_fireball`). Prochází
+ * **konkrétní** katalogy (baseline + extra spells + subclass) jako primární zdroj
+ * pravdy se `spellTier`; draft-pool `SIGNATURE_ABILITIES` se přidá až jako fallback.
+ */
+function buildAbilityByIdIndex(): Map<string, SignatureAbility> {
+  const index = new Map<string, SignatureAbility>();
+  const addBaseline = (ab: SignatureAbility & { unlockLevel?: number }): void => {
+    const { unlockLevel: _u, ...sig } = ab;
+    if (!index.has(sig.id)) index.set(sig.id, sig);
+  };
+  for (const list of Object.values(CLASS_BASELINE_ABILITIES)) list.forEach(addBaseline);
+  for (const list of Object.values(EXTRA_SPELLS)) list.forEach(addBaseline);
+  for (const ab of Object.values(SUBCLASS_ABILITIES)) addBaseline(ab);
+  for (const [id, spec] of Object.entries(SIGNATURE_ABILITIES)) {
+    if (!index.has(id)) index.set(id, { id, ...spec });
+  }
+  return index;
+}
+
+/** Dohledá detail ability podle `id` (combat tlačítka nesou id, ne jméno). */
+export function findAbilityById(id: string): SignatureAbility | undefined {
+  if (!abilityByIdIndex) abilityByIdIndex = buildAbilityByIdIndex();
+  return abilityByIdIndex.get(id);
 }
