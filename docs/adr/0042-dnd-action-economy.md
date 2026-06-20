@@ -1,15 +1,16 @@
 # ADR 0042 — D&D akční ekonomika (once per combat / extra action / bonus action)
 
 - **Stav:** přijato — **Slice 1 + 2 + 3 hotové** (once-per-combat gating; Action Surge/
-  Onslaught jako reálná akce navíc; bonus action jako samostatný akční slot). Featura
-  uzavřena na engine/datové úrovni; interaktivní výběr bonus akce v UI = dokumentovaný
-  follow-up.
+  Onslaught jako reálná akce navíc; bonus action jako samostatný akční slot s plně
+  interaktivní volbou hráče napříč engine + API + web).
 - **Kontext:** backlog „Combat & obsah — overhaul → Akční ekonomika". Navazuje na
   MR-5 (dice-roll combat), ADR 0034 (class resources / spell sloty jako akční
   rozpočet) a ADR 0036/0037 (per-ability dice, tahový dungeon).
-- **Rozsah Slice 1:** `packages/shared` (jediný zdroj pravdy — typ `SignatureAbility`,
-  combat helpery + 6 simulátorů). **Bez DB migrace** (persistované tahové simy nesou
-  nové pole v JSON stavu, staré běhy graceful-degradují). Bez API/web změn.
+- **Rozsah:** `packages/shared` (jediný zdroj pravdy — typ `SignatureAbility`, combat
+  helpery + 6 simulátorů). Slice 3 navíc napojen do `apps/api` (dungeon-turn / dungeon-party
+  / gauntlet act+submit přijímají volitelné `bonusAbilityId`, validace) a `apps/web`
+  (lišta „Bonus action" na všech 3 tahových stránkách). **Bez DB migrace** (persistované
+  tahové simy nesou nová pole v JSON stavu, staré běhy graceful-degradují).
 
 ## Kontext
 
@@ -43,16 +44,19 @@ hlavní designová výzva (proto krájeno na slice; velké → ADR).
   bonus-action útokem, který Sneak Attack nést může.
 - **Slice 3 — bonus action jako vlastní slot** (`actionCost: 'action' | 'bonus'`, ✅):
   1 akce + 1 bonus action / kolo. `isBonusAction` + tag **Healing Word / Mass Healing
-  Word**. V **tahových group PvE simech** (dungeon-run solo+AI, dungeon-party MP) aktér
-  po hlavní akci automaticky provede jednu ready bonus-action ability (`takeBonusHeal`,
-  rotation/cooldown-gated, 1/kolo; bonus použitý jako hlavní akce se neduplikuje díky
-  cooldownu). **Auto-resolved** (jako rage) — interaktivní výběr bonus akce v UI = follow-up.
-  **Gauntlet vynechán** schválně: jeho roguelite heal-scarcity (`healFalloff`) by free
-  bonus heal rozbil. Spojité simy: `actionCost` kosmetický (žádné kolo).
-  **`oncePerTurn` se nezavádí** — Sneak Attack je v enginu diskrétní ability (1× za
-  aktivaci/cooldown) a bonus akce je cap 1/kolo, takže D&D „1× za kolo" je strukturálně
-  splněné bez nového flagu (rozhodnutí: nepřidávat mrtvé pole). Extra útoky ze Slice 2
-  jsou plain weapon swing bez Sneak Attack rideru → rider se nezdvojuje.
+  Word**. **Plně interaktivní** napříč všemi tahovými simy (dungeon-run solo, dungeon-party
+  MP, Gauntlet): hráč **vědomě zvolí** bonus action vedle hlavní akce — engine
+  (`resolveDungeonTurn`/`submitPartyAction`/`resolveGauntletTurn` přijímají volitelné
+  `bonusAbilityId`), API (validace ready/zdroje/„musí být bonus") i web (lišta „Bonus
+  action" s výběrem). **Nic se neděje automaticky za hráče.** AI parťáci/členové (bez
+  lidského hráče) si bonus akci volí sami (`autoBonusHeal` — to je AI hra, ne auto za
+  hráče). 1 bonus/kolo; bonus shodný s hlavní akcí se odmítne / neduplikuje (cooldown).
+  **Gauntlet zahrnutý**: bonus heal čerpá run-wide `healsUsed` → podléhá `healFalloff`
+  (diminishing), takže nerozbije roguelite heal-scarcity (balanc křivkou). Spojité simy:
+  `actionCost` kosmetický (žádné kolo). **`oncePerTurn` se nezavádí** — Sneak Attack je
+  v enginu diskrétní ability (1× za aktivaci/cooldown) a bonus akce je cap 1/kolo, takže
+  D&D „1× za kolo" je strukturálně splněné bez nového flagu (rozhodnutí: nepřidávat mrtvé
+  pole). Extra útoky ze Slice 2 jsou plain weapon swing bez Sneak Attack rideru.
 
 ## Rozhodnutí — Slice 1
 

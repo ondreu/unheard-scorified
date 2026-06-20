@@ -32,6 +32,7 @@ import {
   dotTickRaw,
   EXTRA_ATTACK_ABILITY,
   extraActionCount,
+  isBonusAction,
   applyAbsorb,
   SIGNATURE_ABILITIES,
   type CombatActor,
@@ -414,6 +415,10 @@ export function resolveGauntletTurn(
   base: CombatActor,
   state: GauntletRunState,
   abilityId: string,
+  /** Volitelná bonus-action ability (ADR 0042, Slice 3) — hráč ji **vědomě zvolí**
+   * vedle hlavní akce (Healing Word). Léčení čerpá `healsUsed` (diminishing). Bez
+   * tohoto id žádná bonus akce neproběhne. */
+  bonusAbilityId?: string,
 ): { state: GauntletRunState; events: CombatEvent[] } {
   if (state.status !== 'in_combat' || !state.enemy) return { state, events: [] };
 
@@ -633,6 +638,41 @@ export function resolveGauntletTurn(
   if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
 
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
+
+  // Bonus action (ADR 0042, Slice 3): hráč ji **vědomě zvolí** vedle hlavní akce
+  // (Healing Word) — nic se neděje automaticky. Léčení čerpá run-wide `healsUsed`
+  // → podléhá `healFalloff` (diminishing), takže nerozbije roguelite heal-scarcity
+  // (balanc křivkou). Bez `bonusAbilityId` (nebo == hlavní akci) bonus neproběhne.
+  if (bonusAbilityId && bonusAbilityId !== abilityId && state.player.currentHealth < state.player.maxHealth) {
+    const b = player.signatureAbilities.find((a) => a.id === bonusAbilityId);
+    const bTier = b?.spellTier ?? 0;
+    const canBonus =
+      b != null &&
+      isBonusAction(b) &&
+      b.kind === 'heal' &&
+      (state.player.cooldowns[b.id] ?? 0) <= 0 &&
+      (bTier < 1 || hasSlotForTier(state.player.spellSlots, bTier)) &&
+      (b.kiCost ?? 0) <= (state.player.kiPoints ?? 0);
+    if (canBonus) {
+      if (bTier >= 1) spendSlotForTier(state.player.spellSlots, bTier, abilityPrefersUpcast(b));
+      if ((b.kiCost ?? 0) > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - (b.kiCost ?? 0);
+      const falloff = healFalloff(state.healsUsed);
+      const heal = Math.round(player.attackPower * b.damageMult * HEAL_POWER_FACTOR * falloff);
+      state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + heal);
+      state.healsUsed += 1;
+      state.player.cooldowns[b.id] = cooldownTurns(b);
+      const dim = falloff < 1 ? ' (diminished)' : '';
+      pushEvent({
+        t,
+        type: 'heal',
+        message: `✨ ${player.name} casts ${b.name} as a bonus action, healing for ${heal}${dim}. Self: ${Math.round(state.player.currentHealth)} HP`,
+        source: player.name,
+        target: player.name,
+        amount: heal,
+        ability: b.name,
+      });
+    }
+  }
 
   // (3) Protiúder nepřítele.
   const enemyHit = computeHit(enemyAsActor, player, rng, 1, false);

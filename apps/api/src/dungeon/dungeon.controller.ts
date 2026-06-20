@@ -135,9 +135,9 @@ export class DungeonController {
     @CurrentUser() user: { accountId: string },
     @Param('characterId') characterId: string,
     @Param('runId') runId: string,
-    @Body() body: { abilityId: string; targetId?: number },
+    @Body() body: { abilityId: string; targetId?: number; bonusAbilityId?: string },
   ): Promise<DungeonTurnRunView> {
-    return this.turn.act(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0);
+    return this.turn.act(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0, body?.bonusAbilityId);
   }
 
   /** Předčasné opuštění tahového runu (žádná odměna). */
@@ -178,9 +178,9 @@ export class DungeonController {
     @CurrentUser() user: { accountId: string },
     @Param('characterId') characterId: string,
     @Param('runId') runId: string,
-    @Body() body: { abilityId: string; targetId?: number },
+    @Body() body: { abilityId: string; targetId?: number; bonusAbilityId?: string },
   ): Promise<DungeonPartyRunView> {
-    return this.party.submit(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0);
+    return this.party.submit(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0, body?.bonusAbilityId);
   }
 
   /** Leader ukončí běh předčasně (žádná odměna). */

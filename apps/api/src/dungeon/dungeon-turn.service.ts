@@ -53,6 +53,8 @@ export interface DungeonTurnAbilityView {
   outOfSlots: boolean;
   kiCost: number;
   outOfKi: boolean;
+  /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
+  actionCost: 'action' | 'bonus';
 }
 
 export interface DungeonTurnEnemyView {
@@ -225,6 +227,7 @@ export class DungeonTurnService {
     runId: string,
     abilityId: string,
     targetId: number,
+    bonusAbilityId?: string,
   ): Promise<DungeonTurnRunView> {
     const character = await this.ownedOrThrow(accountId, characterId);
     const run = await this.ownedRunOrThrow(characterId, runId);
@@ -243,7 +246,18 @@ export class DungeonTurnService {
       if (!canCastDungeonAbility(state, ability)) throw new BadRequestException('Out of resources for that ability');
     }
 
-    const { state: next } = resolveDungeonTurn(snapshot, state, abilityId, Number(targetId) || 0);
+    // Bonus action (ADR 0042, Slice 3) — vědomá volba hráče vedle hlavní akce.
+    // Validace: musí být skutečná bonus-action ability v kitu, ready a se zdrojem;
+    // jinak chyba (anti-cheat). Engine ji vyřeší po hlavní akci.
+    if (bonusAbilityId) {
+      const bonus = dungeonRunAbilities(snapshot).find((a) => a.id === bonusAbilityId);
+      if (!bonus || bonus.actionCost !== 'bonus') throw new BadRequestException('Not a bonus action');
+      if (bonusAbilityId === abilityId) throw new BadRequestException('Bonus action must differ from your action');
+      if (!isDungeonAbilityReady(state, bonusAbilityId)) throw new BadRequestException('Bonus action on cooldown');
+      if (!canCastDungeonAbility(state, bonus)) throw new BadRequestException('Out of resources for that bonus action');
+    }
+
+    const { state: next } = resolveDungeonTurn(snapshot, state, abilityId, Number(targetId) || 0, bonusAbilityId);
 
     if (next.status === 'cleared') return this.finalize(run, next, character, true);
     if (next.status === 'dead') return this.finalize(run, next, character, false);
@@ -371,6 +385,7 @@ export class DungeonTurnService {
         outOfSlots: spellTier >= 1 && !hasSlotForTier(state.player.spellSlots ?? {}, spellTier),
         kiCost,
         outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
+        actionCost: a.actionCost ?? 'action',
       };
     });
   }

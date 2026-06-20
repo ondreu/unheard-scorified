@@ -37,6 +37,10 @@
     noKi: 'No Ki',
     vs: 'vs',
     takeIt: 'Take it',
+    bonusAction: 'Bonus action',
+    bonusActionHint: 'cast alongside your action this turn',
+    bonusNone: 'None',
+    bonusQueued: 'Bonus queued',
   };
 
   /** Součet slotů napříč tiery (kompaktní „zbývá / max" v panelu hráče). */
@@ -49,9 +53,15 @@
   let error = $state<string | null>(null);
   let busy = $state(false);
 
+  // Vědomě zvolená bonus action (ADR 0042) — proběhne vedle hlavní akce; null = žádná.
+  let bonusAbilityId = $state<string | null>(null);
+
   const characterId = $derived($page.params.id ?? '');
   const runId = $derived($page.params.runId ?? '');
   const finished = $derived(run?.status === 'dead' || run?.status === 'retired');
+  const bonusOptions = $derived(
+    (run?.abilities ?? []).filter((a) => a.actionCost === 'bonus' && a.ready && !a.outOfSlots && !a.outOfKi),
+  );
 
   onMount(load);
 
@@ -74,8 +84,10 @@
     if (busy || !run || run.status !== 'in_combat') return;
     busy = true;
     error = null;
+    const bonus = bonusAbilityId && bonusAbilityId !== abilityId ? bonusAbilityId : undefined;
     try {
-      run = await gauntletAct(characterId, runId, abilityId);
+      run = await gauntletAct(characterId, runId, abilityId, bonus);
+      bonusAbilityId = null;
     } catch (err) {
       error = (err as Error).message;
     } finally {
@@ -196,9 +208,41 @@
       </div>
     </section>
 
+    <!-- Bonus action selector (ADR 0042) — vědomá volba vedle hlavní akce -->
+    {#if r.status === 'in_combat' && bonusOptions.length > 0}
+      <section class="panel panel-pad">
+        <p class="mb-2 text-xs uppercase tracking-wide text-[var(--text-dim)]">
+          {ui.bonusAction} <span class="normal-case">— {ui.bonusActionHint}</span>
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            class="btn text-sm {bonusAbilityId === null ? 'ring-2 ring-[var(--gold-bright)]' : ''}"
+            onclick={() => (bonusAbilityId = null)}
+          >
+            {ui.bonusNone}
+          </button>
+          {#each bonusOptions as b (b.id)}
+            <button
+              class="btn flex items-center gap-2 text-sm {bonusAbilityId === b.id ? 'ring-2 ring-[var(--gold-bright)]' : ''}"
+              title={b.description}
+              onclick={() => (bonusAbilityId = bonusAbilityId === b.id ? null : b.id)}
+            >
+              <PixelAbilityIcon name={b.name} kind={b.kind as never} size={18} />
+              <span>{b.name}</span>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
+
     <!-- Ability bar (active combat) -->
     {#if r.status === 'in_combat'}
       <section>
+        {#if bonusAbilityId}
+          <p class="mb-2 text-xs text-[var(--gold-bright)]">
+            ✨ {ui.bonusQueued}: {bonusOptions.find((b) => b.id === bonusAbilityId)?.name ?? ''}
+          </p>
+        {/if}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {#each r.abilities as a (a.id)}
             <button

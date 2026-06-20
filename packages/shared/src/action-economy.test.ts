@@ -17,6 +17,7 @@ import {
   EMPTY_PROGRESSION,
   EXTRA_ATTACK_ABILITY,
   extraActionCount,
+  GAUNTLET_BASIC_ATTACK,
   isBonusAction,
   markAbilityUsed,
   resolveDungeonTurn,
@@ -151,17 +152,44 @@ describe('bonus action (Slice 3)', () => {
     expect(isBonusAction(hw)).toBe(true);
   });
 
-  it('dungeon: zraněný caster vyléčí Healing Word jako bonus action ve stejném tahu jako útok', () => {
+  it('dungeon: bonus action proběhne JEN když ji hráč vědomě zvolí (žádné auto)', () => {
+    const mk = (): { base: CombatActor; state: ReturnType<typeof startDungeonRun> } => {
+      const base = druid(10);
+      const state = startDungeonRun(base, 'ragefire_chasm', 1, 10, 3);
+      state.player.currentHealth = Math.floor(state.player.maxHealth * 0.4);
+      return { base, state };
+    };
+    const hasBonusHeal = (events: { ability?: string; message: string }[]): boolean =>
+      events.some((e) => e.ability === 'Healing Word' && /bonus action/.test(e.message));
+
+    // Bez zvolené bonus akce → žádný bonus heal (nic automaticky).
+    const a = mk();
+    const noBonus = resolveDungeonTurn(a.base, a.state, DUNGEON_BASIC_ATTACK.id, a.state.enemies[0]!.idx);
+    expect(hasBonusHeal(noBonus.events)).toBe(false);
+
+    // Hráč vědomě zvolí Healing Word jako bonus akci vedle útoku → proběhne.
+    const b = mk();
+    const before = b.state.player.currentHealth;
+    const withBonus = resolveDungeonTurn(b.base, b.state, DUNGEON_BASIC_ATTACK.id, b.state.enemies[0]!.idx, 'druid_healing_word');
+    expect(hasBonusHeal(withBonus.events)).toBe(true);
+    expect(b.state.player.currentHealth).toBeGreaterThan(before);
+  });
+
+  it('gauntlet: bonus heal jen na vědomou volbu hráče, čerpá healsUsed → diminishing', () => {
     const base = druid(10);
-    const state = startDungeonRun(base, 'ragefire_chasm', 1, 10, 3);
-    // Zraň hráče → bonus Healing Word má koho léčit.
-    state.player.currentHealth = Math.floor(state.player.maxHealth * 0.4);
-    const target = state.enemies[0]!.idx;
-    const res = resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, target);
-    // Hlavní akce (Attack) + bonus Healing Word v tomtéž tahu.
-    const bonusHeal = res.events.find((e) => e.ability === 'Healing Word' && /bonus action/.test(e.message));
-    expect(bonusHeal).toBeDefined();
-    expect(state.player.currentHealth).toBeGreaterThan(Math.floor(state.player.maxHealth * 0.4));
+    // Bez volby → žádný bonus heal (nic automaticky).
+    const s1 = startGauntletRun(base, 10, 3);
+    s1.player.currentHealth = Math.floor(s1.player.maxHealth * 0.4);
+    const r1 = resolveGauntletTurn(base, s1, GAUNTLET_BASIC_ATTACK.id);
+    expect(r1.events.some((e) => e.ability === 'Healing Word')).toBe(false);
+
+    // Vědomá volba → bonus Healing Word proběhne a čerpá healsUsed (fall-off).
+    const s2 = startGauntletRun(base, 10, 3);
+    s2.player.currentHealth = Math.floor(s2.player.maxHealth * 0.4);
+    const healsBefore = s2.healsUsed;
+    const r2 = resolveGauntletTurn(base, s2, GAUNTLET_BASIC_ATTACK.id, 'druid_healing_word');
+    expect(r2.events.some((e) => e.ability === 'Healing Word' && /bonus action/.test(e.message))).toBe(true);
+    expect(r2.state.healsUsed).toBe(healsBefore + 1);
   });
 });
 

@@ -56,6 +56,8 @@ export interface GauntletAbilityView {
   kiCost: number;
   /** Monkova technika bez dost Ki → nelze seslat (UI ji zašedne). */
   outOfKi: boolean;
+  /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
+  actionCost: 'action' | 'bonus';
 }
 
 export interface GauntletDailyView {
@@ -173,6 +175,7 @@ export class GauntletService {
     characterId: string,
     runId: string,
     abilityId: string,
+    bonusAbilityId?: string,
   ): Promise<GauntletRunView> {
     const character = await this.ownedOrThrow(accountId, characterId);
     const run = await this.ownedRunOrThrow(characterId, runId);
@@ -194,7 +197,16 @@ export class GauntletService {
       throw new BadRequestException('Out of spell slots for that spell');
     }
 
-    const { state: next } = resolveGauntletTurn(snapshot, state, abilityId);
+    // Bonus action (ADR 0042, Slice 3) — vědomá volba hráče vedle hlavní akce.
+    if (bonusAbilityId) {
+      const bonus = kit.find((a) => a.id === bonusAbilityId);
+      if (!bonus || bonus.actionCost !== 'bonus') throw new BadRequestException('Not a bonus action');
+      if (bonusAbilityId === abilityId) throw new BadRequestException('Bonus action must differ from your action');
+      if (!isGauntletAbilityReady(state, bonusAbilityId)) throw new BadRequestException('Bonus action on cooldown');
+      if (!canCastGauntletAbility(state, bonus)) throw new BadRequestException('Out of resources for that bonus action');
+    }
+
+    const { state: next } = resolveGauntletTurn(snapshot, state, abilityId, bonusAbilityId);
 
     if (next.status === 'drafting' && !next.draft) {
       next.draft = await this.buildDraft(snapshot, next, character);
@@ -447,6 +459,7 @@ export class GauntletService {
         outOfSlots: spellTier >= 1 && !hasSlotForTier(state.player.spellSlots ?? {}, spellTier),
         kiCost,
         outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
+        actionCost: a.actionCost ?? 'action',
       };
     });
   }

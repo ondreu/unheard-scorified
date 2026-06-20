@@ -57,9 +57,9 @@ export class GauntletController {
     @CurrentUser() user: { accountId: string },
     @Param('characterId') characterId: string,
     @Param('runId') runId: string,
-    @Body() body: { abilityId: string },
+    @Body() body: { abilityId: string; bonusAbilityId?: string },
   ): Promise<GauntletRunView> {
-    return this.gauntlet.act(user.accountId, characterId, runId, body?.abilityId);
+    return this.gauntlet.act(user.accountId, characterId, runId, body?.abilityId, body?.bonusAbilityId);
   }
 
   /** Výběr draftu mezi vlnami. */

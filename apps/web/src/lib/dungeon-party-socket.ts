@@ -59,9 +59,10 @@ export function submitPartyTurn(
   runId: string,
   abilityId: string,
   targetId: number,
+  bonusAbilityId?: string,
 ): Promise<DungeonPartyRunView> {
   return new Promise((resolve, reject) => {
-    socket.emit('party:submit', { characterId, runId, abilityId, targetId }, (ack: Ack) => {
+    socket.emit('party:submit', { characterId, runId, abilityId, targetId, bonusAbilityId }, (ack: Ack) => {
       if (ack?.ok && ack.run) resolve(ack.run);
       else reject(new Error(ack?.error ?? 'Submit failed'));
     });

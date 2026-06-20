@@ -40,6 +40,10 @@
     dodge: 'Dodge',
     youFell: 'You have fallen — your allies fight on.',
     aiSoon: 'AI takes over idle players in',
+    bonusAction: 'Bonus action',
+    bonusActionHint: 'cast alongside your action this round',
+    bonusNone: 'None',
+    bonusQueued: 'Bonus queued',
   };
 
   const roleIcon: Record<string, string> = { tank: '🛡️', healer: '✨', dps: '⚔️' };
@@ -49,6 +53,8 @@
   let error = $state<string | null>(null);
   let busy = $state(false);
   let targetId = $state(0);
+  // Vědomě zvolená bonus action (ADR 0042) — proběhne vedle hlavní akce; null = žádná.
+  let bonusAbilityId = $state<string | null>(null);
   // Friendly cíl léčení: `slot` člena party. Heal ability posílá tenhle slot místo
   // nepřátelského `targetId`. null = ještě nezvoleno → default na vlastní slot.
   let healTargetId = $state<number | null>(null);
@@ -61,6 +67,9 @@
   const characterId = $derived($page.params.id ?? '');
   const runId = $derived($page.params.runId ?? '');
   const finished = $derived(run?.status === 'cleared' || run?.status === 'wiped');
+  const bonusOptions = $derived(
+    (run?.you?.abilities ?? []).filter((a) => a.actionCost === 'bonus' && a.ready && !a.outOfSlots && !a.outOfKi),
+  );
   const deadlineSec = $derived(
     run?.roundDeadline ? Math.max(0, Math.round((run.roundDeadline - now) / 1000)) : null,
   );
@@ -142,12 +151,14 @@
     busy = true;
     error = null;
     const tgt = targetFor(kind);
+    const bonus = bonusAbilityId && bonusAbilityId !== abilityId ? bonusAbilityId : undefined;
     try {
       // Preferuj WS (server-authoritative ack); REST fallback, když socket nejede.
       run =
         socket && socket.connected
-          ? await submitPartyTurn(socket, characterId, runId, abilityId, tgt)
-          : await submitDungeonParty(characterId, runId, abilityId, tgt);
+          ? await submitPartyTurn(socket, characterId, runId, abilityId, tgt, bonus)
+          : await submitDungeonParty(characterId, runId, abilityId, tgt, bonus);
+      bonusAbilityId = null;
       retarget();
     } catch (err) {
       error = (err as Error).message;
@@ -295,9 +306,41 @@
       </section>
     {/if}
 
+    <!-- Bonus action selector (ADR 0042) — vědomá volba vedle hlavní akce -->
+    {#if r.status === 'in_combat' && r.you && r.you.currentHealth > 0 && !r.you.submitted && bonusOptions.length > 0}
+      <section class="panel panel-pad">
+        <p class="mb-2 text-xs uppercase tracking-wide text-[var(--text-dim)]">
+          {ui.bonusAction} <span class="normal-case">— {ui.bonusActionHint}</span>
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            class="btn text-sm {bonusAbilityId === null ? 'ring-2 ring-[var(--gold-bright)]' : ''}"
+            onclick={() => (bonusAbilityId = null)}
+          >
+            {ui.bonusNone}
+          </button>
+          {#each bonusOptions as b (b.id)}
+            <button
+              class="btn flex items-center gap-2 text-sm {bonusAbilityId === b.id ? 'ring-2 ring-[var(--gold-bright)]' : ''}"
+              title={b.description}
+              onclick={() => (bonusAbilityId = bonusAbilityId === b.id ? null : b.id)}
+            >
+              <PixelAbilityIcon name={b.name} kind={b.kind as never} size={18} />
+              <span>{b.name}</span>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
+
     <!-- Ability bar (only when it's your move and you're alive) -->
     {#if r.status === 'in_combat' && r.you && r.you.currentHealth > 0 && !r.you.submitted}
       <section>
+        {#if bonusAbilityId}
+          <p class="mb-2 text-xs text-[var(--gold-bright)]">
+            ✨ {ui.bonusQueued}: {bonusOptions.find((b) => b.id === bonusAbilityId)?.name ?? ''}
+          </p>
+        {/if}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {#each r.you.abilities as a (a.id)}
             <button
