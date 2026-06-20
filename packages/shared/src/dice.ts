@@ -55,6 +55,23 @@ export function diceAverage(spec: DiceSpec): number {
   return spec.count * ((spec.sides + 1) / 2) + spec.bonus;
 }
 
+/** Nejnižší možná hodnota hodu (každá kostka 1): `count * 1 + bonus`. Clamp na 0. */
+export function diceMin(spec: DiceSpec): number {
+  return Math.max(0, Math.max(0, Math.floor(spec.count)) * 1 + spec.bonus);
+}
+
+/** Nejvyšší možná hodnota hodu (každá kostka max): `count * sides + bonus`. */
+export function diceMax(spec: DiceSpec): number {
+  return Math.max(0, Math.max(0, Math.floor(spec.count)) * Math.max(1, spec.sides) + spec.bonus);
+}
+
+/** Rozptyl hodu jako `min–max` (pro spell karty), např. `8–48`. Bez rozptylu → jen číslo. */
+export function diceRange(spec: DiceSpec): string {
+  const lo = diceMin(spec);
+  const hi = diceMax(spec);
+  return lo === hi ? `${lo}` : `${lo}–${hi}`;
+}
+
 /** Výsledek hodu na zásah (d20 + modifikátor). */
 export interface AttackRoll {
   /** Přirozený hod d20 (1..20). */

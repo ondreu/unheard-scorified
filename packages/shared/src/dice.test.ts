@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   attackHits,
   diceAverage,
+  diceMax,
+  diceMin,
   diceNotation,
+  diceRange,
   formatRoll,
   rollAttack,
   rollD20,
@@ -66,6 +69,32 @@ describe('notation + average', () => {
   it('formatRoll renders natural + modifier = total', () => {
     expect(formatRoll(14, 5)).toBe('14 + 5 = 19');
     expect(formatRoll(3, -2)).toBe('3 − 2 = 1');
+  });
+
+  it('diceMin/diceMax bound the roll (all 1s / all max)', () => {
+    expect(diceMin({ count: 8, sides: 6, bonus: 0 })).toBe(8);
+    expect(diceMax({ count: 8, sides: 6, bonus: 0 })).toBe(48);
+    expect(diceMin({ count: 3, sides: 4, bonus: 3 })).toBe(6);
+    expect(diceMax({ count: 3, sides: 4, bonus: 3 })).toBe(15);
+  });
+
+  it('diceMin clamps to 0 with negative bonus', () => {
+    expect(diceMin({ count: 1, sides: 4, bonus: -5 })).toBe(0);
+  });
+
+  it('diceRange formats min–max, single value when no variance', () => {
+    expect(diceRange({ count: 8, sides: 6, bonus: 0 })).toBe('8–48');
+    expect(diceRange({ count: 0, sides: 6, bonus: 4 })).toBe('4');
+  });
+
+  it('min/max bracket an actual roll for the same spec', () => {
+    const spec = { count: 4, sides: 6, bonus: 2 };
+    const rng = new SeededRng(11);
+    for (let i = 0; i < 200; i++) {
+      const total = rollDice(rng, spec.count, spec.sides).total + spec.bonus;
+      expect(total).toBeGreaterThanOrEqual(diceMin(spec));
+      expect(total).toBeLessThanOrEqual(diceMax(spec));
+    }
   });
 });
 
