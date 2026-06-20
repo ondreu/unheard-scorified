@@ -24,6 +24,12 @@
     asi: 'Ability Score Improvement',
     asiHint: 'Raise one ability by +2, or two abilities by +1 each.',
     feat: 'Feat',
+    asiOrFeat: 'Ability Score Improvement or Feat',
+    asiOrFeatHint: 'Choose ONE — improve your ability scores, or gain a feat. Switching discards the other.',
+    modeAsi: 'Ability Scores',
+    modeFeat: 'Feat',
+    confirmAsi: 'Confirm',
+    clear: 'Clear',
     chosen: 'Chosen',
     locked: 'Unlocks at level',
     current: 'You are here',
@@ -84,6 +90,17 @@
   let resetting = $state(false);
   // Per-ASI-slot local pick state (slotId -> increases map).
   let asiPick = $state<Record<string, Partial<Record<AbilityScore, number>>>>({});
+  // Per-slot režim u asi_or_feat slotu: explicitní override (po kliknutí na
+  // přepínač). Bez override se odvodí z uložené volby (feat → feat, jinak asi).
+  let asiFeatMode = $state<Record<string, 'asi' | 'feat'>>({});
+
+  // Efektivní režim slotu: explicitní volba > odvození z uložené volby.
+  function modeFor(slot: SlotView): 'asi' | 'feat' {
+    return asiFeatMode[slot.id] ?? (slot.choice?.kind === 'feat' ? 'feat' : 'asi');
+  }
+  function setMode(slotId: string, m: 'asi' | 'feat'): void {
+    asiFeatMode = { ...asiFeatMode, [slotId]: m };
+  }
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -415,7 +432,7 @@
                 <section class="choice">
                   <div class="row spread wrap">
                     <h3>
-                      {#if choiceType === 'subclass'}{ui.chooseSubclass}{:else}{ui.asi} / {ui.feat}{/if}
+                      {#if choiceType === 'subclass'}{ui.chooseSubclass}{:else}{ui.asiOrFeat}{/if}
                     </h3>
                     {#if slot?.choice}
                       <span class="badge">{ui.chosen}: {choiceLabel(slot.choice)}</span>
@@ -438,9 +455,29 @@
                       {/each}
                     </div>
                   {:else}
-                    <div class="choice-cols">
+                    <!-- D&D: na milníku dostaneš BUĎ ASI, NEBO feat (ne obojí).
+                         Režimový přepínač místo dvou pickerů vedle sebe → výběr
+                         jednoho nepřepíše tiše druhý. -->
+                    <p class="muted small">{ui.asiOrFeatHint}</p>
+                    <div class="mode-toggle" role="tablist">
+                      <button
+                        class="mode-tab {modeFor(slot) === 'asi' ? 'mode-on' : ''}"
+                        role="tab"
+                        aria-selected={modeFor(slot) === 'asi'}
+                        disabled={pendingSlot === slot.id}
+                        onclick={() => setMode(slot.id, 'asi')}
+                      >{ui.modeAsi}</button>
+                      <button
+                        class="mode-tab {modeFor(slot) === 'feat' ? 'mode-on' : ''}"
+                        role="tab"
+                        aria-selected={modeFor(slot) === 'feat'}
+                        disabled={pendingSlot === slot.id}
+                        onclick={() => setMode(slot.id, 'feat')}
+                      >{ui.modeFeat}</button>
+                    </div>
+
+                    {#if modeFor(slot) === 'asi'}
                       <div class="stack">
-                        <h4>{ui.asi}</h4>
                         <p class="muted small">{ui.asiHint}</p>
                         <div class="asi-grid">
                           {#each ABILITY_SCORES as ab (ab)}
@@ -456,14 +493,13 @@
                         </div>
                         <div class="row">
                           <button class="btn btn-primary" disabled={asiTotal(slot.id) !== 2 || pendingSlot === slot.id} onclick={() => confirmAsi(slot.id)}>
-                            Confirm ASI ({asiTotal(slot.id)}/2)
+                            {ui.confirmAsi} ({asiTotal(slot.id)}/2)
                           </button>
-                          <button class="btn btn-ghost" onclick={() => clearAsi(slot.id)}>Clear</button>
+                          <button class="btn btn-ghost" onclick={() => clearAsi(slot.id)}>{ui.clear}</button>
                         </div>
                       </div>
-
+                    {:else}
                       <div class="stack">
-                        <h4>{ui.feat}</h4>
                         <div class="grid-cards">
                           {#each view.feats as feat (feat.id)}
                             {@const chosen = slot.choice?.kind === 'feat' && slot.choice.featId === feat.id}
@@ -505,7 +541,7 @@
                           {/each}
                         </div>
                       </div>
-                    </div>
+                    {/if}
                   {/if}
                 </section>
                 {/if}
@@ -577,10 +613,20 @@
     display: flex; flex-direction: column; gap: 0.5rem;
   }
   .choice h3 { margin: 0; font-size: 0.95rem; }
-  .choice h4 { margin: 0; font-size: 0.85rem; }
 
-  /* Volba ASI/Feat: staty nahoře, featy pod nimi (stack, ne vedle sebe). */
-  .choice-cols { display: flex; flex-direction: column; gap: 1.1rem; }
+  /* ASI/Feat režimový přepínač (buď–anebo, ne dva pickery vedle sebe). */
+  .mode-toggle {
+    display: inline-flex; gap: 0; border: 1px solid var(--border, #333);
+    border-radius: 8px; overflow: hidden; align-self: flex-start;
+  }
+  .mode-tab {
+    padding: 0.4rem 0.9rem; background: var(--surface-2, #1a1a22); color: var(--text-dim, #9aa);
+    border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  }
+  .mode-tab + .mode-tab { border-left: 1px solid var(--border, #333); }
+  .mode-tab:hover:not(:disabled) { color: inherit; }
+  .mode-tab.mode-on { background: var(--r-rare, #0070dd); color: #fff; }
+  .mode-tab:disabled { opacity: 0.5; cursor: not-allowed; }
   .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.5rem; }
   .option {
     display: flex; flex-direction: column; gap: 0.25rem; text-align: left;
