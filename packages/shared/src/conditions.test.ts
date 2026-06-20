@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CONDITION_META,
   CONDITION_TYPES,
   applyCondition,
   combineAdvantage,
@@ -30,6 +31,14 @@ describe('turnConditionEffects', () => {
     expect(eff.noBonusAction).toBe(true);
   });
 
+  it('poisoned/blinded impose attack disadvantage; charmed skips the turn (Slice 2d)', () => {
+    expect(turnConditionEffects([{ type: 'poisoned', turns: 1 }]).attackDisadvantage).toBe(true);
+    expect(turnConditionEffects([{ type: 'blinded', turns: 1 }]).attackDisadvantage).toBe(true);
+    const charmed = turnConditionEffects([{ type: 'charmed', turns: 1 }]);
+    expect(charmed.skipTurn).toBe(true);
+    expect(charmed.noBonusAction).toBe(true);
+  });
+
   it('ignores expired (0-turn) conditions and combines multiple', () => {
     const eff = turnConditionEffects([
       { type: 'frightened', turns: 0 },
@@ -45,6 +54,12 @@ describe('grantsIncomingAdvantage', () => {
     for (const type of ['prone', 'restrained', 'stunned'] as const) {
       expect(grantsIncomingAdvantage([{ type, turns: 1 }])).toBe(true);
     }
+  });
+
+  it('blinded grants incoming advantage; poisoned/charmed do not (Slice 2d)', () => {
+    expect(grantsIncomingAdvantage([{ type: 'blinded', turns: 1 }])).toBe(true);
+    expect(grantsIncomingAdvantage([{ type: 'poisoned', turns: 1 }])).toBe(false);
+    expect(grantsIncomingAdvantage([{ type: 'charmed', turns: 1 }])).toBe(false);
   });
 
   it('frightened/slowed do not grant incoming advantage', () => {
@@ -97,6 +112,13 @@ describe('catalog coverage', () => {
   it('every condition type has a log verb', () => {
     for (const type of CONDITION_TYPES) {
       expect(conditionAppliedMessage('Hero', { type, durationTurns: 1 })).toContain('Hero');
+    }
+  });
+
+  it('every condition type has UI metadata (icon + label)', () => {
+    for (const type of CONDITION_TYPES) {
+      expect(CONDITION_META[type].icon.length).toBeGreaterThan(0);
+      expect(CONDITION_META[type].label.length).toBeGreaterThan(0);
     }
   });
 });

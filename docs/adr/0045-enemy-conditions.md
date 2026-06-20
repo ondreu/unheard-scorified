@@ -163,6 +163,30 @@
     bez DB migrace, beze změny enginu/balance (jen vystavení dat ze Slice 2a–2d).
     _Pixel-art polish badge = pozdější deslopifikace UI._
 
+11. **Slice 2d (bestiář) — nové condition typy + drain/dot enemy kind.** Condition
+    model rozšířen z 5 na **8 typů** (`conditions.ts`):
+    - **poisoned** — disadvantage na vlastní útoky (D&D: útoky + ability checky),
+      bez incoming advantage. Mechanicky = frightened.
+    - **charmed** — actér nemůže útočit na zdroj → v idle 1v1 **ztrácí tah**, ale
+      **bez** incoming advantage (není bezbranný, jen nechce ublížit). Liší se od
+      stunu právě absencí advantage pro útočníka.
+    - **blinded** — disadvantage na vlastní útoky **i** incoming advantage (D&D).
+
+    `EnemyAbility` rozšířena o `kind` (`strike`/`drain`/`dot`) + `drainHealFraction`
+    a DoT parametry (`dotDurationSec`/`dotTicks`/`dotTickMult`/`dotDice`); threading
+    přes `enemyAbilityToSignature` → nestvůry umí self-heal (drain) i krvácení/jed
+    (dot), ne jen přímý úder. Bestiář obohacen (vše **generické** kreatury mimo živý
+    obsah → balanc-neutrální, dormantní jako Slice 2a): grave_wraith Life Drain →
+    `drain` (heal 50 %), **Giant Spider** (`venomous_bite` = poison DoT + poisoned),
+    **Forest Satyr** (`beguiling_pipes` = charm bez poškození), **Will-o'-Wisp**
+    (`blinding_flare` = blinded). Kontrakt: `conditions.test.ts` (nové flagy + UI
+    meta), `enemies.test.ts` (drain/dot kind threading, pokrytí všech 8 typů).
+
+    **Zbývá (zbytek 2d):** (a) aktivace abilit u **živých** trash nepřátel v
+    dungeonech (vzor Slice 2c u bossů — balanc-citlivé, samostatný krok),
+    (b) **continuous simy** (quest/raid/PVP auto-resolve) + Gauntlet draw enemy
+    abilit z katalogu (timeline model conditionů).
+
 ## Důsledky
 
 - **+** Nepřátelská (i hráčská — symetricky v `combatantHitEnemy`) ability umí
