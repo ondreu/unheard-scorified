@@ -41,6 +41,7 @@ import { rollDice } from './dice';
 import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
 import { applyDamageInteraction, crForContentLevel, damageInteraction, type DamageType } from './data/damage';
 import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import { BESTIARY, instantiateEnemy } from './data/enemies';
 import { shouldCastHeal } from './rotation';
 import type { SignatureAbility } from './data/abilities';
 import {
@@ -97,6 +98,18 @@ export function questFoeStats(foe: QuestFoe, questLevel: number): EnemyStats {
   // Challenge Ratingu (CR úrovně questu + posun tieru, clampnuto). `buildEnemyActor`
   // dopočítá staty z `challengeRating`. Boj je flavor (nelze prohrát).
   const cr = Math.max(0, Math.min(30, crForContentLevel(lvl) + TIER_CR_OFFSET[foe.tier]));
+  // Identita (typ útoku + obrany) ze sdíleného katalogu, pokud foe odkazuje šablonu
+  // (ADR 0043). Magnituda i tak z CR (level × tier) — `challengeRating` přebíjí
+  // template.cr přes `instantiateEnemy`. Bez šablony = generický fyzický foe.
+  const tmpl = foe.template ? BESTIARY[foe.template] : undefined;
+  if (tmpl) {
+    return instantiateEnemy(tmpl.id, {
+      name: foe.name,
+      challengeRating: cr,
+      swingInterval: foe.tier === 'boss' ? 2.8 : 2.4,
+      isBoss: TIER_IS_BOSS[foe.tier],
+    });
+  }
   return {
     name: foe.name,
     swingInterval: foe.tier === 'boss' ? 2.8 : 2.4,

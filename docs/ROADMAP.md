@@ -178,7 +178,7 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 
 ## Enemy systém
 
-- [ ] **Refactor enemy** — datový model nepřátel (sjednotit `data/enemies.ts` / dungeon / quest foe → jeden zdroj pravdy s CR, typy, schopnostmi).
+- [x] **Refactor enemy** ✅ _(ADR 0043; rozhodnutí PM: plné sjednocení naráz)_ — datový model nepřátel sjednocen pod **jeden zdroj pravdy** (`data/enemies.ts` katalog). Katalog rozšířen o **všechny dungeon kreatury** (named bossové + trash archetypy) jako `EnemyTemplate` (creature type / CR / typ útoku / resistance-vulnerability-immunity / popis, převzato 1:1). Nový sdílený resolver **`instantiateEnemy(templateId, overrides)`** staví `EnemyDef` (identita ze šablony, magnituda/pacing z kontextu). **Dungeony** autorují přes katalog (`e(templateId, …)` místo inline), resolvují na `EnemyDef[]` při definici → **downstream beze změny**. **Quest foes** dostaly volitelný `template?` (zdědí typovou identitu, magnituda dál z level×tier; zpětně kompatibilní). **Gauntlet** jména táhne z katalogu (konec paralelního seznamu). **Balanc beze změny:** dungeon magnitudy dál z content levelu (ne šablonového CR), netypovaní dostali inertní fyzický typ, typovaní late-game nepřátelé zachovali obrany 1:1. Kontraktní testy + build/test/lint/typecheck zelené.
 - [ ] **Enemy schopnosti** — aktivní abilities nepřátel (ne jen boss `damageMult`/special): typované útoky, conditiony, saving-throw efekty proti hráči.
 - [ ] **Bestiář pro hráče** — in-game encyklopedie nepřátel (navázat na MR-7 `data/enemies.ts` + CR + typové obrany): odemykání po setkání, lore, staty/odolnosti.
 

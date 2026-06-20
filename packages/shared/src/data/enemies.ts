@@ -370,6 +370,369 @@ const TEMPLATES: readonly EnemyTemplate[] = [
       },
     ],
   },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Dungeon nestvůry (sjednocení enemy modelu, ADR 0043) — dříve inline v
+  // `dungeons.ts`. Identita (creatureType / attackType / obrany) žije ZDE; dungeon
+  // je referencuje a dodá jen kontext (level/swing/armor/isBoss). CR je referenční
+  // (pro bestiář); v dungeonu se magnituda odvozuje z content levelu (group.ts).
+  // Typy/obrany jsou převzaty 1:1 z původních inline dat → balanc beze změny
+  // (dosud netypovaní dostali *fyzický* attackType = mechanicky inertní vůči
+  // default 'bludgeoning'; viz `attackDamageType` v combat.ts).
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Emberfire Chasm (3–5) ────────────────────────────────────────────────────
+  {
+    id: 'rfc_cultist',
+    name: 'Ember Cultist',
+    description: 'A robed Ember Cult initiate wielding a ritual blade.',
+    creatureType: 'humanoid',
+    cr: 1,
+    attackType: 'slashing',
+  },
+  {
+    id: 'rfc_warlock',
+    name: 'Earthborer Warlock',
+    description: 'A cult spellweaver channeling the heat of the deep earth.',
+    creatureType: 'humanoid',
+    cr: 1,
+    attackType: 'bludgeoning',
+  },
+  {
+    id: 'rfc_taragaman',
+    name: 'Tarrakal the Hungerer',
+    description: 'A bloated fiend summoned to gorge on the warren below Karngar.',
+    creatureType: 'fiend',
+    cr: 3,
+    attackType: 'slashing',
+  },
+
+  // ── The Drowned Mines (6–7) ──────────────────────────────────────────────────
+  {
+    id: 'dm_miner',
+    name: 'Ashen Hand Overseer',
+    description: 'A brutal taskmaster driving the shipyard work crews.',
+    creatureType: 'humanoid',
+    cr: 2,
+    attackType: 'slashing',
+  },
+  {
+    id: 'dm_evoker',
+    name: 'Ashen Hand Evoker',
+    description: 'A goblin technician crackling with unstable energy.',
+    creatureType: 'humanoid',
+    cr: 2,
+    attackType: 'bludgeoning',
+  },
+  {
+    id: 'dm_rhahkzor',
+    name: 'Rahkzor',
+    description: 'A hulking ogre foreman swinging a stone maul.',
+    creatureType: 'giant',
+    cr: 3,
+    attackType: 'bludgeoning',
+  },
+  {
+    id: 'dm_vancleef',
+    name: 'Edmund Vance',
+    description: 'The exiled architect turned brigand-lord of the Ashen Hand.',
+    creatureType: 'humanoid',
+    cr: 4,
+    attackType: 'slashing',
+  },
+
+  // ── Wailing Hollows (6–8) ────────────────────────────────────────────────────
+  {
+    id: 'wc_adder',
+    name: 'Deviate Adder',
+    description: 'A mutated serpent warped by the nightmare seeping through the caverns.',
+    creatureType: 'beast',
+    cr: 2,
+    attackType: 'piercing',
+  },
+  {
+    id: 'wc_druid',
+    name: 'Fang Warden',
+    description: 'A fallen druid bound to the nightmare-dreaming Naralen.',
+    creatureType: 'humanoid',
+    cr: 2,
+    attackType: 'bludgeoning',
+  },
+  {
+    id: 'wc_serpent',
+    name: 'Deviate Ravager',
+    description: 'A monstrous serpent grown vast on tainted prey.',
+    creatureType: 'beast',
+    cr: 3,
+    attackType: 'piercing',
+  },
+  {
+    id: 'wc_mutanus',
+    name: 'Mutanis the Devourer',
+    description: 'The nightmare made flesh, a ravenous murloc horror.',
+    creatureType: 'aberration',
+    cr: 4,
+    attackType: 'bludgeoning',
+  },
+
+  // ── Shadowmaw Keep (7–9) ─────────────────────────────────────────────────────
+  {
+    id: 'sfk_worgen',
+    name: 'Shadowmaw Moonwalker',
+    description: 'A cursed lycan prowling the moonlit halls.',
+    creatureType: 'monstrosity',
+    cr: 3,
+    attackType: 'slashing',
+  },
+  {
+    id: 'sfk_ghost',
+    name: 'Tormented Officer',
+    description: 'The restless spirit of a slain garrison officer.',
+    creatureType: 'undead',
+    cr: 3,
+    attackType: 'slashing',
+  },
+  {
+    id: 'sfk_fenrus',
+    name: 'Fenris the Devourer',
+    description: "Archmage Argol's monstrous lycan champion.",
+    creatureType: 'monstrosity',
+    cr: 4,
+    attackType: 'piercing',
+  },
+  {
+    id: 'sfk_arugal',
+    name: 'Archmage Argol',
+    description: 'The mad archmage who loosed the curse upon the keep.',
+    creatureType: 'humanoid',
+    cr: 5,
+    attackType: 'bludgeoning',
+  },
+
+  // ── Drownfathom Deeps (8–10) ─────────────────────────────────────────────────
+  {
+    id: 'bfd_acolyte',
+    name: 'Dusk Acolyte',
+    description: 'A devotee of the drowned moon temple.',
+    creatureType: 'humanoid',
+    cr: 3,
+    attackType: 'bludgeoning',
+  },
+  {
+    id: 'bfd_naga',
+    name: 'Akhumai Servant',
+    description: 'A naga thrall guarding the flooded sanctum.',
+    creatureType: 'monstrosity',
+    cr: 3,
+    attackType: 'piercing',
+  },
+  {
+    id: 'bfd_priestess',
+    name: 'Dusk Priestess',
+    description: 'A high priestess channeling the drowned goddess.',
+    creatureType: 'humanoid',
+    cr: 4,
+    attackType: 'bludgeoning',
+  },
+  {
+    id: 'bfd_akumai',
+    name: 'Akhumai',
+    description: 'The slumbering beast roused beneath the temple.',
+    creatureType: 'monstrosity',
+    cr: 5,
+    attackType: 'bludgeoning',
+  },
+
+  // ── Crimson Cloister (10–13) ─────────────────────────────────────────────────
+  {
+    id: 'sm_zealot',
+    name: 'Crimson Zealot',
+    description: 'A fanatic of the Crimson Tribunal, sworn to purge the unclean.',
+    creatureType: 'humanoid',
+    cr: 4,
+    attackType: 'slashing',
+  },
+  {
+    id: 'sm_monk',
+    name: 'Crimson Monk',
+    description: 'A martial ascetic of the Tribunal cloister.',
+    creatureType: 'humanoid',
+    cr: 4,
+    attackType: 'bludgeoning',
+  },
+  {
+    id: 'sm_herod',
+    name: 'Herrod the Champion',
+    description: 'The Tribunal\'s armored champion-at-arms.',
+    creatureType: 'humanoid',
+    cr: 5,
+    attackType: 'slashing',
+  },
+  {
+    id: 'sm_whitemane',
+    name: 'High Inquisitor Palevane',
+    description: 'The zealous inquisitor who leads the Crimson Tribunal.',
+    creatureType: 'humanoid',
+    cr: 6,
+    attackType: 'bludgeoning',
+  },
+
+  // ── Zarfarai (14–16) — typed (necrotic / poison / radiant) ───────────────────
+  {
+    id: 'zf_axethrower',
+    name: 'Dunescale Axe Thrower',
+    description: 'A Dunescale troll skirmisher hurling jagged axes.',
+    creatureType: 'humanoid',
+    cr: 7,
+    attackType: 'slashing',
+  },
+  {
+    id: 'zf_hoodoo',
+    name: 'Dunescale Hoodoo Priest',
+    description: 'A troll witch-doctor weaving necrotic hexes.',
+    creatureType: 'humanoid',
+    cr: 7,
+    attackType: 'necrotic',
+    resistances: ['necrotic'],
+  },
+  {
+    id: 'zf_gahzrilla',
+    name: 'Gazrilla',
+    description: 'A colossal venomous serpent worshipped as a god.',
+    creatureType: 'monstrosity',
+    cr: 8,
+    attackType: 'poison',
+    resistances: ['poison'],
+  },
+  {
+    id: 'zf_ukorz',
+    name: 'Chief Ukor Dunescalp',
+    description: 'The blood-soaked warchief of the Dunescale trolls.',
+    creatureType: 'humanoid',
+    cr: 9,
+    attackType: 'slashing',
+    vulnerabilities: ['radiant'],
+  },
+
+  // ── Maradoth (15–17) — typed (nature: resist physical, vuln fire) ────────────
+  {
+    id: 'mar_noxxion',
+    name: 'Noxxion Spawn',
+    description: 'A toxic ooze-spawn of the poisoned demigod.',
+    creatureType: 'ooze',
+    cr: 8,
+    attackType: 'poison',
+    resistances: ['poison'],
+    vulnerabilities: ['fire'],
+  },
+  {
+    id: 'mar_treant',
+    name: 'Corrupted Treant',
+    description: 'A wrathful tree-guardian twisted by the cavern\'s poison.',
+    creatureType: 'plant',
+    cr: 8,
+    attackType: 'bludgeoning',
+    resistances: ['bludgeoning', 'piercing'],
+    vulnerabilities: ['fire'],
+  },
+  {
+    id: 'mar_landslide',
+    name: 'Landslide',
+    description: 'A churning elemental of stone and crystal.',
+    creatureType: 'elemental',
+    cr: 9,
+    attackType: 'bludgeoning',
+    resistances: ['slashing', 'piercing', 'bludgeoning'],
+  },
+  {
+    id: 'mar_theradras',
+    name: 'Princess Theradris',
+    description: 'The crystalline daughter of an earth elemental and a demigod.',
+    creatureType: 'elemental',
+    cr: 10,
+    attackType: 'poison',
+    vulnerabilities: ['fire'],
+  },
+
+  // ── Cinderdeep Halls (17–19) — typed (fire dwellers: resist fire) ────────────
+  {
+    id: 'brd_guard',
+    name: 'Anvilrage Guardsman',
+    description: 'A Cinderforge dwarf soldier in blackened plate.',
+    creatureType: 'humanoid',
+    cr: 9,
+    attackType: 'slashing',
+  },
+  {
+    id: 'brd_geologist',
+    name: 'Cinderforge Geologist',
+    description: 'A dwarf delver hardened against the forge\'s heat.',
+    creatureType: 'humanoid',
+    cr: 9,
+    attackType: 'bludgeoning',
+    resistances: ['fire'],
+  },
+  {
+    id: 'brd_angerforge',
+    name: 'General Emberforge',
+    description: 'The fire-wreathed war general of the Cinderforge legion.',
+    creatureType: 'humanoid',
+    cr: 10,
+    attackType: 'fire',
+    resistances: ['fire'],
+  },
+  {
+    id: 'brd_thaurissan',
+    name: 'Emperor Dagran Embermane',
+    description: 'The emperor of the Cinderforge dwarves, lord of forge and flame.',
+    creatureType: 'humanoid',
+    cr: 12,
+    attackType: 'fire',
+    resistances: ['fire'],
+  },
+
+  // ── Pyrehold (19–20) — typed (undead: immune poison, resist necrotic, vuln radiant) ─
+  {
+    id: 'strat_zombie',
+    name: 'Plagued Zombie',
+    description: 'A shambling victim of the Pale Legion\'s plague.',
+    creatureType: 'undead',
+    cr: 10,
+    attackType: 'necrotic',
+    resistances: ['necrotic'],
+    immunities: ['poison'],
+    vulnerabilities: ['radiant'],
+  },
+  {
+    id: 'strat_cryptfiend',
+    name: 'Crypt Fiend',
+    description: 'A skittering undead horror of barbed legs.',
+    creatureType: 'undead',
+    cr: 11,
+    attackType: 'piercing',
+    resistances: ['necrotic'],
+    vulnerabilities: ['radiant'],
+  },
+  {
+    id: 'strat_ramstein',
+    name: 'Ramstein the Gorger',
+    description: 'A towering flesh-golem stitched from plague victims.',
+    creatureType: 'undead',
+    cr: 12,
+    attackType: 'bludgeoning',
+    resistances: ['necrotic'],
+    vulnerabilities: ['radiant', 'fire'],
+  },
+  {
+    id: 'strat_baron',
+    name: 'Baron Ravendere',
+    description: 'The dreadlord-served baron ruling the plagued city of Caldmoor.',
+    creatureType: 'fiend',
+    cr: 14,
+    attackType: 'necrotic',
+    resistances: ['necrotic', 'fire'],
+    vulnerabilities: ['radiant'],
+  },
 ];
 
 /** Bestiář indexovaný podle id. */
@@ -440,4 +803,72 @@ export function bestiaryEnemyById(
 ): (EnemyStats & { id: string }) | undefined {
   const template = BESTIARY[id];
   return template ? buildBestiaryEnemy(template, overrides) : undefined;
+}
+
+// ── Instancování nepřítele pro obsah (sjednocený resolver, ADR 0043) ──────────
+
+/**
+ * Kontextové přepisy při instancování nepřítele z katalogu do konkrétního obsahu
+ * (dungeon encounter, quest foe, …). Identita (jméno, typ útoku, obrany,
+ * creatureType) plyne ze šablony; tyto přepisy řeší **magnitudu a pacing**.
+ */
+export interface EnemyInstanceOverrides {
+  /** Přepis id instance (default = id šablony). Pro variantní spawn-y (oslabení minioni). */
+  id?: string;
+  /** Kontextové přejmenování (např. „Ember Acolyte" = oslabená varianta „Ember Cultist"). */
+  name?: string;
+  /**
+   * Úroveň obsahu → CR magnituda (přebíjí `template.cr`). Když je dána, HP/poškození
+   * se NEpíšou (odvodí je `buildEnemyActor` z CR). Bez `level`/`challengeRating` se
+   * `template.cr` ZÁMĚRNĚ nepřebírá do `EnemyStats` (zůstává jen pro bestiář referenci)
+   * → dungeon spadne na svůj content level (group.ts default), balanc beze změny.
+   */
+  level?: number;
+  /** Explicitní CR (přebíjí odvození z `level`). */
+  challengeRating?: ChallengeRating;
+  /** Swing interval (vteřiny). Default ze šablony, jinak globální default. */
+  swingInterval?: number;
+  /** Armor (AC nad rámec CR doporučení). */
+  armor?: number;
+  /** Boss flag (přebíjí `template.isBoss`). */
+  isBoss?: boolean;
+  /** Explicitní HP (jinak ze CR). */
+  maxHealth?: number;
+  /** Explicitní poškození na úder (jinak ze CR). */
+  attackPower?: number;
+}
+
+/**
+ * Instancuje nepřítele z katalogu pro konkrétní obsah: **identita** (jméno, typ
+ * útoku, resistance/vulnerability/immunity) ze šablony, **magnituda/pacing** z
+ * kontextu (`level`/`challengeRating`/`swingInterval`/`armor`/`isBoss`). Vrací
+ * `EnemyStats & { id }` (= `EnemyDef`) — stejný tvar, jaký dosud autorovaly
+ * dungeony inline, takže downstream (`buildEnemyActor`, group/dungeon-run/…)
+ * zůstává beze změny. Jediný zdroj pravdy enemy identity = katalog (ADR 0043).
+ *
+ * Vyhodí, když `templateId` v katalogu neexistuje (chyba autora dat, ne runtime).
+ */
+export function instantiateEnemy(
+  templateId: string,
+  overrides: EnemyInstanceOverrides = {},
+): EnemyStats & { id: string } {
+  const t = BESTIARY[templateId];
+  if (!t) throw new Error(`instantiateEnemy: unknown enemy template "${templateId}"`);
+  const o = overrides;
+  const isBoss = o.isBoss ?? t.isBoss ?? false;
+  return {
+    id: o.id ?? t.id,
+    name: o.name ?? t.name,
+    swingInterval: o.swingInterval ?? t.swingInterval ?? DEFAULT_SWING,
+    ...(isBoss ? { isBoss: true } : {}),
+    ...(o.armor != null ? { armor: o.armor } : {}),
+    ...(o.level != null ? { level: o.level } : {}),
+    ...(o.challengeRating != null ? { challengeRating: o.challengeRating } : {}),
+    ...(o.maxHealth != null ? { maxHealth: o.maxHealth } : {}),
+    ...(o.attackPower != null ? { attackPower: o.attackPower } : {}),
+    damageType: t.attackType,
+    ...(t.resistances ? { resistances: t.resistances } : {}),
+    ...(t.vulnerabilities ? { vulnerabilities: t.vulnerabilities } : {}),
+    ...(t.immunities ? { immunities: t.immunities } : {}),
+  };
 }

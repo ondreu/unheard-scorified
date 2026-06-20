@@ -7,6 +7,7 @@ import {
   enemiesByChallengeRating,
   enemiesByCreatureType,
   getEnemyTemplate,
+  instantiateEnemy,
 } from './enemies';
 import { CHALLENGE_RATINGS, CREATURE_TYPES, DAMAGE_TYPES, crStatGuide } from './damage';
 import { buildEnemyActor, resolveAttack, type CombatActor } from '../combat';
@@ -82,6 +83,50 @@ describe('buildBestiaryEnemy', () => {
   it('bestiaryEnemyById resolves and returns undefined for unknown id', () => {
     expect(bestiaryEnemyById('fire_elemental')?.name).toBe('Fire Elemental');
     expect(bestiaryEnemyById('ghost_of_christmas')).toBeUndefined();
+  });
+});
+
+describe('instantiateEnemy — unified enemy resolver (ADR 0043)', () => {
+  it('inherits identity (type + defenses) from the template', () => {
+    const z = instantiateEnemy('strat_zombie');
+    expect(z.id).toBe('strat_zombie');
+    expect(z.name).toBe('Plagued Zombie');
+    expect(z.damageType).toBe('necrotic');
+    expect(z.resistances).toContain('necrotic');
+    expect(z.immunities).toContain('poison');
+    expect(z.vulnerabilities).toContain('radiant');
+  });
+
+  it('applies contextual overrides (id/name/level/armor/isBoss) for variants', () => {
+    const ghoul = instantiateEnemy('strat_zombie', {
+      id: 'strat_zombie_b',
+      name: 'Plagued Ghoul',
+      level: 17,
+    });
+    expect(ghoul.id).toBe('strat_zombie_b');
+    expect(ghoul.name).toBe('Plagued Ghoul');
+    expect(ghoul.level).toBe(17);
+    // Identita (obrany) se dědí i u varianty.
+    expect(ghoul.vulnerabilities).toContain('radiant');
+  });
+
+  it('preserves level-scaling: no challengeRating baked when only level/swing given', () => {
+    // Dungeon model: magnituda plyne z content levelu (group.ts default), ne z
+    // template.cr → resolver NEpřebírá template.cr do challengeRating.
+    const cultist = instantiateEnemy('rfc_cultist', { swingInterval: 2.6 });
+    expect(cultist.challengeRating).toBeUndefined();
+    expect(cultist.level).toBeUndefined();
+    expect(cultist.maxHealth).toBeUndefined();
+    expect(cultist.attackPower).toBeUndefined();
+  });
+
+  it('previously-untyped enemies get a physical attack type (rage-resist neutral)', () => {
+    const cultist = instantiateEnemy('rfc_cultist');
+    expect(['slashing', 'piercing', 'bludgeoning']).toContain(cultist.damageType);
+  });
+
+  it('throws on an unknown template id (authoring error, not runtime)', () => {
+    expect(() => instantiateEnemy('not_a_real_enemy')).toThrow(/unknown enemy template/);
   });
 });
 

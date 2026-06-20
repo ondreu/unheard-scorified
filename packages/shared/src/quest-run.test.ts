@@ -35,6 +35,27 @@ describe('questFoeStats', () => {
     const minionHi = questFoeStats({ name: 'Rat', tier: 'minion' }, 40);
     expect(minionHi.challengeRating!).toBeGreaterThan(minion.challengeRating!);
   });
+
+  it('inherits identity from the catalog template but keeps level/tier magnitude (ADR 0043)', () => {
+    const generic = questFoeStats({ name: 'Skeleton', tier: 'standard' }, 10);
+    const typed = questFoeStats(
+      { name: 'Risen Skeleton', tier: 'standard', template: 'strat_zombie' },
+      10,
+    );
+    // Identita (typ útoku + obrany) přišla z katalogu…
+    expect(typed.damageType).toBe('necrotic');
+    expect(typed.vulnerabilities).toContain('radiant');
+    expect(generic.damageType).toBeUndefined();
+    // …ale magnituda (CR) je stejná jako u generického foe stejného levelu/tieru.
+    expect(typed.challengeRating).toBe(generic.challengeRating);
+    expect(typed.name).toBe('Risen Skeleton');
+  });
+
+  it('unknown template id falls back to a generic physical foe (no throw)', () => {
+    const foe = questFoeStats({ name: 'Mystery', tier: 'standard', template: 'nope' }, 10);
+    expect(foe.name).toBe('Mystery');
+    expect(foe.damageType).toBeUndefined();
+  });
 });
 
 function druid(level: number): CombatActor {

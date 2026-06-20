@@ -62,19 +62,33 @@ Příklady (demonstrují mechaniky):
 | Ancient Treant | plant | 9 | resist bludgeoning/piercing, vuln fire |
 | Young Red Dragon | dragon | 10 (boss) | immune fire + Fire Breath |
 
-### Builder
+### Buildery
 
-`buildBestiaryEnemy(template, overrides?)` → `EnemyStats` (id, HP/damage z CR
-doporučení nebo přepisu šablony, AC/attackBonus/saveDc z `crStatGuide`, boss +2 AC,
-damage profil propsaný). `bestiaryEnemyById(id, overrides?)` totéž z id.
+- `buildBestiaryEnemy(template, overrides?)` → `EnemyStats` (id, HP/damage z CR
+  doporučení nebo přepisu šablony, AC/attackBonus/saveDc z `crStatGuide`, boss +2 AC,
+  damage profil propsaný). `bestiaryEnemyById(id, overrides?)` totéž z id. Bere
+  **fixní šablonové CR** → vhodné pro reference / player bestiář / ad-hoc encountery.
+- `instantiateEnemy(templateId, overrides?)` → `EnemyStats & { id }` (= `EnemyDef`)
+  — **sdílený resolver pro obsah** (ADR 0043). Identita (jméno, typ útoku, obrany)
+  ze šablony; magnituda/pacing z kontextu (`level`/`challengeRating`/`swingInterval`/
+  `armor`/`isBoss`). Když je dán `level`/`challengeRating`, šablonové `cr` se
+  nepřebírá → magnituda plyne z **content levelu** (level-scaling obsahu).
 
 Indexy: `BESTIARY` / `BESTIARY_IDS`, `getEnemyTemplate`, `enemiesByCreatureType`,
 `enemiesByChallengeRating`.
 
-## Rozsah
+## Rozsah (po sjednocení enemy modelu, ADR 0043)
 
-Bestiář je zatím **přípravná datová vrstva** — existující dungeony/raidy dál
-používají inline `EnemyDef`. Přemapování obsahu na bestiář + CR a převzetí D&D
-damage dice = **MR-10** (balance pass). `SignatureAbility` (hráčské ability) zatím
-nenese damage typ; ability-typed poškození má v enginu hook (`damageType` param),
-naplní se v MR-10 spolu se spell daty.
+Katalog je **jediný zdroj pravdy enemy identity**:
+
+- **Dungeony** (`data/dungeons.ts`) autorují přes `instantiateEnemy` (`e(templateId, …)`)
+  — všechny dungeon kreatury (named bossové + trash archetypy) žijí jako
+  `EnemyTemplate`. Magnituda dál z content levelu (balanc beze změny).
+- **Quest foes** (`QuestFoe.template`) volitelně dědí typovou identitu z katalogu
+  (magnituda z level×tier). Bez `template` = generický fyzický foe.
+- **Gauntlet** táhne jména nepřátel z katalogu (typové obrany zatím nepropsané —
+  follow-up „Enemy schopnosti").
+
+Follow-up: aktivní enemy abilities (`EnemyAbility` v enginu), typed Gauntlet
+nepřátelé, in-game **bestiář pro hráče** (encyklopedie čtoucí katalog).
+`SignatureAbility` (hráčské ability) nese damage typ od MR-10/ADR 0036.

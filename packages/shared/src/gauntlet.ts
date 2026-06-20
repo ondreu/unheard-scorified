@@ -41,6 +41,7 @@ import {
 } from './combat';
 import { applySpellSave, missMessage } from './dnd-combat';
 import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
+import { BESTIARY } from './data/enemies';
 import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
@@ -262,15 +263,18 @@ export function gauntletAbilities(base: CombatActor, picks: GauntletPick[]): Sig
 
 // ── Generování nepřátel ──────────────────────────────────────────────────────
 
+// Jména nepřátel se táhnou ze sdíleného katalogu nestvůr (`enemies.ts`, ADR 0043)
+// — žádný paralelní seznam jmen. Bereme jen jméno (identita); typové obrany se do
+// Gauntlet combatu zatím NEpropisují (magnitudy/typing beze změny — typed Gauntlet
+// nepřátelé = follow-up „Enemy schopnosti"). Pool = curated podmnožina katalogu.
 const NORMAL_ENEMY_NAMES = [
-  'Ravenous Ghoul', 'Cursed Footman', 'Venomfang Spider', 'Bloodscalp Raider',
-  'Defias Bandit', 'Rabid Worg', 'Cinder Imp', 'Frostbite Elemental',
-  'Plagued Zombie', 'Shadowsworn Cultist',
-];
+  'skeleton_warrior', 'rotting_zombie', 'goblin_cutter', 'dire_wolf',
+  'cultist_pyromancer', 'hill_ogre', 'grave_wraith', 'frost_elemental',
+].map((id) => BESTIARY[id]!.name);
 const ELITE_ENEMY_NAMES = [
-  'Gladiator Champion', 'Infernal Brute', 'Dread Reaver', 'Crypt Lord',
-  'Stormcaller Magus', 'Bloodfang Alpha',
-];
+  'stone_golem', 'young_red_dragon', 'mind_devourer', 'ancient_treant',
+  'pit_fiend_spawn', 'fire_elemental',
+].map((id) => BESTIARY[id]!.name);
 
 /**
  * Deterministicky postaví nepřítele pro danou vlnu. HP i dmg rostou s vlnou;
