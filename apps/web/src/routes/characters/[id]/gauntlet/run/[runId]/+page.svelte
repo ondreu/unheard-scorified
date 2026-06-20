@@ -14,6 +14,9 @@
   import { ITEMS } from '@game/shared';
   import CombatLog from '$lib/components/CombatLog.svelte';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
+  import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
+  import SpellTooltip from '$lib/components/SpellTooltip.svelte';
+  import { activeCharacterLevel, activeCharacterSpellSaveDc } from '$lib/ui-stores';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -187,9 +190,11 @@
           {r.player.currentHealth} / {r.player.maxHealth}
           {#if r.player.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {r.player.absorb}</span>{/if}
           {#if slotTotal(r.player.maxSpellSlots) > 0}
-            <span class="ml-1 text-[var(--accent)]" title="Spell slots remaining this run">
-              ✨ {slotTotal(r.player.spellSlots)}/{slotTotal(r.player.maxSpellSlots)}
-            </span>
+            <SpellSlotBar
+              slots={r.player.spellSlots}
+              max={r.player.maxSpellSlots}
+              title="Spell slots remaining this run (per tier)"
+            />
           {/if}
           {#if r.player.maxKiPoints > 0}
             <span class="ml-1 text-[var(--info)]" title="Ki remaining this run">
@@ -245,26 +250,27 @@
         {/if}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {#each r.abilities as a (a.id)}
-            <button
-              class="btn flex items-center gap-2 text-left"
-              disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
-              title={a.outOfSlots
-                ? `${a.description} (out of spell slots)`
-                : a.outOfKi
-                  ? `${a.description} (not enough Ki)`
-                  : a.description}
-              onclick={() => act(a.id)}
+            <SpellTooltip
+              abilityId={a.id}
+              level={$activeCharacterLevel ?? 1}
+              spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
             >
-              <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
-              <span class="min-w-0 flex-1 truncate">{a.name}</span>
-              {#if !a.ready}
-                <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
-              {:else if a.outOfSlots}
-                <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
-              {:else if a.outOfKi}
-                <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
-              {/if}
-            </button>
+              <button
+                class="btn flex w-full items-center gap-2 text-left"
+                disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
+                onclick={() => act(a.id)}
+              >
+                <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
+                <span class="min-w-0 flex-1 truncate">{a.name}</span>
+                {#if !a.ready}
+                  <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
+                {:else if a.outOfSlots}
+                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
+                {:else if a.outOfKi}
+                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
+                {/if}
+              </button>
+            </SpellTooltip>
           {/each}
         </div>
       </section>

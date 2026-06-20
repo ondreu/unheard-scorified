@@ -158,6 +158,13 @@ export function openAbility(name: string): void {
  */
 export const activeCharacterLevel = writable<number | null>(null);
 
+/**
+ * Spell save DC aktivní postavy — nastaví char layout při načtení. Slouží spell
+ * kartě (SpellCard / AbilityDetail) k zobrazení reálného DC u kouzel se saving
+ * throwem (Fireball „DEX DC 15"). `null` = neznámé (→ karta DC vynechá).
+ */
+export const activeCharacterSpellSaveDc = writable<number | null>(null);
+
 /** Cíl whisperu — chat bublina se otevře v režimu „whisper to X". */
 export const whisperTarget = writable<{ characterId: string; name: string } | null>(null);
 
