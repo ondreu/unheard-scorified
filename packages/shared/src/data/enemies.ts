@@ -498,6 +498,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'humanoid',
     cr: 1,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'rfc_warlock_grasp',
+        name: 'Earthen Grasp',
+        damageMult: 1.4,
+        damageType: 'bludgeoning',
+        cooldownSec: 12,
+        description: 'Stone hands erupt from the floor to clamp the target in place.',
+        save: { ability: 'strength', description: 'STR save for half damage, or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
   },
   {
     id: 'rfc_taragaman',
@@ -544,6 +556,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'giant',
     cr: 3,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'dm_rhahkzor_smash',
+        name: 'Maul Smash',
+        damageMult: 1.5,
+        damageType: 'bludgeoning',
+        cooldownSec: 11,
+        description: 'An overhead maul blow that hammers the target to the ground.',
+        save: { ability: 'strength', description: 'STR save for half damage, or be knocked prone.' },
+        condition: { type: 'prone', durationTurns: 1 },
+      },
+    ],
   },
   {
     id: 'dm_vancleef',
@@ -590,6 +614,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'beast',
     cr: 3,
     attackType: 'piercing',
+    abilities: [
+      {
+        id: 'wc_serpent_spray',
+        name: 'Venom Spray',
+        damageMult: 1.4,
+        damageType: 'poison',
+        cooldownSec: 11,
+        description: 'A spray of tainted venom that burns and sickens.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be poisoned.' },
+        condition: { type: 'poisoned', durationTurns: 2 },
+      },
+    ],
   },
   {
     id: 'wc_mutanus',
@@ -628,6 +664,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'undead',
     cr: 3,
     attackType: 'slashing',
+    abilities: [
+      {
+        id: 'sfk_ghost_wail',
+        name: 'Mournful Wail',
+        damageMult: 1.3,
+        damageType: 'psychic',
+        cooldownSec: 12,
+        description: 'A grief-stricken howl that fills the heart with dread.',
+        save: { ability: 'wisdom', description: 'WIS save for half damage, or be frightened.' },
+        condition: { type: 'frightened', durationTurns: 2 },
+      },
+    ],
   },
   {
     id: 'sfk_fenrus',
@@ -682,6 +730,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'humanoid',
     cr: 4,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'bfd_priestess_grasp',
+        name: 'Drowning Grasp',
+        damageMult: 1.4,
+        damageType: 'cold',
+        cooldownSec: 12,
+        description: 'Spectral tides coil around the target and drag them under.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
   },
   {
     id: 'bfd_akumai',
@@ -720,6 +780,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'humanoid',
     cr: 4,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'sm_monk_palm',
+        name: 'Stunning Palm',
+        damageMult: 1.4,
+        damageType: 'bludgeoning',
+        cooldownSec: 13,
+        description: 'A precise strike to a pressure point that locks the body rigid.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be stunned.' },
+        condition: { type: 'stunned', durationTurns: 1 },
+      },
+    ],
   },
   {
     id: 'sm_herod',
@@ -767,6 +839,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     cr: 7,
     attackType: 'necrotic',
     resistances: ['necrotic'],
+    abilities: [
+      {
+        id: 'zf_hoodoo_curse',
+        name: 'Voodoo Curse',
+        damageMult: 1.3,
+        damageType: 'necrotic',
+        cooldownSec: 13,
+        description: "A hex that bends the target's will to the witch-doctor.",
+        save: { ability: 'wisdom', description: 'WIS save for half damage, or be charmed.' },
+        condition: { type: 'charmed', durationTurns: 1 },
+      },
+    ],
   },
   {
     id: 'zf_gahzrilla',
@@ -828,6 +912,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     cr: 9,
     attackType: 'bludgeoning',
     resistances: ['slashing', 'piercing', 'bludgeoning'],
+    abilities: [
+      {
+        id: 'mar_landslide_quake',
+        name: 'Grinding Quake',
+        damageMult: 1.4,
+        damageType: 'bludgeoning',
+        cooldownSec: 12,
+        description: 'The ground churns and buckles, miring the target in shifting rubble.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be slowed.' },
+        condition: { type: 'slowed', durationTurns: 2 },
+      },
+    ],
   },
   {
     id: 'mar_theradras',
@@ -877,6 +973,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     cr: 10,
     attackType: 'fire',
     resistances: ['fire'],
+    abilities: [
+      {
+        id: 'brd_angerforge_cinders',
+        name: 'Searing Cinders',
+        damageMult: 1.4,
+        damageType: 'fire',
+        cooldownSec: 12,
+        description: 'A burst of scalding ash and sparks that sears the eyes.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be blinded.' },
+        condition: { type: 'blinded', durationTurns: 2 },
+      },
+    ],
   },
   {
     id: 'brd_thaurissan',
@@ -921,6 +1029,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     attackType: 'piercing',
     resistances: ['necrotic'],
     vulnerabilities: ['radiant'],
+    abilities: [
+      {
+        id: 'strat_cryptfiend_web',
+        name: 'Crypt Web',
+        damageMult: 1.3,
+        damageType: 'piercing',
+        cooldownSec: 12,
+        description: 'A spray of barbed webbing that pins the target fast.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
   },
   {
     id: 'strat_ramstein',
