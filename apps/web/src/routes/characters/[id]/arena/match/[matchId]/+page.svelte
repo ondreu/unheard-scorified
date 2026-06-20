@@ -7,6 +7,7 @@
   import { connectArena, watchMatch } from '$lib/arena-socket';
   import CombatMeters from '$lib/components/CombatMeters.svelte';
   import CombatLog from '$lib/components/CombatLog.svelte';
+  import { arenaActors } from '$lib/combat-actors';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -60,9 +61,7 @@
   });
 
   // Player name → id map so combat-log names open the player card.
-  const players = $derived(
-    match ? { [match.me.name]: match.me.characterId, [match.opponent.name]: match.opponent.characterId } : {},
-  );
+  const actors = $derived(match ? arenaActors(match) : {});
 </script>
 
 <div class="space-y-6">
@@ -100,6 +99,6 @@
     <CombatMeters events={m.events} names={[m.me.name, m.opponent.name]} />
 
     <!-- Combat log: player names + abilities are clickable for details. -->
-    <CombatLog events={m.events} {players} />
+    <CombatLog events={m.events} {actors} />
   {/if}
 </div>

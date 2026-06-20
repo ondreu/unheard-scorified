@@ -1,31 +1,125 @@
+<script lang="ts" module>
+  /** Strana aktéra v boji — řídí barvu jména i levý okraj řádku. */
+  export type ActorSide = 'player' | 'ally' | 'enemy';
+  /**
+   * Metadata aktéra pro log. `id` (characterId) zpřístupní klik na profil
+   * u hráče/spojence; enemy se klikne na NPC kartu jen když je v bestiáři.
+   */
+  export interface ActorMeta {
+    side: ActorSide;
+    id?: string;
+  }
+</script>
+
 <script lang="ts">
   /**
-   * Sdílený combat log (dungeon/raid/aréna). Vykresluje předpočítanou timeline
-   * a dělá **jména NPC** a **ability klikatelné** (→ detail karta). Jména hráčů
-   * jsou klikatelná, když volající dodá mapu `players` (jméno → characterId);
-   * combat eventy samy nesou jen jména, ne id.
+   * Sdílený combat log (dungeon/raid/aréna/gauntlet). Vykresluje předpočítanou
+   * timeline a **rozlišuje strany** (hráč / spojenec / nepřítel) barvou jména a
+   * barevným levým okrajem řádku podle jednajícího aktéra (`source`). Jména NPC
+   * a ability jsou klikatelné (→ detail karta), jména hráčů/spojenců s `id` →
+   * profil.
+   *
+   * Stranu bere primárně z mapy `actors` (jméno → {side, id}), kterou dodá
+   * volající z dat běhu (zná svou partu i nepřátele). Bez `actors` spadne na
+   * heuristiku: `players` (jméno → characterId) = hráč, `findEnemyByName` =
+   * nepřítel, zbytek neutrální.
    *
    * Tokenizace: pro každý řádek bereme strukturovaná pole `source`/`target`
    * (max 2 jména) + `ability`, najdeme jejich výskyt v hotové zprávě a obalíme
-   * je tlačítkem. Zbytek zůstává plain text → robustní vůči formátu zprávy.
+   * je segmentem. Zbytek zůstává plain text → robustní vůči formátu zprávy.
    */
   import { findAbilityByName, findEnemyByName } from '@game/shared';
   import type { CombatEvent } from '$lib/api';
   import { openAbility, openNpc, openProfile } from '$lib/ui-stores';
   import PixelAbilityIcon from './PixelAbilityIcon.svelte';
 
-  let { events, players = {} }: { events: CombatEvent[]; players?: Record<string, string> } =
-    $props();
+  let {
+    events,
+    players = {},
+    actors = {},
+    paced = true,
+    groupRounds = false,
+  }: {
+    events: CombatEvent[];
+    players?: Record<string, string>;
+    actors?: Record<string, ActorMeta>;
+    /** Postupně odhalovat nové řádky v čase (throttle), místo dávkového skoku. */
+    paced?: boolean;
+    /**
+     * Oddělit kola tenkou linkou (jen tahové simy, kde `t` = číslo kola a víc
+     * eventů sdílí stejný `t`). Continuous simy (aréna/idle) mají skoro každý
+     * event jiný `t` → nechat vypnuté, jinak je linka mezi každým řádkem.
+     */
+    groupRounds?: boolean;
+  } = $props();
+
+  /**
+   * Tempo (Slice 2): historii při prvním zobrazení ukážeme naráz, ale **nové**
+   * dávky eventů (dořešené kolo / WS push) odhalujeme po jednom řádku, aby ve
+   * skupinovém boji log neskákal moc rychle. Backlog (kolik čeká) zrychluje
+   * tempo, takže live běh nikdy nezaostane o moc. Hráč může pauzovat, krokovat,
+   * měnit rychlost a „ukázat vše".
+   */
+  const BASE_INTERVAL_MS = 600;
+  const SPEEDS = [1, 2, 4] as const;
+
+  let revealed = $state(0);
+  let playing = $state(true);
+  let speedIdx = $state(0);
+
+  // Historii (eventy přítomné při prvním renderu) odhal naráz; pacing platí jen
+  // pro dávky, co dorazí potom.
+  let initialized = false;
+  $effect(() => {
+    if (initialized) return;
+    initialized = true;
+    revealed = events.length;
+  });
+
+  const speed = $derived(SPEEDS[speedIdx] ?? 1);
+  const pending = $derived(Math.max(0, events.length - revealed));
+  const shown = $derived(paced ? events.slice(0, revealed) : events);
+  /** Pořadí pro výpis: nejnovější nahoře. */
+  const display = $derived([...shown].reverse());
+  /** Lišta tempa dává smysl jen když je co odhalovat / je pauznuto. */
+  const showControls = $derived(paced && (pending > 0 || !playing));
+
+  // Ticker: dokud běží a je backlog, odhaluj po řádku. Víc backlogu → kratší
+  // interval (dohánění), aby se live běh nerozešel s realitou.
+  $effect(() => {
+    if (!paced || !playing || pending <= 0) return;
+    const interval = Math.max(120, BASE_INTERVAL_MS / speed / Math.max(1, Math.ceil(pending / 8)));
+    const id = setTimeout(() => {
+      revealed = Math.min(events.length, revealed + 1);
+    }, interval);
+    return () => clearTimeout(id);
+  });
+
+  function togglePlay(): void {
+    // Resume když jsme dojeli na konec → přehraj případný nový backlog od teď.
+    playing = !playing;
+  }
+  function step(): void {
+    revealed = Math.min(events.length, revealed + 1);
+  }
+  function showAll(): void {
+    revealed = events.length;
+  }
+  function cycleSpeed(): void {
+    speedIdx = (speedIdx + 1) % SPEEDS.length;
+  }
 
   type Seg =
     | { kind: 'text'; text: string }
-    | { kind: 'player'; text: string; id: string }
-    | { kind: 'npc'; text: string }
+    | { kind: 'actor'; text: string; side: ActorSide; id?: string }
     | { kind: 'ability'; text: string };
 
+  /** Určí stranu a klikatelnost jména: nejdřív `actors`, pak heuristika. */
   function classify(name: string): Seg | null {
-    if (players[name]) return { kind: 'player', text: name, id: players[name] };
-    if (findEnemyByName(name)) return { kind: 'npc', text: name };
+    const meta = actors[name];
+    if (meta) return { kind: 'actor', text: name, side: meta.side, id: meta.id };
+    if (players[name]) return { kind: 'actor', text: name, side: 'player', id: players[name] };
+    if (findEnemyByName(name)) return { kind: 'actor', text: name, side: 'enemy' };
     return null;
   }
 
@@ -70,12 +164,41 @@
     return out;
   }
 
-  function activate(seg: Seg): void {
-    if (seg.kind === 'player') openProfile(seg.id, seg.text);
-    else if (seg.kind === 'npc') openNpc(seg.text);
-    else if (seg.kind === 'ability') openAbility(seg.text);
+  const SIDE_COLOR: Record<ActorSide, string> = {
+    player: 'var(--accent)',
+    ally: 'var(--info)',
+    enemy: 'var(--danger)',
+  };
+
+  /**
+   * Lze na jméno kliknout? Aktér s `id` (hráč i PVP soupeř) → profil; enemy bez
+   * id, který je v bestiáři → NPC karta.
+   */
+  function actorClickable(seg: Extract<Seg, { kind: 'actor' }>): boolean {
+    if (seg.id) return true;
+    return seg.side === 'enemy' && !!findEnemyByName(seg.text);
   }
 
+  function activate(seg: Seg): void {
+    if (seg.kind === 'ability') {
+      openAbility(seg.text);
+    } else if (seg.kind === 'actor') {
+      if (seg.id) openProfile(seg.id, seg.text);
+      else if (seg.side === 'enemy') openNpc(seg.text);
+    }
+  }
+
+  /** Strana jednajícího aktéra → barva levého okraje řádku. */
+  function lineSide(e: CombatEvent): ActorSide | null {
+    if (!e.source) return null;
+    const meta = actors[e.source];
+    if (meta) return meta.side;
+    if (players[e.source]) return 'player';
+    if (findEnemyByName(e.source)) return 'enemy';
+    return null;
+  }
+
+  /** Barva textu řádku podle typu eventu (verby/čísla/výsledkové hlášky). */
   function eventStyle(e: CombatEvent): string {
     if (e.type === 'victory') return 'color:var(--success);font-weight:600';
     if (e.type === 'defeat' || e.type === 'player_defeated')
@@ -89,12 +212,45 @@
     if (e.type === 'ability') return 'color:var(--info)';
     return 'color:var(--text-dim)';
   }
+
+  function lineStyle(e: CombatEvent): string {
+    const side = lineSide(e);
+    const border = side
+      ? `border-left:2px solid ${SIDE_COLOR[side]};padding-left:0.4rem`
+      : 'border-left:2px solid transparent;padding-left:0.4rem';
+    return `${eventStyle(e)};${border}`;
+  }
 </script>
 
 <section class="panel panel-pad">
+  {#if showControls}
+    <div
+      class="mb-2 flex items-center gap-2 border-b border-[var(--border)] pb-2 text-xs text-[var(--text-dim)]"
+    >
+      <button class="btn btn-sm" onclick={togglePlay} title={playing ? 'Pause' : 'Play'}
+        >{playing ? '⏸' : '▶'}</button
+      >
+      <button class="btn btn-sm" onclick={step} disabled={pending <= 0} title="Step"
+        >⏭</button
+      >
+      <button class="btn btn-sm" onclick={cycleSpeed} title="Speed">{speed}×</button>
+      <button class="btn btn-sm" onclick={showAll} disabled={pending <= 0} title="Show all"
+        >⏩ All</button
+      >
+      {#if pending > 0}<span class="ml-auto text-[var(--text-faint)]">+{pending}</span>{/if}
+    </div>
+  {/if}
   <ul class="space-y-1 font-mono text-xs">
-    {#each [...events].reverse() as e, i (events.length - 1 - i)}
-      <li style={eventStyle(e)}>
+    {#each display as e, i (display.length - 1 - i)}
+      {@const isEnc = e.type === 'encounter_start'}
+      {@const roundBreak =
+        groupRounds &&
+        !isEnc &&
+        i > 0 &&
+        display[i - 1].type !== 'encounter_start' &&
+        display[i - 1].t !== e.t}
+      {#if roundBreak}<li aria-hidden="true" class="h-px bg-[var(--border)] opacity-40"></li>{/if}
+      <li class={isEnc ? 'mt-2 border-t border-[var(--border)] pt-2' : ''} style={lineStyle(e)}>
         <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
         {#each segments(e) as seg, si (si)}{#if seg.kind === 'text'}{seg.text}{:else if seg.kind === 'ability'}<PixelAbilityIcon
               name={seg.text}
@@ -102,9 +258,12 @@
             /><button
               class="underline decoration-dotted underline-offset-2 hover:decoration-solid"
               onclick={() => activate(seg)}>{seg.text}</button
-            >{:else}<button
-              class="underline decoration-dotted underline-offset-2 hover:decoration-solid"
+            >{:else if actorClickable(seg)}<button
+              class="font-semibold underline decoration-dotted underline-offset-2 hover:decoration-solid"
+              style={`color:${SIDE_COLOR[seg.side]}`}
               onclick={() => activate(seg)}>{seg.text}</button
+            >{:else}<span class="font-semibold" style={`color:${SIDE_COLOR[seg.side]}`}
+              >{seg.text}</span
             >{/if}{/each}
       </li>
     {/each}

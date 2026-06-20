@@ -11,6 +11,7 @@
   } from '$lib/api';
   import { ITEMS } from '@game/shared';
   import CombatLog from '$lib/components/CombatLog.svelte';
+  import { dungeonTurnActors } from '$lib/combat-actors';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
   import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
@@ -375,7 +376,7 @@
 
     <!-- Combat log -->
     {#if r.events.length > 0}
-      <CombatLog events={r.events} />
+      <CombatLog events={r.events} actors={dungeonTurnActors(r)} groupRounds />
     {/if}
   {/if}
 </div>

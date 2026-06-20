@@ -7,6 +7,7 @@
   import { ROLE_META } from '$lib/cosmetics';
   import CombatMeters from '$lib/components/CombatMeters.svelte';
   import CombatLog from '$lib/components/CombatLog.svelte';
+  import { dungeonIdleActors } from '$lib/combat-actors';
   import SceneBanner from '$lib/components/SceneBanner.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
@@ -146,6 +147,6 @@
     <CombatMeters events={r.events} names={r.party.map((p) => p.name)} />
 
     <!-- Combat log: NPC names + abilities are clickable for details. -->
-    <CombatLog events={r.events} />
+    <CombatLog events={r.events} actors={dungeonIdleActors(r)} />
   {/if}
 </div>
