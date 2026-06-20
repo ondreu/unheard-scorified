@@ -12,10 +12,12 @@ import {
   baseStatsFor,
   canCastDungeonAbility,
   deriveCombatProfile,
+  DUNGEON_BASIC_ATTACK,
   DUNGEONS,
   EMPTY_PROGRESSION,
   EXTRA_ATTACK_ABILITY,
   extraActionCount,
+  isBonusAction,
   markAbilityUsed,
   resolveDungeonTurn,
   resolveGauntletTurn,
@@ -36,6 +38,17 @@ function fighter(level: number, equipment: Record<string, number> = {}): CombatA
     klass: 'fighter',
     primary: baseStatsFor('human', 'fighter', level),
     equipment,
+    progression: EMPTY_PROGRESSION,
+  });
+}
+
+function druid(level: number): CombatActor {
+  return deriveCombatProfile({
+    name: 'Willow',
+    level,
+    klass: 'druid',
+    primary: baseStatsFor('elf', 'druid', level),
+    equipment: {},
     progression: EMPTY_PROGRESSION,
   });
 }
@@ -128,6 +141,27 @@ describe('Action Surge grants an extra attack (Slice 2)', () => {
     const res = resolveDungeonTurn(base, state, ACTION_SURGE_ID, target);
     expect(res.events.some((e) => e.ability === 'Action Surge')).toBe(true);
     expect(res.events.some((e) => e.ability === 'Extra Attack')).toBe(true);
+  });
+});
+
+describe('bonus action (Slice 3)', () => {
+  it('Healing Word je otagovaný jako bonus action', () => {
+    const kit = druid(10).signatureAbilities;
+    const hw = kit.find((a) => a.id === 'druid_healing_word')!;
+    expect(isBonusAction(hw)).toBe(true);
+  });
+
+  it('dungeon: zraněný caster vyléčí Healing Word jako bonus action ve stejném tahu jako útok', () => {
+    const base = druid(10);
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 10, 3);
+    // Zraň hráče → bonus Healing Word má koho léčit.
+    state.player.currentHealth = Math.floor(state.player.maxHealth * 0.4);
+    const target = state.enemies[0]!.idx;
+    const res = resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, target);
+    // Hlavní akce (Attack) + bonus Healing Word v tomtéž tahu.
+    const bonusHeal = res.events.find((e) => e.ability === 'Healing Word' && /bonus action/.test(e.message));
+    expect(bonusHeal).toBeDefined();
+    expect(state.player.currentHealth).toBeGreaterThan(Math.floor(state.player.maxHealth * 0.4));
   });
 });
 

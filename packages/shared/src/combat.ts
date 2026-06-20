@@ -741,6 +741,15 @@ export function extraActionCount(ability: SignatureAbility): number {
 }
 
 /**
+ * Je ability **bonus action** (ADR 0042, Slice 3)? V tahových simulátorech jde
+ * mimo hlavní akci (aktér v kole provede akci + jednu bonus-action ability).
+ * Default (`undefined`) = `'action'`.
+ */
+export function isBonusAction(ability: SignatureAbility): boolean {
+  return ability.actionCost === 'bonus';
+}
+
+/**
  * Literal D&D heal dice (ADR 0036, „Fix kouzla") — nahrazuje `damageMult ×
  * HEAL_POWER_FACTOR` proxy: `Cure Wounds 1d8 + spellMod`, `Healing Word 1d4 + spellMod`,
  * upcast `+dice/slot`. Spellcasting mod se přičte k `bonus` (D&D heal = kostky + mod).

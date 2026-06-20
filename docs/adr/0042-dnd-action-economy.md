@@ -1,8 +1,9 @@
 # ADR 0042 — D&D akční ekonomika (once per combat / extra action / bonus action)
 
-- **Stav:** přijato — **Slice 1 + 2 hotové** (once-per-combat gating; Action Surge/
-  Onslaught jako reálná akce navíc). Slice 3 (bonus action jako samostatný akční slot
-  + `oncePerTurn`) je naplánovaný navazující přírůstek téhož ADR.
+- **Stav:** přijato — **Slice 1 + 2 + 3 hotové** (once-per-combat gating; Action Surge/
+  Onslaught jako reálná akce navíc; bonus action jako samostatný akční slot). Featura
+  uzavřena na engine/datové úrovni; interaktivní výběr bonus akce v UI = dokumentovaný
+  follow-up.
 - **Kontext:** backlog „Combat & obsah — overhaul → Akční ekonomika". Navazuje na
   MR-5 (dice-roll combat), ADR 0034 (class resources / spell sloty jako akční
   rozpočet) a ADR 0036/0037 (per-ability dice, tahový dungeon).
@@ -40,9 +41,18 @@ hlavní designová výzva (proto krájeno na slice; velké → ADR).
   **`oncePerTurn` se přesouvá do Slice 3** — extra útoky jsou plain weapon swing (bez
   Sneak Attack rideru), takže rider se zatím nezdvojuje; oncePerTurn začne bít až s
   bonus-action útokem, který Sneak Attack nést může.
-- **Slice 3 — bonus action jako vlastní slot** (`actionCost: 'action' | 'bonus'`): 1 akce
-  + 1 bonus action / kolo, napojení do rotace, tahových turn-loopů a interaktivního UI
-  (dungeon/gauntlet). Největší zásah (UI + persistence).
+- **Slice 3 — bonus action jako vlastní slot** (`actionCost: 'action' | 'bonus'`, ✅):
+  1 akce + 1 bonus action / kolo. `isBonusAction` + tag **Healing Word / Mass Healing
+  Word**. V **tahových group PvE simech** (dungeon-run solo+AI, dungeon-party MP) aktér
+  po hlavní akci automaticky provede jednu ready bonus-action ability (`takeBonusHeal`,
+  rotation/cooldown-gated, 1/kolo; bonus použitý jako hlavní akce se neduplikuje díky
+  cooldownu). **Auto-resolved** (jako rage) — interaktivní výběr bonus akce v UI = follow-up.
+  **Gauntlet vynechán** schválně: jeho roguelite heal-scarcity (`healFalloff`) by free
+  bonus heal rozbil. Spojité simy: `actionCost` kosmetický (žádné kolo).
+  **`oncePerTurn` se nezavádí** — Sneak Attack je v enginu diskrétní ability (1× za
+  aktivaci/cooldown) a bonus akce je cap 1/kolo, takže D&D „1× za kolo" je strukturálně
+  splněné bez nového flagu (rozhodnutí: nepřidávat mrtvé pole). Extra útoky ze Slice 2
+  jsou plain weapon swing bez Sneak Attack rideru → rider se nezdvojuje.
 
 ## Rozhodnutí — Slice 1
 

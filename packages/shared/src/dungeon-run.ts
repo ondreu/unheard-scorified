@@ -28,6 +28,7 @@ import {
   EXTRA_ATTACK_ABILITY,
   extraActionCount,
   healDiceSpec,
+  isBonusAction,
   type CombatActor,
   type CombatEvent,
   type SignatureAbility,
@@ -504,6 +505,9 @@ export function resolveDungeonTurn(
   if (cd > 0) state.player.cooldowns[abilityId] = cd;
   // Spotřebuj „once per combat" okno (ADR 0042) — no-op u abilit bez flagu.
   if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
+  // Bonus action (ADR 0042, Slice 3): hráč po hlavní akci ještě provede ready
+  // bonus-action ability (Healing Word) — pokud ji nepoužil jako hlavní akci.
+  takeBonusHeal(player, state.player, state, rng, t, emit);
 
   if (livingEnemies(state).length === 0) {
     return { state: advanceEncounter(base, state, t, events), events };
@@ -513,6 +517,10 @@ export function resolveDungeonTurn(
   for (let i = 0; i < state.allies.length; i++) {
     if (state.allies[i]!.currentHealth <= 0) continue;
     allyTakeTurn(state, i, rng, t, emit);
+    // Bonus action (ADR 0042, Slice 3) — parťák po hlavní akci provede ready bonus heal.
+    if (state.allies[i]!.currentHealth > 0) {
+      takeBonusHeal(effectiveAlly(state.allies[i]!), state.allies[i]!, state, rng, t, emit);
+    }
     if (livingEnemies(state).length === 0) {
       return { state: advanceEncounter(base, state, t, events), events };
     }
@@ -700,6 +708,48 @@ function allyTakeTurn(
     return;
   }
   if (wi >= 0) combatantHitEnemy(eff, ally, state, state.enemies[wi]!, DUNGEON_BASIC_ATTACK, null, rng, t, emit);
+}
+
+/**
+ * Bonus action (ADR 0042, Slice 3): po hlavní akci aktér (hráč i parťák) ještě
+ * provede jednu ready **bonus-action** ability (Healing Word) — D&D „1 akce +
+ * 1 bonus action / kolo". Zatím jen heal-kind bonus ability; léčí nejzraněnějšího
+ * člena party (solo = sebe). Pokud aktér použil bonus ability už jako hlavní akci,
+ * je teď na cooldownu → tato pasáž ji přeskočí (žádná dvojitá bonus akce).
+ */
+function takeBonusHeal(
+  actor: CombatActor,
+  self: DungeonRunPlayer | DungeonRunAlly,
+  state: DungeonRunState,
+  rng: SeededRng,
+  t: number,
+  emit: (e: CombatEvent) => void,
+): void {
+  for (const ability of actor.signatureAbilities) {
+    if (!isBonusAction(ability) || ability.kind !== 'heal') continue;
+    if ((self.cooldowns[ability.id] ?? 0) > 0) continue;
+    const tier = ability.spellTier ?? 0;
+    if (tier >= 1 && !hasSlotForTier(self.spellSlots, tier)) continue;
+    if ((ability.kiCost ?? 0) > self.kiPoints) continue;
+    const target = state.allies.length > 0 ? mostInjured(state) : state.player;
+    if (!target || target.currentHealth >= target.maxHealth) return; // nikdo nepotřebuje heal
+    const slotTier = tier >= 1 ? spendSlotForTier(self.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
+    if ((ability.kiCost ?? 0) > 0) self.kiPoints -= ability.kiCost ?? 0;
+    const healed = healAmount(actor, ability, slotTier, rng, false);
+    target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
+    self.cooldowns[ability.id] = cooldownTurns(ability);
+    const targetName = target === state.player ? state.playerName : (target as DungeonRunAlly).name;
+    emit({
+      t,
+      type: 'heal',
+      message: `✨ ${actor.name} casts ${ability.name} as a bonus action, healing ${targetName} for ${healed}. ${targetName}: ${Math.round(target.currentHealth)} HP`,
+      source: actor.name,
+      target: targetName,
+      amount: healed,
+      ability: ability.name,
+    });
+    return; // jen jedna bonus akce za kolo
+  }
 }
 
 /** Zranění (živí, pod max HP) členové party — cíle AoE heal. */
