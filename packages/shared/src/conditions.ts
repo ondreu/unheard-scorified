@@ -153,6 +153,19 @@ export function tickConditions(conditions: ActiveCondition[] | undefined): Activ
     .filter((c) => c.turns > 0);
 }
 
+/**
+ * Začátek tahu aktéra: vyhodnotí efekty conditionů platné PRO TENTO tah (stun →
+ * ztráta tahu, disadvantage na útoky, blok bonus-action) a hned dekrementuje jejich
+ * trvání. Conditiony se uvalují během cizích tahů, tikají na začátku vlastního →
+ * každá vydrží přesně svůj počet tahů a nově uvalená nezmizí dřív, než se projeví.
+ * Mutuje `holder.conditions` (přiřadí nový oříznutý seznam).
+ */
+export function beginActorTurn(holder: { conditions?: ActiveCondition[] }): TurnConditionEffects {
+  const eff = turnConditionEffects(holder.conditions);
+  holder.conditions = tickConditions(holder.conditions);
+  return eff;
+}
+
 /** Hláška pro combat log při uvalení conditiony (anglicky = jazyk hry). */
 const CONDITION_VERB: Record<ConditionType, string> = {
   stunned: 'is stunned',

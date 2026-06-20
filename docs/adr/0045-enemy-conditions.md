@@ -1,7 +1,10 @@
-# ADR 0045 — Enemy schopnosti: conditiony (Slice 2a)
+# ADR 0045 — Enemy schopnosti: conditiony (Slice 2a + 2b)
 
-- **Stav:** přijato (Slice 2a — conditiony jako mechanika, tahový dungeon; live
-  content + spojité simy = follow-up).
+- **Stav:** přijato. **Slice 2a** = conditiony jako mechanika v solo tahovém
+  dungeonu (`dungeon-run.ts`). **Slice 2b (rozšíření)** = stejná mechanika v **MP**
+  tahovém dungeonu (`dungeon-party.ts`) přes sdílený `beginActorTurn` (žádná
+  duplikace). Live content (abilities dungeon bossům), spojité simy a hráčská
+  kouzla = follow-up (viz roadmap).
 - **Kontext:** navazuje na napojení enemy abilit do enginu (ADR 0044, Slice 1),
   dice-roll combat + saving throwy (MR-5 / ADR 0032) a bestiář (MR-7 / ADR 0031).
   Slice 1 nechal `EnemyAbility.save.description` jen jako flavor („STR save or be
@@ -42,6 +45,15 @@
    uvalená nezmizí dřív, než se vůbec projeví. Stejný typ se **obnoví** (max
    trvání), neskládá se. **Short rest** mezi encountery conditiony setře.
 
+3b. **Sdílený `beginActorTurn` (Slice 2b).** Per-turn vyhodnocení + dekrement
+   vytaženo do `conditions.ts` (`beginActorTurn(holder)`), recyklováno solo
+   (`dungeon-run.ts`) i MP (`dungeon-party.ts`) tahovým dungeonem. MP: stun =
+   ztráta tahu člena (skip, AI fallback se nespustí), `attackerDisadvantage`
+   protaženo `takeMemberTurn`/`aiMemberTurn`/`applyMemberAbility`→`memberHitEnemy`,
+   slowed blokuje bonus-action v `resolvePartyRound`. Enemy condition rider →
+   `applyCondition` na člena; short rest setře. **Bez DB migrace / změny API tvaru**
+   (conditiony v JSON `PartyRunState`, optional pole, staré běhy graceful).
+
 4. **Integrace do tahového dungeonu** (`dungeon-run.ts`):
    - **Stun** → postižený ztratí tah (hráč `resolveStunnedTurn`, parťák/nepřítel
      skip s hláškou); kolo doběhne (DoT → zbytek party → protiútok → údržba).
@@ -63,9 +75,11 @@
   uvalit reálný status efekt přes jeden D&D save. Bestiář pokrývá všech 5 typů.
 - **+** Sdílené čisté helpery (`conditions.ts`) → Slice 2b/continuous simy je jen
   „dotáhnou", žádná duplikace logiky.
-- **−** Zatím jen **tahový dungeon** (`dungeon-run.ts`). MP dungeon (`dungeon-party.ts`),
-  spojité simy (quest/raid/PVP) a Gauntlet conditiony **neaplikují** → follow-up.
-  AI parťák má `slowed` (no-bonus) jen částečně (bonus heal se řeší mimo jeho tah).
+- **−** Zatím jen **tahové dungeony** (solo `dungeon-run.ts` + MP `dungeon-party.ts`).
+  Spojité simy (quest/raid/PVP), Gauntlet a **hráčská kouzla** conditiony zatím
+  **neaplikují** → follow-up (viz roadmap „rozšíření do existujících aspektů").
+  V solo dungeonu má AI parťák `slowed` (no-bonus) jen částečně (bonus heal se řeší
+  mimo jeho tah); v MP je `noBonusAction` plně respektován.
 - **−** Bez UI panelu aktivních conditionů (jen combat-log hlášky) → follow-up
   (deslopifikace UI).
 - **Follow-up:** (a) Slice 2b — abilities živým dungeon bossům + bestiáři (rebalance
@@ -74,7 +88,7 @@
 
 ## Verifikace
 
-Build/test/lint/typecheck zelené (652 shared + 199 API). Kontrakt:
+Build/test/lint/typecheck zelené (654 shared + 199 API). Kontrakt:
 `conditions.test.ts` (efekty/advantage/aplikace/tik), `data/enemies.test.ts`
-(rider threading + pokrytí 5 typů), `dungeon-run.test.ts` (stun end-to-end:
-uvalení → ztráta tahu; short rest setře conditiony).
+(rider threading + pokrytí 5 typů), `dungeon-run.test.ts` + `dungeon-party.test.ts`
+(stun end-to-end: uvalení → ztráta tahu; short rest setře conditiony).

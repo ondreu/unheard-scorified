@@ -38,11 +38,10 @@ import { rollDice } from './dice';
 import { applySpellSave, missMessage } from './dnd-combat';
 import {
   applyCondition,
+  beginActorTurn,
   combineAdvantage,
   conditionAppliedMessage,
   grantsIncomingAdvantage,
-  tickConditions,
-  turnConditionEffects,
   type ActiveCondition,
 } from './conditions';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
@@ -479,7 +478,7 @@ export function resolveDungeonTurn(
 
   // Začátek hráčova tahu: conditiony (Slice 2a). Stun = ztráta tahu; jinak si
   // zapamatujeme disadvantage na útoky / blokaci bonus-action pro tento tah.
-  const turnEff = beginTurnConditions(state.player);
+  const turnEff = beginActorTurn(state.player);
   if (turnEff.skipTurn) return resolveStunnedTurn(base, state);
 
   // Formální ukončení tahu (Pass/Dodge) — vlastní cesta (žádná ability/zdroj).
@@ -658,7 +657,7 @@ function resolveEndTurn(
 
 /**
  * Stunned hráč ztrácí tah (Slice 2a): kolo doběhne (DoT → parťáci → protiútok →
- * údržba), ale hráč nejedná. Stun už byl dekrementován v `beginTurnConditions`.
+ * údržba), ale hráč nejedná. Stun už byl dekrementován v `beginActorTurn`.
  */
 function resolveStunnedTurn(
   base: CombatActor,
@@ -769,17 +768,6 @@ function tickDownTurn(c: DungeonRunPlayer | DungeonRunAlly): void {
   }
 }
 
-/**
- * Začátek tahu aktéra (Slice 2a): vyhodnotí efekty conditionů platné PRO TENTO
- * tah (stun → ztráta tahu, disadvantage na útoky, no-bonus) a hned dekrementuje
- * jejich trvání. Conditiony se uvalují během cizích tahů, tikají na začátku
- * vlastního → každá vydrží přesně svůj počet tahů.
- */
-function beginTurnConditions(holder: { conditions?: ActiveCondition[] }): ReturnType<typeof turnConditionEffects> {
-  const eff = turnConditionEffects(holder.conditions);
-  holder.conditions = tickConditions(holder.conditions);
-  return eff;
-}
 
 /** Heal magnituda aktéra: literal dice (healDiceSpec) > healPower (RaidActor) > proxy. */
 function healAmount(
@@ -815,7 +803,7 @@ function allyTakeTurn(
   if (living.length === 0) return;
 
   // Začátek tahu parťáka: conditiony (Slice 2a). Stun = ztráta tahu.
-  const allyEff = beginTurnConditions(ally);
+  const allyEff = beginActorTurn(ally);
   if (allyEff.skipTurn) {
     emit({ t, type: 'ability', source: ally.name, target: ally.name, message: `💫 ${ally.name} is stunned and loses the turn.` });
     return;
@@ -1126,7 +1114,7 @@ function enemyAttackParty(
   const mit = isPlayer ? state.player : state.allies[threat.allyIdx]!;
 
   // Začátek tahu nepřítele: conditiony (Slice 2a). Stun = nepřítel nejedná.
-  const enemyEff = beginTurnConditions(enemy);
+  const enemyEff = beginActorTurn(enemy);
   if (enemyEff.skipTurn) {
     emit({ t, type: 'ability', source: enemy.name, target: enemy.name, message: `💫 ${enemy.name} is stunned and cannot act.` });
     return false;

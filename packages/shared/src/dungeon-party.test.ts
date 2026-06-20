@@ -7,6 +7,7 @@ import {
   baseStatsFor,
   deriveCombatProfile,
   deriveRaidActor,
+  hasCondition,
   partyMemberAbilities,
   partyRoundReady,
   resolvePartyRound,
@@ -103,6 +104,54 @@ describe('submitPartyAction — vlastnictví + buffrování', () => {
     const second = submitPartyAction(state, 'char-dps', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
     expect(second.ready).toBe(true); // AI healer se nepočítá
     expect(partyRoundReady(state)).toBe(true);
+  });
+});
+
+describe('conditiony (Enemy schopnosti, Slice 2b)', () => {
+  const stunStrike: SignatureAbility = {
+    id: 'enemy_stun',
+    name: 'Mind Blast',
+    kind: 'strike',
+    cooldownSec: 0,
+    damageMult: 1,
+    damageType: 'psychic',
+    save: { ability: 'intelligence', effect: 'half' },
+    condition: { type: 'stunned', durationTurns: 1 },
+  };
+
+  function rigStunEnemy(state: PartyRunState): void {
+    const e = state.enemies[0]!;
+    e.maxHealth = 1_000_000;
+    e.currentHealth = 1_000_000;
+    e.actor = { ...e.actor, attackPower: 1, attackBonus: 99, spellSaveDc: 99, signatureAbilities: [stunStrike] };
+    e.cooldowns = {};
+    state.enemies = [e];
+  }
+
+  it('enemy condition ability stunne threat cíl, který pak ztratí tah', () => {
+    const state = startPartyRun(makeSeats(), 'ragefire_chasm', 3, 20, 7);
+    rigStunEnemy(state);
+
+    let appliedSeen = false;
+    let lostTurnSeen = false;
+    for (let i = 0; i < 12 && state.status === 'in_combat'; i++) {
+      for (const m of state.members) {
+        if (m.owner != null && m.currentHealth > 0) submitPartyAction(state, m.owner, DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+      }
+      resolvePartyRound(state);
+      if (state.log.some((e) => (e.message ?? '').includes('is stunned ('))) appliedSeen = true;
+      if (state.log.some((e) => (e.message ?? '').includes('loses the turn'))) lostTurnSeen = true;
+    }
+    expect(appliedSeen).toBe(true);
+    expect(lostTurnSeen).toBe(true);
+  });
+
+  it('short rest mezi encountery setře conditiony členů', () => {
+    const state = startPartyRun(makeSeats(), 'ragefire_chasm', 3, 20, 7);
+    state.members[0]!.conditions = [{ type: 'restrained', turns: 5 }];
+    state.enemies.forEach((e) => (e.currentHealth = 0)); // vyčisti encounter
+    resolvePartyRound(state);
+    expect(hasCondition(state.members[0]!.conditions, 'restrained')).toBe(false);
   });
 });
 
