@@ -37,11 +37,68 @@
     events,
     players = {},
     actors = {},
+    paced = true,
   }: {
     events: CombatEvent[];
     players?: Record<string, string>;
     actors?: Record<string, ActorMeta>;
+    /** Postupně odhalovat nové řádky v čase (throttle), místo dávkového skoku. */
+    paced?: boolean;
   } = $props();
+
+  /**
+   * Tempo (Slice 2): historii při prvním zobrazení ukážeme naráz, ale **nové**
+   * dávky eventů (dořešené kolo / WS push) odhalujeme po jednom řádku, aby ve
+   * skupinovém boji log neskákal moc rychle. Backlog (kolik čeká) zrychluje
+   * tempo, takže live běh nikdy nezaostane o moc. Hráč může pauzovat, krokovat,
+   * měnit rychlost a „ukázat vše".
+   */
+  const BASE_INTERVAL_MS = 600;
+  const SPEEDS = [1, 2, 4] as const;
+
+  let revealed = $state(0);
+  let playing = $state(true);
+  let speedIdx = $state(0);
+
+  // Historii (eventy přítomné při prvním renderu) odhal naráz; pacing platí jen
+  // pro dávky, co dorazí potom.
+  let initialized = false;
+  $effect(() => {
+    if (initialized) return;
+    initialized = true;
+    revealed = events.length;
+  });
+
+  const speed = $derived(SPEEDS[speedIdx] ?? 1);
+  const pending = $derived(Math.max(0, events.length - revealed));
+  const shown = $derived(paced ? events.slice(0, revealed) : events);
+  /** Lišta tempa dává smysl jen když je co odhalovat / je pauznuto. */
+  const showControls = $derived(paced && (pending > 0 || !playing));
+
+  // Ticker: dokud běží a je backlog, odhaluj po řádku. Víc backlogu → kratší
+  // interval (dohánění), aby se live běh nerozešel s realitou.
+  $effect(() => {
+    if (!paced || !playing || pending <= 0) return;
+    const interval = Math.max(120, BASE_INTERVAL_MS / speed / Math.max(1, Math.ceil(pending / 8)));
+    const id = setTimeout(() => {
+      revealed = Math.min(events.length, revealed + 1);
+    }, interval);
+    return () => clearTimeout(id);
+  });
+
+  function togglePlay(): void {
+    // Resume když jsme dojeli na konec → přehraj případný nový backlog od teď.
+    playing = !playing;
+  }
+  function step(): void {
+    revealed = Math.min(events.length, revealed + 1);
+  }
+  function showAll(): void {
+    revealed = events.length;
+  }
+  function cycleSpeed(): void {
+    speedIdx = (speedIdx + 1) % SPEEDS.length;
+  }
 
   type Seg =
     | { kind: 'text'; text: string }
@@ -157,8 +214,25 @@
 </script>
 
 <section class="panel panel-pad">
+  {#if showControls}
+    <div
+      class="mb-2 flex items-center gap-2 border-b border-[var(--border)] pb-2 text-xs text-[var(--text-dim)]"
+    >
+      <button class="btn btn-sm" onclick={togglePlay} title={playing ? 'Pause' : 'Play'}
+        >{playing ? '⏸' : '▶'}</button
+      >
+      <button class="btn btn-sm" onclick={step} disabled={pending <= 0} title="Step"
+        >⏭</button
+      >
+      <button class="btn btn-sm" onclick={cycleSpeed} title="Speed">{speed}×</button>
+      <button class="btn btn-sm" onclick={showAll} disabled={pending <= 0} title="Show all"
+        >⏩ All</button
+      >
+      {#if pending > 0}<span class="ml-auto text-[var(--text-faint)]">+{pending}</span>{/if}
+    </div>
+  {/if}
   <ul class="space-y-1 font-mono text-xs">
-    {#each [...events].reverse() as e, i (events.length - 1 - i)}
+    {#each [...shown].reverse() as e, i (shown.length - 1 - i)}
       <li style={lineStyle(e)}>
         <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
         {#each segments(e) as seg, si (si)}{#if seg.kind === 'text'}{seg.text}{:else if seg.kind === 'ability'}<PixelAbilityIcon
