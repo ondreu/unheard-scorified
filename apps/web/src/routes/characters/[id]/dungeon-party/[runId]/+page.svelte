@@ -21,7 +21,7 @@
     encounter: 'Encounter',
     boss: 'BOSS',
     target: 'Target',
-    healTarget: 'Heal target',
+    healTarget: 'Support target',
     abandon: 'Abandon',
     cleared: '🏆 Dungeon cleared!',
     wiped: '💀 The party wiped',
@@ -129,9 +129,10 @@
     if (healTargetId == null || !ht || ht.currentHealth <= 0) healTargetId = mySlot;
   }
 
-  /** Heal ability cílí spojence (slot člena), ostatní nepřítele. */
+  // Podpůrné ability (heal/shield/mitigation) cílí spojence; útočné nepřítele.
+  const FRIENDLY_KINDS = new Set(['heal', 'shield', 'mitigation']);
   function targetFor(kind: string): number {
-    return kind === 'heal' ? (healTargetId ?? 0) : targetId;
+    return FRIENDLY_KINDS.has(kind) ? (healTargetId ?? 0) : targetId;
   }
 
   async function submit(abilityId: string, kind: string): Promise<void> {

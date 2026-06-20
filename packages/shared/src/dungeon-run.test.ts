@@ -15,6 +15,7 @@ import {
   type CombatActor,
   type DungeonRunState,
   type RaidRole,
+  type SignatureAbility,
 } from './index';
 
 function hero(klass: ClassId, level = 20): CombatActor {
@@ -207,6 +208,28 @@ describe('friendly targeting — heal cílí zvoleného člena party', () => {
     resolveDungeonTurn(base, state, healId, 99); // mimo rozsah
     const playerHeal = state.log.find((e) => e.type === 'heal' && e.source === base.name);
     expect(playerHeal?.target).toBe(injuredName);
+  });
+
+  it('shield: friendly targeting hodí štít na zvoleného parťáka', () => {
+    const player = deriveRaidActor(hero('cleric'), 'dps');
+    const ward: SignatureAbility = { id: 'test_ward', name: 'Ward', description: '', kind: 'shield', cooldownSec: 0, damageMult: 1 };
+    player.signatureAbilities = [...player.signatureAbilities, ward];
+    const state = startDungeonRun(player, 'ragefire_chasm', 3, 20, 7, buildCompanionParty('dps', 20));
+    const allyName = state.allies[0]!.name;
+    resolveDungeonTurn(player, state, 'test_ward', 1); // 1 = allies[0]
+    const ev = state.log.find((e) => e.type === 'absorb' && e.source === player.name);
+    expect(ev?.target).toBe(allyName);
+  });
+
+  it('mitigation: friendly targeting udělí ochranné okno zvolenému parťákovi', () => {
+    const player = deriveRaidActor(hero('cleric'), 'dps');
+    const aegis: SignatureAbility = { id: 'test_aegis', name: 'Aegis', description: '', kind: 'mitigation', cooldownSec: 0, damageMult: 0, mitigationPct: 0.5, mitigationDurationSec: 9 };
+    player.signatureAbilities = [...player.signatureAbilities, aegis];
+    const state = startDungeonRun(player, 'ragefire_chasm', 3, 20, 7, buildCompanionParty('dps', 20));
+    resolveDungeonTurn(player, state, 'test_aegis', 1); // 1 = allies[0]
+    expect(state.allies[0]!.mitigationTurns).toBeGreaterThan(0);
+    expect(state.allies[0]!.mitigationPct).toBe(0.5);
+    expect(state.player.mitigationTurns).toBe(0); // hráč nedostal buff
   });
 });
 

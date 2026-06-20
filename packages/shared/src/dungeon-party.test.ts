@@ -15,6 +15,7 @@ import {
   type PartyRunState,
   type RaidActor,
   type RaidRole,
+  type SignatureAbility,
 } from './index';
 
 function actor(klass: ClassId, role: RaidRole, name: string, geared = true, level = 20): RaidActor {
@@ -188,5 +189,31 @@ describe('friendly targeting — heal cílí zvolený slot člena', () => {
     castHeal(state, healAbilityId(), 99); // mimo rozsah
     const heal = state.log.find((e) => e.type === 'heal' && e.source === 'Lyra');
     expect(heal?.target).toBe('Stabby');
+  });
+
+  it('mitigation: friendly targeting udělí ochranné okno zvolenému slotu', () => {
+    const tank = actor('fighter', 'tank', 'Tankman');
+    const dps = actor('rogue', 'dps', 'Stabby');
+    const healer = actor('cleric', 'healer', 'Lyra');
+    const aegis: SignatureAbility = { id: 'test_aegis', name: 'Aegis', description: '', kind: 'mitigation', cooldownSec: 0, damageMult: 0, mitigationPct: 0.5, mitigationDurationSec: 9 };
+    healer.signatureAbilities = [...healer.signatureAbilities, aegis];
+    const state = startPartyRun(
+      [
+        { owner: 'char-tank', actor: tank },
+        { owner: 'char-dps', actor: dps },
+        { owner: 'char-healer', actor: healer },
+      ],
+      'ragefire_chasm',
+      3,
+      20,
+      7,
+    );
+    submitPartyAction(state, 'char-tank', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    submitPartyAction(state, 'char-dps', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    submitPartyAction(state, 'char-healer', 'test_aegis', 0); // na tanka (slot 0)
+    resolvePartyRound(state);
+    const tankMember = state.members.find((m) => m.slot === 0)!;
+    expect(tankMember.mitigationPct).toBe(0.5);
+    expect(tankMember.mitigationTurns).toBeGreaterThan(0);
   });
 });

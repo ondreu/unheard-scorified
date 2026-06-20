@@ -396,6 +396,18 @@ function resolveHealTarget(state: DungeonRunState, targetId: number): PartyMembe
   return mostInjured(state) ?? state.player;
 }
 
+/**
+ * Cíl podpůrné ability shield/mitigation (friendly targeting): `targetId` = index
+ * člena party (0 = hráč, 1..N = parťák). Vrací **plný objekt** (absorb/mitigation
+ * žijí na něm). Neplatný / mrtvý cíl → fallback na sesilatele (hráče) — shield na
+ * sebe je rozumný default a drží zpětnou kompatibilitu.
+ */
+function resolveSupportTarget(state: DungeonRunState, targetId: number): DungeonRunPlayer | DungeonRunAlly {
+  const members: (DungeonRunPlayer | DungeonRunAlly)[] = [state.player, ...state.allies];
+  const chosen = members[targetId];
+  return chosen && chosen.currentHealth > 0 ? chosen : state.player;
+}
+
 // ── Tah ──────────────────────────────────────────────────────────────────────
 
 /**
@@ -469,25 +481,37 @@ export function resolveDungeonTurn(
     });
   } else if (ability.kind === 'shield') {
     const shield = Math.round(player.attackPower * ability.damageMult);
-    state.player.absorb += shield;
+    // Friendly targeting: štít lze hodit na zvoleného člena party (default self).
+    const target = resolveSupportTarget(state, targetId);
+    target.absorb += shield;
+    const targetName = target === state.player ? player.name : (target as DungeonRunAlly).name;
     emit({
       t,
       type: 'absorb',
-      message: `🛡️ ${player.name} casts ${ability.name}, absorbing the next ${shield} damage.`,
+      message:
+        target === state.player
+          ? `🛡️ ${player.name} casts ${ability.name}, absorbing the next ${shield} damage.`
+          : `🛡️ ${player.name} shields ${targetName}, absorbing the next ${shield} damage.`,
       source: player.name,
-      target: player.name,
+      target: targetName,
       amount: shield,
       ability: ability.name,
     });
   } else if (ability.kind === 'mitigation') {
-    state.player.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? DUNGEON_TURN_SEC) / DUNGEON_TURN_SEC));
-    state.player.mitigationPct = ability.mitigationPct ?? 0;
+    // Friendly targeting: ochranné okno lze udělit zvolenému členu (default self).
+    const target = resolveSupportTarget(state, targetId);
+    target.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? DUNGEON_TURN_SEC) / DUNGEON_TURN_SEC));
+    target.mitigationPct = ability.mitigationPct ?? 0;
+    const targetName = target === state.player ? player.name : (target as DungeonRunAlly).name;
     emit({
       t,
       type: 'ability',
-      message: `🛡️ ${player.name} uses ${ability.name}, reducing damage taken for a few turns.`,
+      message:
+        target === state.player
+          ? `🛡️ ${player.name} uses ${ability.name}, reducing damage taken for a few turns.`
+          : `🛡️ ${player.name} uses ${ability.name} on ${targetName}, reducing their damage taken.`,
       source: player.name,
-      target: player.name,
+      target: targetName,
       ability: ability.name,
     });
   } else {

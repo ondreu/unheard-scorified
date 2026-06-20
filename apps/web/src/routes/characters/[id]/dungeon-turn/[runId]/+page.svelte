@@ -20,7 +20,7 @@
     boss: 'BOSS',
     you: 'You',
     target: 'Target',
-    healTarget: 'Heal target',
+    healTarget: 'Support target',
     abandon: 'Abandon',
     abandoning: 'Leaving…',
     cleared: '🏆 Dungeon cleared!',
@@ -90,9 +90,10 @@
     }
   }
 
-  /** Heal/buff ability cílí spojence (index člena party), ostatní nepřítele. */
+  // Podpůrné ability (heal/shield/mitigation) cílí spojence; útočné nepřítele.
+  const FRIENDLY_KINDS = new Set(['heal', 'shield', 'mitigation']);
   function targetFor(kind: string): number {
-    return kind === 'heal' ? healTargetId : targetId;
+    return FRIENDLY_KINDS.has(kind) ? healTargetId : targetId;
   }
 
   async function act(abilityId: string, kind: string): Promise<void> {

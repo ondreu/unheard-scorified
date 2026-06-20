@@ -183,6 +183,16 @@ function resolveHealTarget(state: PartyRunState, targetId: number, caster: Party
   return mostInjured(state) ?? caster;
 }
 
+/**
+ * Cíl shield/mitigation (friendly targeting): `targetId` = `slot` člena. Neplatný /
+ * mrtvý cíl → fallback na sesilatele (shield na sebe = rozumný default; AI posílá
+ * vlastní slot).
+ */
+function resolveSupportTarget(state: PartyRunState, targetId: number, caster: PartyRunMember): PartyRunMember {
+  const chosen = state.members.find((m) => m.slot === targetId);
+  return chosen && chosen.currentHealth > 0 ? chosen : caster;
+}
+
 function pushLog(state: PartyRunState, e: CombatEvent): void {
   state.log.push(e);
   if (state.log.length > 150) state.log = state.log.slice(-150);
@@ -552,12 +562,31 @@ function applyMemberAbility(
       });
     }
   } else if (ability.kind === 'shield') {
-    member.absorb += Math.round(eff.attackPower * ability.damageMult);
-    emit({ t, type: 'absorb', source: member.name, target: member.name, ability: ability.name, message: `🛡️ ${member.name} casts ${ability.name}.` });
+    const target = resolveSupportTarget(state, targetId, member);
+    target.absorb += Math.round(eff.attackPower * ability.damageMult);
+    emit({
+      t,
+      type: 'absorb',
+      source: member.name,
+      target: target.name,
+      ability: ability.name,
+      message: target === member ? `🛡️ ${member.name} casts ${ability.name}.` : `🛡️ ${member.name} shields ${target.name}.`,
+    });
   } else if (ability.kind === 'mitigation') {
-    member.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? PARTY_TURN_SEC) / PARTY_TURN_SEC));
-    member.mitigationPct = ability.mitigationPct ?? 0;
-    emit({ t, type: 'ability', source: member.name, ability: ability.name, message: `🛡️ ${member.name} uses ${ability.name}, bracing against the next blows.` });
+    const target = resolveSupportTarget(state, targetId, member);
+    target.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? PARTY_TURN_SEC) / PARTY_TURN_SEC));
+    target.mitigationPct = ability.mitigationPct ?? 0;
+    emit({
+      t,
+      type: 'ability',
+      source: member.name,
+      target: target.name,
+      ability: ability.name,
+      message:
+        target === member
+          ? `🛡️ ${member.name} uses ${ability.name}, bracing against the next blows.`
+          : `🛡️ ${member.name} uses ${ability.name} on ${target.name}, bracing them against the next blows.`,
+    });
   } else {
     const living = livingEnemies(state);
     let targets: number[];
@@ -620,12 +649,12 @@ function aiMemberTurn(
     if (ability.kind === 'mitigation') {
       if (member.role !== 'tank' || member.mitigationTurns > 0) continue;
       if (!shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
-      applyMemberAbility(state, member, eff, ability, 0, rng, t, emit);
+      applyMemberAbility(state, member, eff, ability, member.slot, rng, t, emit); // self
       return;
     }
     if (ability.kind === 'shield') {
       if (!shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
-      applyMemberAbility(state, member, eff, ability, 0, rng, t, emit);
+      applyMemberAbility(state, member, eff, ability, member.slot, rng, t, emit); // self
       return;
     }
     if (wi < 0 || !shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
