@@ -10,6 +10,7 @@
  * `diceMin`/`diceMax` — „damage nejen jako kostky, ale i reálné číslo" (roadmapa).
  */
 import { abilityDamageSpec, bonusDiceSpec } from './combat';
+import type { ConditionType } from './conditions';
 import type { SignatureAbility, AbilityKind, SpellSave } from './data/abilities';
 import type { DamageType } from './data/damage';
 import { diceNotation, diceRange, type DiceSpec } from './dice';
@@ -62,6 +63,8 @@ export interface SpellCardInfo {
   upcastPerSlot?: number;
   /** Saving throw cíle (atribut + efekt) + DC, je-li známé. */
   save?: { ability: SpellSave['ability']; effect: SpellSave['effect']; dc?: number };
+  /** Condition rider (status efekt) na neúspěšný save (Slice 2d) — pro UI štítek. */
+  condition?: { type: ConditionType; durationTurns: number };
   /** Drain self-heal podíl (0..1). */
   drainHealFraction?: number;
   /** Mitigation: podíl sníženého poškození + doba trvání. */
@@ -126,6 +129,10 @@ export function buildSpellCard(
 
   if (ability.save) {
     card.save = { ability: ability.save.ability, effect: ability.save.effect, dc: opts.spellSaveDc };
+  }
+
+  if (ability.condition) {
+    card.condition = { type: ability.condition.type, durationTurns: ability.condition.durationTurns };
   }
 
   if (ability.mitigationPct) {

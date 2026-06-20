@@ -26,6 +26,29 @@ function totalDamage(attacker: CombatActor, defender: CombatActor): number {
   return sum;
 }
 
+describe('Enemy schopnosti — boss abilities (Slice 2c)', () => {
+  it('every dungeon boss has a signature ability with a typed strike + condition rider', () => {
+    for (const dungeon of Object.values(DUNGEONS)) {
+      const boss = dungeonBoss(dungeon);
+      expect(boss, `${dungeon.id} has a boss`).toBeDefined();
+      const abilities = boss!.signatureAbilities ?? [];
+      expect(abilities.length, `${boss!.name} has ≥1 ability`).toBeGreaterThan(0);
+      // Aspoň jedna ability nese condition rider (Enemy schopnosti živé v obsahu).
+      expect(abilities.some((a) => a.condition != null), `${boss!.name} applies a condition`).toBe(true);
+      for (const a of abilities) {
+        if (!a.condition) continue;
+        expect(a.save, `${a.name} has a save`).toBeDefined();
+        expect(a.condition.durationTurns).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('boss abilities survive into the combat actor (buildEnemyActor)', () => {
+    const baron = buildEnemyActor(dungeonBoss(DUNGEONS.stratholme!)!);
+    expect(baron.signatureAbilities.some((a) => a.condition?.type === 'frightened')).toBe(true);
+  });
+});
+
 describe('MR-10d — typed late-game content', () => {
   it('Pyrehold (Stratholme) undead are vulnerable to radiant — holy classes shine', () => {
     const baron = buildEnemyActor(dungeonBoss(DUNGEONS.stratholme!)!);

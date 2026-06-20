@@ -41,6 +41,18 @@ describe('buildSpellCard', () => {
     expect(card.save).toEqual({ ability: 'dexterity', effect: 'half', dc: 15 });
   });
 
+  it('surfaces the condition rider for UI (Slice 2d)', () => {
+    const stun: SignatureAbility = {
+      id: 'test_stun', name: 'Stunning Strike', kind: 'strike', cooldownSec: 7, damageMult: 1,
+      save: { ability: 'constitution', effect: 'none' }, condition: { type: 'stunned', durationTurns: 1 },
+    };
+    const card = buildSpellCard(stun, { spellSaveDc: 16 });
+    expect(card.condition).toEqual({ type: 'stunned', durationTurns: 1 });
+    expect(card.save).toEqual({ ability: 'constitution', effect: 'none', dc: 16 });
+    // Ability bez conditiony ji na kartě nemá.
+    expect(buildSpellCard(FIREBALL, {}).condition).toBeUndefined();
+  });
+
   it('upcast preview scales damage with the slot tier (engine-derived)', () => {
     const card = buildSpellCard(FIREBALL, { level: 5, slotTier: 5 });
     // tier 5 slot = +2d6 upcast → 10d6

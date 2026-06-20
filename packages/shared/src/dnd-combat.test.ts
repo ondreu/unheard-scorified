@@ -8,8 +8,8 @@ import {
   weaponDamageSpec,
   type CombatActor,
 } from './combat';
-import { buildDndAttackMessage, rollInitiative } from './dnd-combat';
-import { CLASS_BASELINE_ABILITIES } from './data/abilities';
+import { buildDndAttackMessage, applySpellSave, rollInitiative } from './dnd-combat';
+import { CLASS_BASELINE_ABILITIES, EXTRA_SPELLS, type SignatureAbility } from './data/abilities';
 import { diceAverage } from './dice';
 import { baseStatsFor } from './character';
 import { EMPTY_PROGRESSION } from './levelup';
@@ -189,6 +189,88 @@ describe('resolveAttack', () => {
     const r1 = resolveAttack(a, enemy, new SeededRng(11));
     const r2 = resolveAttack(a, enemy, new SeededRng(11));
     expect(r1).toEqual(r2);
+  });
+});
+
+describe('applySpellSave — condition riders + none effect (Slice 2d)', () => {
+  function actorWith(overrides: Partial<CombatActor>): CombatActor {
+    return {
+      name: 'A', maxHealth: 100, attackPower: 10, swingInterval: 2.4, critChance: 0,
+      critMultiplier: 2, armor: 0, lifesteal: 0, shield: 0, signatureAbilities: [], ...overrides,
+    };
+  }
+  const stun: SignatureAbility = {
+    id: 'x', name: 'Stunning Strike', kind: 'strike', cooldownSec: 0, damageMult: 1,
+    save: { ability: 'constitution', effect: 'none' }, condition: { type: 'stunned', durationTurns: 1 },
+  };
+
+  it("effect 'none' keeps full damage and applies the condition on a failed save", () => {
+    const attacker = actorWith({ spellSaveDc: 99 }); // nesplnitelné DC → save vždy selže
+    const defender = actorWith({ saveMods: { constitution: 0 } });
+    const out = applySpellSave(stun, attacker, defender, new SeededRng(1), 50);
+    expect(out.amount).toBe(50); // poškození se savem nemění
+    expect(out.condition).toEqual({ type: 'stunned', durationTurns: 1 });
+  });
+
+  it('a successful save avoids the condition (and for half-effect also halves damage)', () => {
+    const attacker = actorWith({ spellSaveDc: 1 }); // triviální DC → save vždy uspěje
+    const defender = actorWith({ saveMods: { constitution: 30 } });
+    const none = applySpellSave(stun, attacker, defender, new SeededRng(1), 50);
+    expect(none.amount).toBe(50); // 'none' → beze změny
+    expect(none.condition).toBeUndefined();
+
+    const halfAbility: SignatureAbility = { ...stun, save: { ability: 'constitution', effect: 'half' }, condition: { type: 'slowed', durationTurns: 1 } };
+    const half = applySpellSave(halfAbility, attacker, defender, new SeededRng(1), 50);
+    expect(half.amount).toBe(25); // úspěch půlí
+    expect(half.condition).toBeUndefined();
+  });
+});
+
+describe('player condition spells (Slice 2d)', () => {
+  function find(klass: keyof typeof CLASS_BASELINE_ABILITIES, id: string): SignatureAbility {
+    return CLASS_BASELINE_ABILITIES[klass].find((a) => a.id === id)!;
+  }
+
+  it('Stunning Strike / Trip Attack deal full damage and ride a save-or-condition', () => {
+    const stun = find('monk', 'monk_stunning_strike');
+    expect(stun.save?.effect).toBe('none'); // plný úder, save jen gatuje stun
+    expect(stun.condition).toEqual({ type: 'stunned', durationTurns: 1 });
+
+    const trip = find('fighter', 'fighter_trip_attack');
+    expect(trip.save?.effect).toBe('none');
+    expect(trip.condition?.type).toBe('prone');
+  });
+
+  it('caster control spells across the catalog carry a condition', () => {
+    // Baseline kit.
+    expect(find('bard', 'bard_vicious_mockery').condition?.type).toBe('frightened');
+    expect(find('bard', 'bard_dissonant_whispers').condition?.type).toBe('frightened');
+    expect(find('cleric', 'cleric_spirit_guardians').condition?.type).toBe('slowed');
+    expect(find('monk', 'monk_quivering_palm').condition?.type).toBe('stunned');
+    expect(EXTRA_SPELLS.paladin.find((a) => a.id === 'paladin_wrathful_smite')!.condition?.type).toBe('frightened');
+    // Extra pool + subclass.
+    expect(EXTRA_SPELLS.wizard.find((a) => a.id === 'wiz_cone_of_cold')!.condition?.type).toBe('slowed');
+    expect(EXTRA_SPELLS.sorcerer.find((a) => a.id === 'sorc_cone_of_cold')!.condition?.type).toBe('slowed');
+    expect(EXTRA_SPELLS.bard.find((a) => a.id === 'bard_phantasmal_killer')!.condition?.type).toBe('frightened');
+    for (const [klass, id] of [['druid', 'druid_ice_storm'], ['sorcerer', 'sorc_ice_storm'], ['wizard', 'wiz_ice_storm']] as const) {
+      expect(EXTRA_SPELLS[klass].find((a) => a.id === id)!.condition?.type).toBe('slowed');
+    }
+  });
+
+  it('Ray of Frost slows on a hit with no save (save-less rider)', () => {
+    const ray = EXTRA_SPELLS.wizard.find((a) => a.id === 'wiz_ray_of_frost')!;
+    expect(ray.save).toBeUndefined();
+    expect(ray.condition).toEqual({ type: 'slowed', durationTurns: 1 });
+  });
+
+  it('condition riders span all five condition types across the player catalog', () => {
+    const all = [...CLASS_BASELINE_ABILITIES.fighter, ...CLASS_BASELINE_ABILITIES.monk,
+      ...CLASS_BASELINE_ABILITIES.bard, ...CLASS_BASELINE_ABILITIES.cleric, ...CLASS_BASELINE_ABILITIES.paladin]
+      .concat(Object.values(EXTRA_SPELLS).flat());
+    const types = new Set(all.map((a) => a.condition?.type).filter(Boolean));
+    for (const t of ['stunned', 'prone', 'frightened', 'slowed'] as const) {
+      expect(types.has(t)).toBe(true);
+    }
   });
 });
 

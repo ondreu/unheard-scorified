@@ -7,6 +7,7 @@
  */
 import type { AbilityScore } from './character';
 import { actorSaveMod, actorSpellSaveDc, type CombatActor, type HitResult } from './combat';
+import type { ConditionRider } from './conditions';
 import type { SignatureAbility } from './data/abilities';
 import { damageInteractionNote } from './data/damage';
 import { rollD20, rollSave, type SaveRoll } from './dice';
@@ -28,6 +29,12 @@ export interface SpellSaveOutcome {
   amount: number;
   /** Log řádek záchranného hodu (jen když ability má `save` a útok zasáhl). */
   message?: string;
+  /**
+   * Condition k uvalení na cíl, pokud `ability.condition` je nastavena a cíl
+   * **neuspěl** save (Slice 2a). `undefined` = save uspěl / ability bez conditiony.
+   * Volající ji aplikuje na svůj mutabilní stav aktéra (`applyCondition`).
+   */
+  condition?: ConditionRider;
 }
 
 /**
@@ -48,10 +55,17 @@ export function applySpellSave(
   if (!spec) return { amount };
   const save = savingThrow(defender, rng, spec.ability, actorSpellSaveDc(attacker));
   let result = amount;
-  if (save.success) {
+  // `'none'` (Slice 2d): poškození se savem nemění (plný úder); save jen gatuje condition.
+  if (save.success && spec.effect !== 'none') {
     result = spec.effect === 'negate' ? 0 : Math.max(1, Math.floor(amount / 2));
   }
-  return { amount: result, message: buildSaveMessage(defender.name, spec.ability, save, spec.effect === 'half') };
+  // Condition rider (Slice 2a/2d): neúspěšný save → condition (stejný hod jako damage).
+  const condition = !save.success && ability.condition ? ability.condition : undefined;
+  return {
+    amount: result,
+    message: buildSaveMessage(defender.name, spec.ability, save, spec.effect),
+    ...(condition ? { condition } : {}),
+  };
 }
 
 /** Initiative aktéra: d20 + DEX modifikátor. */
@@ -115,19 +129,18 @@ export function missMessage(attackerName: string, targetName: string, result: Hi
   return `${attackerName} attacks ${targetName} — MISS ${rollTag(result)}`;
 }
 
-/** Log řádek záchranného hodu: „Hero rolls a DEX save: 12 + 3 = 15 vs DC 14 → SUCCESS (half damage)." */
+/** Log řádek záchranného hodu: „Hero rolls a DEX save: 12 + 3 = 15 vs DC 14 → SUCCESS (half damage)."
+ * `effect` (může být i legacy `boolean` = half) řídí slovní popis úspěchu. */
 export function buildSaveMessage(
   actorName: string,
   ability: AbilityScore,
   save: SaveRoll,
-  half: boolean,
+  effect: 'half' | 'negate' | 'none' | boolean,
 ): string {
   const sign = save.modifier >= 0 ? '+' : '−';
   const abbr = ability.slice(0, 3).toUpperCase();
-  const outcome = save.success
-    ? half
-      ? 'SUCCESS (half damage)'
-      : 'SUCCESS (resisted)'
-    : 'FAILURE';
+  const eff = effect === true ? 'half' : effect === false ? 'negate' : effect;
+  const successNote = eff === 'half' ? 'half damage' : eff === 'none' ? 'resists the effect' : 'resisted';
+  const outcome = save.success ? `SUCCESS (${successNote})` : 'FAILURE';
   return `${actorName} rolls a ${abbr} save: ${save.natural} ${sign} ${Math.abs(save.modifier)} = ${save.total} vs DC ${save.dc} → ${outcome}.`;
 }

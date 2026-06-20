@@ -10,6 +10,7 @@ import {
   instantiateEnemy,
 } from './enemies';
 import { CHALLENGE_RATINGS, CREATURE_TYPES, DAMAGE_TYPES, crStatGuide } from './damage';
+import { CONDITION_TYPES } from '../conditions';
 import { buildEnemyActor, resolveAttack, type CombatActor } from '../combat';
 import { SeededRng } from '../rng';
 
@@ -45,6 +46,27 @@ describe('bestiary integrity', () => {
         expect(ab.cooldownSec).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('condition rider abilities require a save and a valid condition type (Slice 2a)', () => {
+    const seen = new Set<string>();
+    for (const t of Object.values(BESTIARY)) {
+      for (const ab of t.abilities ?? []) {
+        if (!ab.condition) continue;
+        expect(CONDITION_TYPES).toContain(ab.condition.type);
+        expect(ab.condition.durationTurns).toBeGreaterThan(0);
+        expect(ab.save).toBeDefined(); // condition se uplatní jen na neúspěšný save
+        seen.add(ab.condition.type);
+      }
+    }
+    // Katalog pokrývá všech 5 condition typů (mind_blast/pack_takedown/frost_nova/…).
+    expect(seen.size).toBe(CONDITION_TYPES.length);
+  });
+
+  it('threads the condition rider into the combat-actor signature ability', () => {
+    const enemy = buildBestiaryEnemy(BESTIARY['mind_devourer']!);
+    const sig = enemy.signatureAbilities?.find((a) => a.id === 'mind_blast');
+    expect(sig?.condition).toEqual({ type: 'stunned', durationTurns: 1 });
   });
 
   it('indexes by creature type and CR', () => {

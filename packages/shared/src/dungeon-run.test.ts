@@ -11,6 +11,7 @@ import {
   deriveCombatProfile,
   deriveRaidActor,
   dungeonRunAbilities,
+  hasCondition,
   resolveDungeonTurn,
   startDungeonRun,
   type ClassId,
@@ -258,6 +259,105 @@ describe('formální ukončení tahu — Pass / Dodge', () => {
       resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, pickTarget(state));
       expect(state.player.dodging).toBe(false);
     }
+  });
+});
+
+describe('conditiony (Enemy schopnosti, Slice 2a)', () => {
+  // Rigged stun ability: vždy zasáhne (attackBonus 99) a save je nesplnitelný
+  // (spellSaveDc 99) → condition vždy „padne". Cooldown 0 = může re-stunnout.
+  const stunStrike: SignatureAbility = {
+    id: 'enemy_stun',
+    name: 'Mind Blast',
+    kind: 'strike',
+    cooldownSec: 0,
+    damageMult: 1,
+    damageType: 'psychic',
+    save: { ability: 'intelligence', effect: 'half' },
+    condition: { type: 'stunned', durationTurns: 1 },
+  };
+
+  function rigStunEnemy(state: DungeonRunState): void {
+    const e = state.enemies[0]!;
+    e.maxHealth = 1_000_000;
+    e.currentHealth = 1_000_000; // přežije celý test (nesmí umřít → enemy fáze proběhne)
+    e.actor = { ...e.actor, attackPower: 1, attackBonus: 99, spellSaveDc: 99, signatureAbilities: [stunStrike] };
+    e.cooldowns = {};
+    state.enemies = [e]; // jediný (a slabý) útočník
+  }
+
+  it('enemy condition ability hráče stunne a ten pak ztratí tah', () => {
+    const base = hero('fighter');
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    rigStunEnemy(state);
+
+    let appliedSeen = false;
+    let lostTurnSeen = false;
+    let everStunned = false;
+    for (let i = 0; i < 12 && state.status === 'in_combat'; i++) {
+      resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, 0);
+      if (state.log.some((e) => (e.message ?? '').includes('is stunned ('))) appliedSeen = true;
+      if (state.log.some((e) => (e.message ?? '').includes('loses the turn'))) lostTurnSeen = true;
+      if (hasCondition(state.player.conditions, 'stunned')) everStunned = true;
+    }
+    expect(appliedSeen).toBe(true); // condition se uvalila
+    expect(everStunned).toBe(true); // hráč skutečně nesl stunned
+    expect(lostTurnSeen).toBe(true); // a kvůli stunu přišel o tah
+  });
+
+  it('hráčská ability s condition riderem stunne nepřítele (obousměrné, Slice 2d)', () => {
+    const base = hero('fighter');
+    const pStun: SignatureAbility = {
+      id: 'test_pstun', name: 'Pressure Point', kind: 'strike', cooldownSec: 0, damageMult: 1,
+      save: { ability: 'constitution', effect: 'none' }, condition: { type: 'stunned', durationTurns: 1 },
+    };
+    base.signatureAbilities = [...base.signatureAbilities, pStun];
+    base.spellSaveDc = 99; // nepřítel save vždy selže → stun padne
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    const e = state.enemies[0]!;
+    e.maxHealth = 1_000_000;
+    e.currentHealth = 1_000_000; // nezemře → uvidíme i jeho přeskočený tah
+    state.enemies = [e];
+
+    let appliedByPlayer = false;
+    let enemyCannotAct = false;
+    for (let i = 0; i < 8 && state.status === 'in_combat'; i++) {
+      resolveDungeonTurn(base, state, 'test_pstun', 0);
+      if (state.log.some((ev) => ev.source === base.name && (ev.message ?? '').includes('is stunned ('))) appliedByPlayer = true;
+      if (state.log.some((ev) => (ev.message ?? '').includes('cannot act'))) enemyCannotAct = true;
+    }
+    expect(appliedByPlayer).toBe(true);
+    expect(enemyCannotAct).toBe(true);
+  });
+
+  it('save-less hráčská ability uvalí condition automaticky na zásah (Ray of Frost slow)', () => {
+    const base = hero('fighter');
+    const frost: SignatureAbility = {
+      id: 'test_frost', name: 'Ray of Frost', kind: 'strike', cooldownSec: 0, damageMult: 1,
+      damageType: 'cold', condition: { type: 'slowed', durationTurns: 1 }, // bez save → auto na zásah
+    };
+    base.signatureAbilities = [...base.signatureAbilities, frost];
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    const e = state.enemies[0]!;
+    e.maxHealth = 1_000_000;
+    e.currentHealth = 1_000_000;
+    state.enemies = [e];
+
+    let slowApplied = false;
+    for (let i = 0; i < 8 && state.status === 'in_combat'; i++) {
+      resolveDungeonTurn(base, state, 'test_frost', 0);
+      if (state.log.some((ev) => ev.source === base.name && (ev.message ?? '').includes('is slowed ('))) slowApplied = true;
+    }
+    expect(slowApplied).toBe(true);
+  });
+
+  it('short rest mezi encountery setře conditiony', () => {
+    const base = hero('fighter');
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    state.player.conditions = [{ type: 'restrained', turns: 5 }];
+    // Vyčisti encounter (zabij vše) → advanceEncounter → spawnEncounter → restore.
+    state.enemies.forEach((e) => (e.currentHealth = 0));
+    resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, 0);
+    expect(hasCondition(state.player.conditions, 'restrained')).toBe(false);
   });
 });
 

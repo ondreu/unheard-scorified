@@ -35,6 +35,14 @@ import {
 } from './combat';
 import { rollDice } from './dice';
 import { applySpellSave, missMessage } from './dnd-combat';
+import {
+  applyCondition,
+  beginActorTurn,
+  combineAdvantage,
+  conditionAppliedMessage,
+  grantsIncomingAdvantage,
+  type ActiveCondition,
+} from './conditions';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
 import { groupEncounters } from './group';
 import { TANK_INCOMING_DAMAGE_MULT, type RaidActor, type RaidRole } from './raid';
@@ -76,6 +84,8 @@ export interface PartyRunMember {
   usedOncePerCombat?: string[];
   /** Dodge (formální ukončení tahu): útoky na člena mají disadvantage do jeho dalšího tahu. */
   dodging?: boolean;
+  /** Aktivní conditiony uvalené na člena (Slice 2b). `undefined` → prázdné (graceful). */
+  conditions?: ActiveCondition[];
   /** Iniciativa pro aktuální encounter (d20 + DEX mod) — pořadí akcí v kole (4d). */
   initiative: number;
   /** Plný serializovatelný bojový aktér (RaidActor: role + healPower + rotace). */
@@ -230,6 +240,7 @@ function restoreMemberResources(member: PartyRunMember): void {
   member.spellSlots = { ...(member.actor.spellSlots ?? {}) };
   member.kiPoints = member.actor.kiPoints ?? 0;
   member.usedOncePerCombat = []; // short rest obnoví „once per combat" okna (ADR 0042)
+  member.conditions = []; // short rest „setře" status efekty (Slice 2b)
   if (member.rageCharges > 0 && (member.actor.rageCharges ?? 0) > 0) {
     member.rageCharges -= 1;
     member.raging = true;
@@ -404,11 +415,18 @@ export function resolvePartyRound(state: PartyRunState): { state: PartyRunState;
   const order = [...state.members].sort((a, b) => b.initiative - a.initiative || a.slot - b.slot);
   for (const member of order) {
     if (member.currentHealth <= 0) continue;
+    // Začátek tahu člena: conditiony (Slice 2b). Stun = ztráta tahu; jinak si
+    // pamatujeme disadvantage na útoky / blokaci bonus-action pro tento tah.
+    const condEff = beginActorTurn(member);
+    if (condEff.skipTurn) {
+      emit({ t, type: 'ability', source: member.name, target: member.name, message: `💫 ${member.name} is stunned and loses the turn.` });
+      continue;
+    }
     const action = member.owner != null ? state.pending[member.slot] : undefined;
-    takeMemberTurn(state, member, action, rng, t, emit);
+    takeMemberTurn(state, member, action, rng, t, emit, condEff.attackDisadvantage);
     // Bonus action (ADR 0042, Slice 3): lidský hráč ji vědomě zvolil (action.bonusAbilityId);
-    // AI člen si bonus heal zvolí sám. Nic se neděje za hráče bez jeho volby.
-    if (member.currentHealth > 0) {
+    // AI člen si bonus heal zvolí sám. Slowed (Slice 2b) bonus akci blokuje.
+    if (member.currentHealth > 0 && !condEff.noBonusAction) {
       if (member.owner != null) {
         if (action?.bonusAbilityId && action.bonusAbilityId !== action.abilityId) {
           const eff = effectiveActor(member);
@@ -506,6 +524,8 @@ function takeMemberTurn(
   rng: SeededRng,
   t: number,
   emit: (e: CombatEvent) => void,
+  /** Útočník má disadvantage z vlastní conditiony (frightened/prone/…). Slice 2b. */
+  attackerDisadvantage = false,
 ): void {
   const eff = effectiveActor(member);
 
@@ -536,7 +556,7 @@ function takeMemberTurn(
       // Akční ekonomika (ADR 0042): „once per combat" okno (mohlo vyprchat mezi koly).
       const hasOnce = !ability.oncePerCombat || !(member.usedOncePerCombat ?? []).includes(ability.id);
       if (hasSlot && hasKi && hasOnce) {
-        applyMemberAbility(state, member, eff, ability, action.targetId, rng, t, emit);
+        applyMemberAbility(state, member, eff, ability, action.targetId, rng, t, emit, attackerDisadvantage);
         return;
       }
     }
@@ -544,7 +564,7 @@ function takeMemberTurn(
   }
 
   // AI volba (AI člen nebo fallback za nečinného hráče).
-  aiMemberTurn(state, member, eff, rng, t, emit);
+  aiMemberTurn(state, member, eff, rng, t, emit, attackerDisadvantage);
 }
 
 /**
@@ -610,6 +630,8 @@ function applyMemberAbility(
   rng: SeededRng,
   t: number,
   emit: (e: CombatEvent) => void,
+  /** Disadvantage na hod na zásah z conditiony útočníka (Slice 2b). */
+  attackerDisadvantage = false,
 ): void {
   const tier = ability.spellTier ?? 0;
   const usedSlot = tier >= 1 ? spendSlotForTier(member.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
@@ -672,14 +694,14 @@ function applyMemberAbility(
     for (const ei of targets) {
       const enemy = state.enemies[ei]!;
       if (enemy.currentHealth <= 0) continue;
-      memberHitEnemy(state, member, eff, enemy, ability, usedSlot, rng, t, emit);
+      memberHitEnemy(state, member, eff, enemy, ability, usedSlot, rng, t, emit, attackerDisadvantage);
     }
     // Akční ekonomika (ADR 0042, Slice 2): Action Surge → extra úder(y) na nejslabšího.
     const extras = extraActionCount(ability);
     for (let k = 0; k < extras; k++) {
       const xwi = weakestEnemy(state);
       if (xwi < 0) break;
-      memberHitEnemy(state, member, eff, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
+      memberHitEnemy(state, member, eff, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit, attackerDisadvantage);
     }
   }
   const cd = cooldownTurns(ability);
@@ -694,6 +716,8 @@ function aiMemberTurn(
   rng: SeededRng,
   t: number,
   emit: (e: CombatEvent) => void,
+  /** Disadvantage na hod na zásah z conditiony útočníka (Slice 2b). */
+  attackerDisadvantage = false,
 ): void {
   const living = livingEnemies(state);
   if (living.length === 0) return;
@@ -730,7 +754,7 @@ function aiMemberTurn(
       return;
     }
     if (wi < 0 || !shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
-    applyMemberAbility(state, member, eff, ability, wi, rng, t, emit);
+    applyMemberAbility(state, member, eff, ability, wi, rng, t, emit, attackerDisadvantage);
     return;
   }
 
@@ -762,19 +786,36 @@ function memberHitEnemy(
   rng: SeededRng,
   t: number,
   emit: (e: CombatEvent) => void,
+  /** Disadvantage na hod na zásah z conditiony útočníka (Slice 2b). */
+  attackerDisadvantage = false,
 ): void {
   const targetHpPct = enemy.maxHealth > 0 ? enemy.currentHealth / enemy.maxHealth : 0;
   const spec = abilityDamageSpec(ability, slotTier, attacker.level);
   const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
   const bonusDice = bonusDiceSpec(ability, slotTier, attacker.level);
+  // Advantage (Slice 2b): ability advantage + útok na prone/restrained/stunned cíl,
+  // proti disadvantage útočníka (advantage + disadvantage = normal).
+  const advantage = combineAdvantage(
+    ability.advantage ? 'advantage' : undefined,
+    grantsIncomingAdvantage(enemy.conditions) ? 'advantage' : undefined,
+    attackerDisadvantage ? 'disadvantage' : undefined,
+  );
   const hit = computeHit(attacker, enemy.actor, rng, mult, false, ability.damageType, spec, {
-    advantage: ability.advantage ? 'advantage' : undefined,
+    advantage,
     bonusDice,
   });
+  // Condition rider (Slice 2b/2d): se `save` → na neúspěšný save; bez `save` →
+  // automaticky na zásah (Ray of Frost slow).
+  let rider = hit.hit && !ability.save ? ability.condition : undefined;
   if (hit.hit && ability.save) {
     const outcome = applySpellSave(ability, attacker, enemy.actor, rng, hit.amount);
     hit.amount = outcome.amount;
     if (outcome.message) emit({ t, type: 'ability', message: outcome.message, source: enemy.name, target: attacker.name });
+    rider = outcome.condition;
+  }
+  if (rider && enemy.currentHealth - hit.amount > 0) {
+    enemy.conditions = applyCondition(enemy.conditions, rider, attacker.name);
+    emit({ t, type: 'ability', source: attacker.name, target: enemy.name, message: conditionAppliedMessage(enemy.name, rider) });
   }
   enemy.currentHealth = Math.max(0, enemy.currentHealth - hit.amount);
 
@@ -838,11 +879,24 @@ function enemyAttackParty(
   t: number,
   emit: (e: CombatEvent) => void,
 ): void {
+  // Začátek tahu nepřítele: conditiony (Slice 2b). Stun = nepřítel nejedná.
+  const enemyEff = beginActorTurn(enemy);
+  if (enemyEff.skipTurn) {
+    emit({ t, type: 'ability', source: enemy.name, target: enemy.name, message: `💫 ${enemy.name} is stunned and cannot act.` });
+    return;
+  }
+
   const target = chooseThreat(state);
   if (!target) return;
   const targetActor = effectiveActor(target);
-  // Dodge: útoky na bránícího se člena mají disadvantage.
-  const advExtra = target.dodging ? { advantage: 'disadvantage' as const } : undefined;
+  // Advantage (Slice 2b): cíl prone/restrained/stunned → advantage nepřátelům;
+  // proti Dodge (disadvantage) i vlastní frightened/slowed (disadvantage).
+  const advMode = combineAdvantage(
+    grantsIncomingAdvantage(target.conditions) ? 'advantage' : undefined,
+    target.dodging ? 'disadvantage' : undefined,
+    enemyEff.attackDisadvantage ? 'disadvantage' : undefined,
+  );
+  const advExtra = advMode === 'normal' ? undefined : { advantage: advMode };
   // „Enemy schopnosti": vystřel první ready útočnou ability (typ + saving throw),
   // jinak základní úder. Cooldown v tazích, tiká v `tickEnemyDots`.
   if (!enemy.cooldowns) enemy.cooldowns = {};
@@ -862,10 +916,13 @@ function enemyAttackParty(
   if (ability) enemy.cooldowns[ability.id] = cooldownTurns(ability);
   let incoming = hit.amount;
   let enemySaveMsg: string | undefined;
+  let pendingCondition: NonNullable<ReturnType<typeof applySpellSave>['condition']> | undefined;
   if (ability && hit.hit && ability.save) {
     const out = applySpellSave(ability, enemy.actor, targetActor, rng, incoming);
     incoming = out.amount;
     enemySaveMsg = out.message;
+    // Condition rider (Slice 2b): neúspěšný save → status efekt na člena party.
+    if (out.condition) pendingCondition = out.condition;
   }
   if (target.role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
   if (target.mitigationTurns > 0 && target.mitigationPct > 0) {
@@ -890,6 +947,11 @@ function enemyAttackParty(
   });
   if (enemySaveMsg) {
     emit({ t, type: 'ability', source: target.name, message: enemySaveMsg });
+  }
+  // Uvalení conditiony (Slice 2b) — jen na živého člena.
+  if (pendingCondition && target.currentHealth > 0) {
+    target.conditions = applyCondition(target.conditions, pendingCondition, enemy.name);
+    emit({ t, type: 'ability', source: enemy.name, target: target.name, message: conditionAppliedMessage(target.name, pendingCondition) });
   }
   if (target.currentHealth <= 0) {
     target.currentHealth = 0;

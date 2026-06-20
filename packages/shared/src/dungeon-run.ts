@@ -36,6 +36,14 @@ import {
 } from './combat';
 import { rollDice } from './dice';
 import { applySpellSave, missMessage } from './dnd-combat';
+import {
+  applyCondition,
+  beginActorTurn,
+  combineAdvantage,
+  conditionAppliedMessage,
+  grantsIncomingAdvantage,
+  type ActiveCondition,
+} from './conditions';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
 import { groupEncounters } from './group';
 import { TANK_INCOMING_DAMAGE_MULT, type RaidActor, type RaidRole } from './raid';
@@ -102,6 +110,11 @@ export interface DungeonRunEnemy {
    * tahy. `undefined` u běhů z doby před tímto slicem (graceful → bere se prázdné).
    */
   cooldowns?: Record<string, number>;
+  /**
+   * Aktivní conditiony (status efekty, Slice 2a) — stun/prone/restrained/…
+   * uvalené hráčem. `undefined` u běhů z doby před slicem (graceful → prázdné).
+   */
+  conditions?: ActiveCondition[];
 }
 
 /** Mutabilní bojový stav hráče (mimo neměnný snapshot profilu). */
@@ -134,6 +147,8 @@ export interface DungeonRunPlayer {
    * disadvantage. Vyprší na začátku jeho dalšího tahu. `undefined` = nebrání se.
    */
   dodging?: boolean;
+  /** Aktivní conditiony uvalené na hráče (Slice 2a). `undefined` → prázdné. */
+  conditions?: ActiveCondition[];
 }
 
 /**
@@ -156,6 +171,8 @@ export interface DungeonRunAlly {
   mitigationPct: number;
   /** Akční ekonomika (ADR 0042) — viz `DungeonRunPlayer.usedOncePerCombat`. */
   usedOncePerCombat?: string[];
+  /** Aktivní conditiony uvalené na parťáka (Slice 2a). `undefined` → prázdné. */
+  conditions?: ActiveCondition[];
   /** Plný bojový aktér parťáka (snapshot do DB). */
   actor: RaidActor;
 }
@@ -238,6 +255,7 @@ function restoreEncounterResources(
   combatant.mitigationTurns = 0;
   combatant.mitigationPct = 0;
   combatant.usedOncePerCombat = []; // short rest obnoví „once per combat" okna (ADR 0042)
+  combatant.conditions = []; // short rest „setře" status efekty (Slice 2a)
   combatant.spellSlots = { ...(base.spellSlots ?? {}) };
   combatant.kiPoints = base.kiPoints ?? 0;
   // Rage (ADR 0034): auto-zuření na encounter, dokud má charge (per-run rationing).
@@ -387,6 +405,8 @@ function weakestEnemy(state: DungeonRunState): number {
 interface PartyMember {
   currentHealth: number;
   maxHealth: number;
+  /** Aktivní conditiony (Slice 2a) — sjednocený přístup pro hráče i parťáky. */
+  conditions?: ActiveCondition[];
 }
 
 /** Všichni členové party (hráč jako index 0, parťáci dál). */
@@ -455,6 +475,11 @@ export function resolveDungeonTurn(
   bonusAbilityId?: string,
 ): { state: DungeonRunState; events: CombatEvent[] } {
   if (state.status !== 'in_combat' || state.enemies.length === 0) return { state, events: [] };
+
+  // Začátek hráčova tahu: conditiony (Slice 2a). Stun = ztráta tahu; jinak si
+  // zapamatujeme disadvantage na útoky / blokaci bonus-action pro tento tah.
+  const turnEff = beginActorTurn(state.player);
+  if (turnEff.skipTurn) return resolveStunnedTurn(base, state);
 
   // Formální ukončení tahu (Pass/Dodge) — vlastní cesta (žádná ability/zdroj).
   if (isEndTurnAction(abilityId)) return resolveEndTurn(base, state, abilityId === DUNGEON_DODGE_ACTION);
@@ -564,7 +589,7 @@ export function resolveDungeonTurn(
     for (const ei of targets) {
       const enemy = state.enemies[ei]!;
       if (enemy.currentHealth <= 0) continue;
-      combatantHitEnemy(player, state.player, state, enemy, ability, usedSlotTier, rng, t, emit);
+      combatantHitEnemy(player, state.player, state, enemy, ability, usedSlotTier, rng, t, emit, turnEff.attackDisadvantage);
     }
     // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra úder(y)
     // zbraní v tomtéž tahu, na nejslabšího živého nepřítele.
@@ -572,7 +597,7 @@ export function resolveDungeonTurn(
     for (let k = 0; k < extras; k++) {
       const xwi = weakestEnemy(state);
       if (xwi < 0) break;
-      combatantHitEnemy(player, state.player, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
+      combatantHitEnemy(player, state.player, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit, turnEff.attackDisadvantage);
     }
   }
 
@@ -584,7 +609,8 @@ export function resolveDungeonTurn(
   // Bonus action (ADR 0042, Slice 3): hráč ji vědomě zvolí vedle hlavní akce
   // (nic se neděje automaticky). Když `bonusAbilityId` chybí nebo je == hlavní
   // akci, žádná bonus akce neproběhne.
-  if (bonusAbilityId && bonusAbilityId !== abilityId) {
+  // Slowed (Slice 2a) blokuje bonus-action (D&D Slow).
+  if (!turnEff.noBonusAction && bonusAbilityId && bonusAbilityId !== abilityId) {
     const bonus = player.signatureAbilities.find((a) => a.id === bonusAbilityId);
     if (bonus) resolveBonusHeal(player, state.player, state, bonus, rng, t, emit);
   }
@@ -626,6 +652,31 @@ function resolveEndTurn(
     emit({ t, type: 'ability', source: player.name, target: player.name, message: `⏭️ ${player.name} ends the turn.` });
   }
 
+  return resolveAlliesEnemiesMaintenance(base, player, state, rng, t, events, emit) ?? { state, events };
+}
+
+/**
+ * Stunned hráč ztrácí tah (Slice 2a): kolo doběhne (DoT → parťáci → protiútok →
+ * údržba), ale hráč nejedná. Stun už byl dekrementován v `beginActorTurn`.
+ */
+function resolveStunnedTurn(
+  base: CombatActor,
+  state: DungeonRunState,
+): { state: DungeonRunState; events: CombatEvent[] } {
+  const player = effectivePlayer(base, state);
+  state.player.dodging = false;
+  const rng = new SeededRng(seedFromString(`${state.seed}:turn:${state.encounterIndex}:${state.turn}`));
+  const t = state.turn;
+  const events: CombatEvent[] = [];
+  const emit = (e: CombatEvent): void => {
+    events.push(e);
+    pushLog(state, e);
+  };
+  emit({ t, type: 'ability', source: player.name, target: player.name, message: `💫 ${player.name} is stunned and loses the turn.` });
+  tickEnemyDots(state, t, emit);
+  if (livingEnemies(state).length === 0) {
+    return { state: advanceEncounter(base, state, t, events), events };
+  }
   return resolveAlliesEnemiesMaintenance(base, player, state, rng, t, events, emit) ?? { state, events };
 }
 
@@ -717,6 +768,7 @@ function tickDownTurn(c: DungeonRunPlayer | DungeonRunAlly): void {
   }
 }
 
+
 /** Heal magnituda aktéra: literal dice (healDiceSpec) > healPower (RaidActor) > proxy. */
 function healAmount(
   actor: CombatActor,
@@ -749,6 +801,13 @@ function allyTakeTurn(
   const eff = effectiveAlly(ally);
   const living = livingEnemies(state);
   if (living.length === 0) return;
+
+  // Začátek tahu parťáka: conditiony (Slice 2a). Stun = ztráta tahu.
+  const allyEff = beginActorTurn(ally);
+  if (allyEff.skipTurn) {
+    emit({ t, type: 'ability', source: ally.name, target: ally.name, message: `💫 ${ally.name} is stunned and loses the turn.` });
+    return;
+  }
 
   const wi = weakestEnemy(state);
   const enemyHpPct = wi >= 0 && state.enemies[wi]!.maxHealth > 0 ? state.enemies[wi]!.currentHealth / state.enemies[wi]!.maxHealth : 0;
@@ -817,14 +876,14 @@ function allyTakeTurn(
     for (const ei of targets) {
       const enemy = state.enemies[ei]!;
       if (enemy.currentHealth <= 0) continue;
-      combatantHitEnemy(eff, ally, state, enemy, ability, slotTier, rng, t, emit);
+      combatantHitEnemy(eff, ally, state, enemy, ability, slotTier, rng, t, emit, allyEff.attackDisadvantage);
     }
     // Akční ekonomika (ADR 0042, Slice 2): extra úder(y) parťáka na nejslabšího.
     const allyExtras = extraActionCount(ability);
     for (let k = 0; k < allyExtras; k++) {
       const xwi = weakestEnemy(state);
       if (xwi < 0) break;
-      combatantHitEnemy(eff, ally, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
+      combatantHitEnemy(eff, ally, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit, allyEff.attackDisadvantage);
     }
     ally.cooldowns[ability.id] = cooldownTurns(ability);
     if (ability.oncePerCombat) (ally.usedOncePerCombat ??= []).push(ability.id); // ADR 0042
@@ -930,19 +989,36 @@ function combatantHitEnemy(
   rng: SeededRng,
   t: number,
   emit: (e: CombatEvent) => void,
+  /** Útočník má disadvantage z vlastní conditiony (frightened/prone/…). Slice 2a. */
+  attackerDisadvantage = false,
 ): void {
   const targetHpPct = enemy.maxHealth > 0 ? enemy.currentHealth / enemy.maxHealth : 0;
   const spec = abilityDamageSpec(ability, slotTier, attacker.level);
   const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
   const bonusDice = bonusDiceSpec(ability, slotTier, attacker.level);
+  // Advantage (Slice 2a): ability advantage + útok na prone/restrained/stunned cíl,
+  // proti disadvantage útočníka (advantage + disadvantage = normal).
+  const advantage = combineAdvantage(
+    ability.advantage ? 'advantage' : undefined,
+    grantsIncomingAdvantage(enemy.conditions) ? 'advantage' : undefined,
+    attackerDisadvantage ? 'disadvantage' : undefined,
+  );
   const hit = computeHit(attacker, enemy.actor, rng, mult, false, ability.damageType, spec, {
-    advantage: ability.advantage ? 'advantage' : undefined,
+    advantage,
     bonusDice,
   });
+  // Condition rider (Slice 2a/2d): se `save` → na neúspěšný save; bez `save` →
+  // automaticky na zásah (Ray of Frost slow). `applySpellSave` řeší i half/negate dmg.
+  let rider = hit.hit && !ability.save ? ability.condition : undefined;
   if (hit.hit && ability.save) {
     const outcome = applySpellSave(ability, attacker, enemy.actor, rng, hit.amount);
     hit.amount = outcome.amount;
     if (outcome.message) emit({ t, type: 'ability', message: outcome.message, source: enemy.name, target: attacker.name });
+    rider = outcome.condition;
+  }
+  if (rider && enemy.currentHealth - hit.amount > 0) {
+    enemy.conditions = applyCondition(enemy.conditions, rider, attacker.name);
+    emit({ t, type: 'ability', source: attacker.name, target: enemy.name, message: conditionAppliedMessage(enemy.name, rider) });
   }
   enemy.currentHealth = Math.max(0, enemy.currentHealth - hit.amount);
 
@@ -1040,13 +1116,27 @@ function enemyAttackParty(
   const role: RaidRole = isPlayer ? state.playerRole : state.allies[threat.allyIdx]!.role;
   const mit = isPlayer ? state.player : state.allies[threat.allyIdx]!;
 
+  // Začátek tahu nepřítele: conditiony (Slice 2a). Stun = nepřítel nejedná.
+  const enemyEff = beginActorTurn(enemy);
+  if (enemyEff.skipTurn) {
+    emit({ t, type: 'ability', source: enemy.name, target: enemy.name, message: `💫 ${enemy.name} is stunned and cannot act.` });
+    return false;
+  }
+
   // Dodge (formální ukončení tahu): útoky na bránícího se hráče mají disadvantage.
   const dodging = isPlayer && state.player.dodging === true;
   // „Enemy schopnosti": vystřel první ready útočnou ability (typové poškození +
   // saving throw), jinak základní úder. Cooldown v tazích, tiká v `tickEnemyDots`.
   if (!enemy.cooldowns) enemy.cooldowns = {};
   const ability = selectEnemyAbility(enemy.actor, (a) => (enemy.cooldowns![a.id] ?? 0) <= 0);
-  const advExtra = dodging ? { advantage: 'disadvantage' as const } : undefined;
+  // Advantage (Slice 2a): cíl prone/restrained/stunned → advantage nepřátelům;
+  // proti Dodge (disadvantage) i vlastní frightened/slowed (disadvantage).
+  const advMode = combineAdvantage(
+    grantsIncomingAdvantage(member.conditions) ? 'advantage' : undefined,
+    dodging ? 'disadvantage' : undefined,
+    enemyEff.attackDisadvantage ? 'disadvantage' : undefined,
+  );
+  const advExtra = advMode === 'normal' ? undefined : { advantage: advMode };
   const enemyHit = ability
     ? computeHit(
         enemy.actor,
@@ -1062,10 +1152,13 @@ function enemyAttackParty(
   if (ability) enemy.cooldowns[ability.id] = cooldownTurns(ability);
   let incoming = enemyHit.amount;
   let enemySaveMsg: string | undefined;
+  let pendingCondition: { rider: NonNullable<ReturnType<typeof applySpellSave>['condition']> } | undefined;
   if (ability && enemyHit.hit && ability.save) {
     const out = applySpellSave(ability, enemy.actor, targetActor, rng, incoming);
     incoming = out.amount;
     enemySaveMsg = out.message;
+    // Condition rider (Slice 2a): neúspěšný save → status efekt na člena party.
+    if (out.condition) pendingCondition = { rider: out.condition };
   }
   if (role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
   if (mit.mitigationTurns > 0 && mit.mitigationPct > 0) {
@@ -1090,6 +1183,11 @@ function enemyAttackParty(
   });
   if (enemySaveMsg) {
     emit({ t, type: 'ability', source: targetName, message: enemySaveMsg });
+  }
+  // Uvalení conditiony (Slice 2a) — jen na živého člena (mrtvému je k ničemu).
+  if (pendingCondition && member.currentHealth > 0) {
+    member.conditions = applyCondition(member.conditions, pendingCondition.rider, enemy.name);
+    emit({ t, type: 'ability', source: enemy.name, target: targetName, message: conditionAppliedMessage(targetName, pendingCondition.rider) });
   }
   if (member.currentHealth <= 0) {
     member.currentHealth = 0;
