@@ -172,6 +172,17 @@ function mostInjured(state: PartyRunState): PartyRunMember | null {
   return worst;
 }
 
+/**
+ * Cíl léčení (friendly targeting): `targetId` = `slot` člena party. Neplatný /
+ * mrtvý cíl → fallback na nejzraněnějšího člena (resp. sesilatele). Útočné cíle
+ * řeší `targetId` jako index nepřítele → význam je jednoznačný dle `ability.kind`.
+ */
+function resolveHealTarget(state: PartyRunState, targetId: number, caster: PartyRunMember): PartyRunMember {
+  const chosen = state.members.find((m) => m.slot === targetId);
+  if (chosen && chosen.currentHealth > 0) return chosen;
+  return mostInjured(state) ?? caster;
+}
+
 function pushLog(state: PartyRunState, e: CombatEvent): void {
   state.log.push(e);
   if (state.log.length > 150) state.log = state.log.slice(-150);
@@ -526,7 +537,7 @@ function applyMemberAbility(
   if (ability.kind === 'heal') {
     const targets = ability.aoe
       ? state.members.filter((m) => m.currentHealth > 0 && m.currentHealth < m.maxHealth)
-      : [mostInjured(state) ?? member];
+      : [resolveHealTarget(state, targetId, member)];
     for (const target of targets) {
       const healed = healAmount(eff, ability, usedSlot, rng);
       target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
@@ -602,7 +613,8 @@ function aiMemberTurn(
     if (ability.kind === 'heal') {
       if (member.role !== 'healer' || (member.actor.healPower ?? 0) <= 0 || !injured) continue;
       if (!shouldCastHeal(eff.rotation, ability.id, { enemyHpPct, selfHpPct: injured.maxHealth > 0 ? injured.currentHealth / injured.maxHealth : 0 })) continue;
-      applyMemberAbility(state, member, eff, ability, 0, rng, t, emit);
+      // AI healer cílí nejzraněnějšího (friendly targeting: targetId = slot člena).
+      applyMemberAbility(state, member, eff, ability, injured.slot, rng, t, emit);
       return;
     }
     if (ability.kind === 'mitigation') {

@@ -382,6 +382,20 @@ function mostInjured(state: DungeonRunState): PartyMember | null {
   return worst;
 }
 
+/**
+ * Cíl léčení (friendly targeting): `targetId` = index člena party z `partyMembers`
+ * (0 = hráč, 1..N = parťák v pořadí). Neplatný / mrtvý cíl → fallback na
+ * nejzraněnějšího člena (zpětná kompatibilita: starší klienti posílali enemy
+ * index; solo nemá parťáky → vždy hráč). Útočné cíle řeší `targetId` jako index
+ * nepřítele, takže význam je jednoznačný dle `ability.kind`.
+ */
+function resolveHealTarget(state: DungeonRunState, targetId: number): PartyMember {
+  const members = partyMembers(state);
+  const chosen = members[targetId];
+  if (chosen && chosen.currentHealth > 0) return chosen;
+  return mostInjured(state) ?? state.player;
+}
+
 // ── Tah ──────────────────────────────────────────────────────────────────────
 
 /**
@@ -439,8 +453,9 @@ export function resolveDungeonTurn(
   // (2) Hráčova ability.
   if (ability.kind === 'heal') {
     const healed = healAmount(player, ability, usedSlotTier, rng, false);
-    // Solo = self; group = nejzraněnější člen party (vč. sebe).
-    const target = state.allies.length > 0 ? (mostInjured(state) ?? state.player) : state.player;
+    // Friendly targeting: hráč volí cíl léčení (`targetId` = 0 self / 1..N parťák);
+    // neplatný cíl → nejzraněnější člen. Solo (bez parťáků) = vždy self.
+    const target = resolveHealTarget(state, targetId);
     target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
     const targetName = target === state.player ? player.name : (target as DungeonRunAlly).name;
     emit({

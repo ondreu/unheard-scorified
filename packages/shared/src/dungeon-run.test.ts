@@ -172,6 +172,44 @@ describe('group tahový run (Slice 3) — AI parťáci', () => {
   });
 });
 
+describe('friendly targeting — heal cílí zvoleného člena party', () => {
+  /** Hráč = healer (cleric) + AI parťáci tank/dps; vrací heal ability id. */
+  function healerSetup(seed = 7): { base: CombatActor; state: DungeonRunState; healId: string } {
+    const player = deriveRaidActor(hero('cleric'), 'healer');
+    const allies = buildCompanionParty('healer', 20);
+    const state = startDungeonRun(player, 'ragefire_chasm', 3, 20, seed, allies);
+    const healId = dungeonRunAbilities(player).find((a) => a.kind === 'heal')?.id;
+    expect(healId, 'cleric má mít heal ability').toBeDefined();
+    return { base: player, state, healId: healId! };
+  }
+
+  it('targetId = index parťáka → léčí zvoleného parťáka', () => {
+    const { base, state, healId } = healerSetup();
+    state.allies[0]!.currentHealth = 1;
+    const allyName = state.allies[0]!.name;
+    resolveDungeonTurn(base, state, healId, 1); // 1 = allies[0]
+    const playerHeal = state.log.find((e) => e.type === 'heal' && e.source === base.name);
+    expect(playerHeal?.target).toBe(allyName);
+  });
+
+  it('targetId = 0 → léčí hráče', () => {
+    const { base, state, healId } = healerSetup();
+    state.player.currentHealth = 1;
+    resolveDungeonTurn(base, state, healId, 0);
+    const playerHeal = state.log.find((e) => e.type === 'heal' && e.source === base.name);
+    expect(playerHeal?.target).toBe(base.name);
+  });
+
+  it('neplatný cíl → fallback na nejzraněnějšího člena', () => {
+    const { base, state, healId } = healerSetup();
+    state.allies[1]!.currentHealth = 1; // nejzraněnější
+    const injuredName = state.allies[1]!.name;
+    resolveDungeonTurn(base, state, healId, 99); // mimo rozsah
+    const playerHeal = state.log.find((e) => e.type === 'heal' && e.source === base.name);
+    expect(playerHeal?.target).toBe(injuredName);
+  });
+});
+
 describe('dungeonRunAbilities', () => {
   it('kit obsahuje základní úder + nepasivní signatures', () => {
     const base = hero('fighter');

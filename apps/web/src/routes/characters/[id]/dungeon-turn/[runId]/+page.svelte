@@ -20,6 +20,7 @@
     boss: 'BOSS',
     you: 'You',
     target: 'Target',
+    healTarget: 'Heal target',
     abandon: 'Abandon',
     abandoning: 'Leaving…',
     cleared: '🏆 Dungeon cleared!',
@@ -48,6 +49,9 @@
   let busy = $state(false);
   // Zvolený cíl (index nepřítele); auto-přepne na živého při změně stavu.
   let targetId = $state(0);
+  // Friendly cíl léčení: index člena party (0 = hráč, 1..N = parťák). Heal ability
+  // posílá tenhle index místo nepřátelského `targetId`.
+  let healTargetId = $state(0);
 
   const characterId = $derived($page.params.id ?? '');
   const runId = $derived($page.params.runId ?? '');
@@ -71,7 +75,7 @@
     }
   }
 
-  /** Je zvolený cíl mrtvý / chybí? Přepni na prvního živého nepřítele. */
+  /** Je zvolený cíl mrtvý / chybí? Přepni na prvního živého nepřítele / hráče. */
   function retarget(): void {
     if (!run) return;
     const cur = run.enemies.find((e) => e.idx === targetId);
@@ -79,14 +83,24 @@
       const alive = run.enemies.find((e) => e.currentHealth > 0);
       if (alive) targetId = alive.idx;
     }
+    // Heal cíl: 0 = hráč, 1..N = parťák. Mrtvý parťák → zpět na hráče.
+    if (healTargetId > 0) {
+      const ally = run.allies[healTargetId - 1];
+      if (!ally || ally.currentHealth <= 0) healTargetId = 0;
+    }
   }
 
-  async function act(abilityId: string): Promise<void> {
+  /** Heal/buff ability cílí spojence (index člena party), ostatní nepřítele. */
+  function targetFor(kind: string): number {
+    return kind === 'heal' ? healTargetId : targetId;
+  }
+
+  async function act(abilityId: string, kind: string): Promise<void> {
     if (busy || !run || run.status !== 'in_combat') return;
     busy = true;
     error = null;
     try {
-      run = await actDungeonTurn(characterId, runId, abilityId, targetId);
+      run = await actDungeonTurn(characterId, runId, abilityId, targetFor(kind));
       retarget();
     } catch (err) {
       error = (err as Error).message;
@@ -171,11 +185,17 @@
       </section>
     {/if}
 
-    <!-- Player -->
-    <section class="panel panel-pad">
+    <!-- Player (click to pick heal target in a group) -->
+    <button
+      type="button"
+      class="panel panel-pad w-full text-left {r.allies.length > 0 && healTargetId === 0 && !finished ? 'ring-2 ring-[var(--success)]' : ''}"
+      disabled={r.allies.length === 0 || finished}
+      onclick={() => (healTargetId = 0)}
+    >
       <div class="flex items-center justify-between">
         <span class="font-semibold">
           {roleIcon[r.playerRole] ?? ''} {r.player.name}
+          {#if r.allies.length > 0 && healTargetId === 0 && !finished}<span class="ml-2 text-xs text-[var(--success)]">💚 {ui.healTarget}</span>{/if}
         </span>
         <span class="text-sm text-[var(--text-dim)]">
           {r.player.currentHealth} / {r.player.maxHealth}
@@ -198,16 +218,24 @@
       <div class="bar mt-2">
         <div class="bar-fill" style={`width:${hpPct(r.player.currentHealth, r.player.maxHealth)}%;background:var(--success)`}></div>
       </div>
-    </section>
+    </button>
 
     <!-- AI party allies (group, Slice 3) -->
     {#if r.allies.length > 0}
       <section class="space-y-2">
         <p class="text-xs uppercase tracking-wide text-[var(--text-dim)]">{ui.party}</p>
-        {#each r.allies as a (a.name)}
-          <div class="panel panel-pad {a.currentHealth <= 0 ? 'opacity-40' : ''}">
+        {#each r.allies as a, i (a.name)}
+          <button
+            type="button"
+            class="panel panel-pad w-full text-left {a.currentHealth <= 0 ? 'opacity-40' : ''} {healTargetId === i + 1 && a.currentHealth > 0 && !finished ? 'ring-2 ring-[var(--success)]' : ''}"
+            disabled={a.currentHealth <= 0}
+            onclick={() => (healTargetId = i + 1)}
+          >
             <div class="flex items-center justify-between">
-              <span class="font-semibold">{roleIcon[a.role] ?? ''} {a.name}</span>
+              <span class="font-semibold">
+                {roleIcon[a.role] ?? ''} {a.name}
+                {#if healTargetId === i + 1 && a.currentHealth > 0 && !finished}<span class="ml-2 text-xs text-[var(--success)]">💚 {ui.healTarget}</span>{/if}
+              </span>
               <span class="text-sm text-[var(--text-dim)]">
                 {a.currentHealth} / {a.maxHealth}
                 {#if a.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {a.absorb}</span>{/if}
@@ -216,7 +244,7 @@
             <div class="bar mt-2">
               <div class="bar-fill" style={`width:${hpPct(a.currentHealth, a.maxHealth)}%;background:var(--success)`}></div>
             </div>
-          </div>
+          </button>
         {/each}
       </section>
     {/if}
@@ -234,7 +262,7 @@
                 : a.outOfKi
                   ? `${a.description} (not enough Ki)`
                   : a.description}
-              onclick={() => act(a.id)}
+              onclick={() => act(a.id, a.kind)}
             >
               <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
               <span class="min-w-0 flex-1 truncate">{a.name}</span>
