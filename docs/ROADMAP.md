@@ -121,6 +121,18 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 > s PM. Explicitní rozhodnutí = checkbox; otevřené otázky = **❓ k rozhodnutí**.
 > Velká rozhodnutí (vyříznutí raidů, dungeon overhaul, scrap mana, monetizace) → ADR.
 
+## 🐞 Fixes — rozbité shipnuté featury (priorita)
+
+> Bugy ve featurách, které jsou v roadmapě označené jako **hotové** (hlavně **Level-up
+> overhaul**, Slice B/C). Opravit dřív, než se pustí nový backlog níže. Malé související
+> opravy řešit společně.
+
+- [ ] **Class-feature volby nejdou zvolit (Slice B2)** — v `/levelup` se nedaří vybrat žádnou class-feature volbu: **Eldritch Invocations** (Warlock), **Metamagic** (Sorcerer), **Fighting Style** (Paladin **i** Fighter). Projít `class_feature` slot flow end-to-end (`data/class-features.ts` → `levelUpSlots` → API `isValidChoice`/unikátnost → web multi-slot picker) — buď se picker nezobrazí, nebo se volba neuloží.
+- [ ] **Feat & ASI volba: matoucí UX + feat stacking** — výběr featu a statů (ASI) je neintuitivní:
+  - zvolené **staty (ASI) musí zůstat vizuálně vybrané, dokud jsou aktivní** — stejně jako už zvolený feat (prefill z persistovaných voleb).
+  - **featy nesmí jít stacknout** — feat zvolený na jednom levelu se nesmí znovu nabízet/jít zvolit na dalším level-up slotu (deduplikace už zvolených featů napříč sloty, na webu i ve validaci API).
+- [ ] **Improved Cantrips se neprojevuje v combatu** — class-progression / level track (Slice C) inzeruje na L17 „cantripy = 4 damage dice" (`cantripDiceMultiplier`), ale v combatu cantrip pořád padá jako **1d8**. Ověřit, že `cantripDiceMultiplier` (5/11/17) reálně teče do `abilityDamageSpec` ve všech simulátorech, a srovnat zobrazení s enginem.
+
 ## Combat & obsah — overhaul
 
 - [x] **Raidy úplně vyříznout** ✅ _(ADR 0033)_ — raid systém odstraněn: API (controller/service/gateway/events), data `data/raids.ts`, web UI (routy/nav/group launch/overview/scény), `RAID_LOOT_TABLES`, raid achievementy + metrika `raidClears`, raid větev group launch (`GROUP_ACTIVITY_TYPES` = dungeon/arena). **Minimální řez** (rozhodnutí PM): sdílený group-run **engine** (`simulateRaidRun`, `RaidActor`/role, wipe/retry) + run tabulky (`raid_runs`) + matchmaking fronta **přežívají** pod legacy názvy `raid_*` a obsluhují už jen **dungeony**; `RaidModule` osekán na repo+frontu. **Loot i achievementy = retire** (rozhodnutí PM): raid-exkluzivní item **definice zůstávají** (vlastněné kusy se nedropují, jen neobtainable), odemčené achievementy zůstávají jako historická data. Weekly lockout nově jen pro dungeony. Attunement questy ponechány jako běžný obsah. **Žádná DB migrace** (sdílené tabulky zůstávají; stará raid data inertní). Build/test/lint/typecheck zelené.
@@ -131,6 +143,12 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
   - [x] **5-player / reální hráči** ✅ _(Slice 4, ADR 0038 — model: živé sezení + AI fallback)_ — ✅ **4a** deterministické jádro `dungeon-party.ts` (multi-owner party = lidé + AI, `submitPartyAction`/`resolvePartyRound`, simultánní kolo s buffrovanými akcemi, AI fallback za nečinné, wipe = celá party). ✅ **4b** API + persistence + REST: tabulky `dungeon_party_runs`/`participants` (migrace 0042), `DungeonPartyService` (launch z party 3/5, submit, deadline → AI fallback, per-člen reward), živá web stránka `dungeon-party/[runId]` + „⚔️ Live" launch v group page. ✅ **4c** WebSocket živé push: `DungeonPartyGateway` + relay (room `party-run:{id}`, signál `party:updated` → `party:state`), BullMQ deadline scheduler (`tickDeadline` + atomický `claimDueRound` CAS proti dvojímu vyhodnocení), web na WS push + REST safety-net. ✅ **4d** initiative ordering (d20+DEX per encounter) + reconnection (idempotentní join). _Follow-up: 5-player content tuning (technicky funkční přes škálování)._
 - [ ] **Gauntlet — overhaul bonusů** (draft odměn): lepší balanc + větší diverzifikace nabízených buffů/směrů.
 - [ ] **Arény (PVP) — zatím out of order** — pozastavit, než se rozhodne, co s nimi (směr/formát). ADR až s rozhodnutím.
+- [ ] **Akční ekonomika — action surge, bonus action, „once per combat"** _(D&D action economy)_ — modelovat to, co teď chybí: **Action Surge** (Fighter — akce navíc), **bonus action** jako samostatný akční slot, a **„jen jednou za boj / na začátku"** efekty typu **Sneak Attack** (Rogue) — momentálně se aplikují vícekrát / bez omezení, musí být **1× za kolo** dle D&D. Sjednotit napříč všemi simulátory.
+- [ ] **Výběr targetů v combatu** — umožnit hráči volit cíl útoku i mimo tahový dungeon (kde už cílení je); zvážit napříč režimy (quest auto-resolve = rotace/priority, ne ruční cíl).
+- [ ] **Combat log — overhaul (všechny části hry)** — přehlednější a čitelnější bojový log:
+  - lepší rozlišení **spellů / nepřátel / spojenců** (jména/ikony/barvy místo generických hlášek).
+  - **pomalejší, čitelné tempo** — ve skupinovém boji (např. 2v2 v dungeonu) log skáče moc rychle a nejde číst (throttle / krokování / pauza).
+  - celkově vyšší struktura a čitelnost.
 
 ## Spell sloty & resource
 
@@ -149,6 +167,9 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
     - [x] **B2 — class-feature volby** ✅ — nový typ level-up slotu `class_feature` (`data/class-features.ts`): **Fighting Style** (Fighter L1, Paladin/Ranger L2), **Metamagic** (Sorcerer, škáluje 2/3/4 na L3/10/17), **Eldritch Invocations** (Warlock, 2→7 přes L2–18), **Battle Master manévry** (Fighter, gated subclassem `battle_master`, 3→6). Model: skupina (`ClassFeatureGroup`) s rozvrhem → každá volba = vlastní slot (`cf:<groupId>#<index>`), recykluje persistenci `character_levelup_choices` (bez DB migrace). Efekty voleb = stejný `FeatEffect` tvar → engine combat-tagy (žádný nový kód v enginu). `levelUpSlots(klass, level, subclass?)` rozšířeno o subclass-gating; `isValidChoice` ověří skupinu+option, API service unikátnost napříč sourozeneckými sloty + pruning osiřelých voleb po změně subclassi. Level track zobrazuje class-feature milníky; web picker (multi-slot, zašednutí již zvolené volby). Kontraktní testy (`class-features.test.ts`). **Celý Slice B hotový.**
     - [x] **B3 — víc subclass (2 per classa)** ✅ — ke stávající 1 subclass přidána **1 nová D&D subclass ke každé z 12 tříd** (24 celkem) se signature ability: Totem Warrior (Bear Spirit mitigation), College of Valor, War Domain (Guided Strike), Circle of the Land, Battle Master (maneuver), Way of Shadow, Oath of Vengeance, Beast Master, Assassin, Wild Magic, Great Old One, School of Abjuration (Arcane Ward). Signature ability na `subclassLevel` dané classy, využívá existující engine cesty (strike/mitigation, dice/save/advantage/bonusDice/kiCost/aoe — ADR 0036) → živé ve všech simulátorech, magnitudy v úrovni stávajících signatur. Subclassy udělující *nové* sesílání (Eldritch Knight/Arcane Trickster) vynechány (spell sloty vázané na classu). Picker (`/levelup`, char creation) ukazuje obě volby; kontraktní testy (`subclasses.test.ts`). Bez DB migrace (`SubclassId` string sloupec).
   - [x] **Slice C — class features po levelech (D&D progrese)** ✅ _(ADR 0041)_ — nový čistý modul `class-progression.ts` deriváuje **automatické class features** z jediného zdroje pravdy a `buildLevelTrack` je vystaví v novém poli `LevelTrackEntry.classFeatures`: **Extra Attack** (martial 5/11/20 z `basicAttackDiceCount`), **Improved Cantrips** (full/pact caster 5/11/17 z `cantripDiceMultiplier`), **Rage** uses/damage (`rageChargesFor`/`rageDamageBonus`), **Ki** (`kiPointsFor`), **Sneak Attack** scaling (baseline ability s `bonusDicePerLevels`, odvozeno přesně jako `bonusDiceSpec`). **Žádné duplikované magnitudy** (kontraktní testy ověřují shodu popisů s enginem). Surfaceujeme **jen reálně modelované** features — čistě flavorové (Channel Divinity uses, Second Wind, Wild Shape…) odloženy na jejich mechanickou implementaci (backlog). Slice C je prezentační (volby pokryl Slice B) → **bez DB migrace, bez API změn**; web `/levelup` vykreslí class features se štítkem „Class feature". **Tím je Level-up overhaul kompletní.**
+- [ ] **Spell karty — redesign (všechny části hry)** — místo „AI-slop" tlačítek udělat z kouzel skutečné **karty spellu**. Na hover/tap ukázat plnou grafickou kartu: **název, dmg, cooldown, typ poškození** — a poškození nejen jako kostky, ale i jako **rozptyl reálného čísla** (min–max). Navazuje na deslopifikaci UI.
+- [ ] **Spell sloty — přehledné UI** — hráč momentálně nevidí, **jaké spell sloty mu zbývají** ani **kolik kterého slotu které kouzlo spotřebuje**. Vyřešit zobrazení (zbývající/max per tier + cena kouzla, vč. upcastu) ve všech bojových režimech.
+- [ ] **Audit cooldownů spellů** — projít cooldowny všech kouzel, ověřit konzistenci s D&D modelem (spell sloty vs. cooldown) a vzájemnou vyváženost.
 
 ## Enemy systém
 
@@ -161,6 +182,14 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 - [x] **Recheck gear** ✅ _(ADR 0035, dokončuje MR-10e follow-up)_ — gear stat škála narovnána na D&D magnitudu. **D&D-věrný model** (rozhodnutí PM): gear dává `attack_power`/`spell_power` + `armor` (AC), raw ability skóre jen vzácně (epic+ trinket +1). Katalog `items.ts` (≈340 kusů) přepsán skriptem `scripts/rescale-gear.py` z budgetu (itemLevel/rarity/slot/role) → full BiS na lvl 20 ≈ **1.5–2× efektivní síla** nahé postavy. Zároveň **D&D-ifikace base** (rozhodnutí PM): zrušen per-level růst skóre, innate clampnuto na 20 (`ABILITY_SCORE_CAP`) → bounded accuracy (naked lvl 20 AC ~13, DC ~17). `armor`→AC sjednoceno (`ARMOR_PER_AC=40`), **přeladěny** enemy 1v1 faktory (`ENEMY_HP_FACTOR` 0.26/0.40, `ENEMY_DPR_TO_SWING` 0.08/0.10). Kalibrační harness + kontrakt `gear-balance.test.ts`. _Martialové vyladěni; **casteři odloženi** na „Fix kouzla" (literal spell dice — viz blocker výše)._
 - [ ] **Revize gold systému — balance** — zdroje/sinky zlata, inflace, ceny.
 - [ ] **Banka: poplatek za vklad/výběr** — uložení i vytažení věcí z banky stojí gold → navádí hráče banku tolik nevyužívat (gold sink + design tlak).
+
+## UI / UX
+
+- [ ] **Deslopifikace UI** — celkové pročištění UI od „AI-slop" vzhledu; konzistentní vizuální jazyk, méně generických tlačítek. Zastřešuje redesign **spell karet** a **combat logu** (viz výše) i obecný polish napříč obrazovkami.
+- [ ] **Notifikace / oznámení — chování jako u seriózní hry** — opravit chování, které mate:
+  - po loginu **vyskakují i už přečtená** oznámení — nemají.
+  - **přečtené, ale nesmazané** oznámení nesmí znovu vyskakovat.
+  - hráč musí mít možnost **zavřít jednotlivé karty** s upozorněním, které právě vyskočily.
 
 ## Platforma & distribuce
 
@@ -175,10 +204,17 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 ## Auth
 
 - [ ] **Email auth** — registrace/login přes e-mail s potvrzením (rozšiřuje stávající průřezový auth follow-up níže).
+- [ ] **Logout bug — session se neudrží** — hra hráče **neustále odhlašuje**, jako by byl login v `sessionStorage` (mizí po zavření tabu / vyprší moc brzy). Ověřit perzistenci session / refresh tokenu; souvisí s průřezovým auth follow-upem (httpOnly cookie + refresh rotace).
+
+## Questy & příběh
+
+- [ ] **Přepis questového příběhu + rozšíření** _(slučuje „rozšířit questy" + „nový příběh")_ — smazat texty stávajících questů a napsat **nový koherentní příběh** v settingu The Caldmoor Reaches, **přidat nové questy** (především na **začátek hry** — onboarding příběhem) a celkově rozšířit questový obsah. Engine/mechaniky beze změny, jen narativ + nové záznamy.
+- [ ] **Skill checky v questování** _(slučuje „přidat checky" + „skill check do questování")_ — dialogové/questové volby s **D&D skill checky** (DC + atribut/skill): Charisma check, Intimidation, Persuasion, … s úspěch/neúspěch větvením. Navazuje na „❓ dialogové volby s skill checky" v RP sekci níže.
 
 ## RP / D&D / BG3 prvky
 
-- [ ] **Víc RP prvků** — vymyslet a přidat (rozšířit backstory/Background dopady, charakterové volby, …).
+- [ ] **Víc RP prvků** _(slučuje „přidat více RP možností")_ — vymyslet a přidat (rozšířit backstory/Background dopady, charakterové volby, …).
+- [ ] **Guilda — custom role s custom oprávněními** — umožnit ve guildě vytvářet **vlastní role** s **konfigurovatelnými oprávněními** (kdo může zvát/kickovat, spravovat banku, …). Souvisí s „❓ revize guild systému" níže.
 - **❓ k rozhodnutí — idle gameplay mimo questing?** Když jsou dungeony tahové (interaktivní), zůstane questing hlavní idle smyčkou. Rozhodnout, zda/jak zachovat **idle progres i mimo questing** (idle profese? idle „expedice"? offline dopočet i u tahových režimů?).
 - **❓ k rozhodnutí — revize guild systému?** Posoudit, zda guildy potřebují přepracování (po vyříznutí raidů ztrácí část MP účelu — guild aktivity/perky/cíle?).
 - **❓ k rozhodnutí — další RP / D&D / BG3 prvky?** Brainstorm k výběru: conditions (prone/stunned/frightened…), Inspiration, Short/Long Rest mechanika napříč obsahem, downtime aktivity, dialogové volby s skill checky (DC + atribut), companions/origin postavy (BG3), alignment, reaction/concentration, environmentální interakce.
