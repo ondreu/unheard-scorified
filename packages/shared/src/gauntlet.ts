@@ -39,10 +39,25 @@ import {
   type CombatEvent,
   type SignatureAbility,
 } from './combat';
-import { applySpellSave, missMessage } from './dnd-combat';
+import { applySpellSave, isControlSpell, missMessage } from './dnd-combat';
+import {
+  applyCondition,
+  beginActorTurn,
+  combineAdvantage,
+  conditionAppliedMessage,
+  grantsIncomingAdvantage,
+  tickConditions,
+  turnConditionEffects,
+  type ActiveCondition,
+} from './conditions';
 import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
 import { BESTIARY } from './data/enemies';
-import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import {
+  abilityPrefersUpcast,
+  hasSlotForTier,
+  spendSlotForTier,
+  type SpellSlots,
+} from './data/spell-slots';
 
 // ── Laditelné konstanty (balanc doladí M9-ish pass) ─────────────────────────
 
@@ -111,6 +126,8 @@ export interface GauntletEnemyState {
   /** Efektivní úroveň pro D&D AC/attackBonus (MR-5) — roste s vlnou. */
   level?: number;
   dots: GauntletDot[];
+  /** Aktivní conditiony (Slice 2d) — status efekty uvalené hráčovými kouzly. */
+  conditions?: ActiveCondition[];
 }
 
 /** Mutabilní bojový stav hráče (mimo neměnný snapshot profilu). */
@@ -143,6 +160,11 @@ export interface GauntletPlayerState {
    * Surge/Assassinate z draftu. `undefined` u běhů z doby před slice = prázdné.
    */
   usedOncePerCombat?: string[];
+  /**
+   * Aktivní conditiony hráče (Slice 2d) — status efekty (stun/slow/…). Resetují se
+   * při spawnu nové vlny (short rest). `undefined` u běhů z doby před slice = prázdné.
+   */
+  conditions?: ActiveCondition[];
 }
 
 /** Druh draft odměny. */
@@ -268,12 +290,22 @@ export function gauntletAbilities(base: CombatActor, picks: GauntletPick[]): Sig
 // Gauntlet combatu zatím NEpropisují (magnitudy/typing beze změny — typed Gauntlet
 // nepřátelé = follow-up „Enemy schopnosti"). Pool = curated podmnožina katalogu.
 const NORMAL_ENEMY_NAMES = [
-  'skeleton_warrior', 'rotting_zombie', 'goblin_cutter', 'dire_wolf',
-  'cultist_pyromancer', 'hill_ogre', 'grave_wraith', 'frost_elemental',
+  'skeleton_warrior',
+  'rotting_zombie',
+  'goblin_cutter',
+  'dire_wolf',
+  'cultist_pyromancer',
+  'hill_ogre',
+  'grave_wraith',
+  'frost_elemental',
 ].map((id) => BESTIARY[id]!.name);
 const ELITE_ENEMY_NAMES = [
-  'stone_golem', 'young_red_dragon', 'mind_devourer', 'ancient_treant',
-  'pit_fiend_spawn', 'fire_elemental',
+  'stone_golem',
+  'young_red_dragon',
+  'mind_devourer',
+  'ancient_treant',
+  'pit_fiend_spawn',
+  'fire_elemental',
 ].map((id) => BESTIARY[id]!.name);
 
 /**
@@ -281,7 +313,11 @@ const ELITE_ENEMY_NAMES = [
  * každá `GAUNTLET_ELITE_EVERY`-tá vlna je elite (výrazně silnější). Škáluje
  * i s levelem postavy, aby výzva odpovídala síle hráče.
  */
-export function buildGauntletEnemy(level: number, wave: number, rng: SeededRng): GauntletEnemyState {
+export function buildGauntletEnemy(
+  level: number,
+  wave: number,
+  rng: SeededRng,
+): GauntletEnemyState {
   const isElite = wave % GAUNTLET_ELITE_EVERY === 0;
   const eliteHp = isElite ? 2.4 : 1;
   const eliteAp = isElite ? 1.7 : 1;
@@ -301,7 +337,17 @@ export function buildGauntletEnemy(level: number, wave: number, rng: SeededRng):
 
   // Efektivní úroveň roste s vlnou → AC/attackBonus drží krok s hráčem (MR-5).
   const effLevel = level + waveStep;
-  return { name, isElite, maxHealth, currentHealth: maxHealth, attackPower, armor, level: effLevel, dots: [] };
+  return {
+    name,
+    isElite,
+    maxHealth,
+    currentHealth: maxHealth,
+    attackPower,
+    armor,
+    level: effLevel,
+    dots: [],
+    conditions: [],
+  };
 }
 
 /** `CombatActor` nepřítele pro sdílený `computeHit` (zdroj pravdy combat vzorce). */
@@ -342,6 +388,7 @@ export function startGauntletRun(base: CombatActor, level: number, seed: number)
       mitigationTurns: 0,
       mitigationPct: 0,
       usedOncePerCombat: [],
+      conditions: [],
     },
     enemy: null,
     picks: [],
@@ -363,6 +410,7 @@ function spawnWave(base: CombatActor, state: GauntletRunState, level: number): v
   state.player.mitigationTurns = 0;
   state.player.mitigationPct = 0;
   state.player.usedOncePerCombat = []; // nová vlna = nový boj → reset „once per combat" (ADR 0042)
+  state.player.conditions = []; // short rest mezi vlnami setře status efekty (Slice 2d)
   // Pact Magic (Warlock, ADR 0034): „short rest" recharge — sloty se obnoví KAŽDOU
   // vlnu (ostatní casteři mají per-run rozpočet). Faithful D&D pact recovery v idle.
   if (base.casterType === 'pact') state.player.spellSlots = { ...(base.spellSlots ?? {}) };
@@ -395,11 +443,15 @@ export function isGauntletAbilityReady(state: GauntletRunState, abilityId: strin
  * UI (zašednutí) i validaci tahu. `kiPoints`/`spellSlots` undefined (běhy z doby
  * před slice) = netrackováno → neblokuje.
  */
-export function canCastGauntletAbility(state: GauntletRunState, ability: SignatureAbility): boolean {
+export function canCastGauntletAbility(
+  state: GauntletRunState,
+  ability: SignatureAbility,
+): boolean {
   const kiLeft = state.player.kiPoints ?? Infinity;
   if ((ability.kiCost ?? 0) > kiLeft) return false;
   // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná v této vlně.
-  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(ability.id)) return false;
+  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(ability.id))
+    return false;
   return hasSlotForTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0);
 }
 
@@ -430,31 +482,40 @@ export function resolveGauntletTurn(
   // aktéra s resistance na fyzické + rage bonusem (projde computeHit jako útočník i cíl).
   const baseActor = effectivePlayerActor(base, state.picks);
   const player = state.player.raging ? applyRage(baseActor) : baseActor;
+
+  // Conditiony (Slice 2d): vyhodnoť stav hráče PŘED akcí. Stun = ztráta tahu
+  // (ability i bonus se přeskočí, ale DoT na nepříteli a jeho protiúder proběhnou);
+  // frightened/prone/slow → disadvantage na vlastní útoky; slow → bez bonus akce.
+  const turnEff = turnConditionEffects(state.player.conditions);
+  const playerStunned = turnEff.skipTurn;
+
   const ability =
     abilityId === GAUNTLET_BASIC_ATTACK.id
       ? GAUNTLET_BASIC_ATTACK
       : player.signatureAbilities.find((a) => a.id === abilityId);
-  if (!ability || ability.kind === 'buff') return { state, events: [] }; // buff = pasivní rider
-  if (!isGauntletAbilityReady(state, abilityId)) return { state, events: [] };
-  // Akční ekonomika (ADR 0042): „once per combat" ability se ve vlně použije jen 1×.
-  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(abilityId)) {
-    return { state, events: [] };
-  }
 
-  // Class resources (ADR 0034): rozpočet na celý run. Lazy init pro běhy založené
-  // před slice (JSON bez pole). Kontrola dostupnosti teď (bez zdroje = neplatný tah,
-  // UI ho blokuje); samotná spotřeba až při commitu (po DoT — viz níže), aby DoT-kill
-  // nepřítele neutratil zdroj za ability, která už nedopadne.
+  // Class resources (ADR 0034): lazy init rozpočtů pro běhy z doby před slice.
   if (state.player.spellSlots === undefined) {
     state.player.spellSlots = { ...(base.spellSlots ?? {}) };
   }
   if (state.player.kiPoints === undefined) {
     state.player.kiPoints = base.kiPoints ?? 0;
   }
-  const abilityTier = ability.spellTier ?? 0;
-  if (!hasSlotForTier(state.player.spellSlots, abilityTier)) return { state, events: [] };
-  const kiCost = ability.kiCost ?? 0;
-  if (kiCost > (state.player.kiPoints ?? 0)) return { state, events: [] };
+
+  // Validace zvolené ability — jen když hráč může jednat (stunnutý ji ignoruje,
+  // tah se vyřeší jako ztracený). Kontrola dostupnosti zdrojů teď, spotřeba až
+  // při commitu (po DoT — níže), aby DoT-kill neutratil zdroj za ability, co nedopadne.
+  if (!playerStunned) {
+    if (!ability || ability.kind === 'buff') return { state, events: [] }; // buff = pasivní rider
+    if (!isGauntletAbilityReady(state, abilityId)) return { state, events: [] };
+    // Akční ekonomika (ADR 0042): „once per combat" ability se ve vlně použije jen 1×.
+    if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(abilityId)) {
+      return { state, events: [] };
+    }
+    if (!hasSlotForTier(state.player.spellSlots, ability.spellTier ?? 0))
+      return { state, events: [] };
+    if ((ability.kiCost ?? 0) > (state.player.kiPoints ?? 0)) return { state, events: [] };
+  }
   let usedSlotTier: number | null = null;
 
   const enemy = state.enemy;
@@ -465,6 +526,11 @@ export function resolveGauntletTurn(
     events.push(e);
     state.log.push(e);
   };
+
+  // Tah hráče reálně nastává → tikni jeho conditiony (po vyhodnocení `turnEff`).
+  // Conditiony se uvalují během cizích tahů a tikají na začátku vlastního → každá
+  // vydrží přesně svůj počet tahů (stejný životní cyklus jako tahové dungeony).
+  state.player.conditions = tickConditions(state.player.conditions);
 
   // (1) DoT tiky na nepříteli (krvácení/hoření z předchozích tahů).
   for (const dot of enemy.dots) {
@@ -485,161 +551,252 @@ export function resolveGauntletTurn(
   enemy.dots = enemy.dots.filter((d) => d.remainingTicks > 0);
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
 
-  // Class resources (ADR 0034): commit — utratí slot (kouzlo, upcast přes `usedSlotTier`)
-  // resp. Ki (Monkova technika). Dostupnost ověřena výše; DoT nepřítele nezabil → ability dopadne.
-  if (abilityTier >= 1)
-    usedSlotTier = spendSlotForTier(state.player.spellSlots, abilityTier, abilityPrefersUpcast(ability));
-  if (kiCost > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - kiCost;
-
-  // (2) Hráčova ability.
+  // (2) Hráčova ability — enemyAsActor potřebuje i protiúder níže, proto je mimo větev.
   const enemyAsActor = enemyActor(enemy);
-  if (ability.kind === 'heal') {
-    // Fall-off platí i na heal spelly (ne jen draft karty) → sdílený čítač
-    // `healsUsed`. Spamovat léčení se nevyplatí: každý další heal je slabší.
-    const falloff = healFalloff(state.healsUsed);
-    const heal = Math.round(player.attackPower * ability.damageMult * HEAL_POWER_FACTOR * falloff);
-    state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + heal);
-    state.healsUsed += 1;
-    const dim = falloff < 1 ? ' (diminished)' : '';
-    pushEvent({
-      t,
-      type: 'heal',
-      message: `✨ ${player.name} casts ${ability.name}, healing for ${heal}${dim}. Self: ${state.player.currentHealth} HP`,
-      source: player.name,
-      target: player.name,
-      amount: heal,
-      ability: ability.name,
-    });
-  } else if (ability.kind === 'shield') {
-    const shield = Math.round(player.attackPower * ability.damageMult);
-    state.player.absorb += shield;
-    pushEvent({
-      t,
-      type: 'absorb',
-      message: `🛡️ ${player.name} casts ${ability.name}, absorbing the next ${shield} damage.`,
-      source: player.name,
-      target: player.name,
-      amount: shield,
-      ability: ability.name,
-    });
-  } else if (ability.kind === 'mitigation') {
-    state.player.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? GAUNTLET_TURN_SEC) / GAUNTLET_TURN_SEC));
-    state.player.mitigationPct = ability.mitigationPct ?? 0;
+  if (playerStunned || !ability) {
+    // Stun (Slice 2d): hráč ztrácí tah. DoT (výše) i protiúder (níže) proběhnou.
     pushEvent({
       t,
       type: 'ability',
-      message: `🛡️ ${player.name} uses ${ability.name}, reducing damage taken for a few turns.`,
       source: player.name,
       target: player.name,
-      ability: ability.name,
+      message: `💫 ${player.name} is stunned and loses the turn!`,
     });
   } else {
-    // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
-    const targetHpPct = enemy.currentHealth / enemy.maxHealth;
-    // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
-    // jinak škálují přes attackPower (damageMult). Upcast dle slotu,
-    // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
-    const spec = abilityDamageSpec(ability, usedSlotTier, player.level);
-    const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
-    // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
-    const bonusDice = bonusDiceSpec(ability, usedSlotTier, player.level);
-    // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
-    const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec, {
-      advantage: ability.advantage ? 'advantage' : undefined,
-      bonusDice,
-    });
-    // Per-spell saving throw (ADR 0032) → nepřítel hodí proti spell save DC hráče.
-    if (hit.hit && ability.save) {
-      const outcome = applySpellSave(ability, player, enemyAsActor, rng, hit.amount);
-      hit.amount = outcome.amount;
-      if (outcome.message) {
-        pushEvent({ t, type: 'ability', message: outcome.message, source: enemy.name, target: player.name });
-      }
-    }
-    enemy.currentHealth -= hit.amount;
+    // Class resources (ADR 0034): commit — utratí slot (kouzlo, upcast přes `usedSlotTier`)
+    // resp. Ki (Monkova technika). Dostupnost ověřena výše; DoT nepřítele nezabil → ability dopadne.
+    const abilityTier = ability.spellTier ?? 0;
+    const kiCost = ability.kiCost ?? 0;
+    if (abilityTier >= 1)
+      usedSlotTier = spendSlotForTier(
+        state.player.spellSlots,
+        abilityTier,
+        abilityPrefersUpcast(ability),
+      );
+    if (kiCost > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - kiCost;
 
-    let healed = hit.hit ? Math.round(hit.amount * player.lifesteal) : 0;
-    if (hit.hit && ability.kind === 'drain') healed += Math.round(hit.amount * (ability.drainHealFraction ?? 0));
-    if (healed > 0) {
-      state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + healed);
-    }
-
-    if (hit.hit && ability.kind === 'dot' && ability.dotTicks) {
-      // DoT tik respektuje typ + obrany cíle (MR-10d), stejně jako přímý zásah.
-      const dotType = ability.damageType ?? player.damageType ?? 'bludgeoning';
-      const interaction = damageInteraction(dotType, enemyAsActor);
-      const raw = dotTickRaw(ability, player);
-      const tickDamage = interaction === 'immune' ? 0 : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
-      enemy.dots.push({
-        remainingTicks: ability.dotTicks,
-        tickDamage,
-        sourceName: player.name,
-        abilityName: ability.name,
-      });
-    }
-
-    const remaining = Math.max(0, Math.round(enemy.currentHealth));
-    const named = ability.id === GAUNTLET_BASIC_ATTACK.id ? undefined : ability.name;
-    pushEvent({
-      t,
-      type: named ? 'ability' : 'attack',
-      message: hit.hit
-        ? buildAttackMessage({
-            attacker: player,
-            targetName: enemy.name,
-            amount: hit.amount,
-            crit: hit.crit,
-            healed,
-            abilityName: named,
-            suffix: `. Target: ${remaining} HP`,
-          })
-        : missMessage(player.name, enemy.name, hit),
-      source: player.name,
-      target: enemy.name,
-      amount: hit.amount,
-      crit: hit.crit,
-      ability: named,
-      targetHealthRemaining: remaining,
-    });
-
-    // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra úder(y)
-    // zbraní v tomtéž tahu, než nepřítel protiútočí.
-    const extras = extraActionCount(ability);
-    for (let k = 0; k < extras && enemy.currentHealth > 0; k++) {
-      const xr = computeHit(player, enemyAsActor, rng, 1, false);
-      enemy.currentHealth -= xr.amount;
-      const xh = xr.hit ? Math.round(xr.amount * player.lifesteal) : 0;
-      if (xh > 0) state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + xh);
-      const xrem = Math.max(0, Math.round(enemy.currentHealth));
+    if (isControlSpell(ability)) {
+      // Pure-control kouzlo (Slice 2d): žádný hod na zásah ani poškození — jen save
+      // → condition na nepříteli (Hold Person/Web/Entangle).
       pushEvent({
         t,
         type: 'ability',
-        message: xr.hit
+        source: player.name,
+        target: enemy.name,
+        ability: ability.name,
+        message: `✨ ${player.name} casts ${ability.name} on ${enemy.name}.`,
+      });
+      const out = applySpellSave(ability, player, enemyAsActor, rng, 0);
+      if (out.message)
+        pushEvent({
+          t,
+          type: 'ability',
+          message: out.message,
+          source: enemy.name,
+          target: player.name,
+        });
+      if (out.condition) {
+        enemy.conditions = applyCondition(enemy.conditions, out.condition, player.name);
+        pushEvent({
+          t,
+          type: 'ability',
+          source: player.name,
+          target: enemy.name,
+          message: conditionAppliedMessage(enemy.name, out.condition),
+        });
+      }
+    } else if (ability.kind === 'heal') {
+      // Fall-off platí i na heal spelly (ne jen draft karty) → sdílený čítač
+      // `healsUsed`. Spamovat léčení se nevyplatí: každý další heal je slabší.
+      const falloff = healFalloff(state.healsUsed);
+      const heal = Math.round(
+        player.attackPower * ability.damageMult * HEAL_POWER_FACTOR * falloff,
+      );
+      state.player.currentHealth = Math.min(
+        state.player.maxHealth,
+        state.player.currentHealth + heal,
+      );
+      state.healsUsed += 1;
+      const dim = falloff < 1 ? ' (diminished)' : '';
+      pushEvent({
+        t,
+        type: 'heal',
+        message: `✨ ${player.name} casts ${ability.name}, healing for ${heal}${dim}. Self: ${state.player.currentHealth} HP`,
+        source: player.name,
+        target: player.name,
+        amount: heal,
+        ability: ability.name,
+      });
+    } else if (ability.kind === 'shield') {
+      const shield = Math.round(player.attackPower * ability.damageMult);
+      state.player.absorb += shield;
+      pushEvent({
+        t,
+        type: 'absorb',
+        message: `🛡️ ${player.name} casts ${ability.name}, absorbing the next ${shield} damage.`,
+        source: player.name,
+        target: player.name,
+        amount: shield,
+        ability: ability.name,
+      });
+    } else if (ability.kind === 'mitigation') {
+      state.player.mitigationTurns = Math.max(
+        1,
+        Math.round((ability.mitigationDurationSec ?? GAUNTLET_TURN_SEC) / GAUNTLET_TURN_SEC),
+      );
+      state.player.mitigationPct = ability.mitigationPct ?? 0;
+      pushEvent({
+        t,
+        type: 'ability',
+        message: `🛡️ ${player.name} uses ${ability.name}, reducing damage taken for a few turns.`,
+        source: player.name,
+        target: player.name,
+        ability: ability.name,
+      });
+    } else {
+      // strike / drain / dot / basic — přímý úder přes sdílený computeHit.
+      const targetHpPct = enemy.currentHealth / enemy.maxHealth;
+      // Literal D&D spell dice (ADR 0032): kouzla s `dice` jdou přímo (mult = 1);
+      // jinak škálují přes attackPower (damageMult). Upcast dle slotu,
+      // kterým bylo kouzlo sesláno (ADR 0034 → Gauntlet teď trackuje slot tier).
+      const spec = abilityDamageSpec(ability, usedSlotTier, player.level);
+      const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);
+      // Bonus kostky na weapon hit (ADR 0036) + advantage — D&D martial maneuvery.
+      const bonusDice = bonusDiceSpec(ability, usedSlotTier, player.level);
+      // Advantage (Slice 2d): ability advantage + útok na prone/restrained/stunned
+      // nepřítele, proti disadvantage z vlastní conditiony (advantage + disadvantage = normal).
+      const advantage = combineAdvantage(
+        ability.advantage ? 'advantage' : undefined,
+        grantsIncomingAdvantage(enemy.conditions) ? 'advantage' : undefined,
+        turnEff.attackDisadvantage ? 'disadvantage' : undefined,
+      );
+      // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy.
+      const hit = computeHit(player, enemyAsActor, rng, mult, false, ability.damageType, spec, {
+        advantage,
+        bonusDice,
+      });
+      // Per-spell saving throw (ADR 0032) → nepřítel hodí proti spell save DC hráče.
+      // Condition rider (Slice 2d): se `save` → na neúspěch; bez `save` → auto na zásah.
+      let rider = hit.hit && !ability.save ? ability.condition : undefined;
+      if (hit.hit && ability.save) {
+        const outcome = applySpellSave(ability, player, enemyAsActor, rng, hit.amount);
+        hit.amount = outcome.amount;
+        if (outcome.message) {
+          pushEvent({
+            t,
+            type: 'ability',
+            message: outcome.message,
+            source: enemy.name,
+            target: player.name,
+          });
+        }
+        rider = outcome.condition;
+      }
+      if (rider && enemy.currentHealth - hit.amount > 0) {
+        enemy.conditions = applyCondition(enemy.conditions, rider, player.name);
+        pushEvent({
+          t,
+          type: 'ability',
+          source: player.name,
+          target: enemy.name,
+          message: conditionAppliedMessage(enemy.name, rider),
+        });
+      }
+      enemy.currentHealth -= hit.amount;
+
+      let healed = hit.hit ? Math.round(hit.amount * player.lifesteal) : 0;
+      if (hit.hit && ability.kind === 'drain')
+        healed += Math.round(hit.amount * (ability.drainHealFraction ?? 0));
+      if (healed > 0) {
+        state.player.currentHealth = Math.min(
+          state.player.maxHealth,
+          state.player.currentHealth + healed,
+        );
+      }
+
+      if (hit.hit && ability.kind === 'dot' && ability.dotTicks) {
+        // DoT tik respektuje typ + obrany cíle (MR-10d), stejně jako přímý zásah.
+        const dotType = ability.damageType ?? player.damageType ?? 'bludgeoning';
+        const interaction = damageInteraction(dotType, enemyAsActor);
+        const raw = dotTickRaw(ability, player);
+        const tickDamage =
+          interaction === 'immune'
+            ? 0
+            : Math.max(1, applyDamageInteraction(Math.max(1, raw), interaction));
+        enemy.dots.push({
+          remainingTicks: ability.dotTicks,
+          tickDamage,
+          sourceName: player.name,
+          abilityName: ability.name,
+        });
+      }
+
+      const remaining = Math.max(0, Math.round(enemy.currentHealth));
+      const named = ability.id === GAUNTLET_BASIC_ATTACK.id ? undefined : ability.name;
+      pushEvent({
+        t,
+        type: named ? 'ability' : 'attack',
+        message: hit.hit
           ? buildAttackMessage({
               attacker: player,
               targetName: enemy.name,
-              amount: xr.amount,
-              crit: xr.crit,
-              healed: xh,
-              abilityName: EXTRA_ATTACK_ABILITY.name,
-              suffix: `. Target: ${xrem} HP`,
+              amount: hit.amount,
+              crit: hit.crit,
+              healed,
+              abilityName: named,
+              suffix: `. Target: ${remaining} HP`,
             })
-          : missMessage(player.name, enemy.name, xr),
+          : missMessage(player.name, enemy.name, hit),
         source: player.name,
         target: enemy.name,
-        amount: xr.amount,
-        crit: xr.crit,
-        ability: EXTRA_ATTACK_ABILITY.name,
-        targetHealthRemaining: xrem,
+        amount: hit.amount,
+        crit: hit.crit,
+        ability: named,
+        targetHealthRemaining: remaining,
       });
-    }
-  }
 
-  // Cooldown zvolené ability.
-  const cd = cooldownTurns(ability);
-  if (cd > 0) state.player.cooldowns[abilityId] = cd;
-  // Spotřebuj „once per combat" okno (ADR 0042) — no-op u abilit bez flagu.
-  if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
+      // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra úder(y)
+      // zbraní v tomtéž tahu, než nepřítel protiútočí.
+      const extras = extraActionCount(ability);
+      for (let k = 0; k < extras && enemy.currentHealth > 0; k++) {
+        const xr = computeHit(player, enemyAsActor, rng, 1, false);
+        enemy.currentHealth -= xr.amount;
+        const xh = xr.hit ? Math.round(xr.amount * player.lifesteal) : 0;
+        if (xh > 0)
+          state.player.currentHealth = Math.min(
+            state.player.maxHealth,
+            state.player.currentHealth + xh,
+          );
+        const xrem = Math.max(0, Math.round(enemy.currentHealth));
+        pushEvent({
+          t,
+          type: 'ability',
+          message: xr.hit
+            ? buildAttackMessage({
+                attacker: player,
+                targetName: enemy.name,
+                amount: xr.amount,
+                crit: xr.crit,
+                healed: xh,
+                abilityName: EXTRA_ATTACK_ABILITY.name,
+                suffix: `. Target: ${xrem} HP`,
+              })
+            : missMessage(player.name, enemy.name, xr),
+          source: player.name,
+          target: enemy.name,
+          amount: xr.amount,
+          crit: xr.crit,
+          ability: EXTRA_ATTACK_ABILITY.name,
+          targetHealthRemaining: xrem,
+        });
+      }
+    }
+
+    // Cooldown zvolené ability + „once per combat" okno (ADR 0042).
+    const cd = cooldownTurns(ability);
+    if (cd > 0) state.player.cooldowns[abilityId] = cd;
+    if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
+  }
 
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
 
@@ -647,7 +804,14 @@ export function resolveGauntletTurn(
   // (Healing Word) — nic se neděje automaticky. Léčení čerpá run-wide `healsUsed`
   // → podléhá `healFalloff` (diminishing), takže nerozbije roguelite heal-scarcity
   // (balanc křivkou). Bez `bonusAbilityId` (nebo == hlavní akci) bonus neproběhne.
-  if (bonusAbilityId && bonusAbilityId !== abilityId && state.player.currentHealth < state.player.maxHealth) {
+  // Slow/stun (Slice 2d) → žádná bonus akce; stun navíc znamená ztracený celý tah.
+  if (
+    !playerStunned &&
+    !turnEff.noBonusAction &&
+    bonusAbilityId &&
+    bonusAbilityId !== abilityId &&
+    state.player.currentHealth < state.player.maxHealth
+  ) {
     const b = player.signatureAbilities.find((a) => a.id === bonusAbilityId);
     const bTier = b?.spellTier ?? 0;
     const canBonus =
@@ -659,10 +823,14 @@ export function resolveGauntletTurn(
       (b.kiCost ?? 0) <= (state.player.kiPoints ?? 0);
     if (canBonus) {
       if (bTier >= 1) spendSlotForTier(state.player.spellSlots, bTier, abilityPrefersUpcast(b));
-      if ((b.kiCost ?? 0) > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - (b.kiCost ?? 0);
+      if ((b.kiCost ?? 0) > 0)
+        state.player.kiPoints = (state.player.kiPoints ?? 0) - (b.kiCost ?? 0);
       const falloff = healFalloff(state.healsUsed);
       const heal = Math.round(player.attackPower * b.damageMult * HEAL_POWER_FACTOR * falloff);
-      state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + heal);
+      state.player.currentHealth = Math.min(
+        state.player.maxHealth,
+        state.player.currentHealth + heal,
+      );
       state.healsUsed += 1;
       state.player.cooldowns[b.id] = cooldownTurns(b);
       const dim = falloff < 1 ? ' (diminished)' : '';
@@ -678,28 +846,49 @@ export function resolveGauntletTurn(
     }
   }
 
-  // (3) Protiúder nepřítele.
-  const enemyHit = computeHit(enemyAsActor, player, rng, 1, false);
-  let incoming = enemyHit.amount;
-  if (state.player.mitigationTurns > 0 && state.player.mitigationPct > 0) {
-    incoming = Math.max(1, Math.round(incoming * (1 - state.player.mitigationPct)));
+  // (3) Protiúder nepřítele — pokud sám není stunnutý (Slice 2d). beginActorTurn
+  // tikne enemy conditiony na začátku jeho tahu; stun → vynechá útok (hráč dostane
+  // „volný" tah). Údržba (cooldowny) doběhne tak jako tak.
+  const enemyEff = beginActorTurn(enemy);
+  if (enemyEff.skipTurn) {
+    pushEvent({
+      t,
+      type: 'ability',
+      source: enemy.name,
+      target: enemy.name,
+      message: `💫 ${enemy.name} is stunned and cannot act!`,
+    });
+  } else {
+    // Advantage (Slice 2d): útok na prone/restrained/stunnutého hráče, proti
+    // disadvantage z vlastní conditiony nepřítele (frightened/slow/…).
+    const enemyAdvantage = combineAdvantage(
+      grantsIncomingAdvantage(state.player.conditions) ? 'advantage' : undefined,
+      enemyEff.attackDisadvantage ? 'disadvantage' : undefined,
+    );
+    const enemyHit = computeHit(enemyAsActor, player, rng, 1, false, undefined, undefined, {
+      advantage: enemyAdvantage,
+    });
+    let incoming = enemyHit.amount;
+    if (state.player.mitigationTurns > 0 && state.player.mitigationPct > 0) {
+      incoming = Math.max(1, Math.round(incoming * (1 - state.player.mitigationPct)));
+    }
+    const absorbResult = applyAbsorb(incoming, state.player.absorb);
+    state.player.absorb = absorbResult.shieldRemaining;
+    state.player.currentHealth -= absorbResult.netDamage;
+    const absorbSuffix = absorbResult.absorbed > 0 ? ` (${absorbResult.absorbed} absorbed)` : '';
+    pushEvent({
+      t,
+      type: 'attack',
+      message: enemyHit.hit
+        ? `${enemy.name} hits ${player.name} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. You: ${Math.max(0, Math.round(state.player.currentHealth))} HP`
+        : missMessage(enemy.name, player.name, enemyHit),
+      source: enemy.name,
+      target: player.name,
+      amount: absorbResult.netDamage,
+      crit: enemyHit.crit,
+      targetHealthRemaining: Math.max(0, Math.round(state.player.currentHealth)),
+    });
   }
-  const absorbResult = applyAbsorb(incoming, state.player.absorb);
-  state.player.absorb = absorbResult.shieldRemaining;
-  state.player.currentHealth -= absorbResult.netDamage;
-  const absorbSuffix = absorbResult.absorbed > 0 ? ` (${absorbResult.absorbed} absorbed)` : '';
-  pushEvent({
-    t,
-    type: 'attack',
-    message: enemyHit.hit
-      ? `${enemy.name} hits ${player.name} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. You: ${Math.max(0, Math.round(state.player.currentHealth))} HP`
-      : missMessage(enemy.name, player.name, enemyHit),
-    source: enemy.name,
-    target: player.name,
-    amount: absorbResult.netDamage,
-    crit: enemyHit.crit,
-    targetHealthRemaining: Math.max(0, Math.round(state.player.currentHealth)),
-  });
 
   if (state.player.currentHealth <= 0) {
     state.player.currentHealth = 0;
@@ -729,7 +918,11 @@ export function resolveGauntletTurn(
 }
 
 /** Společné zpracování porážky nepřítele: skóre +1, status drafting (bez nabídky). */
-function onEnemyDefeated(state: GauntletRunState, t: number, events: CombatEvent[]): GauntletRunState {
+function onEnemyDefeated(
+  state: GauntletRunState,
+  t: number,
+  events: CombatEvent[],
+): GauntletRunState {
   const enemy = state.enemy!;
   enemy.currentHealth = 0;
   state.wavesCleared = state.wave;
@@ -758,11 +951,36 @@ interface BuffSpec {
 
 /** Kurátorovaný pool buffů (run-scoped). */
 const GAUNTLET_BUFFS: BuffSpec[] = [
-  { id: 'might', name: "Berserker's Might", description: '+15% attack power for the rest of the run.', pick: { attackMult: 1.15 } },
-  { id: 'fortitude', name: 'Fortitude', description: '+20% maximum health, and heal that amount.', pick: { maxHealthMult: 1.2 } },
-  { id: 'precision', name: 'Deadly Precision', description: '+8% critical strike chance.', pick: { bonusCritChance: 0.08 } },
-  { id: 'vampirism', name: 'Vampiric Aura', description: '+6% life leech on your attacks.', pick: { bonusLifesteal: 0.06 } },
-  { id: 'ironhide', name: 'Iron Hide', description: '+120 armor, reducing incoming damage.', pick: { bonusArmor: 120 } },
+  {
+    id: 'might',
+    name: "Berserker's Might",
+    description: '+15% attack power for the rest of the run.',
+    pick: { attackMult: 1.15 },
+  },
+  {
+    id: 'fortitude',
+    name: 'Fortitude',
+    description: '+20% maximum health, and heal that amount.',
+    pick: { maxHealthMult: 1.2 },
+  },
+  {
+    id: 'precision',
+    name: 'Deadly Precision',
+    description: '+8% critical strike chance.',
+    pick: { bonusCritChance: 0.08 },
+  },
+  {
+    id: 'vampirism',
+    name: 'Vampiric Aura',
+    description: '+6% life leech on your attacks.',
+    pick: { bonusLifesteal: 0.06 },
+  },
+  {
+    id: 'ironhide',
+    name: 'Iron Hide',
+    description: '+120 armor, reducing incoming damage.',
+    pick: { bonusArmor: 120 },
+  },
 ];
 // POZN.: Léčivé draft karty (healPct/healFull) zatím záměrně NEJSOU v poolu
 // (rozhodnutí PM) — léčit jde jen heal *spelly*, a ty mají fall-off (sdílený
@@ -922,7 +1140,11 @@ function materialTierForLevel(level: number): number {
  * Materiály se losují deterministicky (`rng`) z tieru dle levelu. Drobné odměny
  * (idle jádro zůstává hlavní progrese) — viz `gauntletDaily*Cap`.
  */
-export function gauntletRunReward(wavesCleared: number, level: number, rng: SeededRng): GauntletReward {
+export function gauntletRunReward(
+  wavesCleared: number,
+  level: number,
+  rng: SeededRng,
+): GauntletReward {
   if (wavesCleared <= 0) return { xp: 0, gold: 0, items: [] };
   const scale = Math.sqrt(Math.max(1, level));
   const xp = Math.round(wavesCleared * 45 * scale);

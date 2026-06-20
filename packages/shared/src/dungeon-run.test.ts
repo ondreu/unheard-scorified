@@ -350,6 +350,33 @@ describe('conditiony (Enemy schopnosti, Slice 2a)', () => {
     expect(slowApplied).toBe(true);
   });
 
+  it('hráčské control kouzlo restrainne nepřítele bez poškození (Slice 2d)', () => {
+    const base = hero('fighter');
+    const hold: SignatureAbility = {
+      id: 'test_hold', name: 'Hold Person', kind: 'strike', cooldownSec: 0, damageMult: 0,
+      save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'restrained', durationTurns: 2 },
+    };
+    base.signatureAbilities = [...base.signatureAbilities, hold];
+    base.spellSaveDc = 99; // nepřítel save vždy selže → restrain padne
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    const e = state.enemies[0]!;
+    e.maxHealth = 1_000_000;
+    e.currentHealth = 1_000_000; // nezemře → uvidíme uvalení i absenci poškození
+    state.enemies = [e];
+
+    let castSeen = false;
+    let restrainSeen = false;
+    for (let i = 0; i < 6 && state.status === 'in_combat'; i++) {
+      resolveDungeonTurn(base, state, 'test_hold', 0);
+      if (state.log.some((ev) => ev.source === base.name && (ev.message ?? '').includes('casts Hold Person'))) castSeen = true;
+      if (hasCondition(state.enemies[0]?.conditions, 'restrained')) restrainSeen = true;
+      // Control kouzlo nesmí ubrat nepříteli žádné HP (čistá kontrola, ne chip damage).
+      expect(state.enemies[0]!.currentHealth).toBe(1_000_000);
+    }
+    expect(castSeen).toBe(true);
+    expect(restrainSeen).toBe(true);
+  });
+
   it('short rest mezi encountery setře conditiony', () => {
     const base = hero('fighter');
     const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);

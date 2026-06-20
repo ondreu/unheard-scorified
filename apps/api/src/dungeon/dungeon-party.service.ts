@@ -24,6 +24,7 @@ import {
   type PartyRunState,
   type PartyRunStatus,
   type RaidReward,
+  type ActiveCondition,
   type RaidRole,
   type SpellSlots,
 } from '@game/shared';
@@ -71,6 +72,8 @@ interface PartyMemberView {
   maxHealth: number;
   absorb: number;
   submitted: boolean;
+  /** Aktivní conditiony (Slice 2d UI) — badge na kartě člena. */
+  conditions: ActiveCondition[];
 }
 
 export interface DungeonPartyRunView {
@@ -86,7 +89,14 @@ export interface DungeonPartyRunView {
   /** Deadline aktuálního kola (ms epoch) — UI odpočet do AI fallbacku. */
   roundDeadline: number | null;
   members: PartyMemberView[];
-  enemies: { idx: number; name: string; isBoss: boolean; maxHealth: number; currentHealth: number }[];
+  enemies: {
+    idx: number;
+    name: string;
+    isBoss: boolean;
+    maxHealth: number;
+    currentHealth: number;
+    conditions: ActiveCondition[];
+  }[];
   /** Stav volajícího hráče (jeho ability bar + zdroje); null, pokud padl. */
   you: {
     slot: number;
@@ -434,6 +444,7 @@ export class DungeonPartyService {
         maxHealth: m.maxHealth,
         absorb: Math.round(m.absorb),
         submitted: state.pending[m.slot] !== undefined,
+        conditions: m.conditions ?? [],
       })),
       enemies: state.enemies.map((e) => ({
         idx: e.idx,
@@ -441,6 +452,7 @@ export class DungeonPartyService {
         isBoss: e.isBoss,
         maxHealth: e.maxHealth,
         currentHealth: Math.max(0, Math.round(e.currentHealth)),
+        conditions: e.conditions ?? [],
       })),
       you: you
         ? {

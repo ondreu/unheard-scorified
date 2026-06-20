@@ -28,6 +28,7 @@ import {
   type GauntletStatComparison,
   type ItemDef,
   type ItemStats,
+  type ActiveCondition,
   type SpellSlots,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
@@ -89,8 +90,17 @@ export interface GauntletRunView {
     rageCharges: number;
     maxRageCharges: number;
     raging: boolean;
+    /** Aktivní conditiony hráče (Slice 2d UI). */
+    conditions: ActiveCondition[];
   };
-  enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
+  enemy: {
+    name: string;
+    isElite: boolean;
+    maxHealth: number;
+    currentHealth: number;
+    /** Aktivní conditiony nepřítele (Slice 2d UI). */
+    conditions: ActiveCondition[];
+  } | null;
   abilities: GauntletAbilityView[];
   events: CombatEvent[];
   draft: GauntletDraftOption[] | null;
@@ -493,6 +503,7 @@ export class GauntletService {
         rageCharges: state.player.rageCharges ?? run.playerSnapshot.rageCharges ?? 0,
         maxRageCharges: run.playerSnapshot.rageCharges ?? 0,
         raging: state.player.raging ?? false,
+        conditions: state.player.conditions ?? [],
       },
       enemy: state.enemy
         ? {
@@ -500,6 +511,7 @@ export class GauntletService {
             isElite: state.enemy.isElite,
             maxHealth: state.enemy.maxHealth,
             currentHealth: Math.max(0, Math.round(state.enemy.currentHealth)),
+            conditions: state.enemy.conditions ?? [],
           }
         : null,
       abilities: this.abilityViews(run.playerSnapshot, state),

@@ -35,7 +35,7 @@ import {
   type SignatureAbility,
 } from './combat';
 import { rollDice } from './dice';
-import { applySpellSave, missMessage } from './dnd-combat';
+import { applySpellSave, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
 import {
   applyCondition,
   beginActorTurn,
@@ -992,6 +992,22 @@ function combatantHitEnemy(
   /** Útočník má disadvantage z vlastní conditiony (frightened/prone/…). Slice 2a. */
   attackerDisadvantage = false,
 ): void {
+  // Pure-control kouzlo (Slice 2d): žádný hod na zásah ani poškození — jen save →
+  // condition (Hold Person/Web/Entangle). Disadvantage útočníka neovlivňuje DC.
+  if (isControlSpell(ability)) {
+    const res = resolveControlCast(ability, attacker, enemy, rng, attacker.name);
+    emit({
+      t,
+      type: 'ability',
+      source: attacker.name,
+      target: enemy.name,
+      ability: ability.name,
+      message: `✨ ${attacker.name} casts ${ability.name} on ${enemy.name}.`,
+    });
+    if (res.saveMessage) emit({ t, type: 'ability', message: res.saveMessage, source: enemy.name, target: attacker.name });
+    if (res.applied) emit({ t, type: 'ability', source: attacker.name, target: enemy.name, message: conditionAppliedMessage(enemy.name, res.applied) });
+    return;
+  }
   const targetHpPct = enemy.maxHealth > 0 ? enemy.currentHealth / enemy.maxHealth : 0;
   const spec = abilityDamageSpec(ability, slotTier, attacker.level);
   const mult = spec ? 1 : abilityDamageMult(ability, targetHpPct);

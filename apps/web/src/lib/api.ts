@@ -1,4 +1,4 @@
-import type { CharacterSheet } from '@game/shared';
+import type { ActiveCondition, CharacterSheet } from '@game/shared';
 import { clearSession, currentSession, setSession, type Session } from './auth';
 
 export interface CharacterView {
@@ -440,6 +440,7 @@ export interface DungeonTurnEnemyView {
   isBoss: boolean;
   maxHealth: number;
   currentHealth: number;
+  conditions: ActiveCondition[];
 }
 
 export interface DungeonTurnAllyView {
@@ -448,6 +449,7 @@ export interface DungeonTurnAllyView {
   maxHealth: number;
   currentHealth: number;
   absorb: number;
+  conditions: ActiveCondition[];
 }
 
 export interface DungeonTurnRunView {
@@ -473,6 +475,7 @@ export interface DungeonTurnRunView {
     rageCharges: number;
     maxRageCharges: number;
     raging: boolean;
+    conditions: ActiveCondition[];
   };
   allies: DungeonTurnAllyView[];
   enemies: DungeonTurnEnemyView[];
@@ -534,6 +537,7 @@ export interface DungeonPartyMemberView {
   maxHealth: number;
   absorb: number;
   submitted: boolean;
+  conditions: ActiveCondition[];
 }
 
 export interface DungeonPartyRunView {
@@ -1989,8 +1993,15 @@ export interface GauntletRunView {
     rageCharges: number;
     maxRageCharges: number;
     raging: boolean;
+    conditions: ActiveCondition[];
   };
-  enemy: { name: string; isElite: boolean; maxHealth: number; currentHealth: number } | null;
+  enemy: {
+    name: string;
+    isElite: boolean;
+    maxHealth: number;
+    currentHealth: number;
+    conditions: ActiveCondition[];
+  } | null;
   abilities: GauntletAbilityView[];
   events: CombatEvent[];
   draft: GauntletDraftOption[] | null;

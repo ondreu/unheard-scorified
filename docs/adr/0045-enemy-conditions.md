@@ -105,6 +105,64 @@
    `'none'` poškození nemění → `gear-balance` i ostatní kontrakty beze změny;
    control se projeví jen v tahových dungeonech (proti boss obsahu z 2c).
 
+8. **Slice 2d (zbytek hráčských kouzel) — restrained + condition-only control.**
+   Doplnění obou chybějících vzorů z hráčské strany:
+   - **Pure-control kouzlo bez poškození** (`isControlSpell` / `resolveControlCast`
+     v `dnd-combat.ts`): D&D control kouzla (Hold Person, Web, Entangle) nemají
+     útočný hod („d20 vs AC") ani poškození — cíl si jen hodí **save** a na
+     **neúspěch** dostane condition. Pozná se podle `kind:'strike'` + `damageMult:0`
+     bez `dice`/`bonusDice`, s `condition` riderem. Engine pro něj přeskočí celou
+     damage cestu (`combatantHitEnemy`/`memberHitEnemy` vrátí brzy) a vyřeší jen
+     `applySpellSave(…, 0)` → `applyCondition`. **Žádný chip damage** (kontrakt
+     ověřuje nulové poškození) — odlišení od „dej 1 a uval condition".
+   - **Restrained z hráčské strany** (poprvé): **Web**/**Entangle** (control-only,
+     restrained 2 tahy) + **Ensnaring Strike** (Ranger; weapon hit + STR save
+     `'none'` + restrained — jde normální damage cestou, vzor Trip Attack).
+   - **Hold Person** mapuje D&D *paralyzed* na náš `stunned` (skip tahu + incoming
+     advantage), WIS save negate, 1 tah. Zařazeno do `EXTRA_SPELLS` 6 casterů.
+
+   Konzervativní rozsah: **autoHit obecné damage cesty se nemění** (Magic Missile
+   v tahových dungeonech dál hází na zásah — latentní, mimo tento slice), control
+   větev řeší „žádný útočný hod" sama. **Balanc-neutrální** mimo tahové dungeony
+   (continuous simy: control kouzlo = 0 dmg, rider inertní → `gear-balance` beze
+   změny). Kontrakt: `dnd-combat.test.ts` (isControlSpell + resolveControlCast),
+   `dungeon-run.test.ts` (restrain end-to-end + nulové poškození).
+
+9. **Slice 2d (Gauntlet) — conditiony v tahovém roguelite.** `gauntlet.ts`
+   (`resolveGauntletTurn`) dostal stejný condition životní cyklus jako tahové
+   dungeony — Gauntlet je rovněž tahový (1 hráč vs 1 nepřítel, vlna/tah), takže
+   recykluje `beginActorTurn`/`tickConditions`/`turnConditionEffects`/`applyCondition`/
+   `combineAdvantage`/`grantsIncomingAdvantage`. `GauntletPlayerState` i
+   `GauntletEnemyState` nesou `conditions?` (JSON v run-stavu, **bez DB migrace**,
+   staré běhy graceful). Mechanika:
+   - **Hráč → nepřítel:** pure-control kouzlo (`isControlSpell`) = 0 dmg + save →
+     condition; damage ability s `save` riderem / save-less riderem uvalí condition
+     po zásahu; útok na prone/restrained/stunnutého nepřítele má **advantage**.
+   - **Hráč zasažen condition** (zatím **dormantní** — Gauntlet nepřátelé nemají
+     abilities, viz „continuous simy / draw enemy abilit"): stun = ztracený tah
+     (ability i bonus přeskočeny, DoT + protiúder doběhnou), frightened/prone/slow
+     = disadvantage na vlastní útok, slow/stun = bez bonus akce.
+   - **Nepřítel stunnutý** (hráč ho stunne) vynechá protiúder; údržba (cooldowny)
+     doběhne tak jako tak.
+   - **Short rest mezi vlnami** (`spawnWave`) conditiony hráče setře; nový nepřítel
+     startuje bez conditionů.
+
+   **Konzervativní:** Gauntlet enemy je dál procedurální bez katalogových abilit →
+   enemy → hráč conditiony se rozsvítí až s „Gauntlet draw enemy abilit z katalogu"
+   (zbytek 2d). Magnitudy/draft/skóre beze změny. Kontrakt: `gauntlet.test.ts`
+   (stun nepřítele → vynechá protiúder, nulové poškození control kouzlem; stunnutý
+   hráč ztratí tah; reset conditionů mezi vlnami).
+
+10. **Slice 2d (UI) — zobrazení aktivních conditionů.** Sdílené `CONDITION_META`
+    (`conditions.ts`: ikona + EN štítek per typ) = jediný zdroj pravdy pro
+    zobrazení. Web komponenta `ConditionBadges.svelte` renderuje badge (ikona +
+    zbývající tahy) z `ActiveCondition[]`. Combat API views (`dungeon-turn`,
+    `dungeon-party`, `gauntlet`) rozšířeny o `conditions` na enemy/player/ally/
+    member (mirror v `apps/web/src/lib/api.ts`). Badge přidán na karty nepřátel,
+    hráče i parťáků ve všech třech tahových obrazovkách. **Čistě prezentační** —
+    bez DB migrace, beze změny enginu/balance (jen vystavení dat ze Slice 2a–2d).
+    _Pixel-art polish badge = pozdější deslopifikace UI._
+
 ## Důsledky
 
 - **+** Nepřátelská (i hráčská — symetricky v `combatantHitEnemy`) ability umí
