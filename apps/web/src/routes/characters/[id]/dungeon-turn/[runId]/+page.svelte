@@ -376,7 +376,7 @@
 
     <!-- Combat log -->
     {#if r.events.length > 0}
-      <CombatLog events={r.events} actors={dungeonTurnActors(r)} />
+      <CombatLog events={r.events} actors={dungeonTurnActors(r)} groupRounds />
     {/if}
   {/if}
 </div>

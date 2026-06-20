@@ -403,7 +403,7 @@
     {/if}
 
     {#if r.events.length > 0}
-      <CombatLog events={r.events} actors={dungeonPartyActors(r)} />
+      <CombatLog events={r.events} actors={dungeonPartyActors(r)} groupRounds />
     {/if}
   {/if}
 </div>

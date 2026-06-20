@@ -334,7 +334,7 @@
 
     <!-- Combat log -->
     {#if r.events.length > 0}
-      <CombatLog events={r.events} actors={gauntletActors(r)} />
+      <CombatLog events={r.events} actors={gauntletActors(r)} groupRounds />
     {/if}
   {/if}
 </div>

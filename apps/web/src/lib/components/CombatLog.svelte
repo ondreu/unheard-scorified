@@ -38,12 +38,19 @@
     players = {},
     actors = {},
     paced = true,
+    groupRounds = false,
   }: {
     events: CombatEvent[];
     players?: Record<string, string>;
     actors?: Record<string, ActorMeta>;
     /** Postupně odhalovat nové řádky v čase (throttle), místo dávkového skoku. */
     paced?: boolean;
+    /**
+     * Oddělit kola tenkou linkou (jen tahové simy, kde `t` = číslo kola a víc
+     * eventů sdílí stejný `t`). Continuous simy (aréna/idle) mají skoro každý
+     * event jiný `t` → nechat vypnuté, jinak je linka mezi každým řádkem.
+     */
+    groupRounds?: boolean;
   } = $props();
 
   /**
@@ -72,6 +79,8 @@
   const speed = $derived(SPEEDS[speedIdx] ?? 1);
   const pending = $derived(Math.max(0, events.length - revealed));
   const shown = $derived(paced ? events.slice(0, revealed) : events);
+  /** Pořadí pro výpis: nejnovější nahoře. */
+  const display = $derived([...shown].reverse());
   /** Lišta tempa dává smysl jen když je co odhalovat / je pauznuto. */
   const showControls = $derived(paced && (pending > 0 || !playing));
 
@@ -232,8 +241,16 @@
     </div>
   {/if}
   <ul class="space-y-1 font-mono text-xs">
-    {#each [...shown].reverse() as e, i (shown.length - 1 - i)}
-      <li style={lineStyle(e)}>
+    {#each display as e, i (display.length - 1 - i)}
+      {@const isEnc = e.type === 'encounter_start'}
+      {@const roundBreak =
+        groupRounds &&
+        !isEnc &&
+        i > 0 &&
+        display[i - 1].type !== 'encounter_start' &&
+        display[i - 1].t !== e.t}
+      {#if roundBreak}<li aria-hidden="true" class="h-px bg-[var(--border)] opacity-40"></li>{/if}
+      <li class={isEnc ? 'mt-2 border-t border-[var(--border)] pt-2' : ''} style={lineStyle(e)}>
         <span class="text-[var(--text-faint)]">{e.t.toFixed(1)}s</span>
         {#each segments(e) as seg, si (si)}{#if seg.kind === 'text'}{seg.text}{:else if seg.kind === 'ability'}<PixelAbilityIcon
               name={seg.text}
