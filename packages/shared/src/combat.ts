@@ -693,6 +693,62 @@ export function bonusDiceSpec(
   return { count, sides: base.sides, bonus: base.bonus };
 }
 
+// ── D&D akční ekonomika (ADR 0042) ──────────────────────────────────────────
+
+/**
+ * Per-aktér sada id abilit, které už vyčerpaly své „once per combat" okno
+ * (Action Surge, opener Assassinate). Resetuje se na začátku každého encounteru
+ * (short rest mezi encountery / nová vlna / nový pull). Sdíleno in-memory
+ * simulátory (quest/raid), aby gating „1× za boj" nebyl duplikovaný napříč soubory.
+ * Persistované tahové simy (dungeon/party/gauntlet) drží totéž jako JSON pole
+ * `usedOncePerCombat` (Set není serializovatelný do DB).
+ */
+export type OnceUsedTracker = Set<string>;
+
+/** Smí aktér tuto ability teď použít z hlediska „once per combat"? Bez flagu vždy `true`. */
+export function abilityOnceAvailable(used: OnceUsedTracker, ability: SignatureAbility): boolean {
+  return !ability.oncePerCombat || !used.has(ability.id);
+}
+
+/** Zaznamenej použití „once per combat" ability (no-op u abilit bez flagu). */
+export function markAbilityUsed(used: OnceUsedTracker, ability: SignatureAbility): void {
+  if (ability.oncePerCombat) used.add(ability.id);
+}
+
+/**
+ * Pseudo-ability „útok navíc" (ADR 0042, Slice 2) — basic úder zbraní, který
+ * vyřeší akce navíc z Action Surge/Onslaught. Pojmenovaná (na rozdíl od tichého
+ * basic swingu), aby byla v combat logu rozpoznatelná i testovatelná napříč
+ * simulátory. Bez `dice`/`spellTier`/`kiCost` → škáluje přes `attackPower`, zdarma.
+ */
+export const EXTRA_ATTACK_ABILITY: SignatureAbility = {
+  id: 'extra_attack',
+  name: 'Extra Attack',
+  description: 'An extra weapon attack granted by Action Surge.',
+  kind: 'strike',
+  cooldownSec: 0,
+  damageMult: 1,
+};
+
+/**
+ * Počet „akcí navíc" (ADR 0042, Slice 2), které ability udělí ve stejném kole.
+ * `grantsExtraAction` bez `extraActions` = 1 (Action Surge); Onslaught = 2.
+ * Bez flagu → 0 (žádné extra útoky).
+ */
+export function extraActionCount(ability: SignatureAbility): number {
+  if (!ability.grantsExtraAction) return 0;
+  return Math.max(1, ability.extraActions ?? 1);
+}
+
+/**
+ * Je ability **bonus action** (ADR 0042, Slice 3)? V tahových simulátorech jde
+ * mimo hlavní akci (aktér v kole provede akci + jednu bonus-action ability).
+ * Default (`undefined`) = `'action'`.
+ */
+export function isBonusAction(ability: SignatureAbility): boolean {
+  return ability.actionCost === 'bonus';
+}
+
 /**
  * Literal D&D heal dice (ADR 0036, „Fix kouzla") — nahrazuje `damageMult ×
  * HEAL_POWER_FACTOR` proxy: `Cure Wounds 1d8 + spellMod`, `Healing Word 1d4 + spellMod`,

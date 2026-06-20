@@ -19,6 +19,7 @@
 import {
   abilityDamageMult,
   abilityDamageSpec,
+  abilityOnceAvailable,
   actorSpellSaveDc,
   applyAbsorb,
   applyRage,
@@ -26,6 +27,9 @@ import {
   buildEnemyActor,
   canRage,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
+  markAbilityUsed,
   healDiceSpec,
   resolveAttack,
   round1,
@@ -179,6 +183,9 @@ export function simulateQuestEncounter(
   const slotBudget: SpellSlots = { ...(player.spellSlots ?? {}) };
   // Ki body (ADR 0034) jako rozpočet Monkových technik (`kiCost`) v tomto souboji.
   let kiBudget = player.kiPoints ?? 0;
+  // Akční ekonomika (ADR 0042): „once per combat" ability (Action Surge, opener
+  // Assassinate) se v tomto souboji smí použít jen jednou — pak se „drží".
+  const usedOnce = new Set<string>();
 
   // Initiative (d20 + DEX): rozhodne, kdo udeří jako první (D&D 5e).
   const playerInit = rollInitiative(player, rng);
@@ -299,6 +306,8 @@ export function simulateQuestEncounter(
       let slotTier: number | null = null;
       for (const a of abilities) {
         if ((readyAt[a.id] ?? startT) > t) continue;
+        // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
+        if (!abilityOnceAvailable(usedOnce, a)) continue;
         // Ki (ADR 0034): Monkova technika potřebuje dost Ki; jinak se „drží" (→ basic).
         const kiCost = a.kiCost ?? 0;
         if (kiCost > kiBudget) continue;
@@ -309,6 +318,7 @@ export function simulateQuestEncounter(
           slotTier = used;
         }
         if (kiCost > 0) kiBudget -= kiCost;
+        markAbilityUsed(usedOnce, a); // spotřebuj „once per combat" okno (no-op bez flagu)
         chosen = a;
         readyAt[a.id] = t + a.cooldownSec;
         break;
@@ -393,6 +403,36 @@ export function simulateQuestEncounter(
       });
       if (saveMessage) {
         events.push({ t: round1(t), type: 'ability', message: saveMessage, source: enemy.name });
+      }
+      // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught dají útok(y)
+      // navíc v tomtéž kole (extra basic swing) — hned, než jedná nepřítel.
+      const extras = chosen ? extraActionCount(chosen) : 0;
+      for (let k = 0; k < extras && enemyHp > 0; k++) {
+        const xr = resolveAttack(player, enemy, rng, {});
+        if (xr.hit) enemyHp = Math.max(0, enemyHp - xr.amount);
+        let xHealed = 0;
+        if (xr.hit && player.lifesteal > 0) {
+          xHealed = Math.round(xr.amount * player.lifesteal);
+          playerHp = Math.min(player.maxHealth, playerHp + xHealed);
+        }
+        events.push({
+          t: round1(t),
+          type: !xr.hit ? 'attack' : xHealed > 0 ? 'drain' : 'ability',
+          message: buildDndAttackMessage({
+            attackerName: player.name,
+            targetName: enemy.name,
+            result: xr,
+            abilityName: EXTRA_ATTACK_ABILITY.name,
+            healed: xHealed,
+            suffix: xr.hit ? ` ${enemy.name}: ${enemyHp} HP.` : '',
+          }),
+          source: player.name,
+          target: enemy.name,
+          amount: xr.amount,
+          crit: xr.crit,
+          ability: EXTRA_ATTACK_ABILITY.name,
+          targetHealthRemaining: enemyHp,
+        });
       }
     } else {
       t = eNext;

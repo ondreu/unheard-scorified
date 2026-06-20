@@ -30,6 +30,8 @@ import {
   computeHit,
   crEnemyMagnitude,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   applyAbsorb,
   SIGNATURE_ABILITIES,
   type CombatActor,
@@ -133,6 +135,12 @@ export interface GauntletPlayerState {
   mitigationTurns: number;
   /** Podíl redukce příchozího poškození během mitigation okna (0..1). */
   mitigationPct: number;
+  /**
+   * Akční ekonomika (ADR 0042): ids „once per combat" abilit už použitých v
+   * aktuální vlně (Gauntlet = 1 combat na vlnu → reset při spawnu vlny). Action
+   * Surge/Assassinate z draftu. `undefined` u běhů z doby před slice = prázdné.
+   */
+  usedOncePerCombat?: string[];
 }
 
 /** Druh draft odměny. */
@@ -328,6 +336,7 @@ export function startGauntletRun(base: CombatActor, level: number, seed: number)
       raging: false,
       mitigationTurns: 0,
       mitigationPct: 0,
+      usedOncePerCombat: [],
     },
     enemy: null,
     picks: [],
@@ -348,6 +357,7 @@ function spawnWave(base: CombatActor, state: GauntletRunState, level: number): v
   state.player.absorb = 0;
   state.player.mitigationTurns = 0;
   state.player.mitigationPct = 0;
+  state.player.usedOncePerCombat = []; // nová vlna = nový boj → reset „once per combat" (ADR 0042)
   // Pact Magic (Warlock, ADR 0034): „short rest" recharge — sloty se obnoví KAŽDOU
   // vlnu (ostatní casteři mají per-run rozpočet). Faithful D&D pact recovery v idle.
   if (base.casterType === 'pact') state.player.spellSlots = { ...(base.spellSlots ?? {}) };
@@ -383,6 +393,8 @@ export function isGauntletAbilityReady(state: GauntletRunState, abilityId: strin
 export function canCastGauntletAbility(state: GauntletRunState, ability: SignatureAbility): boolean {
   const kiLeft = state.player.kiPoints ?? Infinity;
   if ((ability.kiCost ?? 0) > kiLeft) return false;
+  // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná v této vlně.
+  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(ability.id)) return false;
   return hasSlotForTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0);
 }
 
@@ -415,6 +427,10 @@ export function resolveGauntletTurn(
       : player.signatureAbilities.find((a) => a.id === abilityId);
   if (!ability || ability.kind === 'buff') return { state, events: [] }; // buff = pasivní rider
   if (!isGauntletAbilityReady(state, abilityId)) return { state, events: [] };
+  // Akční ekonomika (ADR 0042): „once per combat" ability se ve vlně použije jen 1×.
+  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(abilityId)) {
+    return { state, events: [] };
+  }
 
   // Class resources (ADR 0034): rozpočet na celý run. Lazy init pro běhy založené
   // před slice (JSON bez pole). Kontrola dostupnosti teď (bez zdroje = neplatný tah,
@@ -576,11 +592,45 @@ export function resolveGauntletTurn(
       ability: named,
       targetHealthRemaining: remaining,
     });
+
+    // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra úder(y)
+    // zbraní v tomtéž tahu, než nepřítel protiútočí.
+    const extras = extraActionCount(ability);
+    for (let k = 0; k < extras && enemy.currentHealth > 0; k++) {
+      const xr = computeHit(player, enemyAsActor, rng, 1, false);
+      enemy.currentHealth -= xr.amount;
+      const xh = xr.hit ? Math.round(xr.amount * player.lifesteal) : 0;
+      if (xh > 0) state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + xh);
+      const xrem = Math.max(0, Math.round(enemy.currentHealth));
+      pushEvent({
+        t,
+        type: 'ability',
+        message: xr.hit
+          ? buildAttackMessage({
+              attacker: player,
+              targetName: enemy.name,
+              amount: xr.amount,
+              crit: xr.crit,
+              healed: xh,
+              abilityName: EXTRA_ATTACK_ABILITY.name,
+              suffix: `. Target: ${xrem} HP`,
+            })
+          : missMessage(player.name, enemy.name, xr),
+        source: player.name,
+        target: enemy.name,
+        amount: xr.amount,
+        crit: xr.crit,
+        ability: EXTRA_ATTACK_ABILITY.name,
+        targetHealthRemaining: xrem,
+      });
+    }
   }
 
   // Cooldown zvolené ability.
   const cd = cooldownTurns(ability);
   if (cd > 0) state.player.cooldowns[abilityId] = cd;
+  // Spotřebuj „once per combat" okno (ADR 0042) — no-op u abilit bez flagu.
+  if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
 
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
 

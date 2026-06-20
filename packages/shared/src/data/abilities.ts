@@ -139,6 +139,35 @@ export interface SignatureAbility {
    * dost Ki, technika se „drží" (jako kouzlo bez slotu) → základní úder.
    */
   kiCost?: number;
+  /**
+   * D&D akční ekonomika (ADR 0042, Slice 1) — ability použitelná **nejvýše jednou
+   * za encounter**: Action Surge (short-rest recovery) a opener Assassinate
+   * („na začátku"). Po vyčerpání okna se ability „drží" (actér mlátí basic /
+   * jinou ability) až do dalšího encounteru (short rest / nová vlna / nový pull).
+   * Sledováno per aktér ve všech simulátorech přes sdílené helpery
+   * `abilityOnceAvailable`/`markAbilityUsed` (in-memory simy) resp. pole
+   * `usedOncePerCombat` (persistované tahové simy). `undefined`/false = bez limitu.
+   */
+  oncePerCombat?: boolean;
+  /**
+   * D&D akční ekonomika (ADR 0042, Slice 2) — ability uděluje **akci navíc** ve
+   * stejném kole: po jejím vyřešení aktér hned provede `extraActions` (default 1)
+   * **extra útoků zbraní** (Action Surge = druhá Attack action, Onslaught = víc
+   * útoků) proti platnému cíli, ještě než jedná soupeř. Sjednoceno přes simulátory
+   * (sdílené `extraActionCount` + pseudo-ability `EXTRA_ATTACK_ABILITY`).
+   */
+  grantsExtraAction?: boolean;
+  /** Počet extra útoků, které `grantsExtraAction` udělí (ADR 0042). Default 1. */
+  extraActions?: number;
+  /**
+   * D&D akční slot (ADR 0042, Slice 3) — `'action'` (default) nebo `'bonus'`.
+   * Bonus-action ability (Healing Word) jdou v **tahových** simulátorech mimo
+   * hlavní akci: aktér v jednom kole provede svou akci **a navíc** jednu ready
+   * bonus-action ability (D&D „1 akce + 1 bonus action / kolo"). Ve spojitých
+   * (timeline) simech bez pojmu kola je pole kosmetické (ability běží na vlastním
+   * cooldown timeru). `undefined` = `'action'`.
+   */
+  actionCost?: 'action' | 'bonus';
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -168,6 +197,14 @@ interface BaselineOpts {
   autoHit?: boolean;
   /** Ki cost (ADR 0034) — Monkovy techniky. */
   kiCost?: number;
+  /** Nejvýše jednou za encounter (ADR 0042) — Action Surge / opener Assassinate. */
+  oncePerCombat?: boolean;
+  /** Uděluje akci navíc ve stejném kole (ADR 0042, Slice 2) — Action Surge / Onslaught. */
+  grantsExtraAction?: boolean;
+  /** Počet extra útoků, které `grantsExtraAction` udělí (ADR 0042). Default 1. */
+  extraActions?: number;
+  /** D&D akční slot (ADR 0042, Slice 3) — `'action'` (default) / `'bonus'` (Healing Word). */
+  actionCost?: 'action' | 'bonus';
   /** Bonus kostky na weapon hit (ADR 0036) — Divine Smite/Sneak Attack/superiority. */
   bonusDice?: DiceSpec;
   /** Level-scaling počtu bonus kostek (ADR 0036) — Sneak Attack ceil(level/N). */
@@ -208,6 +245,10 @@ function ba(
     ...(opts.save !== undefined ? { save: opts.save } : {}),
     ...(opts.autoHit !== undefined ? { autoHit: opts.autoHit } : {}),
     ...(opts.kiCost !== undefined ? { kiCost: opts.kiCost } : {}),
+    ...(opts.oncePerCombat !== undefined ? { oncePerCombat: opts.oncePerCombat } : {}),
+    ...(opts.grantsExtraAction !== undefined ? { grantsExtraAction: opts.grantsExtraAction } : {}),
+    ...(opts.extraActions !== undefined ? { extraActions: opts.extraActions } : {}),
+    ...(opts.actionCost !== undefined ? { actionCost: opts.actionCost } : {}),
     ...(opts.bonusDice !== undefined ? { bonusDice: opts.bonusDice } : {}),
     ...(opts.bonusDicePerLevels !== undefined ? { bonusDicePerLevels: opts.bonusDicePerLevels } : {}),
     ...(opts.advantage !== undefined ? { advantage: opts.advantage } : {}),
@@ -230,7 +271,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   bard: [
     ba('bard_vicious_mockery', 'Vicious Mockery', 'A WIS save or take 1d4 psychic damage and bleed over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0, damageType: 'psychic', save: { ability: 'wisdom', effect: 'negate' } }),
-    ba('bard_healing_word', 'Healing Word', 'A word of power restores 1d4 + your spellcasting modifier to a wounded ally. +1d4 per slot above 1st.', 'heal', 5, 2.0, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('bard_healing_word', 'Healing Word', 'A word of power restores 1d4 + your spellcasting modifier to a wounded ally. +1d4 per slot above 1st.', 'heal', 5, 2.0, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, actionCost: 'bonus' }),
     ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 3d6 psychic damage (WIS save halves). +1d6 per slot above 1st.', 'strike', 7, 1.75, 9, { spellTier: 1, damageType: 'psychic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' } }),
   ],
   cleric: [
@@ -241,15 +282,15 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   druid: [
     ba('druid_produce_flame', 'Produce Flame', 'Hurls a mote of fire for 1d8.', 'strike', 5, 1.5, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 8, bonus: 0 } }),
-    ba('druid_healing_word', 'Healing Word', 'Nature mends an ally for 1d4 + your spellcasting modifier. +1d4 per slot above 1st.', 'heal', 5, 2.2, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('druid_healing_word', 'Healing Word', 'Nature mends an ally for 1d4 + your spellcasting modifier. +1d4 per slot above 1st.', 'heal', 5, 2.2, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, actionCost: 'bonus' }),
     ba('druid_moonbeam', 'Moonbeam', 'A beam of moonlight sears for 2d10 radiant each turn over 9s (CON save halves).', 'dot', 8, 0, 8, { dot: { dotDurationSec: 9, dotTicks: 3, dotTickMult: 0, dotDice: { count: 2, sides: 10, bonus: 0 } }, spellTier: 2, damageType: 'radiant', save: { ability: 'constitution', effect: 'half' } }),
     ba('druid_call_lightning', 'Call Lightning', 'Summons a storm bolt for 3d10 lightning (DEX save halves). +1d10 per slot above 3rd.', 'strike', 7, 1.9, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
   ],
   fighter: [
     ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined weapon strike.', 'strike', 4, 1.0, 1),
-    ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action this turn.', 'strike', 8, 2.0, 6),
+    ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action — once per fight (recovered on a short rest).', 'strike', 8, 1.0, 6, { oncePerCombat: true, grantsExtraAction: true }),
     ba('fighter_trip_attack', 'Trip Attack', 'A Battle Master maneuver: weapon hit plus a 1d8 superiority die (and a knockdown).', 'strike', 7, 1.0, 12, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
-    ba('fighter_onslaught', 'Onslaught', 'Unleashes the fighter\'s extra attacks in a single devastating turn.', 'strike', 8, 2.0, 20),
+    ba('fighter_onslaught', 'Onslaught', 'Unleashes the fighter\'s extra attacks — two additional weapon strikes in a single devastating turn.', 'strike', 8, 1.0, 20, { grantsExtraAction: true, extraActions: 2 }),
   ],
   monk: [
     ba('monk_martial_arts', 'Martial Arts', 'A swift unarmed strike.', 'strike', 3, 1.0, 1),
@@ -271,7 +312,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   rogue: [
     ba('rogue_sneak_attack', 'Sneak Attack', 'A vital strike adding 1d6 per two levels of damage (1d6 at 1, up to 10d6 at 19).', 'strike', 4, 1.0, 1, { bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
     ba('rogue_poisoned_blade', 'Poisoned Blade', 'A coated blade for 1d4 piercing that poisons for 1d6 each turn over 8s.', 'dot', 9, 0, 8, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 1, sides: 6, bonus: 0 } }, damageType: 'poison', dice: { count: 1, sides: 4, bonus: 0 } }),
-    ba('rogue_assassinate', 'Assassinate', 'A deadly opener struck with advantage, adding full Sneak Attack dice.', 'strike', 8, 1.0, 14, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
+    ba('rogue_assassinate', 'Assassinate', 'A deadly opener struck with advantage, adding full Sneak Attack dice — once per fight.', 'strike', 8, 1.0, 14, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2, oncePerCombat: true }),
   ],
   sorcerer: [
     ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.1, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 10, bonus: 0 } }),
@@ -314,17 +355,17 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('bard_cure_wounds', 'Cure Wounds', 'A touch restores 1d8 + your spellcasting modifier. +1d8 per slot above 1st.', 'heal', 6, 2.1, 1, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
     ba('bard_heat_metal', 'Heat Metal', 'Searing metal burns for 2d8 fire each turn over 8s.', 'dot', 8, 0, 5, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 2, sides: 8, bonus: 0 } }, spellTier: 2, damageType: 'fire' }),
     ba('bard_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.8, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
-    ba('bard_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
+    ba('bard_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true, actionCost: 'bonus' }),
     ba('bard_phantasmal_killer', 'Phantasmal Killer', "A vision of the target's worst fear for 4d10 psychic (WIS save halves). +1d10 per slot above 4th.", 'strike', 9, 2.0, 16, { spellTier: 4, damageType: 'psychic', dice: { count: 4, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' } }),
     ba('bard_synaptic_static', 'Synaptic Static', 'An explosion of psychic energy for 8d6 (INT save halves). +1d6 per slot above 5th.', 'strike', 10, 2.2, 17, { spellTier: 5, damageType: 'psychic', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'intelligence', effect: 'half' }, aoe: true }),
   ],
   cleric: [
     ba('cleric_toll_the_dead', 'Toll the Dead', 'A mournful bell tolls for 1d8 necrotic (WIS save negates; scales with level).', 'strike', 4, 1.0, 1, { spellTier: 0, damageType: 'necrotic', dice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'wisdom', effect: 'negate' } }),
-    ba('cleric_healing_word', 'Healing Word', 'A word of power heals an ally for 1d4 + your spellcasting modifier. +1d4 per slot above 1st.', 'heal', 5, 1.9, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('cleric_healing_word', 'Healing Word', 'A word of power heals an ally for 1d4 + your spellcasting modifier. +1d4 per slot above 1st.', 'heal', 5, 1.9, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, actionCost: 'bonus' }),
     ba('cleric_inflict_wounds', 'Inflict Wounds', 'A necrotic touch for 3d10. +1d10 per slot above 1st.', 'strike', 7, 2.0, 1, { spellTier: 1, damageType: 'necrotic', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1 }),
     ba('cleric_spiritual_weapon', 'Spiritual Weapon', 'A floating blade strikes for 1d8 + your spellcasting modifier force.', 'strike', 6, 1.85, 5, { spellTier: 2, damageType: 'force', dice: { count: 1, sides: 8, bonus: 0 } }),
     ba('cleric_prayer_of_healing', 'Prayer of Healing', 'A prayer heals all wounded allies for 2d8 + your spellcasting modifier. +1d8 per slot above 2nd.', 'heal', 9, 2.5, 5, { spellTier: 2, dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
-    ba('cleric_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
+    ba('cleric_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true, actionCost: 'bonus' }),
     ba('cleric_flame_strike', 'Flame Strike', 'A column of divine fire for 8d6 (4d6 fire + 4d6 radiant; DEX save halves). +1d6 per slot above 5th.', 'strike', 10, 2.2, 17, { spellTier: 5, damageType: 'radiant', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
   ],
   druid: [
@@ -429,7 +470,7 @@ export const SIGNATURE_ABILITIES: Record<string, AbilitySpec> = {
   inflict_wounds: { name: 'Inflict Wounds', description: 'A necrotic touch for 3d10. +1d10 per slot above 1st.', kind: 'strike', cooldownSec: 8, damageMult: 2.0, damageType: 'necrotic', dice: { count: 3, sides: 10, bonus: 0 }, dicePerSlotAbove: 1 },
   guiding_bolt: { name: 'Guiding Bolt', description: 'A bolt of light for 4d6 radiant.', kind: 'strike', cooldownSec: 8, damageMult: 2.1, damageType: 'radiant', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 },
   spiritual_weapon: { name: 'Spiritual Weapon', description: 'A floating blade strikes for 1d8 force.', kind: 'strike', cooldownSec: 7, damageMult: 1.85, damageType: 'force', dice: { count: 1, sides: 8, bonus: 0 } },
-  mass_healing_word: { name: 'Mass Healing Word', description: 'Restores 1d4 + your spellcasting modifier to all wounded allies. +1d4 per slot above 3rd.', kind: 'heal', cooldownSec: 9, damageMult: 2.8, spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true },
+  mass_healing_word: { name: 'Mass Healing Word', description: 'Restores 1d4 + your spellcasting modifier to all wounded allies. +1d4 per slot above 3rd.', kind: 'heal', cooldownSec: 9, damageMult: 2.8, spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true, actionCost: 'bonus' },
   flame_blade: { name: 'Flame Blade', description: 'A blade of fire for 3d6 fire.', kind: 'strike', cooldownSec: 8, damageMult: 2.0, damageType: 'fire', dice: { count: 3, sides: 6, bonus: 0 } },
   vampiric_touch: { name: 'Vampiric Touch', description: 'A withering touch for 3d6 necrotic, healing you for half the damage dealt.', kind: 'drain', cooldownSec: 8, damageMult: 1.6, drainHealFraction: 0.5, damageType: 'necrotic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 },
   shield_of_faith: { name: 'Shield of Faith', description: 'A shimmering field reduces damage taken by 40% for 10s.', kind: 'mitigation', cooldownSec: 22, damageMult: 0, mitigationPct: 0.4, mitigationDurationSec: 10 },

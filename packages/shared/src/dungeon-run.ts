@@ -25,7 +25,10 @@ import {
   buildAttackMessage,
   computeHit,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   healDiceSpec,
+  isBonusAction,
   type CombatActor,
   type CombatEvent,
   type SignatureAbility,
@@ -99,6 +102,12 @@ export interface DungeonRunPlayer {
   mitigationTurns: number;
   /** Podíl redukce příchozího poškození během mitigation okna (0..1). */
   mitigationPct: number;
+  /**
+   * Akční ekonomika (ADR 0042): ids „once per combat" abilit už použitých v
+   * aktuálním encounteru (Action Surge, Assassinate). Reset při short restu mezi
+   * encountery. `undefined` u běhů z doby před slice → bere se jako prázdné.
+   */
+  usedOncePerCombat?: string[];
 }
 
 /**
@@ -119,6 +128,8 @@ export interface DungeonRunAlly {
   raging: boolean;
   mitigationTurns: number;
   mitigationPct: number;
+  /** Akční ekonomika (ADR 0042) — viz `DungeonRunPlayer.usedOncePerCombat`. */
+  usedOncePerCombat?: string[];
   /** Plný bojový aktér parťáka (snapshot do DB). */
   actor: RaidActor;
 }
@@ -199,6 +210,7 @@ function restoreEncounterResources(
   combatant.absorb = base.shield ?? 0;
   combatant.mitigationTurns = 0;
   combatant.mitigationPct = 0;
+  combatant.usedOncePerCombat = []; // short rest obnoví „once per combat" okna (ADR 0042)
   combatant.spellSlots = { ...(base.spellSlots ?? {}) };
   combatant.kiPoints = base.kiPoints ?? 0;
   // Rage (ADR 0034): auto-zuření na encounter, dokud má charge (per-run rationing).
@@ -245,6 +257,7 @@ function makeAlly(actor: RaidActor): DungeonRunAlly {
     raging: false,
     mitigationTurns: 0,
     mitigationPct: 0,
+    usedOncePerCombat: [],
     actor,
   };
 }
@@ -285,6 +298,7 @@ export function startDungeonRun(
       raging: false,
       mitigationTurns: 0,
       mitigationPct: 0,
+      usedOncePerCombat: [],
     },
     allies: allies.map(makeAlly),
     enemies: [],
@@ -314,6 +328,8 @@ export function isDungeonAbilityReady(state: DungeonRunState, abilityId: string)
 /** Má hráč na seslání ability dost zdrojů (spell slot / Ki)? Čistá kontrola (nemutuje). */
 export function canCastDungeonAbility(state: DungeonRunState, ability: SignatureAbility): boolean {
   if ((ability.kiCost ?? 0) > (state.player.kiPoints ?? Infinity)) return false;
+  // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → UI zašedne.
+  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(ability.id)) return false;
   return hasSlotForTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0);
 }
 
@@ -390,6 +406,11 @@ export function resolveDungeonTurn(
       : player.signatureAbilities.find((a) => a.id === abilityId);
   if (!ability || ability.kind === 'buff') return { state, events: [] };
   if (!isDungeonAbilityReady(state, abilityId)) return { state, events: [] };
+  // Akční ekonomika (ADR 0042): „once per combat" ability se v encounteru smí
+  // použít jen jednou (reset short restem mezi encountery).
+  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(abilityId)) {
+    return { state, events: [] };
+  }
 
   const abilityTier = ability.spellTier ?? 0;
   if (!hasSlotForTier(state.player.spellSlots, abilityTier)) return { state, events: [] };
@@ -469,11 +490,24 @@ export function resolveDungeonTurn(
       if (enemy.currentHealth <= 0) continue;
       combatantHitEnemy(player, state.player, state, enemy, ability, usedSlotTier, rng, t, emit);
     }
+    // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra úder(y)
+    // zbraní v tomtéž tahu, na nejslabšího živého nepřítele.
+    const extras = extraActionCount(ability);
+    for (let k = 0; k < extras; k++) {
+      const xwi = weakestEnemy(state);
+      if (xwi < 0) break;
+      combatantHitEnemy(player, state.player, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
+    }
   }
 
   // Cooldown zvolené ability.
   const cd = cooldownTurns(ability);
   if (cd > 0) state.player.cooldowns[abilityId] = cd;
+  // Spotřebuj „once per combat" okno (ADR 0042) — no-op u abilit bez flagu.
+  if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
+  // Bonus action (ADR 0042, Slice 3): hráč po hlavní akci ještě provede ready
+  // bonus-action ability (Healing Word) — pokud ji nepoužil jako hlavní akci.
+  takeBonusHeal(player, state.player, state, rng, t, emit);
 
   if (livingEnemies(state).length === 0) {
     return { state: advanceEncounter(base, state, t, events), events };
@@ -483,6 +517,10 @@ export function resolveDungeonTurn(
   for (let i = 0; i < state.allies.length; i++) {
     if (state.allies[i]!.currentHealth <= 0) continue;
     allyTakeTurn(state, i, rng, t, emit);
+    // Bonus action (ADR 0042, Slice 3) — parťák po hlavní akci provede ready bonus heal.
+    if (state.allies[i]!.currentHealth > 0) {
+      takeBonusHeal(effectiveAlly(state.allies[i]!), state.allies[i]!, state, rng, t, emit);
+    }
     if (livingEnemies(state).length === 0) {
       return { state: advanceEncounter(base, state, t, events), events };
     }
@@ -581,6 +619,8 @@ function allyTakeTurn(
   for (const ability of eff.signatureAbilities) {
     if (ability.kind === 'buff') continue;
     if ((ally.cooldowns[ability.id] ?? 0) > 0) continue;
+    // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
+    if (ability.oncePerCombat && (ally.usedOncePerCombat ?? []).includes(ability.id)) continue;
     const tier = ability.spellTier ?? 0;
     if (tier >= 1 && !hasSlotForTier(ally.spellSlots, tier)) continue;
     const kiCost = ability.kiCost ?? 0;
@@ -639,7 +679,15 @@ function allyTakeTurn(
       if (enemy.currentHealth <= 0) continue;
       combatantHitEnemy(eff, ally, state, enemy, ability, slotTier, rng, t, emit);
     }
+    // Akční ekonomika (ADR 0042, Slice 2): extra úder(y) parťáka na nejslabšího.
+    const allyExtras = extraActionCount(ability);
+    for (let k = 0; k < allyExtras; k++) {
+      const xwi = weakestEnemy(state);
+      if (xwi < 0) break;
+      combatantHitEnemy(eff, ally, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
+    }
     ally.cooldowns[ability.id] = cooldownTurns(ability);
+    if (ability.oncePerCombat) (ally.usedOncePerCombat ??= []).push(ability.id); // ADR 0042
     return;
   }
 
@@ -660,6 +708,48 @@ function allyTakeTurn(
     return;
   }
   if (wi >= 0) combatantHitEnemy(eff, ally, state, state.enemies[wi]!, DUNGEON_BASIC_ATTACK, null, rng, t, emit);
+}
+
+/**
+ * Bonus action (ADR 0042, Slice 3): po hlavní akci aktér (hráč i parťák) ještě
+ * provede jednu ready **bonus-action** ability (Healing Word) — D&D „1 akce +
+ * 1 bonus action / kolo". Zatím jen heal-kind bonus ability; léčí nejzraněnějšího
+ * člena party (solo = sebe). Pokud aktér použil bonus ability už jako hlavní akci,
+ * je teď na cooldownu → tato pasáž ji přeskočí (žádná dvojitá bonus akce).
+ */
+function takeBonusHeal(
+  actor: CombatActor,
+  self: DungeonRunPlayer | DungeonRunAlly,
+  state: DungeonRunState,
+  rng: SeededRng,
+  t: number,
+  emit: (e: CombatEvent) => void,
+): void {
+  for (const ability of actor.signatureAbilities) {
+    if (!isBonusAction(ability) || ability.kind !== 'heal') continue;
+    if ((self.cooldowns[ability.id] ?? 0) > 0) continue;
+    const tier = ability.spellTier ?? 0;
+    if (tier >= 1 && !hasSlotForTier(self.spellSlots, tier)) continue;
+    if ((ability.kiCost ?? 0) > self.kiPoints) continue;
+    const target = state.allies.length > 0 ? mostInjured(state) : state.player;
+    if (!target || target.currentHealth >= target.maxHealth) return; // nikdo nepotřebuje heal
+    const slotTier = tier >= 1 ? spendSlotForTier(self.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
+    if ((ability.kiCost ?? 0) > 0) self.kiPoints -= ability.kiCost ?? 0;
+    const healed = healAmount(actor, ability, slotTier, rng, false);
+    target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
+    self.cooldowns[ability.id] = cooldownTurns(ability);
+    const targetName = target === state.player ? state.playerName : (target as DungeonRunAlly).name;
+    emit({
+      t,
+      type: 'heal',
+      message: `✨ ${actor.name} casts ${ability.name} as a bonus action, healing ${targetName} for ${healed}. ${targetName}: ${Math.round(target.currentHealth)} HP`,
+      source: actor.name,
+      target: targetName,
+      amount: healed,
+      ability: ability.name,
+    });
+    return; // jen jedna bonus akce za kolo
+  }
 }
 
 /** Zranění (živí, pod max HP) členové party — cíle AoE heal. */
