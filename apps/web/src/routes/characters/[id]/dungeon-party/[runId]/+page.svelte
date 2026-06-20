@@ -12,6 +12,7 @@
   import { ITEMS } from '@game/shared';
   import CombatLog from '$lib/components/CombatLog.svelte';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
+  import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import type { Socket } from 'socket.io-client';
   import { connectDungeonParty, joinPartyRun, submitPartyTurn } from '$lib/dungeon-party-socket';
 
@@ -366,10 +367,12 @@
           <button class="btn btn-sm flex-1" disabled={busy} title="Take no action and end your turn" onclick={() => endTurn('pass')}>⏭️ {ui.endTurn}</button>
         </div>
         {#if r.you && (slotTotal(r.you.maxSpellSlots) > 0 || r.you.maxKiPoints > 0)}
-          <p class="mt-2 text-xs text-[var(--text-dim)]">
-            {#if slotTotal(r.you.maxSpellSlots) > 0}✨ {slotTotal(r.you.spellSlots)}/{slotTotal(r.you.maxSpellSlots)} slots{/if}
-            {#if r.you.maxKiPoints > 0}· 🌀 {r.you.kiPoints}/{r.you.maxKiPoints} Ki{/if}
-          </p>
+          <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--text-dim)]">
+            {#if slotTotal(r.you.maxSpellSlots) > 0}
+              <SpellSlotBar slots={r.you.spellSlots} max={r.you.maxSpellSlots} title="Spell slots per tier" />
+            {/if}
+            {#if r.you.maxKiPoints > 0}<span>🌀 {r.you.kiPoints}/{r.you.maxKiPoints} Ki</span>{/if}
+          </div>
         {/if}
       </section>
     {/if}

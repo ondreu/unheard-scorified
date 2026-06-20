@@ -14,6 +14,7 @@
   import { ITEMS } from '@game/shared';
   import CombatLog from '$lib/components/CombatLog.svelte';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
+  import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -187,9 +188,11 @@
           {r.player.currentHealth} / {r.player.maxHealth}
           {#if r.player.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {r.player.absorb}</span>{/if}
           {#if slotTotal(r.player.maxSpellSlots) > 0}
-            <span class="ml-1 text-[var(--accent)]" title="Spell slots remaining this run">
-              ✨ {slotTotal(r.player.spellSlots)}/{slotTotal(r.player.maxSpellSlots)}
-            </span>
+            <SpellSlotBar
+              slots={r.player.spellSlots}
+              max={r.player.maxSpellSlots}
+              title="Spell slots remaining this run (per tier)"
+            />
           {/if}
           {#if r.player.maxKiPoints > 0}
             <span class="ml-1 text-[var(--info)]" title="Ki remaining this run">
