@@ -42,7 +42,10 @@ describe('bestiary integrity', () => {
     for (const t of Object.values(BESTIARY)) {
       for (const ab of t.abilities ?? []) {
         expect(DAMAGE_TYPES).toContain(ab.damageType);
-        expect(ab.damageMult).toBeGreaterThan(1);
+        // Damage ability má smysluplný násobič; čisté control (damageMult 0) musí
+        // nést condition (Slice 2d — beguiling pipes = charm bez poškození).
+        if (ab.damageMult === 0) expect(ab.condition).toBeDefined();
+        else expect(ab.damageMult).toBeGreaterThan(1);
         expect(ab.cooldownSec).toBeGreaterThan(0);
       }
     }
@@ -59,7 +62,7 @@ describe('bestiary integrity', () => {
         seen.add(ab.condition.type);
       }
     }
-    // Katalog pokrývá všech 5 condition typů (mind_blast/pack_takedown/frost_nova/…).
+    // Katalog pokrývá všech 8 condition typů (vč. poisoned/charmed/blinded — Slice 2d).
     expect(seen.size).toBe(CONDITION_TYPES.length);
   });
 
@@ -67,6 +70,19 @@ describe('bestiary integrity', () => {
     const enemy = buildBestiaryEnemy(BESTIARY['mind_devourer']!);
     const sig = enemy.signatureAbilities?.find((a) => a.id === 'mind_blast');
     expect(sig?.condition).toEqual({ type: 'stunned', durationTurns: 1 });
+  });
+
+  it('threads drain/dot ability kind + params into the signature ability (Slice 2d)', () => {
+    const wraith = buildBestiaryEnemy(BESTIARY['grave_wraith']!);
+    const drain = wraith.signatureAbilities?.find((a) => a.id === 'life_drain');
+    expect(drain?.kind).toBe('drain');
+    expect(drain?.drainHealFraction).toBe(0.5);
+
+    const spider = buildBestiaryEnemy(BESTIARY['giant_spider']!);
+    const bite = spider.signatureAbilities?.find((a) => a.id === 'venomous_bite');
+    expect(bite?.kind).toBe('dot');
+    expect(bite?.dotTicks).toBe(3);
+    expect(bite?.condition?.type).toBe('poisoned');
   });
 
   it('indexes by creature type and CR', () => {

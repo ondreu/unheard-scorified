@@ -11,6 +11,9 @@
  *   - `restrained` — disadvantage na vlastní útoky; útoky proti němu advantage.
  *   - `frightened` — disadvantage na vlastní útoky.
  *   - `slowed`     — disadvantage na vlastní útoky; žádná bonus-action.
+ *   - `poisoned`   — disadvantage na vlastní útoky (D&D: útoky + ability checky).
+ *   - `charmed`    — actér nemůže útočit na zdroj → ztrácí tah (idle model 1v1).
+ *   - `blinded`    — disadvantage na vlastní útoky; útoky proti němu advantage.
  *
  * Čistá data + pure helpery (žádný import z `combat.ts` → žádný runtime cyklus;
  * z `dice.ts` jen typ `AdvantageMode`). Engine (`dungeon-run.ts` …) drží stav
@@ -19,7 +22,15 @@
 import type { AdvantageMode } from './dice';
 
 /** Druh conditiony (status efektu). */
-export type ConditionType = 'stunned' | 'prone' | 'restrained' | 'frightened' | 'slowed';
+export type ConditionType =
+  | 'stunned'
+  | 'prone'
+  | 'restrained'
+  | 'frightened'
+  | 'slowed'
+  | 'poisoned'
+  | 'charmed'
+  | 'blinded';
 
 /** Všechny conditiony (pro validaci/iteraci). */
 export const CONDITION_TYPES: readonly ConditionType[] = [
@@ -28,6 +39,9 @@ export const CONDITION_TYPES: readonly ConditionType[] = [
   'restrained',
   'frightened',
   'slowed',
+  'poisoned',
+  'charmed',
+  'blinded',
 ];
 
 /**
@@ -73,9 +87,18 @@ function flagsOf(type: ConditionType): {
     case 'restrained':
       return { skipTurn: false, attackDisadvantage: true, incomingAdvantage: true, noBonusAction: false };
     case 'frightened':
+    case 'poisoned':
+      // Poisoned (D&D): disadvantage na útoky/ability checky — mechanicky jako frightened.
       return { skipTurn: false, attackDisadvantage: true, incomingAdvantage: false, noBonusAction: false };
     case 'slowed':
       return { skipTurn: false, attackDisadvantage: true, incomingAdvantage: false, noBonusAction: true };
+    case 'charmed':
+      // Charmed: actér nemůže útočit na zdroj → v idle 1v1 ztrácí tah (jako stun,
+      // ale BEZ advantage pro útočníka — není bezbranný, jen nechce ublížit).
+      return { skipTurn: true, attackDisadvantage: false, incomingAdvantage: false, noBonusAction: true };
+    case 'blinded':
+      // Blinded (D&D): vlastní útoky disadvantage, útoky proti němu advantage.
+      return { skipTurn: false, attackDisadvantage: true, incomingAdvantage: true, noBonusAction: false };
   }
 }
 
@@ -177,6 +200,9 @@ export const CONDITION_META: Record<ConditionType, { icon: string; label: string
   restrained: { icon: '🕸️', label: 'Restrained' },
   frightened: { icon: '😱', label: 'Frightened' },
   slowed: { icon: '🐌', label: 'Slowed' },
+  poisoned: { icon: '🤢', label: 'Poisoned' },
+  charmed: { icon: '💗', label: 'Charmed' },
+  blinded: { icon: '🌫️', label: 'Blinded' },
 };
 
 /** Hláška pro combat log při uvalení conditiony (anglicky = jazyk hry). */
@@ -186,6 +212,9 @@ const CONDITION_VERB: Record<ConditionType, string> = {
   restrained: 'is restrained',
   frightened: 'is frightened',
   slowed: 'is slowed',
+  poisoned: 'is poisoned',
+  charmed: 'is charmed',
+  blinded: 'is blinded',
 };
 
 /** Combat-log řádek o uvalení conditiony: „Goblin → Hero is stunned (1 turn)!". */

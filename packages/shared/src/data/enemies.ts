@@ -14,7 +14,8 @@
 import type { AbilityScore } from '../character';
 import type { EnemyStats } from '../combat';
 import type { ConditionRider } from '../conditions';
-import type { SignatureAbility } from './abilities';
+import type { DiceSpec } from '../dice';
+import type { AbilityKind, SignatureAbility } from './abilities';
 import {
   crStatGuide,
   type ChallengeRating,
@@ -41,10 +42,26 @@ export interface EnemyAbility {
   save?: { ability: AbilityScore; description: string };
   /**
    * Condition rider (Slice 2a) — na **neúspěšný `save`** uvalí na hráče status
-   * efekt (stun/prone/restrained/frightened/slowed). Vyžaduje `save`. Propisuje
-   * se přes `enemyAbilityToSignature` do bojového aktéra.
+   * efekt (stun/prone/restrained/frightened/slowed/poisoned/charmed/blinded).
+   * Vyžaduje `save`. Propisuje se přes `enemyAbilityToSignature` do bojového aktéra.
    */
   condition?: ConditionRider;
+  /**
+   * Druh ability (Slice 2d) — `strike` (default, přímý úder), `drain` (úder +
+   * self-heal nestvůry) nebo `dot` (úder + krvácení/jed v čase). `undefined` =
+   * `strike`. Propisuje se do `SignatureAbility.kind`.
+   */
+  kind?: Extract<AbilityKind, 'strike' | 'drain' | 'dot'>;
+  /** Drain (`kind: 'drain'`): podíl uděleného poškození, který nestvůru vyléčí. */
+  drainHealFraction?: number;
+  /** DoT (`kind: 'dot'`): celková doba krvácení/jedu ve vteřinách. */
+  dotDurationSec?: number;
+  /** DoT: počet tiků rozložených přes `dotDurationSec`. */
+  dotTicks?: number;
+  /** DoT: násobek poškození jednoho tiku (z attack power nestvůry). */
+  dotTickMult?: number;
+  /** DoT: literal kostky jednoho tiku (přebijí `dotTickMult`, pokud je vyplněno). */
+  dotDice?: DiceSpec;
 }
 
 // ── Šablona nestvůry ─────────────────────────────────────────────────────────
@@ -129,11 +146,13 @@ const TEMPLATES: readonly EnemyTemplate[] = [
       {
         id: 'life_drain',
         name: 'Life Drain',
+        kind: 'drain',
         damageMult: 1.8,
         damageType: 'necrotic',
         cooldownSec: 12,
-        description: 'Drains vitality, healing the wraith for the damage dealt.',
-        save: { ability: 'constitution', description: 'CON save or max HP is reduced.' },
+        drainHealFraction: 0.5,
+        description: 'Drains vitality, healing the wraith for half the damage dealt.',
+        save: { ability: 'constitution', description: 'CON save for half damage.' },
       },
     ],
   },
@@ -196,6 +215,30 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         description: 'Lunges to knock the target prone.',
         save: { ability: 'strength', description: 'STR save or be knocked prone.' },
         condition: { type: 'prone', durationTurns: 1 },
+      },
+    ],
+  },
+  {
+    id: 'giant_spider',
+    name: 'Giant Spider',
+    description: 'A monstrous arachnid whose bite floods the veins with venom.',
+    creatureType: 'beast',
+    cr: 1,
+    attackType: 'piercing',
+    abilities: [
+      {
+        id: 'venomous_bite',
+        name: 'Venomous Bite',
+        kind: 'dot',
+        damageMult: 1.2,
+        damageType: 'poison',
+        cooldownSec: 10,
+        dotDurationSec: 9,
+        dotTicks: 3,
+        dotTickMult: 0.5,
+        description: 'A venom-dripping bite that sickens the target over time.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be poisoned.' },
+        condition: { type: 'poisoned', durationTurns: 2 },
       },
     ],
   },
@@ -381,6 +424,50 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         description: 'A cone of psychic energy that stuns the weak-willed.',
         save: { ability: 'intelligence', description: 'INT save or be stunned.' },
         condition: { type: 'stunned', durationTurns: 1 },
+      },
+    ],
+  },
+
+  // ── Fey ──────────────────────────────────────────────────────────────────────
+  {
+    id: 'forest_satyr',
+    name: 'Forest Satyr',
+    description: 'A horned trickster whose enchanted pipes bewitch the unwary.',
+    creatureType: 'fey',
+    cr: 1,
+    attackType: 'piercing',
+    abilities: [
+      {
+        id: 'beguiling_pipes',
+        name: 'Beguiling Pipes',
+        damageMult: 0,
+        damageType: 'psychic',
+        cooldownSec: 14,
+        description: 'A hypnotic melody that charms the target into lowering its guard.',
+        save: { ability: 'wisdom', description: 'WIS save or be charmed.' },
+        condition: { type: 'charmed', durationTurns: 1 },
+      },
+    ],
+  },
+  {
+    id: 'will_o_wisp',
+    name: "Will-o'-Wisp",
+    description: 'A drifting mote of cold light that lures travellers to their doom.',
+    creatureType: 'undead',
+    cr: 2,
+    attackType: 'radiant',
+    immunities: ['poison', 'necrotic'],
+    resistances: ['bludgeoning', 'piercing', 'slashing'],
+    abilities: [
+      {
+        id: 'blinding_flare',
+        name: 'Blinding Flare',
+        damageMult: 1.4,
+        damageType: 'radiant',
+        cooldownSec: 11,
+        description: 'A sudden burst of searing light that sears the eyes.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be blinded.' },
+        condition: { type: 'blinded', durationTurns: 2 },
       },
     ],
   },
@@ -906,12 +993,17 @@ export function enemyAbilityToSignature(a: EnemyAbility): SignatureAbility {
     id: a.id,
     name: a.name,
     description: a.description,
-    kind: 'strike',
+    kind: a.kind ?? 'strike',
     cooldownSec: a.cooldownSec,
     damageMult: a.damageMult,
     damageType: a.damageType,
     ...(a.save ? { save: { ability: a.save.ability, effect: 'half' as const } } : {}),
     ...(a.condition ? { condition: a.condition } : {}),
+    ...(a.drainHealFraction !== undefined ? { drainHealFraction: a.drainHealFraction } : {}),
+    ...(a.dotDurationSec !== undefined ? { dotDurationSec: a.dotDurationSec } : {}),
+    ...(a.dotTicks !== undefined ? { dotTicks: a.dotTicks } : {}),
+    ...(a.dotTickMult !== undefined ? { dotTickMult: a.dotTickMult } : {}),
+    ...(a.dotDice !== undefined ? { dotDice: a.dotDice } : {}),
   };
 }
 
