@@ -100,6 +100,7 @@
       const res = await fetch(`/api/characters/${characterId}/levelup`, { headers: authHeaders() });
       if (!res.ok) throw new ApiError(res.status, await res.text());
       view = (await res.json()) as LevelUpView;
+      syncAsiPicks();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
@@ -111,11 +112,27 @@
     }
   }
 
+  /**
+   * Naplní lokální ASI picky z persistovaných voleb — aby zvolené staty zůstaly
+   * vizuálně vybrané (prefill), stejně jako už zvolený feat. Sloty bez ASI volby
+   * zůstanou prázdné (čistý slate k editaci).
+   */
+  function syncAsiPicks(): void {
+    if (!view) return;
+    const next: Record<string, Partial<Record<AbilityScore, number>>> = {};
+    for (const s of view.slots) {
+      if (s.choice?.kind === 'asi') next[s.id] = { ...s.choice.increases };
+    }
+    asiPick = next;
+  }
+
   async function choose(slotId: string, choice: LevelUpChoice): Promise<void> {
     pendingSlot = slotId;
     error = null;
     try {
-      const res = await fetch(`/api/characters/${characterId}/levelup/${slotId}`, {
+      // slotId může obsahovat `#` (class-feature `cf:<group>#<index>`) — bez
+      // enkódování ho prohlížeč strhne jako URL fragment a API dostane jen část.
+      const res = await fetch(`/api/characters/${characterId}/levelup/${encodeURIComponent(slotId)}`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(choice),
@@ -125,9 +142,9 @@
         throw new Error(body.message ?? `HTTP ${res.status}`);
       }
       view = (await res.json()) as LevelUpView;
-      // Vyčistí rozpracovanou lokální ASI volbu tohoto slotu — po uložení (ASI
-      // i feat) ať nezůstane „pending" pick, který by omylem přepsal volbu.
-      asiPick = { ...asiPick, [slotId]: {} };
+      // Prefill lokálních ASI picků z persistovaných voleb (ať zůstanou vizuálně
+      // vybrané, stejně jako zvolený feat).
+      syncAsiPicks();
     } catch (err) {
       error = (err as Error).message;
     } finally {
@@ -145,7 +162,7 @@
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       view = (await res.json()) as LevelUpView;
-      asiPick = {};
+      syncAsiPicks();
     } catch (err) {
       error = (err as Error).message;
     } finally {
@@ -224,6 +241,14 @@
       if (group) out.push({ group, slots });
     }
     return out;
+  }
+
+  // Feat už zvolený v JINÉM slotu (featy nelze stacknout napříč level-upy).
+  function featTakenElsewhere(featId: string, exceptSlotId: string): boolean {
+    if (!view) return false;
+    return view.slots.some(
+      (s) => s.id !== exceptSlotId && s.choice?.kind === 'feat' && s.choice.featId === featId,
+    );
   }
 
   // Option id už zvolené v JINÉM slotu téže skupiny (nelze 2× totéž).
@@ -442,11 +467,14 @@
                         <div class="grid-cards">
                           {#each view.feats as feat (feat.id)}
                             {@const chosen = slot.choice?.kind === 'feat' && slot.choice.featId === feat.id}
-                            {@const disabled = pendingSlot === slot.id || !feat.eligible}
-                            <div class="feat-card {chosen ? 'option-active' : ''} {!feat.eligible ? 'ineligible' : ''}">
+                            {@const takenElsewhere = featTakenElsewhere(feat.id, slot.id)}
+                            {@const disabled = pendingSlot === slot.id || !feat.eligible || takenElsewhere}
+                            <div class="feat-card {chosen ? 'option-active' : ''} {!feat.eligible || takenElsewhere ? 'ineligible' : ''}">
                               <div class="feat-card-head">
                                 <strong>{feat.name}</strong>
-                                {#if feat.prerequisite}
+                                {#if takenElsewhere}
+                                  <span class="req req-fail">Already taken</span>
+                                {:else if feat.prerequisite}
                                   <span class="req {feat.eligible ? '' : 'req-fail'}">{feat.prerequisite}</span>
                                 {/if}
                               </div>
