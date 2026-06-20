@@ -49,6 +49,55 @@ describe('Enemy schopnosti — boss abilities (Slice 2c)', () => {
   });
 });
 
+describe('Enemy schopnosti — trash abilities (Slice 2d, živá aktivace)', () => {
+  /** Živý (ne-boss) dungeon trash napříč všemi dungeony. */
+  const trash = Object.values(DUNGEONS).flatMap((d) =>
+    dungeonEnemies(d).filter((e) => !e.isBoss),
+  );
+
+  it('several live trash enemies carry a typed ability with a condition rider', () => {
+    const withCondition = trash.filter((e) =>
+      (e.signatureAbilities ?? []).some((a) => a.condition != null),
+    );
+    // Kurátorská sada (≥1 notable trash per dungeon) → conditiony žijí i mimo bosse.
+    expect(withCondition.length).toBeGreaterThanOrEqual(8);
+    // Každý condition rider trash ability má i save (jako u bossů — neúspěch = condition).
+    for (const e of trash) {
+      for (const a of e.signatureAbilities ?? []) {
+        if (!a.condition) continue;
+        expect(a.save, `${e.name}/${a.name} has a save`).toBeDefined();
+        expect(a.condition.durationTurns).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('trash conditions cover the full variety of condition types', () => {
+    const types = new Set(
+      trash.flatMap((e) => (e.signatureAbilities ?? []).map((a) => a.condition?.type)).filter(Boolean),
+    );
+    // Trash pokrývají všech 8 condition typů (stunned/prone/restrained/frightened/
+    // slowed/poisoned/charmed/blinded) — ne jen bosse.
+    for (const t of [
+      'stunned',
+      'prone',
+      'restrained',
+      'frightened',
+      'slowed',
+      'poisoned',
+      'charmed',
+      'blinded',
+    ] as const) {
+      expect(types.has(t), `some trash applies ${t}`).toBe(true);
+    }
+  });
+
+  it('trash abilities survive into the combat actor (buildEnemyActor)', () => {
+    const monk = dungeonEnemies(DUNGEONS.scarlet_monastery!).find((e) => e.id === 'sm_monk')!;
+    const actor = buildEnemyActor(monk);
+    expect(actor.signatureAbilities.some((a) => a.condition?.type === 'stunned')).toBe(true);
+  });
+});
+
 describe('MR-10d — typed late-game content', () => {
   it('Pyrehold (Stratholme) undead are vulnerable to radiant — holy classes shine', () => {
     const baron = buildEnemyActor(dungeonBoss(DUNGEONS.stratholme!)!);
