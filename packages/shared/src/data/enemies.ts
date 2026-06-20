@@ -419,6 +419,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'fiend',
     cr: 3,
     attackType: 'slashing',
+    abilities: [
+      {
+        id: 'rfc_taragaman_inferno',
+        name: 'Gorging Inferno',
+        damageMult: 1.7,
+        damageType: 'fire',
+        cooldownSec: 11,
+        description: 'Belches a gout of hungry flame that sears the soul.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be frightened.' },
+        condition: { type: 'frightened', durationTurns: 2 },
+      },
+    ],
   },
 
   // ── The Drowned Mines (6–7) ──────────────────────────────────────────────────
@@ -453,6 +465,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'humanoid',
     cr: 4,
     attackType: 'slashing',
+    abilities: [
+      {
+        id: 'dm_vancleef_backhand',
+        name: 'Brutal Backhand',
+        damageMult: 1.6,
+        damageType: 'bludgeoning',
+        cooldownSec: 10,
+        description: 'A crushing pommel strike that sends the target sprawling.',
+        save: { ability: 'strength', description: 'STR save or be knocked prone.' },
+        condition: { type: 'prone', durationTurns: 1 },
+      },
+    ],
   },
 
   // ── Wailing Hollows (6–8) ────────────────────────────────────────────────────
@@ -487,6 +511,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'aberration',
     cr: 4,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'wc_mutanus_shriek',
+        name: 'Nightmare Shriek',
+        damageMult: 1.6,
+        damageType: 'psychic',
+        cooldownSec: 12,
+        description: 'A mind-rending scream dredged from the deep nightmare.',
+        save: { ability: 'wisdom', description: 'WIS save for half damage, or be frightened.' },
+        condition: { type: 'frightened', durationTurns: 2 },
+      },
+    ],
   },
 
   // ── Shadowmaw Keep (7–9) ─────────────────────────────────────────────────────
@@ -521,6 +557,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'humanoid',
     cr: 5,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'sfk_arugal_shadowbolt',
+        name: 'Shadow Bolt',
+        damageMult: 1.7,
+        damageType: 'necrotic',
+        cooldownSec: 11,
+        description: 'A bolt of clinging shadow that saps the limbs.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be slowed.' },
+        condition: { type: 'slowed', durationTurns: 2 },
+      },
+    ],
   },
 
   // ── Drownfathom Deeps (8–10) ─────────────────────────────────────────────────
@@ -555,6 +603,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'monstrosity',
     cr: 5,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'bfd_akumai_tail',
+        name: 'Crushing Tail',
+        damageMult: 1.6,
+        damageType: 'bludgeoning',
+        cooldownSec: 10,
+        description: 'A sweeping tail-slam that bowls the target over.',
+        save: { ability: 'strength', description: 'STR save or be knocked prone.' },
+        condition: { type: 'prone', durationTurns: 1 },
+      },
+    ],
   },
 
   // ── Crimson Cloister (10–13) ─────────────────────────────────────────────────
@@ -589,6 +649,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     creatureType: 'humanoid',
     cr: 6,
     attackType: 'bludgeoning',
+    abilities: [
+      {
+        id: 'sm_whitemane_slumber',
+        name: 'Deep Slumber',
+        damageMult: 1.5,
+        damageType: 'psychic',
+        cooldownSec: 13,
+        description: 'A word of binding sleep that locks the body rigid.',
+        save: { ability: 'wisdom', description: 'WIS save for half damage, or be stunned.' },
+        condition: { type: 'stunned', durationTurns: 1 },
+      },
+    ],
   },
 
   // ── Zarfarai (14–16) — typed (necrotic / poison / radiant) ───────────────────
@@ -626,6 +698,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     cr: 9,
     attackType: 'slashing',
     vulnerabilities: ['radiant'],
+    abilities: [
+      {
+        id: 'zf_ukorz_hamstring',
+        name: 'Hamstring',
+        damageMult: 1.6,
+        damageType: 'slashing',
+        cooldownSec: 10,
+        description: 'A vicious low cut that leaves the target unable to move.',
+        save: { ability: 'strength', description: 'STR save or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
   },
 
   // ── Maradoth (15–17) — typed (nature: resist physical, vuln fire) ────────────
@@ -666,6 +750,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     cr: 10,
     attackType: 'poison',
     vulnerabilities: ['fire'],
+    abilities: [
+      {
+        id: 'mar_theradras_spores',
+        name: 'Noxious Spores',
+        damageMult: 1.5,
+        damageType: 'poison',
+        cooldownSec: 12,
+        description: 'A cloud of choking spores that dulls the senses.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be slowed.' },
+        condition: { type: 'slowed', durationTurns: 2 },
+      },
+    ],
   },
 
   // ── Cinderdeep Halls (17–19) — typed (fire dwellers: resist fire) ────────────
@@ -703,6 +799,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     cr: 12,
     attackType: 'fire',
     resistances: ['fire'],
+    abilities: [
+      {
+        id: 'brd_thaurissan_eruption',
+        name: 'Molten Eruption',
+        damageMult: 1.8,
+        damageType: 'fire',
+        cooldownSec: 12,
+        description: 'The floor bursts into molten rock, hurling the target down.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be knocked prone.' },
+        condition: { type: 'prone', durationTurns: 1 },
+      },
+    ],
   },
 
   // ── Pyrehold (19–20) — typed (undead: immune poison, resist necrotic, vuln radiant) ─
@@ -746,6 +854,18 @@ const TEMPLATES: readonly EnemyTemplate[] = [
     attackType: 'necrotic',
     resistances: ['necrotic', 'fire'],
     vulnerabilities: ['radiant'],
+    abilities: [
+      {
+        id: 'strat_baron_deathcoil',
+        name: 'Death Coil',
+        damageMult: 1.7,
+        damageType: 'necrotic',
+        cooldownSec: 11,
+        description: 'A whip of deathly energy that fills the heart with dread.',
+        save: { ability: 'wisdom', description: 'WIS save for half damage, or be frightened.' },
+        condition: { type: 'frightened', durationTurns: 2 },
+      },
+    ],
   },
 ];
 

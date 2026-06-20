@@ -1,10 +1,11 @@
-# ADR 0045 — Enemy schopnosti: conditiony (Slice 2a + 2b)
+# ADR 0045 — Enemy schopnosti: conditiony (Slice 2a + 2b + 2c)
 
 - **Stav:** přijato. **Slice 2a** = conditiony jako mechanika v solo tahovém
-  dungeonu (`dungeon-run.ts`). **Slice 2b (rozšíření)** = stejná mechanika v **MP**
-  tahovém dungeonu (`dungeon-party.ts`) přes sdílený `beginActorTurn` (žádná
-  duplikace). Live content (abilities dungeon bossům), spojité simy a hráčská
-  kouzla = follow-up (viz roadmap).
+  dungeonu (`dungeon-run.ts`). **Slice 2b** = stejná mechanika v **MP** tahovém
+  dungeonu (`dungeon-party.ts`) přes sdílený `beginActorTurn`. **Slice 2c** =
+  **živý obsah**: 10 dungeon bossů dostalo signature ability (typový úder + save +
+  condition rider) → systém přestal být dormantní. Spojité simy a hráčská kouzla =
+  follow-up (viz roadmap Slice 2d).
 - **Kontext:** navazuje na napojení enemy abilit do enginu (ADR 0044, Slice 1),
   dice-roll combat + saving throwy (MR-5 / ADR 0032) a bestiář (MR-7 / ADR 0031).
   Slice 1 nechal `EnemyAbility.save.description` jen jako flavor („STR save or be
@@ -63,11 +64,22 @@
      advantage (hráč i nepřítel).
    - **no bonus action** (slowed/stunned) → hráči se zablokuje vědomá bonus akce.
 
-5. **Balanc-neutrální pro live content (jako ADR 0044).** Condition riders dostaly
-   jen **bestiář kreatury** (pack_takedown→prone, frost_nova→slowed, slam→prone,
-   rooting_grasp→restrained, mind_blast→stunned, fire_breath→frightened) — žádnou
-   **nepoužívá** živý dungeon (ten autoruje přes šablony bez abilit). Mechanika je
-   tedy dormantní; rozsvítí se, až Slice 2b přiřadí abilities dungeon bossům.
+5. **Slice 2a/2b balanc-neutrální (jako ADR 0044).** Condition riders nejdřív
+   dostaly jen **bestiář kreatury** (pack_takedown→prone, frost_nova→slowed,
+   slam→prone, rooting_grasp→restrained, mind_blast→stunned, fire_breath→
+   frightened) — žádnou nepoužíval živý obsah → mechanika dormantní.
+
+6. **Slice 2c — aktivace v živém obsahu.** 10 final bossů dungeonů (`enemies.ts`
+   boss šablony, instancované přes `instantiateEnemy` v `dungeons.ts`) dostalo
+   **signature ability** = typový úder (`damageMult` 1.5–1.8) + saving throw +
+   **condition rider** (frightened/prone/slowed/restrained/stunned napříč bossy).
+   Tím se „Enemy schopnosti" rozsvítily v reálných dungeonech (auto-resolve i
+   tahových). **Balanc je nově dotčen, ale ohlídaný:** `gear-balance` kontrakt
+   měří syntetické CR-foe bez abilit (nedotčen); dungeon clear kontrakty
+   (`dungeon-run.test.ts`/`raid.test.ts`) zůstaly zelené (geared hrdina dál
+   čistí). V **auto-resolve** (`raid.ts`) je condition rider ignorován (nemá tahy)
+   — boss tam jen udeří typově + se savem; conditiony se projeví jen v **tahových**
+   dungeonech. Magnitudy bossů (HP/základní swing) i loot/XP beze změny.
 
 ## Důsledky
 
@@ -82,9 +94,13 @@
   mimo jeho tah); v MP je `noBonusAction` plně respektován.
 - **−** Bez UI panelu aktivních conditionů (jen combat-log hlášky) → follow-up
   (deslopifikace UI).
-- **Follow-up:** (a) Slice 2b — abilities živým dungeon bossům + bestiáři (rebalance
-  proti `gear-balance`), (b) conditiony v MP/continuous/Gauntlet simech, (c) UI
-  zobrazení aktivních conditionů, (d) další efekty (poisoned, charmed, blinded).
+- **Follow-up (Slice 2d):** (a) **hráčská kouzla** dostanou condition ridery (Hold
+  Person→stunned, Cause Fear→frightened, Web→restrained, Slow→slowed…) — ať
+  conditiony nejsou jen „věc nepřátel", (b) conditiony ve **spojitých** simech
+  (quest/raid/PVP auto-resolve) + **Gauntlet** (timeline model: stun=pauza,
+  disadvantage/slow=úprava hodu/tempa), (c) **UI** zobrazení aktivních conditionů,
+  (d) **trash/bestiář** abilities + drain/dot enemy `kind` + další efekty
+  (poisoned, charmed, blinded).
 
 ## Verifikace
 
