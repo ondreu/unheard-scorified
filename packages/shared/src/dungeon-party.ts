@@ -39,7 +39,7 @@ import { groupEncounters } from './group';
 import { TANK_INCOMING_DAMAGE_MULT, type RaidActor, type RaidRole } from './raid';
 import { shouldCastAbility, shouldCastHeal } from './rotation';
 import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
-import { DUNGEON_BASIC_ATTACK, type DungeonRunDot, type DungeonRunEnemy } from './dungeon-run';
+import { DUNGEON_BASIC_ATTACK, DUNGEON_DODGE_ACTION, isEndTurnAction, type DungeonRunDot, type DungeonRunEnemy } from './dungeon-run';
 
 /** Délka jednoho „tahu" v sekundách — převádí cooldown abilit (s) na počet tahů. */
 const PARTY_TURN_SEC = 3;
@@ -73,6 +73,8 @@ export interface PartyRunMember {
    * starších běhů → bere se jako prázdné.
    */
   usedOncePerCombat?: string[];
+  /** Dodge (formální ukončení tahu): útoky na člena mají disadvantage do jeho dalšího tahu. */
+  dodging?: boolean;
   /** Iniciativa pro aktuální encounter (d20 + DEX mod) — pořadí akcí v kole (4d). */
   initiative: number;
   /** Plný serializovatelný bojový aktér (RaidActor: role + healPower + rotace). */
@@ -170,6 +172,27 @@ function mostInjured(state: PartyRunState): PartyRunMember | null {
     }
   }
   return worst;
+}
+
+/**
+ * Cíl léčení (friendly targeting): `targetId` = `slot` člena party. Neplatný /
+ * mrtvý cíl → fallback na nejzraněnějšího člena (resp. sesilatele). Útočné cíle
+ * řeší `targetId` jako index nepřítele → význam je jednoznačný dle `ability.kind`.
+ */
+function resolveHealTarget(state: PartyRunState, targetId: number, caster: PartyRunMember): PartyRunMember {
+  const chosen = state.members.find((m) => m.slot === targetId);
+  if (chosen && chosen.currentHealth > 0) return chosen;
+  return mostInjured(state) ?? caster;
+}
+
+/**
+ * Cíl shield/mitigation (friendly targeting): `targetId` = `slot` člena. Neplatný /
+ * mrtvý cíl → fallback na sesilatele (shield na sebe = rozumný default; AI posílá
+ * vlastní slot).
+ */
+function resolveSupportTarget(state: PartyRunState, targetId: number, caster: PartyRunMember): PartyRunMember {
+  const chosen = state.members.find((m) => m.slot === targetId);
+  return chosen && chosen.currentHealth > 0 ? chosen : caster;
 }
 
 function pushLog(state: PartyRunState, e: CombatEvent): void {
@@ -297,6 +320,13 @@ export function submitPartyAction(
   if (state.status !== 'in_combat') return { ok: false, ready: false, reason: 'Run finished' };
   const member = state.members.find((m) => m.owner === characterId && m.currentHealth > 0);
   if (!member) return { ok: false, ready: false, reason: 'Not your turn or fallen' };
+
+  // Formální ukončení tahu (Pass/Dodge) — vždy dostupné, žádný zdroj/cooldown.
+  if (isEndTurnAction(abilityId)) {
+    state.pending[member.slot] = { abilityId, targetId: 0 };
+    const ready = livingHumans(state).every((h) => state.pending[h.slot] !== undefined);
+    return { ok: true, ready };
+  }
 
   const ability =
     abilityId === DUNGEON_BASIC_ATTACK.id
@@ -443,6 +473,20 @@ function takeMemberTurn(
 ): void {
   const eff = effectiveActor(member);
 
+  // Začátek tvého tahu → případný Dodge z minulého kola vyprší.
+  member.dodging = false;
+
+  // Formální ukončení tahu (Pass/Dodge): žádná akce, neklesni do AI fallbacku.
+  if (action && isEndTurnAction(action.abilityId)) {
+    if (action.abilityId === DUNGEON_DODGE_ACTION) {
+      member.dodging = true;
+      emit({ t, type: 'ability', source: member.name, target: member.name, message: `🤺 ${member.name} takes the Dodge action — incoming attacks have disadvantage.` });
+    } else {
+      emit({ t, type: 'ability', source: member.name, target: member.name, message: `⏭️ ${member.name} ends the turn.` });
+    }
+    return;
+  }
+
   // Lidská buffrovaná akce (re-validace zdrojů; cooldown už ověřen při submitu).
   if (action) {
     const ability =
@@ -526,7 +570,7 @@ function applyMemberAbility(
   if (ability.kind === 'heal') {
     const targets = ability.aoe
       ? state.members.filter((m) => m.currentHealth > 0 && m.currentHealth < m.maxHealth)
-      : [mostInjured(state) ?? member];
+      : [resolveHealTarget(state, targetId, member)];
     for (const target of targets) {
       const healed = healAmount(eff, ability, usedSlot, rng);
       target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
@@ -541,12 +585,31 @@ function applyMemberAbility(
       });
     }
   } else if (ability.kind === 'shield') {
-    member.absorb += Math.round(eff.attackPower * ability.damageMult);
-    emit({ t, type: 'absorb', source: member.name, target: member.name, ability: ability.name, message: `🛡️ ${member.name} casts ${ability.name}.` });
+    const target = resolveSupportTarget(state, targetId, member);
+    target.absorb += Math.round(eff.attackPower * ability.damageMult);
+    emit({
+      t,
+      type: 'absorb',
+      source: member.name,
+      target: target.name,
+      ability: ability.name,
+      message: target === member ? `🛡️ ${member.name} casts ${ability.name}.` : `🛡️ ${member.name} shields ${target.name}.`,
+    });
   } else if (ability.kind === 'mitigation') {
-    member.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? PARTY_TURN_SEC) / PARTY_TURN_SEC));
-    member.mitigationPct = ability.mitigationPct ?? 0;
-    emit({ t, type: 'ability', source: member.name, ability: ability.name, message: `🛡️ ${member.name} uses ${ability.name}, bracing against the next blows.` });
+    const target = resolveSupportTarget(state, targetId, member);
+    target.mitigationTurns = Math.max(1, Math.round((ability.mitigationDurationSec ?? PARTY_TURN_SEC) / PARTY_TURN_SEC));
+    target.mitigationPct = ability.mitigationPct ?? 0;
+    emit({
+      t,
+      type: 'ability',
+      source: member.name,
+      target: target.name,
+      ability: ability.name,
+      message:
+        target === member
+          ? `🛡️ ${member.name} uses ${ability.name}, bracing against the next blows.`
+          : `🛡️ ${member.name} uses ${ability.name} on ${target.name}, bracing them against the next blows.`,
+    });
   } else {
     const living = livingEnemies(state);
     let targets: number[];
@@ -602,18 +665,19 @@ function aiMemberTurn(
     if (ability.kind === 'heal') {
       if (member.role !== 'healer' || (member.actor.healPower ?? 0) <= 0 || !injured) continue;
       if (!shouldCastHeal(eff.rotation, ability.id, { enemyHpPct, selfHpPct: injured.maxHealth > 0 ? injured.currentHealth / injured.maxHealth : 0 })) continue;
-      applyMemberAbility(state, member, eff, ability, 0, rng, t, emit);
+      // AI healer cílí nejzraněnějšího (friendly targeting: targetId = slot člena).
+      applyMemberAbility(state, member, eff, ability, injured.slot, rng, t, emit);
       return;
     }
     if (ability.kind === 'mitigation') {
       if (member.role !== 'tank' || member.mitigationTurns > 0) continue;
       if (!shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
-      applyMemberAbility(state, member, eff, ability, 0, rng, t, emit);
+      applyMemberAbility(state, member, eff, ability, member.slot, rng, t, emit); // self
       return;
     }
     if (ability.kind === 'shield') {
       if (!shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
-      applyMemberAbility(state, member, eff, ability, 0, rng, t, emit);
+      applyMemberAbility(state, member, eff, ability, member.slot, rng, t, emit); // self
       return;
     }
     if (wi < 0 || !shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
@@ -728,7 +792,8 @@ function enemyAttackParty(
   const target = chooseThreat(state);
   if (!target) return;
   const targetActor = effectiveActor(target);
-  const hit = computeHit(enemy.actor, targetActor, rng, 1, false);
+  // Dodge: útoky na bránícího se člena mají disadvantage.
+  const hit = computeHit(enemy.actor, targetActor, rng, 1, false, undefined, undefined, target.dodging ? { advantage: 'disadvantage' } : undefined);
   let incoming = hit.amount;
   if (target.role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
   if (target.mitigationTurns > 0 && target.mitigationPct > 0) {

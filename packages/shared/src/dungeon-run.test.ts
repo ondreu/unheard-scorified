@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   COMPANIONS,
   DUNGEON_BASIC_ATTACK,
+  DUNGEON_DODGE_ACTION,
+  DUNGEON_PASS_ACTION,
   DUNGEONS,
   EMPTY_PROGRESSION,
   baseStatsFor,
@@ -15,6 +17,7 @@ import {
   type CombatActor,
   type DungeonRunState,
   type RaidRole,
+  type SignatureAbility,
 } from './index';
 
 function hero(klass: ClassId, level = 20): CombatActor {
@@ -169,6 +172,92 @@ describe('group tahový run (Slice 3) — AI parťáci', () => {
     expect(a.status).toBe(b.status);
     expect(a.log.length).toBe(b.log.length);
     expect(a.turn).toBe(b.turn);
+  });
+});
+
+describe('friendly targeting — heal cílí zvoleného člena party', () => {
+  /** Hráč = healer (cleric) + AI parťáci tank/dps; vrací heal ability id. */
+  function healerSetup(seed = 7): { base: CombatActor; state: DungeonRunState; healId: string } {
+    const player = deriveRaidActor(hero('cleric'), 'healer');
+    const allies = buildCompanionParty('healer', 20);
+    const state = startDungeonRun(player, 'ragefire_chasm', 3, 20, seed, allies);
+    const healId = dungeonRunAbilities(player).find((a) => a.kind === 'heal')?.id;
+    expect(healId, 'cleric má mít heal ability').toBeDefined();
+    return { base: player, state, healId: healId! };
+  }
+
+  it('targetId = index parťáka → léčí zvoleného parťáka', () => {
+    const { base, state, healId } = healerSetup();
+    state.allies[0]!.currentHealth = 1;
+    const allyName = state.allies[0]!.name;
+    resolveDungeonTurn(base, state, healId, 1); // 1 = allies[0]
+    const playerHeal = state.log.find((e) => e.type === 'heal' && e.source === base.name);
+    expect(playerHeal?.target).toBe(allyName);
+  });
+
+  it('targetId = 0 → léčí hráče', () => {
+    const { base, state, healId } = healerSetup();
+    state.player.currentHealth = 1;
+    resolveDungeonTurn(base, state, healId, 0);
+    const playerHeal = state.log.find((e) => e.type === 'heal' && e.source === base.name);
+    expect(playerHeal?.target).toBe(base.name);
+  });
+
+  it('neplatný cíl → fallback na nejzraněnějšího člena', () => {
+    const { base, state, healId } = healerSetup();
+    state.allies[1]!.currentHealth = 1; // nejzraněnější
+    const injuredName = state.allies[1]!.name;
+    resolveDungeonTurn(base, state, healId, 99); // mimo rozsah
+    const playerHeal = state.log.find((e) => e.type === 'heal' && e.source === base.name);
+    expect(playerHeal?.target).toBe(injuredName);
+  });
+
+  it('shield: friendly targeting hodí štít na zvoleného parťáka', () => {
+    const player = deriveRaidActor(hero('cleric'), 'dps');
+    const ward: SignatureAbility = { id: 'test_ward', name: 'Ward', description: '', kind: 'shield', cooldownSec: 0, damageMult: 1 };
+    player.signatureAbilities = [...player.signatureAbilities, ward];
+    const state = startDungeonRun(player, 'ragefire_chasm', 3, 20, 7, buildCompanionParty('dps', 20));
+    const allyName = state.allies[0]!.name;
+    resolveDungeonTurn(player, state, 'test_ward', 1); // 1 = allies[0]
+    const ev = state.log.find((e) => e.type === 'absorb' && e.source === player.name);
+    expect(ev?.target).toBe(allyName);
+  });
+
+  it('mitigation: friendly targeting udělí ochranné okno zvolenému parťákovi', () => {
+    const player = deriveRaidActor(hero('cleric'), 'dps');
+    const aegis: SignatureAbility = { id: 'test_aegis', name: 'Aegis', description: '', kind: 'mitigation', cooldownSec: 0, damageMult: 0, mitigationPct: 0.5, mitigationDurationSec: 9 };
+    player.signatureAbilities = [...player.signatureAbilities, aegis];
+    const state = startDungeonRun(player, 'ragefire_chasm', 3, 20, 7, buildCompanionParty('dps', 20));
+    resolveDungeonTurn(player, state, 'test_aegis', 1); // 1 = allies[0]
+    expect(state.allies[0]!.mitigationTurns).toBeGreaterThan(0);
+    expect(state.allies[0]!.mitigationPct).toBe(0.5);
+    expect(state.player.mitigationTurns).toBe(0); // hráč nedostal buff
+  });
+});
+
+describe('formální ukončení tahu — Pass / Dodge', () => {
+  it('Pass: hráč neútočí, kolo doběhne a tah se posune', () => {
+    const base = hero('fighter');
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    const enemyHpBefore = state.enemies.map((e) => e.currentHealth);
+    const turnBefore = state.turn;
+    resolveDungeonTurn(base, state, DUNGEON_PASS_ACTION, 0);
+    expect(state.turn).toBe(turnBefore + 1);
+    expect(state.log.some((e) => (e.message ?? '').includes('ends the turn'))).toBe(true);
+    // Hráč nezpůsobil poškození (žádný DoT na startu) → enemy HP beze změny.
+    state.enemies.forEach((e, i) => expect(e.currentHealth).toBe(enemyHpBefore[i]));
+  });
+
+  it('Dodge: nastaví dodging a vyprší až s další reálnou akcí', () => {
+    const base = hero('fighter');
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    resolveDungeonTurn(base, state, DUNGEON_DODGE_ACTION, 0);
+    expect(state.player.dodging).toBe(true);
+    expect(state.log.some((e) => (e.message ?? '').includes('Dodge'))).toBe(true);
+    if (state.status === 'in_combat') {
+      resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, pickTarget(state));
+      expect(state.player.dodging).toBe(false);
+    }
   });
 });
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DUNGEON_BASIC_ATTACK,
+  DUNGEON_DODGE_ACTION,
+  DUNGEON_PASS_ACTION,
   EMPTY_PROGRESSION,
   baseStatsFor,
   deriveCombatProfile,
@@ -15,6 +17,7 @@ import {
   type PartyRunState,
   type RaidActor,
   type RaidRole,
+  type SignatureAbility,
 } from './index';
 
 function actor(klass: ClassId, role: RaidRole, name: string, geared = true, level = 20): RaidActor {
@@ -145,5 +148,95 @@ describe('resolvePartyRound', () => {
     submitPartyAction(state, 'char-dps', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
     resolvePartyRound(state);
     expect(Object.keys(state.pending).length).toBe(0);
+  });
+});
+
+describe('friendly targeting — heal cílí zvolený slot člena', () => {
+  /** Party 3 lidí: tank (slot 0) + dps (slot 1) + healer (slot 2). */
+  function humanHealerSeats(): PartyRunSeatInput[] {
+    return [
+      { owner: 'char-tank', actor: actor('fighter', 'tank', 'Tankman') },
+      { owner: 'char-dps', actor: actor('rogue', 'dps', 'Stabby') },
+      { owner: 'char-healer', actor: actor('cleric', 'healer', 'Lyra') },
+    ];
+  }
+
+  function healAbilityId(): string {
+    const id = partyMemberAbilities(actor('cleric', 'healer', 'Lyra')).find((a) => a.kind === 'heal')?.id;
+    expect(id, 'cleric má mít heal ability').toBeDefined();
+    return id!;
+  }
+
+  /** Odešle basic za tank+dps a daný heal za healera, pak vyhodnotí kolo. */
+  function castHeal(state: PartyRunState, healId: string, healTargetSlot: number): void {
+    submitPartyAction(state, 'char-tank', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    submitPartyAction(state, 'char-dps', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    submitPartyAction(state, 'char-healer', healId, healTargetSlot);
+    resolvePartyRound(state);
+  }
+
+  it('targetId = slot tanka → léčí tanka, ne nejzraněnějšího', () => {
+    const state = startPartyRun(humanHealerSeats(), 'ragefire_chasm', 3, 20, 7);
+    // dps je víc zraněný než tank → bez friendly targetingu by heal šel na dps.
+    state.members[0]!.currentHealth = 40; // tank
+    state.members[1]!.currentHealth = 1; // dps (nejzraněnější)
+    castHeal(state, healAbilityId(), 0); // explicitně tank (slot 0)
+    const heal = state.log.find((e) => e.type === 'heal' && e.source === 'Lyra');
+    expect(heal?.target).toBe('Tankman');
+  });
+
+  it('neplatný slot → fallback na nejzraněnějšího člena', () => {
+    const state = startPartyRun(humanHealerSeats(), 'ragefire_chasm', 3, 20, 7);
+    state.members[1]!.currentHealth = 1; // dps nejzraněnější
+    castHeal(state, healAbilityId(), 99); // mimo rozsah
+    const heal = state.log.find((e) => e.type === 'heal' && e.source === 'Lyra');
+    expect(heal?.target).toBe('Stabby');
+  });
+
+  it('mitigation: friendly targeting udělí ochranné okno zvolenému slotu', () => {
+    const tank = actor('fighter', 'tank', 'Tankman');
+    const dps = actor('rogue', 'dps', 'Stabby');
+    const healer = actor('cleric', 'healer', 'Lyra');
+    const aegis: SignatureAbility = { id: 'test_aegis', name: 'Aegis', description: '', kind: 'mitigation', cooldownSec: 0, damageMult: 0, mitigationPct: 0.5, mitigationDurationSec: 9 };
+    healer.signatureAbilities = [...healer.signatureAbilities, aegis];
+    const state = startPartyRun(
+      [
+        { owner: 'char-tank', actor: tank },
+        { owner: 'char-dps', actor: dps },
+        { owner: 'char-healer', actor: healer },
+      ],
+      'ragefire_chasm',
+      3,
+      20,
+      7,
+    );
+    submitPartyAction(state, 'char-tank', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    submitPartyAction(state, 'char-dps', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    submitPartyAction(state, 'char-healer', 'test_aegis', 0); // na tanka (slot 0)
+    resolvePartyRound(state);
+    const tankMember = state.members.find((m) => m.slot === 0)!;
+    expect(tankMember.mitigationPct).toBe(0.5);
+    expect(tankMember.mitigationTurns).toBeGreaterThan(0);
+  });
+});
+
+describe('formální ukončení tahu — Pass / Dodge (MP)', () => {
+  it('Pass: lidé neudělají nic, kolo se vyhodnotí a posune', () => {
+    const state = startPartyRun(makeSeats(), 'ragefire_chasm', 3, 20, 7);
+    const turnBefore = state.turn;
+    expect(submitPartyAction(state, 'char-tank', DUNGEON_PASS_ACTION, 0).ok).toBe(true);
+    submitPartyAction(state, 'char-dps', DUNGEON_PASS_ACTION, 0);
+    resolvePartyRound(state);
+    expect(state.turn).toBe(turnBefore + 1);
+    expect(state.log.some((e) => (e.message ?? '').includes('ends the turn'))).toBe(true);
+  });
+
+  it('Dodge: nastaví dodging na člena (vyprší až jeho dalším tahem)', () => {
+    const state = startPartyRun(makeSeats(), 'ragefire_chasm', 3, 20, 7);
+    submitPartyAction(state, 'char-tank', DUNGEON_DODGE_ACTION, 0);
+    submitPartyAction(state, 'char-dps', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    resolvePartyRound(state);
+    const tank = state.members.find((m) => m.owner === 'char-tank')!;
+    expect(tank.dodging).toBe(true);
   });
 });
