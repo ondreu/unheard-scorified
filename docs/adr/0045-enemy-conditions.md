@@ -128,6 +128,31 @@
    změny). Kontrakt: `dnd-combat.test.ts` (isControlSpell + resolveControlCast),
    `dungeon-run.test.ts` (restrain end-to-end + nulové poškození).
 
+9. **Slice 2d (Gauntlet) — conditiony v tahovém roguelite.** `gauntlet.ts`
+   (`resolveGauntletTurn`) dostal stejný condition životní cyklus jako tahové
+   dungeony — Gauntlet je rovněž tahový (1 hráč vs 1 nepřítel, vlna/tah), takže
+   recykluje `beginActorTurn`/`tickConditions`/`turnConditionEffects`/`applyCondition`/
+   `combineAdvantage`/`grantsIncomingAdvantage`. `GauntletPlayerState` i
+   `GauntletEnemyState` nesou `conditions?` (JSON v run-stavu, **bez DB migrace**,
+   staré běhy graceful). Mechanika:
+   - **Hráč → nepřítel:** pure-control kouzlo (`isControlSpell`) = 0 dmg + save →
+     condition; damage ability s `save` riderem / save-less riderem uvalí condition
+     po zásahu; útok na prone/restrained/stunnutého nepřítele má **advantage**.
+   - **Hráč zasažen condition** (zatím **dormantní** — Gauntlet nepřátelé nemají
+     abilities, viz „continuous simy / draw enemy abilit"): stun = ztracený tah
+     (ability i bonus přeskočeny, DoT + protiúder doběhnou), frightened/prone/slow
+     = disadvantage na vlastní útok, slow/stun = bez bonus akce.
+   - **Nepřítel stunnutý** (hráč ho stunne) vynechá protiúder; údržba (cooldowny)
+     doběhne tak jako tak.
+   - **Short rest mezi vlnami** (`spawnWave`) conditiony hráče setře; nový nepřítel
+     startuje bez conditionů.
+
+   **Konzervativní:** Gauntlet enemy je dál procedurální bez katalogových abilit →
+   enemy → hráč conditiony se rozsvítí až s „Gauntlet draw enemy abilit z katalogu"
+   (zbytek 2d). Magnitudy/draft/skóre beze změny. Kontrakt: `gauntlet.test.ts`
+   (stun nepřítele → vynechá protiúder, nulové poškození control kouzlem; stunnutý
+   hráč ztratí tah; reset conditionů mezi vlnami).
+
 ## Důsledky
 
 - **+** Nepřátelská (i hráčská — symetricky v `combatantHitEnemy`) ability umí

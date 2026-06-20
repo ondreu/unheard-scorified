@@ -20,6 +20,7 @@ import {
   GAUNTLET_BASIC_ATTACK,
   type CombatActor,
   type GauntletRunState,
+  type SignatureAbility,
 } from './index';
 
 function hero(
@@ -353,5 +354,61 @@ describe('odměny + denní strop', () => {
 
     const exhausted = capGauntletReward(big, level, xpCap, goldCap);
     expect(exhausted).toEqual({ xp: 0, gold: 0, items: [] });
+  });
+});
+
+describe('conditiony v Gauntletu (Slice 2d)', () => {
+  it('hráčské control kouzlo stunne nepřítele, který pak vynechá protiúder', () => {
+    const base = hero(10, 'wizard');
+    const hold: SignatureAbility = {
+      id: 'gaunt_hold',
+      name: 'Hold Person',
+      kind: 'strike',
+      cooldownSec: 0,
+      damageMult: 0,
+      save: { ability: 'wisdom', effect: 'negate' },
+      condition: { type: 'stunned', durationTurns: 2 },
+    };
+    base.signatureAbilities = [...base.signatureAbilities, hold];
+    base.spellSaveDc = 99; // nepřítel save vždy selže → stun padne
+    const state = startGauntletRun(base, 10, 7);
+    const enemyHpStart = state.enemy!.currentHealth;
+
+    let appliedSeen = false;
+    let cannotActSeen = false;
+    let s = state;
+    for (let i = 0; i < 5 && s.status === 'in_combat'; i++) {
+      s = resolveGauntletTurn(base, s, 'gaunt_hold').state;
+      if (s.log.some((e) => (e.message ?? '').includes('is stunned ('))) appliedSeen = true;
+      if (s.log.some((e) => (e.message ?? '').includes('cannot act'))) cannotActSeen = true;
+    }
+    expect(appliedSeen).toBe(true); // condition se uvalila na nepřítele
+    expect(cannotActSeen).toBe(true); // stunnutý nepřítel vynechal protiúder
+    // Control kouzlo nedělá poškození → enemy HP kleslo nanejvýš o 0 (žádný útok hráče).
+    expect(s.enemy!.currentHealth).toBe(enemyHpStart);
+  });
+
+  it('stunnutý hráč ztratí tah — ability se neprovede', () => {
+    const base = hero(10, 'wizard');
+    const state = startGauntletRun(base, 10, 3);
+    state.player.conditions = [{ type: 'stunned', turns: 1 }];
+    const enemyHpBefore = state.enemy!.currentHealth;
+
+    const r = resolveGauntletTurn(base, state, GAUNTLET_BASIC_ATTACK.id);
+    expect(r.state.log.some((e) => (e.message ?? '').includes('loses the turn'))).toBe(true);
+    // Hráč nezaútočil → nepřítel neztratil HP útokem hráče (žádný DoT v tomto testu).
+    expect(r.state.enemy!.currentHealth).toBe(enemyHpBefore);
+    // Stun (turns 1) tiknul na začátku hráčova tahu → vypršel.
+    expect(r.state.player.conditions?.length ?? 0).toBe(0);
+  });
+
+  it('conditiony se setřou při spawnu nové vlny (short rest)', () => {
+    const base = hero(10, 'fighter');
+    let s = startGauntletRun(base, 10, 11);
+    s.player.conditions = [{ type: 'slowed', turns: 5 }];
+    s = clearWave(base, s);
+    if (s.status === 'drafting' && s.draft) s = applyGauntletDraft(base, s, s.draft[0]!.id, 10);
+    // Nová vlna = short rest → conditiony hráče pryč.
+    expect(s.player.conditions?.length ?? 0).toBe(0);
   });
 });
