@@ -8,7 +8,7 @@ import {
   weaponDamageSpec,
   type CombatActor,
 } from './combat';
-import { buildDndAttackMessage, applySpellSave, rollInitiative } from './dnd-combat';
+import { buildDndAttackMessage, applySpellSave, isControlSpell, resolveControlCast, rollInitiative } from './dnd-combat';
 import { CLASS_BASELINE_ABILITIES, EXTRA_SPELLS, type SignatureAbility } from './data/abilities';
 import { diceAverage } from './dice';
 import { baseStatsFor } from './character';
@@ -268,9 +268,59 @@ describe('player condition spells (Slice 2d)', () => {
       ...CLASS_BASELINE_ABILITIES.bard, ...CLASS_BASELINE_ABILITIES.cleric, ...CLASS_BASELINE_ABILITIES.paladin]
       .concat(Object.values(EXTRA_SPELLS).flat());
     const types = new Set(all.map((a) => a.condition?.type).filter(Boolean));
-    for (const t of ['stunned', 'prone', 'frightened', 'slowed'] as const) {
+    for (const t of ['stunned', 'prone', 'frightened', 'slowed', 'restrained'] as const) {
       expect(types.has(t)).toBe(true);
     }
+  });
+});
+
+describe('control spells — no damage, save → condition (Slice 2d)', () => {
+  const holdPerson = EXTRA_SPELLS.wizard.find((a) => a.id === 'wiz_hold_person')!;
+  const web = EXTRA_SPELLS.wizard.find((a) => a.id === 'wiz_web')!;
+  const ensnaring = EXTRA_SPELLS.ranger.find((a) => a.id === 'ranger_ensnaring_strike')!;
+  const fireball = EXTRA_SPELLS.wizard.find((a) => a.id === 'wiz_lightning_bolt')!;
+
+  it('isControlSpell flags only pure-control casts (no damage + condition)', () => {
+    expect(isControlSpell(holdPerson)).toBe(true);
+    expect(isControlSpell(web)).toBe(true);
+    // Útok s poškozením + rider (Ensnaring Strike weapon hit) NENÍ control.
+    expect(isControlSpell(ensnaring)).toBe(false);
+    // Čisté damage kouzlo bez conditiony NENÍ control.
+    expect(isControlSpell(fireball)).toBe(false);
+  });
+
+  it('catalog control spells are damage-less but carry a save + condition', () => {
+    for (const a of [holdPerson, web]) {
+      expect(a.damageMult).toBe(0);
+      expect(a.dice).toBeUndefined();
+      expect(a.bonusDice).toBeUndefined();
+      expect(a.save).toBeDefined();
+      expect(a.condition).toBeDefined();
+    }
+    expect(holdPerson.condition?.type).toBe('stunned');
+    expect(web.condition?.type).toBe('restrained');
+  });
+
+  it('resolveControlCast deals no damage and applies the condition only on a failed save', () => {
+    const attacker = hero(12, 'wizard');
+    let applied = 0;
+    let saved = 0;
+    for (let s = 0; s < 60; s++) {
+      const target = { actor: hero(8, 'rogue'), name: 'Goblin', conditions: [] as { type: string; turns: number }[] };
+      const out = resolveControlCast(holdPerson, attacker, target as never, new SeededRng(s), attacker.name);
+      expect(out.saveMessage).toBeDefined(); // control kouzlo má save → vždy log řádek
+      if (out.applied) {
+        applied++;
+        expect(out.applied.type).toBe('stunned');
+        expect(target.conditions.some((c) => c.type === 'stunned')).toBe(true);
+      } else {
+        saved++;
+        expect(target.conditions.length).toBe(0); // úspěšný save → žádná condition
+      }
+    }
+    // Save mechanika reálně rozhoduje (ne vždy applied, ne vždy saved).
+    expect(applied).toBeGreaterThan(0);
+    expect(saved).toBeGreaterThan(0);
   });
 });
 

@@ -105,6 +105,29 @@
    `'none'` poškození nemění → `gear-balance` i ostatní kontrakty beze změny;
    control se projeví jen v tahových dungeonech (proti boss obsahu z 2c).
 
+8. **Slice 2d (zbytek hráčských kouzel) — restrained + condition-only control.**
+   Doplnění obou chybějících vzorů z hráčské strany:
+   - **Pure-control kouzlo bez poškození** (`isControlSpell` / `resolveControlCast`
+     v `dnd-combat.ts`): D&D control kouzla (Hold Person, Web, Entangle) nemají
+     útočný hod („d20 vs AC") ani poškození — cíl si jen hodí **save** a na
+     **neúspěch** dostane condition. Pozná se podle `kind:'strike'` + `damageMult:0`
+     bez `dice`/`bonusDice`, s `condition` riderem. Engine pro něj přeskočí celou
+     damage cestu (`combatantHitEnemy`/`memberHitEnemy` vrátí brzy) a vyřeší jen
+     `applySpellSave(…, 0)` → `applyCondition`. **Žádný chip damage** (kontrakt
+     ověřuje nulové poškození) — odlišení od „dej 1 a uval condition".
+   - **Restrained z hráčské strany** (poprvé): **Web**/**Entangle** (control-only,
+     restrained 2 tahy) + **Ensnaring Strike** (Ranger; weapon hit + STR save
+     `'none'` + restrained — jde normální damage cestou, vzor Trip Attack).
+   - **Hold Person** mapuje D&D *paralyzed* na náš `stunned` (skip tahu + incoming
+     advantage), WIS save negate, 1 tah. Zařazeno do `EXTRA_SPELLS` 6 casterů.
+
+   Konzervativní rozsah: **autoHit obecné damage cesty se nemění** (Magic Missile
+   v tahových dungeonech dál hází na zásah — latentní, mimo tento slice), control
+   větev řeší „žádný útočný hod" sama. **Balanc-neutrální** mimo tahové dungeony
+   (continuous simy: control kouzlo = 0 dmg, rider inertní → `gear-balance` beze
+   změny). Kontrakt: `dnd-combat.test.ts` (isControlSpell + resolveControlCast),
+   `dungeon-run.test.ts` (restrain end-to-end + nulové poškození).
+
 ## Důsledky
 
 - **+** Nepřátelská (i hráčská — symetricky v `combatantHitEnemy`) ability umí

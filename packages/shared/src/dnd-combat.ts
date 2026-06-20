@@ -7,7 +7,7 @@
  */
 import type { AbilityScore } from './character';
 import { actorSaveMod, actorSpellSaveDc, type CombatActor, type HitResult } from './combat';
-import type { ConditionRider } from './conditions';
+import { applyCondition, type ActiveCondition, type ConditionRider } from './conditions';
 import type { SignatureAbility } from './data/abilities';
 import { damageInteractionNote } from './data/damage';
 import { rollD20, rollSave, type SaveRoll } from './dice';
@@ -66,6 +66,63 @@ export function applySpellSave(
     message: buildSaveMessage(defender.name, spec.ability, save, spec.effect),
     ...(condition ? { condition } : {}),
   };
+}
+
+/**
+ * Je ability **čisté „control" kouzlo** (Slice 2d) — žádný útočný hod ani
+ * poškození, jediným efektem je condition na cíl (Hold Person / Web / Entangle)?
+ * Pozná se podle `kind: 'strike'` + `damageMult: 0` bez `dice`/`bonusDice`, s
+ * `condition` riderem. Engine pro něj přeskočí hod na zásah i damage roll a vyřeší
+ * jen save → condition (`resolveControlCast`). Útoky s damage + condition riderem
+ * (Trip Attack, Ensnaring Strike, Fireball s riderem) sem **nepatří** — ty jdou
+ * normální damage cestou (`applySpellSave`).
+ */
+export function isControlSpell(ability: SignatureAbility): boolean {
+  return (
+    ability.kind === 'strike' &&
+    ability.damageMult === 0 &&
+    !ability.dice &&
+    !ability.bonusDice &&
+    !!ability.condition
+  );
+}
+
+/** Výsledek seslání pure-control kouzla (Slice 2d). */
+export interface ControlCastOutcome {
+  /** Log řádek záchranného hodu (jen když kouzlo má `save`). */
+  saveMessage?: string;
+  /** Condition uvalená na cíl (neúspěšný save / save-less rider), nebo `undefined`. */
+  applied?: ConditionRider;
+}
+
+/**
+ * Vyřeší pure-control kouzlo (Hold Person/Web/Entangle, Slice 2d): D&D control
+ * kouzla nemají útočný hod (žádné „d20 vs AC") ani poškození — cíl si jen hodí
+ * záchranný hod a na **neúspěch** dostane condition. Bez `save` (save-less rider)
+ * se condition uvalí automaticky. **Mutuje `target.conditions`** (přiřadí nový
+ * seznam přes `applyCondition`); volající vyemituje log řádky z vrácených dat.
+ * Sdíleno tahovými simulátory (`dungeon-run`, `dungeon-party`) → žádná duplikace.
+ */
+export function resolveControlCast(
+  ability: SignatureAbility,
+  attacker: CombatActor,
+  target: { actor: CombatActor; name: string; conditions?: ActiveCondition[] },
+  rng: SeededRng,
+  sourceName: string,
+): ControlCastOutcome {
+  if (ability.save) {
+    const outcome = applySpellSave(ability, attacker, target.actor, rng, 0);
+    if (outcome.condition) {
+      target.conditions = applyCondition(target.conditions, outcome.condition, sourceName);
+    }
+    return { saveMessage: outcome.message, applied: outcome.condition };
+  }
+  // Save-less control (nepoužívá se v katalogu zatím, ale engine je symetrický).
+  if (ability.condition) {
+    target.conditions = applyCondition(target.conditions, ability.condition, sourceName);
+    return { applied: ability.condition };
+  }
+  return {};
 }
 
 /** Initiative aktéra: d20 + DEX modifikátor. */
