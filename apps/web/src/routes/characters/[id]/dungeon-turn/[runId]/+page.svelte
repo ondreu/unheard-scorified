@@ -20,6 +20,7 @@
     boss: 'BOSS',
     you: 'You',
     target: 'Target',
+    healTarget: 'Support target',
     abandon: 'Abandon',
     abandoning: 'Leaving…',
     cleared: '🏆 Dungeon cleared!',
@@ -38,6 +39,8 @@
     bonusActionHint: 'cast alongside your action this turn',
     bonusNone: 'None',
     bonusQueued: 'Bonus queued',
+    endTurn: 'End turn',
+    dodge: 'Dodge',
   };
 
   const roleIcon: Record<string, string> = { tank: '🛡️', healer: '✨', dps: '⚔️' };
@@ -54,6 +57,9 @@
   let targetId = $state(0);
   // Vědomě zvolená bonus action (ADR 0042) — proběhne vedle hlavní akce; null = žádná.
   let bonusAbilityId = $state<string | null>(null);
+  // Friendly cíl léčení: index člena party (0 = hráč, 1..N = parťák). Heal ability
+  // posílá tenhle index místo nepřátelského `targetId`.
+  let healTargetId = $state(0);
 
   const characterId = $derived($page.params.id ?? '');
   const runId = $derived($page.params.runId ?? '');
@@ -81,7 +87,7 @@
     }
   }
 
-  /** Je zvolený cíl mrtvý / chybí? Přepni na prvního živého nepřítele. */
+  /** Je zvolený cíl mrtvý / chybí? Přepni na prvního živého nepřítele / hráče. */
   function retarget(): void {
     if (!run) return;
     const cur = run.enemies.find((e) => e.idx === targetId);
@@ -89,17 +95,43 @@
       const alive = run.enemies.find((e) => e.currentHealth > 0);
       if (alive) targetId = alive.idx;
     }
+    // Heal cíl: 0 = hráč, 1..N = parťák. Mrtvý parťák → zpět na hráče.
+    if (healTargetId > 0) {
+      const ally = run.allies[healTargetId - 1];
+      if (!ally || ally.currentHealth <= 0) healTargetId = 0;
+    }
   }
 
-  async function act(abilityId: string): Promise<void> {
+  // Podpůrné ability (heal/shield/mitigation) cílí spojence; útočné nepřítele.
+  const FRIENDLY_KINDS = new Set(['heal', 'shield', 'mitigation']);
+  function targetFor(kind: string): number {
+    return FRIENDLY_KINDS.has(kind) ? healTargetId : targetId;
+  }
+
+  async function act(abilityId: string, kind: string): Promise<void> {
     if (busy || !run || run.status !== 'in_combat') return;
     busy = true;
     error = null;
     // Bonus action proběhne jen když ji hráč zvolil a liší se od hlavní akce.
     const bonus = bonusAbilityId && bonusAbilityId !== abilityId ? bonusAbilityId : undefined;
     try {
-      run = await actDungeonTurn(characterId, runId, abilityId, targetId, bonus);
+      run = await actDungeonTurn(characterId, runId, abilityId, targetFor(kind), bonus);
       bonusAbilityId = null;
+      retarget();
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Formální ukončení tahu: Pass (nic) nebo Dodge (disadvantage na útoky proti tobě). */
+  async function endTurn(action: 'pass' | 'dodge'): Promise<void> {
+    if (busy || !run || run.status !== 'in_combat') return;
+    busy = true;
+    error = null;
+    try {
+      run = await actDungeonTurn(characterId, runId, action, 0);
       retarget();
     } catch (err) {
       error = (err as Error).message;
@@ -184,11 +216,17 @@
       </section>
     {/if}
 
-    <!-- Player -->
-    <section class="panel panel-pad">
+    <!-- Player (click to pick heal target in a group) -->
+    <button
+      type="button"
+      class="panel panel-pad w-full text-left {r.allies.length > 0 && healTargetId === 0 && !finished ? 'ring-2 ring-[var(--success)]' : ''}"
+      disabled={r.allies.length === 0 || finished}
+      onclick={() => (healTargetId = 0)}
+    >
       <div class="flex items-center justify-between">
         <span class="font-semibold">
           {roleIcon[r.playerRole] ?? ''} {r.player.name}
+          {#if r.allies.length > 0 && healTargetId === 0 && !finished}<span class="ml-2 text-xs text-[var(--success)]">💚 {ui.healTarget}</span>{/if}
         </span>
         <span class="text-sm text-[var(--text-dim)]">
           {r.player.currentHealth} / {r.player.maxHealth}
@@ -211,16 +249,24 @@
       <div class="bar mt-2">
         <div class="bar-fill" style={`width:${hpPct(r.player.currentHealth, r.player.maxHealth)}%;background:var(--success)`}></div>
       </div>
-    </section>
+    </button>
 
     <!-- AI party allies (group, Slice 3) -->
     {#if r.allies.length > 0}
       <section class="space-y-2">
         <p class="text-xs uppercase tracking-wide text-[var(--text-dim)]">{ui.party}</p>
-        {#each r.allies as a (a.name)}
-          <div class="panel panel-pad {a.currentHealth <= 0 ? 'opacity-40' : ''}">
+        {#each r.allies as a, i (a.name)}
+          <button
+            type="button"
+            class="panel panel-pad w-full text-left {a.currentHealth <= 0 ? 'opacity-40' : ''} {healTargetId === i + 1 && a.currentHealth > 0 && !finished ? 'ring-2 ring-[var(--success)]' : ''}"
+            disabled={a.currentHealth <= 0}
+            onclick={() => (healTargetId = i + 1)}
+          >
             <div class="flex items-center justify-between">
-              <span class="font-semibold">{roleIcon[a.role] ?? ''} {a.name}</span>
+              <span class="font-semibold">
+                {roleIcon[a.role] ?? ''} {a.name}
+                {#if healTargetId === i + 1 && a.currentHealth > 0 && !finished}<span class="ml-2 text-xs text-[var(--success)]">💚 {ui.healTarget}</span>{/if}
+              </span>
               <span class="text-sm text-[var(--text-dim)]">
                 {a.currentHealth} / {a.maxHealth}
                 {#if a.absorb > 0}<span class="ml-1 text-[var(--info)]">🛡️ {a.absorb}</span>{/if}
@@ -229,7 +275,7 @@
             <div class="bar mt-2">
               <div class="bar-fill" style={`width:${hpPct(a.currentHealth, a.maxHealth)}%;background:var(--success)`}></div>
             </div>
-          </div>
+          </button>
         {/each}
       </section>
     {/if}
@@ -279,7 +325,7 @@
                 : a.outOfKi
                   ? `${a.description} (not enough Ki)`
                   : a.description}
-              onclick={() => act(a.id)}
+              onclick={() => act(a.id, a.kind)}
             >
               <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
               <span class="min-w-0 flex-1 truncate">{a.name}</span>
@@ -292,6 +338,10 @@
               {/if}
             </button>
           {/each}
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button class="btn btn-sm flex-1" disabled={busy} title="Incoming attacks have disadvantage until your next turn" onclick={() => endTurn('dodge')}>🤺 {ui.dodge}</button>
+          <button class="btn btn-sm flex-1" disabled={busy} title="Take no action and end your turn" onclick={() => endTurn('pass')}>⏭️ {ui.endTurn}</button>
         </div>
       </section>
     {/if}

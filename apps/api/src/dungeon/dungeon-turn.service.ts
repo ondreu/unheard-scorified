@@ -11,6 +11,7 @@ import {
   groupContentSizes,
   hasSlotForTier,
   isDungeonAbilityReady,
+  isEndTurnAction,
   isDungeonId,
   isDungeonUnlocked,
   isRaidRole,
@@ -236,11 +237,14 @@ export class DungeonTurnService {
     const snapshot = run.playerSnapshot;
     const state = run.state;
 
-    // Validace (server-authoritative anti-cheat): ability v kitu, ready, má zdroj.
-    const ability = dungeonRunAbilities(snapshot).find((a) => a.id === abilityId);
-    if (!ability) throw new BadRequestException('Unknown ability');
-    if (!isDungeonAbilityReady(state, abilityId)) throw new BadRequestException('Ability on cooldown');
-    if (!canCastDungeonAbility(state, ability)) throw new BadRequestException('Out of resources for that ability');
+    // Formální ukončení tahu (Pass/Dodge) — vždy dostupné, žádný zdroj/cooldown.
+    if (!isEndTurnAction(abilityId)) {
+      // Validace (server-authoritative anti-cheat): ability v kitu, ready, má zdroj.
+      const ability = dungeonRunAbilities(snapshot).find((a) => a.id === abilityId);
+      if (!ability) throw new BadRequestException('Unknown ability');
+      if (!isDungeonAbilityReady(state, abilityId)) throw new BadRequestException('Ability on cooldown');
+      if (!canCastDungeonAbility(state, ability)) throw new BadRequestException('Out of resources for that ability');
+    }
 
     // Bonus action (ADR 0042, Slice 3) — vědomá volba hráče vedle hlavní akce.
     // Validace: musí být skutečná bonus-action ability v kitu, ready a se zdrojem;

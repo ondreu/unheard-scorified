@@ -21,6 +21,7 @@
     encounter: 'Encounter',
     boss: 'BOSS',
     target: 'Target',
+    healTarget: 'Support target',
     abandon: 'Abandon',
     cleared: '🏆 Dungeon cleared!',
     wiped: '💀 The party wiped',
@@ -35,6 +36,8 @@
     party: 'Party',
     waiting: 'Waiting for the party…',
     submitted: 'Action locked in',
+    endTurn: 'End turn',
+    dodge: 'Dodge',
     youFell: 'You have fallen — your allies fight on.',
     aiSoon: 'AI takes over idle players in',
     bonusAction: 'Bonus action',
@@ -52,6 +55,9 @@
   let targetId = $state(0);
   // Vědomě zvolená bonus action (ADR 0042) — proběhne vedle hlavní akce; null = žádná.
   let bonusAbilityId = $state<string | null>(null);
+  // Friendly cíl léčení: `slot` člena party. Heal ability posílá tenhle slot místo
+  // nepřátelského `targetId`. null = ještě nezvoleno → default na vlastní slot.
+  let healTargetId = $state<number | null>(null);
   let now = $state(Date.now());
   let poll: ReturnType<typeof setInterval> | null = null;
   let clock: ReturnType<typeof setInterval> | null = null;
@@ -128,20 +134,49 @@
       const alive = run.enemies.find((e) => e.currentHealth > 0);
       if (alive) targetId = alive.idx;
     }
+    // Heal cíl: vlastní slot jako default; mrtvý cíl → zpět na sebe.
+    const mySlot = run.you?.slot ?? run.members.find((m) => m.isYou)?.slot ?? 0;
+    const ht = run.members.find((m) => m.slot === healTargetId);
+    if (healTargetId == null || !ht || ht.currentHealth <= 0) healTargetId = mySlot;
   }
 
-  async function submit(abilityId: string): Promise<void> {
+  // Podpůrné ability (heal/shield/mitigation) cílí spojence; útočné nepřítele.
+  const FRIENDLY_KINDS = new Set(['heal', 'shield', 'mitigation']);
+  function targetFor(kind: string): number {
+    return FRIENDLY_KINDS.has(kind) ? (healTargetId ?? 0) : targetId;
+  }
+
+  async function submit(abilityId: string, kind: string): Promise<void> {
     if (busy || !run || run.status !== 'in_combat' || run.you?.submitted) return;
     busy = true;
     error = null;
+    const tgt = targetFor(kind);
     const bonus = bonusAbilityId && bonusAbilityId !== abilityId ? bonusAbilityId : undefined;
     try {
       // Preferuj WS (server-authoritative ack); REST fallback, když socket nejede.
       run =
         socket && socket.connected
-          ? await submitPartyTurn(socket, characterId, runId, abilityId, targetId, bonus)
-          : await submitDungeonParty(characterId, runId, abilityId, targetId, bonus);
+          ? await submitPartyTurn(socket, characterId, runId, abilityId, tgt, bonus)
+          : await submitDungeonParty(characterId, runId, abilityId, tgt, bonus);
       bonusAbilityId = null;
+      retarget();
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Formální ukončení tahu: Pass (nic) nebo Dodge (disadvantage na útoky proti tobě). */
+  async function endTurn(action: 'pass' | 'dodge'): Promise<void> {
+    if (busy || !run || run.status !== 'in_combat' || run.you?.submitted) return;
+    busy = true;
+    error = null;
+    try {
+      run =
+        socket && socket.connected
+          ? await submitPartyTurn(socket, characterId, runId, action, 0)
+          : await submitDungeonParty(characterId, runId, action, 0);
       retarget();
     } catch (err) {
       error = (err as Error).message;
@@ -223,16 +258,22 @@
       </section>
     {/if}
 
-    <!-- Party panel -->
+    <!-- Party panel (click a member to pick your heal target) -->
     <section class="space-y-2">
       <p class="text-xs uppercase tracking-wide text-[var(--text-dim)]">{ui.party}</p>
       {#each r.members as m (m.slot)}
-        <div class="panel panel-pad {m.currentHealth <= 0 ? 'opacity-40' : ''} {m.isYou ? 'ring-1 ring-[var(--accent)]' : ''}">
+        <button
+          type="button"
+          class="panel panel-pad w-full text-left {m.currentHealth <= 0 ? 'opacity-40' : ''} {m.isYou ? 'ring-1 ring-[var(--accent)]' : ''} {healTargetId === m.slot && m.currentHealth > 0 && !finished ? 'ring-2 ring-[var(--success)]' : ''}"
+          disabled={m.currentHealth <= 0 || finished}
+          onclick={() => (healTargetId = m.slot)}
+        >
           <div class="flex items-center justify-between">
             <span class="font-semibold">
               {roleIcon[m.role] ?? ''} {m.name}
               {#if m.isYou}<span class="ml-1 text-xs text-[var(--accent)]">(you)</span>{/if}
               {#if m.isAi}<span class="ml-1 text-xs text-[var(--text-faint)]">AI</span>{/if}
+              {#if healTargetId === m.slot && m.currentHealth > 0 && !finished}<span class="ml-1 text-xs text-[var(--success)]">💚 {ui.healTarget}</span>{/if}
             </span>
             <span class="text-sm text-[var(--text-dim)]">
               {m.currentHealth} / {m.maxHealth}
@@ -245,7 +286,7 @@
           <div class="bar mt-2">
             <div class="bar-fill" style={`width:${hpPct(m.currentHealth, m.maxHealth)}%;background:var(--success)`}></div>
           </div>
-        </div>
+        </button>
       {/each}
     </section>
 
@@ -306,7 +347,7 @@
               class="btn flex items-center gap-2 text-left"
               disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
               title={a.outOfSlots ? `${a.description} (out of spell slots)` : a.outOfKi ? `${a.description} (not enough Ki)` : a.description}
-              onclick={() => submit(a.id)}
+              onclick={() => submit(a.id, a.kind)}
             >
               <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
               <span class="min-w-0 flex-1 truncate">{a.name}</span>
@@ -319,6 +360,10 @@
               {/if}
             </button>
           {/each}
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button class="btn btn-sm flex-1" disabled={busy} title="Incoming attacks have disadvantage until your next turn" onclick={() => endTurn('dodge')}>🤺 {ui.dodge}</button>
+          <button class="btn btn-sm flex-1" disabled={busy} title="Take no action and end your turn" onclick={() => endTurn('pass')}>⏭️ {ui.endTurn}</button>
         </div>
         {#if r.you && (slotTotal(r.you.maxSpellSlots) > 0 || r.you.maxKiPoints > 0)}
           <p class="mt-2 text-xs text-[var(--text-dim)]">
