@@ -13,6 +13,7 @@
  * jako draftovatelný pool kouzel pro Gauntlet (M13) a combat-lookup.
  */
 import type { AbilityScore } from '../character';
+import type { ConditionRider } from '../conditions';
 import type { DiceSpec } from '../dice';
 import type { ClassId, SubclassId } from './classes';
 import type { DamageType } from './damage';
@@ -98,6 +99,13 @@ export interface SignatureAbility {
   dicePerSlotAbove?: number;
   /** Per-spell saving throw (ADR 0032) — cíl hází proti spell save DC útočníka. */
   save?: SpellSave;
+  /**
+   * Condition rider (Enemy schopnosti, Slice 2a) — na **neúspěšný `save`** uvalí
+   * na cíl status efekt (stun/prone/restrained/frightened/slowed) na daný počet
+   * tahů. Vyhodnocuje se ve sdíleném `applySpellSave` (jeden hod = poloviční
+   * poškození *i* avšak-condition při úspěchu). Bez `save` se neuplatní.
+   */
+  condition?: ConditionRider;
   /** Automatický zásah (ignoruje hod na AC) — Magic Missile (ADR 0032). */
   autoHit?: boolean;
   /**

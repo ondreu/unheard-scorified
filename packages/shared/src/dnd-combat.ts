@@ -7,6 +7,7 @@
  */
 import type { AbilityScore } from './character';
 import { actorSaveMod, actorSpellSaveDc, type CombatActor, type HitResult } from './combat';
+import type { ConditionRider } from './conditions';
 import type { SignatureAbility } from './data/abilities';
 import { damageInteractionNote } from './data/damage';
 import { rollD20, rollSave, type SaveRoll } from './dice';
@@ -28,6 +29,12 @@ export interface SpellSaveOutcome {
   amount: number;
   /** Log řádek záchranného hodu (jen když ability má `save` a útok zasáhl). */
   message?: string;
+  /**
+   * Condition k uvalení na cíl, pokud `ability.condition` je nastavena a cíl
+   * **neuspěl** save (Slice 2a). `undefined` = save uspěl / ability bez conditiony.
+   * Volající ji aplikuje na svůj mutabilní stav aktéra (`applyCondition`).
+   */
+  condition?: ConditionRider;
 }
 
 /**
@@ -51,7 +58,13 @@ export function applySpellSave(
   if (save.success) {
     result = spec.effect === 'negate' ? 0 : Math.max(1, Math.floor(amount / 2));
   }
-  return { amount: result, message: buildSaveMessage(defender.name, spec.ability, save, spec.effect === 'half') };
+  // Condition rider (Slice 2a): neúspěšný save → condition (stejný hod jako damage).
+  const condition = !save.success && ability.condition ? ability.condition : undefined;
+  return {
+    amount: result,
+    message: buildSaveMessage(defender.name, spec.ability, save, spec.effect === 'half'),
+    ...(condition ? { condition } : {}),
+  };
 }
 
 /** Initiative aktéra: d20 + DEX modifikátor. */

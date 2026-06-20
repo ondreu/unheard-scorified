@@ -13,6 +13,7 @@
  */
 import type { AbilityScore } from '../character';
 import type { EnemyStats } from '../combat';
+import type { ConditionRider } from '../conditions';
 import type { SignatureAbility } from './abilities';
 import {
   crStatGuide,
@@ -38,6 +39,12 @@ export interface EnemyAbility {
   description: string;
   /** Volitelný saving throw efekt (cíl si hází proti save DC nestvůry). */
   save?: { ability: AbilityScore; description: string };
+  /**
+   * Condition rider (Slice 2a) — na **neúspěšný `save`** uvalí na hráče status
+   * efekt (stun/prone/restrained/frightened/slowed). Vyžaduje `save`. Propisuje
+   * se přes `enemyAbilityToSignature` do bojového aktéra.
+   */
+  condition?: ConditionRider;
 }
 
 // ── Šablona nestvůry ─────────────────────────────────────────────────────────
@@ -188,6 +195,7 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         cooldownSec: 9,
         description: 'Lunges to knock the target prone.',
         save: { ability: 'strength', description: 'STR save or be knocked prone.' },
+        condition: { type: 'prone', durationTurns: 1 },
       },
     ],
   },
@@ -254,6 +262,7 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         cooldownSec: 10,
         description: 'A wave of frost that slows everything it touches.',
         save: { ability: 'constitution', description: 'CON save or be slowed.' },
+        condition: { type: 'slowed', durationTurns: 2 },
       },
     ],
   },
@@ -277,6 +286,7 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         cooldownSec: 12,
         description: 'A ground-pounding slam that staggers all nearby.',
         save: { ability: 'strength', description: 'STR save or be knocked prone.' },
+        condition: { type: 'prone', durationTurns: 1 },
       },
     ],
   },
@@ -300,6 +310,7 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         cooldownSec: 13,
         description: 'Roots erupt to ensnare the target.',
         save: { ability: 'strength', description: 'STR save or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
       },
     ],
   },
@@ -345,7 +356,8 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         damageType: 'fire',
         cooldownSec: 16,
         description: 'A cone of roaring flame engulfing all before it.',
-        save: { ability: 'dexterity', description: 'DEX save for half damage.' },
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be frightened.' },
+        condition: { type: 'frightened', durationTurns: 2 },
       },
     ],
   },
@@ -368,6 +380,7 @@ const TEMPLATES: readonly EnemyTemplate[] = [
         cooldownSec: 14,
         description: 'A cone of psychic energy that stuns the weak-willed.',
         save: { ability: 'intelligence', description: 'INT save or be stunned.' },
+        condition: { type: 'stunned', durationTurns: 1 },
       },
     ],
   },
@@ -765,8 +778,8 @@ export function enemiesByChallengeRating(cr: ChallengeRating): EnemyTemplate[] {
  * combat engine) — „Enemy schopnosti", napojení do enginu. Enemy ability =
  * `kind: 'strike'` s `damageMult` (škáluje přes attackPower nepřítele) a
  * `damageType` (typové poškození → MR-7 obrany hráče); `save` se mapuje na
- * `effect: 'half'` (úspěch = poloviční poškození). Conditiony (stun/prone/…) =
- * follow-up slice (zatím jen flavor v `EnemyAbility.save.description`).
+ * `effect: 'half'` (úspěch = poloviční poškození). `condition` (Slice 2a) se
+ * propíše 1:1 → neúspěšný save uvalí status efekt (stun/prone/…).
  */
 export function enemyAbilityToSignature(a: EnemyAbility): SignatureAbility {
   return {
@@ -778,6 +791,7 @@ export function enemyAbilityToSignature(a: EnemyAbility): SignatureAbility {
     damageMult: a.damageMult,
     damageType: a.damageType,
     ...(a.save ? { save: { ability: a.save.ability, effect: 'half' as const } } : {}),
+    ...(a.condition ? { condition: a.condition } : {}),
   };
 }
 
