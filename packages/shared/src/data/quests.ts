@@ -33,6 +33,13 @@ export interface QuestFoe {
   /** Anglické jméno (game language = EN). */
   name: string;
   tier: QuestEnemyTier;
+  /**
+   * Volitelný odkaz na šablonu z katalogu nestvůr (`enemies.ts`, ADR 0043). Když
+   * je dán a existuje, foe **zdědí identitu** šablony (creature type, typ útoku,
+   * resistance/vulnerability/immunity) — magnituda i tak plyne z levelu questu ×
+   * tieru (`questFoeStats`). Chybí ⇒ generický fyzický foe (zpětně kompatibilní).
+   */
+  template?: string;
 }
 
 /** Narativní krok — příběhový beat (anglicky), bez boje. */

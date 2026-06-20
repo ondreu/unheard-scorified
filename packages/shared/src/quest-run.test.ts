@@ -35,6 +35,27 @@ describe('questFoeStats', () => {
     const minionHi = questFoeStats({ name: 'Rat', tier: 'minion' }, 40);
     expect(minionHi.challengeRating!).toBeGreaterThan(minion.challengeRating!);
   });
+
+  it('inherits identity from the catalog template but keeps level/tier magnitude (ADR 0043)', () => {
+    const generic = questFoeStats({ name: 'Skeleton', tier: 'standard' }, 10);
+    const typed = questFoeStats(
+      { name: 'Risen Skeleton', tier: 'standard', template: 'strat_zombie' },
+      10,
+    );
+    // Identita (typ útoku + obrany) přišla z katalogu…
+    expect(typed.damageType).toBe('necrotic');
+    expect(typed.vulnerabilities).toContain('radiant');
+    expect(generic.damageType).toBeUndefined();
+    // …ale magnituda (CR) je stejná jako u generického foe stejného levelu/tieru.
+    expect(typed.challengeRating).toBe(generic.challengeRating);
+    expect(typed.name).toBe('Risen Skeleton');
+  });
+
+  it('unknown template id falls back to a generic physical foe (no throw)', () => {
+    const foe = questFoeStats({ name: 'Mystery', tier: 'standard', template: 'nope' }, 10);
+    expect(foe.name).toBe('Mystery');
+    expect(foe.damageType).toBeUndefined();
+  });
 });
 
 function druid(level: number): CombatActor {
@@ -83,6 +104,18 @@ describe('simulateQuestEncounter (no-fail)', () => {
     const weakOut = simulateQuestEncounter(weak, questFoeStats(foe, 10), new SeededRng(7), 0);
     const strongOut = simulateQuestEncounter(strong, questFoeStats(foe, 10), new SeededRng(7), 0);
     expect(strongOut.playerHpPct).toBeGreaterThanOrEqual(weakOut.playerHpPct);
+  });
+
+  it('fires enemy abilities from the catalog (Enemy schopnosti)', () => {
+    // Foe odkazuje grave_wraith (Life Drain, necrotic + save) → engine ji vystřelí.
+    const player = makeProfile(8);
+    const foe = questFoeStats(
+      { name: 'Grave Wraith', tier: 'boss', template: 'grave_wraith' },
+      60, // tanky → boj trvá, ability (cd 12 s) stihne padnout
+    );
+    const out = simulateQuestEncounter(player, foe, new SeededRng(11), 0);
+    const drainEvents = out.events.filter((e) => e.ability === 'Life Drain' && e.source === 'Grave Wraith');
+    expect(drainEvents.length).toBeGreaterThanOrEqual(1);
   });
 
   it('is deterministic for the same seed', () => {

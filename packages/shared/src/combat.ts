@@ -505,6 +505,14 @@ export interface EnemyStats {
   vulnerabilities?: readonly DamageType[];
   /** Immunity vůči typům poškození (×0). */
   immunities?: readonly DamageType[];
+  /**
+   * Aktivní abilities nepřítele („Enemy schopnosti") — cooldown-gated speciální
+   * útoky (typované, případně se saving throwem). Plynou z katalogu nestvůr
+   * (`EnemyTemplate.abilities` → `enemyAbilityToSignature`). Engine je vystřelí
+   * napříč simulátory (raid/quest/dungeon-turn/dungeon-party). `undefined`/`[]` =
+   * jen základní úder (default dnešního obsahu).
+   */
+  signatureAbilities?: SignatureAbility[];
 }
 
 /**
@@ -545,9 +553,25 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     resistances: def.resistances,
     vulnerabilities: def.vulnerabilities,
     immunities: def.immunities,
-    signatureAbilities: [],
+    signatureAbilities: def.signatureAbilities ?? [],
     isBoss,
   };
+}
+
+/**
+ * Vybere první „ready" **útočnou** enemy ability („Enemy schopnosti"). Pořadí v
+ * `signatureAbilities` = priorita. `isReady` zapouzdřuje cooldown (čas vs. tahy
+ * per simulátor). Heal/shield/buff/mitigation se přeskakují — nepřátelé jimi
+ * neútočí na hráče (zatím jen offensive strike/drain/dot). Vrací `undefined`,
+ * když nepřítel žádnou ready útočnou ability nemá → volající jede základní úder.
+ */
+export function selectEnemyAbility(
+  actor: CombatActor,
+  isReady: (a: SignatureAbility) => boolean,
+): SignatureAbility | undefined {
+  return actor.signatureAbilities.find(
+    (a) => (a.kind === 'strike' || a.kind === 'drain' || a.kind === 'dot') && isReady(a),
+  );
 }
 
 /** Má aktér volnou rage charge (umí se rozzuřit)? — ADR 0034, Slice 3. */

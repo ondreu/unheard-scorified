@@ -13,6 +13,7 @@
  * z nich postaví `CombatActor`y (`buildEnemyActor` per nepřítel).
  */
 import type { EnemyStats } from '../combat';
+import { instantiateEnemy, type EnemyInstanceOverrides } from './enemies';
 
 /** Nepřítel v dungeonu (statická data → `buildEnemyActor`). */
 export interface EnemyDef extends EnemyStats {
@@ -68,31 +69,24 @@ export interface DungeonDef {
   weeklyLockout?: boolean;
 }
 
-/** Volitelné staty nepřítele nad rámec pozičních argumentů (`enemy`). */
-type EnemyOpts = Partial<
-  Pick<
-    EnemyStats,
-    | 'armor'
-    | 'isBoss'
-    | 'damageType'
-    | 'resistances'
-    | 'vulnerabilities'
-    | 'immunities'
-    | 'level'
-    | 'challengeRating'
-  >
+/**
+ * Kontextové přepisy dungeon nepřítele nad rámec šablony katalogu. Identita
+ * (jméno, typ útoku, obrany, creatureType) plyne z katalogu (`enemies.ts`,
+ * ADR 0043); tady řešíme jen magnitudu/pacing instance (armor, oslabený minion
+ * přes `level`/`name`, boss flag, variantní `id`). Typové obrany se NEpíšou ZDE —
+ * žijí ve šabloně.
+ */
+type EnemyOpts = Pick<
+  EnemyInstanceOverrides,
+  'id' | 'name' | 'armor' | 'isBoss' | 'level' | 'challengeRating'
 >;
 
-// HP/poškození se NEzadávají ručně — odvodí je `buildEnemyActor` z Challenge
-// Ratingu (`crEnemyMagnitude`, ADR 0032). CR plyne z `level`/`challengeRating`
-// (per-nepřítel doladění), jinak z `dungeon.requiredLevel` (+boss flag).
-function enemy(
-  id: string,
-  name: string,
-  swingInterval: number,
-  opts: EnemyOpts = {},
-): EnemyDef {
-  return { id, name, swingInterval, ...opts };
+// Instancuje dungeon nepřítele z katalogu (jediný zdroj pravdy enemy identity).
+// HP/poškození se NEzadávají — odvodí je `buildEnemyActor` z Challenge Ratingu
+// (`crEnemyMagnitude`, ADR 0032), kde CR plyne z `level` (per-nepřítel doladění),
+// jinak z `dungeon.requiredLevel` (+boss flag) v `group.ts`/dungeon enginu.
+function e(templateId: string, swingInterval: number, opts: EnemyOpts = {}): EnemyDef {
+  return instantiateEnemy(templateId, { swingInterval, ...opts });
 }
 
 /** Encounter (skupina nepřátel bojovaná naráz). */
@@ -116,11 +110,11 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'rfc_e1',
-        enemy('rfc_cultist', 'Ember Cultist', 2.6),
-        enemy('rfc_cultist_b', 'Ember Acolyte', 2.6, { level: 1 }),
+        e('rfc_cultist', 2.6),
+        e('rfc_cultist', 2.6, { id: 'rfc_cultist_b', name: 'Ember Acolyte', level: 1 }),
       ),
-      pack('rfc_e2', enemy('rfc_warlock', 'Earthborer Warlock', 2.8)),
-      pack('rfc_e3', enemy('rfc_taragaman', 'Tarrakal the Hungerer', 2.4, { armor: 40, isBoss: true })),
+      pack('rfc_e2', e('rfc_warlock', 2.8)),
+      pack('rfc_e3', e('rfc_taragaman', 2.4, { armor: 40, isBoss: true })),
     ],
   },
 
@@ -138,16 +132,16 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'dm_e1',
-        enemy('dm_miner', 'Ashen Hand Overseer', 2.5),
-        enemy('dm_miner_b', 'Ashen Hand Digger', 2.5, { level: 4 }),
+        e('dm_miner', 2.5),
+        e('dm_miner', 2.5, { id: 'dm_miner_b', name: 'Ashen Hand Digger', level: 4 }),
       ),
-      pack('dm_e2', enemy('dm_evoker', 'Ashen Hand Evoker', 2.7)),
-      pack('dm_e3', enemy('dm_rhahkzor', 'Rahkzor', 2.4, { armor: 60 })),
+      pack('dm_e2', e('dm_evoker', 2.7)),
+      pack('dm_e3', e('dm_rhahkzor', 2.4, { armor: 60 })),
       // Boss + add: VanCleef nastoupí s posledním kopáčem.
       pack(
         'dm_e4',
-        enemy('dm_vancleef', 'Edmund Vance', 2.3, { armor: 80, isBoss: true }),
-        enemy('dm_miner_c', 'Ashen Hand Digger', 2.5, { level: 4 }),
+        e('dm_vancleef', 2.3, { armor: 80, isBoss: true }),
+        e('dm_miner', 2.5, { id: 'dm_miner_c', name: 'Ashen Hand Digger', level: 4 }),
       ),
     ],
   },
@@ -166,12 +160,12 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'wc_e1',
-        enemy('wc_adder', 'Deviate Adder', 2.5),
-        enemy('wc_adder_b', 'Deviate Hatchling', 2.5, { level: 4 }),
+        e('wc_adder', 2.5),
+        e('wc_adder', 2.5, { id: 'wc_adder_b', name: 'Deviate Hatchling', level: 4 }),
       ),
-      pack('wc_e2', enemy('wc_druid', 'Fang Warden', 2.6)),
-      pack('wc_e3', enemy('wc_serpent', 'Deviate Ravager', 2.4, { armor: 40 })),
-      pack('wc_e4', enemy('wc_mutanus', 'Mutanis the Devourer', 2.3, { armor: 60, isBoss: true })),
+      pack('wc_e2', e('wc_druid', 2.6)),
+      pack('wc_e3', e('wc_serpent', 2.4, { armor: 40 })),
+      pack('wc_e4', e('wc_mutanus', 2.3, { armor: 60, isBoss: true })),
     ],
   },
 
@@ -189,12 +183,12 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'sfk_e1',
-        enemy('sfk_worgen', 'Shadowmaw Moonwalker', 2.5),
-        enemy('sfk_worgen_b', 'Shadowmaw Whelp', 2.5, { level: 5 }),
+        e('sfk_worgen', 2.5),
+        e('sfk_worgen', 2.5, { id: 'sfk_worgen_b', name: 'Shadowmaw Whelp', level: 5 }),
       ),
-      pack('sfk_e2', enemy('sfk_ghost', 'Tormented Officer', 2.6)),
-      pack('sfk_e3', enemy('sfk_fenrus', 'Fenris the Devourer', 2.2, { armor: 70 })),
-      pack('sfk_e4', enemy('sfk_arugal', 'Archmage Argol', 2.4, { armor: 60, isBoss: true })),
+      pack('sfk_e2', e('sfk_ghost', 2.6)),
+      pack('sfk_e3', e('sfk_fenrus', 2.2, { armor: 70 })),
+      pack('sfk_e4', e('sfk_arugal', 2.4, { armor: 60, isBoss: true })),
     ],
   },
 
@@ -212,11 +206,11 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'bfd_e1',
-        enemy('bfd_acolyte', 'Dusk Acolyte', 2.5),
-        enemy('bfd_naga', 'Akhumai Servant', 2.6),
+        e('bfd_acolyte', 2.5),
+        e('bfd_naga', 2.6),
       ),
-      pack('bfd_e2', enemy('bfd_priestess', 'Dusk Priestess', 2.4, { armor: 50 })),
-      pack('bfd_e3', enemy('bfd_akumai', 'Akhumai', 2.3, { armor: 70, isBoss: true })),
+      pack('bfd_e2', e('bfd_priestess', 2.4, { armor: 50 })),
+      pack('bfd_e3', e('bfd_akumai', 2.3, { armor: 70, isBoss: true })),
     ],
   },
 
@@ -235,15 +229,15 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'sm_e1',
-        enemy('sm_zealot', 'Crimson Zealot', 2.5),
-        enemy('sm_monk', 'Crimson Monk', 2.6),
+        e('sm_zealot', 2.5),
+        e('sm_monk', 2.6),
       ),
-      pack('sm_e2', enemy('sm_herod', 'Herrod the Champion', 2.2, { armor: 90 })),
+      pack('sm_e2', e('sm_herod', 2.2, { armor: 90 })),
       // Boss + add: Palevane sesílá s posledním zealotem.
       pack(
         'sm_e3',
-        enemy('sm_whitemane', 'High Inquisitor Palevane', 2.4, { armor: 70, isBoss: true }),
-        enemy('sm_zealot_b', 'Crimson Zealot', 2.5, { level: 8 }),
+        e('sm_whitemane', 2.4, { armor: 70, isBoss: true }),
+        e('sm_zealot', 2.5, { id: 'sm_zealot_b', level: 8 }),
       ),
     ],
   },
@@ -264,24 +258,12 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'zf_e1',
-        enemy('zf_axethrower', 'Dunescale Axe Thrower', 2.5, { damageType: 'slashing' }),
-        enemy('zf_axethrower_b', 'Dunescale Brave', 2.5, { level: 12, damageType: 'slashing' }),
+        e('zf_axethrower', 2.5),
+        e('zf_axethrower', 2.5, { id: 'zf_axethrower_b', name: 'Dunescale Brave', level: 12 }),
       ),
-      pack('zf_e2', enemy('zf_hoodoo', 'Dunescale Hoodoo Priest', 2.6, {
-        damageType: 'necrotic',
-        resistances: ['necrotic'],
-      })),
-      pack('zf_e3', enemy('zf_gahzrilla', 'Gazrilla', 2.3, {
-        armor: 80,
-        damageType: 'poison',
-        resistances: ['poison'],
-      })),
-      pack('zf_e4', enemy('zf_ukorz', 'Chief Ukor Dunescalp', 2.4, {
-        armor: 90,
-        isBoss: true,
-        damageType: 'slashing',
-        vulnerabilities: ['radiant'],
-      })),
+      pack('zf_e2', e('zf_hoodoo', 2.6)),
+      pack('zf_e3', e('zf_gahzrilla', 2.3, { armor: 80 })),
+      pack('zf_e4', e('zf_ukorz', 2.4, { armor: 90, isBoss: true })),
     ],
   },
 
@@ -301,34 +283,12 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'mar_e1',
-        enemy('mar_noxxion', 'Noxxion Spawn', 2.5, {
-          damageType: 'poison',
-          resistances: ['poison'],
-          vulnerabilities: ['fire'],
-        }),
-        enemy('mar_noxxion_b', 'Noxxion Spawnling', 2.5, {
-          level: 13,
-          damageType: 'poison',
-          resistances: ['poison'],
-          vulnerabilities: ['fire'],
-        }),
+        e('mar_noxxion', 2.5),
+        e('mar_noxxion', 2.5, { id: 'mar_noxxion_b', name: 'Noxxion Spawnling', level: 13 }),
       ),
-      pack('mar_e2', enemy('mar_treant', 'Corrupted Treant', 2.6, {
-        damageType: 'bludgeoning',
-        resistances: ['bludgeoning', 'piercing'],
-        vulnerabilities: ['fire'],
-      })),
-      pack('mar_e3', enemy('mar_landslide', 'Landslide', 2.3, {
-        armor: 100,
-        damageType: 'bludgeoning',
-        resistances: ['slashing', 'piercing', 'bludgeoning'],
-      })),
-      pack('mar_e4', enemy('mar_theradras', 'Princess Theradris', 2.4, {
-        armor: 90,
-        isBoss: true,
-        damageType: 'poison',
-        vulnerabilities: ['fire'],
-      })),
+      pack('mar_e2', e('mar_treant', 2.6)),
+      pack('mar_e3', e('mar_landslide', 2.3, { armor: 100 })),
+      pack('mar_e4', e('mar_theradras', 2.4, { armor: 90, isBoss: true })),
     ],
   },
 
@@ -349,24 +309,12 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'brd_e1',
-        enemy('brd_guard', 'Anvilrage Guardsman', 2.5, { armor: 80, damageType: 'slashing' }),
-        enemy('brd_guard_b', 'Anvilrage Footman', 2.5, { level: 15, armor: 60, damageType: 'slashing' }),
+        e('brd_guard', 2.5, { armor: 80 }),
+        e('brd_guard', 2.5, { id: 'brd_guard_b', name: 'Anvilrage Footman', level: 15, armor: 60 }),
       ),
-      pack('brd_e2', enemy('brd_geologist', 'Cinderforge Geologist', 2.6, {
-        damageType: 'bludgeoning',
-        resistances: ['fire'],
-      })),
-      pack('brd_e3', enemy('brd_angerforge', 'General Emberforge', 2.3, {
-        armor: 110,
-        damageType: 'fire',
-        resistances: ['fire'],
-      })),
-      pack('brd_e4', enemy('brd_thaurissan', 'Emperor Dagran Embermane', 2.4, {
-        armor: 120,
-        isBoss: true,
-        damageType: 'fire',
-        resistances: ['fire'],
-      })),
+      pack('brd_e2', e('brd_geologist', 2.6)),
+      pack('brd_e3', e('brd_angerforge', 2.3, { armor: 110 })),
+      pack('brd_e4', e('brd_thaurissan', 2.4, { armor: 120, isBoss: true })),
     ],
   },
 
@@ -390,39 +338,12 @@ export const DUNGEONS: Record<string, DungeonDef> = {
     encounters: [
       pack(
         'strat_e1',
-        enemy('strat_zombie', 'Plagued Zombie', 2.5, {
-          damageType: 'necrotic',
-          resistances: ['necrotic'],
-          immunities: ['poison'],
-          vulnerabilities: ['radiant'],
-        }),
-        enemy('strat_zombie_b', 'Plagued Ghoul', 2.5, {
-          level: 17,
-          damageType: 'necrotic',
-          resistances: ['necrotic'],
-          immunities: ['poison'],
-          vulnerabilities: ['radiant'],
-        }),
+        e('strat_zombie', 2.5),
+        e('strat_zombie', 2.5, { id: 'strat_zombie_b', name: 'Plagued Ghoul', level: 17 }),
       ),
-      pack('strat_e2', enemy('strat_cryptfiend', 'Crypt Fiend', 2.6, {
-        armor: 70,
-        damageType: 'piercing',
-        resistances: ['necrotic'],
-        vulnerabilities: ['radiant'],
-      })),
-      pack('strat_e3', enemy('strat_ramstein', 'Ramstein the Gorger', 2.3, {
-        armor: 120,
-        damageType: 'bludgeoning',
-        resistances: ['necrotic'],
-        vulnerabilities: ['radiant', 'fire'],
-      })),
-      pack('strat_e4', enemy('strat_baron', 'Baron Ravendere', 2.4, {
-        armor: 130,
-        isBoss: true,
-        damageType: 'necrotic',
-        resistances: ['necrotic', 'fire'],
-        vulnerabilities: ['radiant'],
-      })),
+      pack('strat_e2', e('strat_cryptfiend', 2.6, { armor: 70 })),
+      pack('strat_e3', e('strat_ramstein', 2.3, { armor: 120 })),
+      pack('strat_e4', e('strat_baron', 2.4, { armor: 130, isBoss: true })),
     ],
   },
 };

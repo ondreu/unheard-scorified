@@ -708,8 +708,16 @@ function fightEncounter(
       if (tIdx < 0) break;
       const target = party[tIdx]!;
       const ability = timer.kind === 'enemy_ability' ? timer.ability : undefined;
-      const hit = computeHit(enemy, target, rng, ability?.damageMult ?? 1, enraged);
+      // Enemy ability („Enemy schopnosti"): typové poškození (damageType) + per-
+      // ability saving throw (cíl si hodí proti enemy spell save DC; úspěch půlí).
+      const hit = computeHit(enemy, target, rng, ability?.damageMult ?? 1, enraged, ability?.damageType);
       let dmg = hit.amount;
+      let enemySaveMsg: string | undefined;
+      if (hit.hit && ability?.save) {
+        const out = applySpellSave(ability, enemy, target, rng, dmg);
+        dmg = out.amount;
+        enemySaveMsg = out.message;
+      }
       if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
       // Aktivní mitigation cooldown (Shield Wall / Ardent Defender).
       if (clock < mitigationUntil[tIdx]! && mitigationPct[tIdx]! > 0) {
@@ -756,6 +764,9 @@ function fightEncounter(
           amount: 0,
           message: missMessage(enemy.name, target.name, hit),
         });
+      }
+      if (enemySaveMsg) {
+        events.push({ t: round1(clock), type: 'ability', source: target.name, message: enemySaveMsg });
       }
       if (hp[tIdx] === 0) {
         events.push({

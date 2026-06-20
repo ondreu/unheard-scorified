@@ -28,6 +28,7 @@ import {
   extraActionCount,
   healDiceSpec,
   isBonusAction,
+  selectEnemyAbility,
   type CombatActor,
   type CombatEvent,
   type SignatureAbility,
@@ -216,6 +217,7 @@ function buildEncounterEnemies(state: PartyRunState): DungeonRunEnemy[] {
     currentHealth: actor.maxHealth,
     actor,
     dots: [],
+    cooldowns: {},
   }));
 }
 
@@ -446,6 +448,12 @@ export function resolvePartyRound(state: PartyRunState): { state: PartyRunState;
 function tickEnemyDots(state: PartyRunState, t: number, emit: (e: CombatEvent) => void): void {
   for (const enemy of state.enemies) {
     if (enemy.currentHealth <= 0) continue;
+    // Tik cooldownů enemy abilit („Enemy schopnosti") — jednou za kolo.
+    if (enemy.cooldowns) {
+      for (const id of Object.keys(enemy.cooldowns)) {
+        enemy.cooldowns[id] = Math.max(0, (enemy.cooldowns[id] ?? 0) - 1);
+      }
+    }
     for (const dot of enemy.dots) {
       if (dot.remainingTicks <= 0) continue;
       enemy.currentHealth = Math.max(0, enemy.currentHealth - dot.tickDamage);
@@ -834,8 +842,31 @@ function enemyAttackParty(
   if (!target) return;
   const targetActor = effectiveActor(target);
   // Dodge: útoky na bránícího se člena mají disadvantage.
-  const hit = computeHit(enemy.actor, targetActor, rng, 1, false, undefined, undefined, target.dodging ? { advantage: 'disadvantage' } : undefined);
+  const advExtra = target.dodging ? { advantage: 'disadvantage' as const } : undefined;
+  // „Enemy schopnosti": vystřel první ready útočnou ability (typ + saving throw),
+  // jinak základní úder. Cooldown v tazích, tiká v `tickEnemyDots`.
+  if (!enemy.cooldowns) enemy.cooldowns = {};
+  const ability = selectEnemyAbility(enemy.actor, (a) => (enemy.cooldowns![a.id] ?? 0) <= 0);
+  const hit = ability
+    ? computeHit(
+        enemy.actor,
+        targetActor,
+        rng,
+        ability.damageMult,
+        false,
+        ability.damageType,
+        abilityDamageSpec(ability, null, enemy.actor.level),
+        advExtra,
+      )
+    : computeHit(enemy.actor, targetActor, rng, 1, false, undefined, undefined, advExtra);
+  if (ability) enemy.cooldowns[ability.id] = cooldownTurns(ability);
   let incoming = hit.amount;
+  let enemySaveMsg: string | undefined;
+  if (ability && hit.hit && ability.save) {
+    const out = applySpellSave(ability, enemy.actor, targetActor, rng, incoming);
+    incoming = out.amount;
+    enemySaveMsg = out.message;
+  }
   if (target.role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
   if (target.mitigationTurns > 0 && target.mitigationPct > 0) {
     incoming = Math.max(1, Math.round(incoming * (1 - target.mitigationPct)));
@@ -846,16 +877,20 @@ function enemyAttackParty(
   const absorbSuffix = absorb.absorbed > 0 ? ` (${absorb.absorbed} absorbed)` : '';
   emit({
     t,
-    type: 'attack',
+    type: ability ? 'ability' : 'attack',
     message: hit.hit
-      ? `${enemy.name} hits ${target.name} for ${absorb.netDamage}${hit.crit ? ' (crit!)' : ''}${absorbSuffix}. ${target.name}: ${Math.max(0, Math.round(target.currentHealth))} HP`
+      ? `${enemy.name} ${ability ? `uses ${ability.name} on` : 'hits'} ${target.name} for ${absorb.netDamage}${hit.crit ? ' (crit!)' : ''}${absorbSuffix}. ${target.name}: ${Math.max(0, Math.round(target.currentHealth))} HP`
       : missMessage(enemy.name, target.name, hit),
     source: enemy.name,
     target: target.name,
     amount: absorb.netDamage,
     crit: hit.crit,
+    ability: ability?.name,
     targetHealthRemaining: Math.max(0, Math.round(target.currentHealth)),
   });
+  if (enemySaveMsg) {
+    emit({ t, type: 'ability', source: target.name, message: enemySaveMsg });
+  }
   if (target.currentHealth <= 0) {
     target.currentHealth = 0;
     emit({ t, type: 'player_defeated', source: enemy.name, target: target.name, message: `💀 ${target.name} has fallen! The party fights on.` });
