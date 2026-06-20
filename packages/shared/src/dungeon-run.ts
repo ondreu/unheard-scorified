@@ -99,6 +99,12 @@ export interface DungeonRunPlayer {
   mitigationTurns: number;
   /** Podíl redukce příchozího poškození během mitigation okna (0..1). */
   mitigationPct: number;
+  /**
+   * Akční ekonomika (ADR 0042): ids „once per combat" abilit už použitých v
+   * aktuálním encounteru (Action Surge, Assassinate). Reset při short restu mezi
+   * encountery. `undefined` u běhů z doby před slice → bere se jako prázdné.
+   */
+  usedOncePerCombat?: string[];
 }
 
 /**
@@ -119,6 +125,8 @@ export interface DungeonRunAlly {
   raging: boolean;
   mitigationTurns: number;
   mitigationPct: number;
+  /** Akční ekonomika (ADR 0042) — viz `DungeonRunPlayer.usedOncePerCombat`. */
+  usedOncePerCombat?: string[];
   /** Plný bojový aktér parťáka (snapshot do DB). */
   actor: RaidActor;
 }
@@ -199,6 +207,7 @@ function restoreEncounterResources(
   combatant.absorb = base.shield ?? 0;
   combatant.mitigationTurns = 0;
   combatant.mitigationPct = 0;
+  combatant.usedOncePerCombat = []; // short rest obnoví „once per combat" okna (ADR 0042)
   combatant.spellSlots = { ...(base.spellSlots ?? {}) };
   combatant.kiPoints = base.kiPoints ?? 0;
   // Rage (ADR 0034): auto-zuření na encounter, dokud má charge (per-run rationing).
@@ -245,6 +254,7 @@ function makeAlly(actor: RaidActor): DungeonRunAlly {
     raging: false,
     mitigationTurns: 0,
     mitigationPct: 0,
+    usedOncePerCombat: [],
     actor,
   };
 }
@@ -285,6 +295,7 @@ export function startDungeonRun(
       raging: false,
       mitigationTurns: 0,
       mitigationPct: 0,
+      usedOncePerCombat: [],
     },
     allies: allies.map(makeAlly),
     enemies: [],
@@ -314,6 +325,8 @@ export function isDungeonAbilityReady(state: DungeonRunState, abilityId: string)
 /** Má hráč na seslání ability dost zdrojů (spell slot / Ki)? Čistá kontrola (nemutuje). */
 export function canCastDungeonAbility(state: DungeonRunState, ability: SignatureAbility): boolean {
   if ((ability.kiCost ?? 0) > (state.player.kiPoints ?? Infinity)) return false;
+  // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → UI zašedne.
+  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(ability.id)) return false;
   return hasSlotForTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0);
 }
 
@@ -390,6 +403,11 @@ export function resolveDungeonTurn(
       : player.signatureAbilities.find((a) => a.id === abilityId);
   if (!ability || ability.kind === 'buff') return { state, events: [] };
   if (!isDungeonAbilityReady(state, abilityId)) return { state, events: [] };
+  // Akční ekonomika (ADR 0042): „once per combat" ability se v encounteru smí
+  // použít jen jednou (reset short restem mezi encountery).
+  if (ability.oncePerCombat && (state.player.usedOncePerCombat ?? []).includes(abilityId)) {
+    return { state, events: [] };
+  }
 
   const abilityTier = ability.spellTier ?? 0;
   if (!hasSlotForTier(state.player.spellSlots, abilityTier)) return { state, events: [] };
@@ -474,6 +492,8 @@ export function resolveDungeonTurn(
   // Cooldown zvolené ability.
   const cd = cooldownTurns(ability);
   if (cd > 0) state.player.cooldowns[abilityId] = cd;
+  // Spotřebuj „once per combat" okno (ADR 0042) — no-op u abilit bez flagu.
+  if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
 
   if (livingEnemies(state).length === 0) {
     return { state: advanceEncounter(base, state, t, events), events };
@@ -581,6 +601,8 @@ function allyTakeTurn(
   for (const ability of eff.signatureAbilities) {
     if (ability.kind === 'buff') continue;
     if ((ally.cooldowns[ability.id] ?? 0) > 0) continue;
+    // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
+    if (ability.oncePerCombat && (ally.usedOncePerCombat ?? []).includes(ability.id)) continue;
     const tier = ability.spellTier ?? 0;
     if (tier >= 1 && !hasSlotForTier(ally.spellSlots, tier)) continue;
     const kiCost = ability.kiCost ?? 0;
@@ -640,6 +662,7 @@ function allyTakeTurn(
       combatantHitEnemy(eff, ally, state, enemy, ability, slotTier, rng, t, emit);
     }
     ally.cooldowns[ability.id] = cooldownTurns(ability);
+    if (ability.oncePerCombat) (ally.usedOncePerCombat ??= []).push(ability.id); // ADR 0042
     return;
   }
 

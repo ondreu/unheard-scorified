@@ -19,6 +19,7 @@
 import {
   abilityDamageMult,
   abilityDamageSpec,
+  abilityOnceAvailable,
   actorSpellSaveDc,
   applyAbsorb,
   applyRage,
@@ -26,6 +27,7 @@ import {
   buildEnemyActor,
   canRage,
   dotTickRaw,
+  markAbilityUsed,
   healDiceSpec,
   resolveAttack,
   round1,
@@ -179,6 +181,9 @@ export function simulateQuestEncounter(
   const slotBudget: SpellSlots = { ...(player.spellSlots ?? {}) };
   // Ki body (ADR 0034) jako rozpočet Monkových technik (`kiCost`) v tomto souboji.
   let kiBudget = player.kiPoints ?? 0;
+  // Akční ekonomika (ADR 0042): „once per combat" ability (Action Surge, opener
+  // Assassinate) se v tomto souboji smí použít jen jednou — pak se „drží".
+  const usedOnce = new Set<string>();
 
   // Initiative (d20 + DEX): rozhodne, kdo udeří jako první (D&D 5e).
   const playerInit = rollInitiative(player, rng);
@@ -299,6 +304,8 @@ export function simulateQuestEncounter(
       let slotTier: number | null = null;
       for (const a of abilities) {
         if ((readyAt[a.id] ?? startT) > t) continue;
+        // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
+        if (!abilityOnceAvailable(usedOnce, a)) continue;
         // Ki (ADR 0034): Monkova technika potřebuje dost Ki; jinak se „drží" (→ basic).
         const kiCost = a.kiCost ?? 0;
         if (kiCost > kiBudget) continue;
@@ -309,6 +316,7 @@ export function simulateQuestEncounter(
           slotTier = used;
         }
         if (kiCost > 0) kiBudget -= kiCost;
+        markAbilityUsed(usedOnce, a); // spotřebuj „once per combat" okno (no-op bez flagu)
         chosen = a;
         readyAt[a.id] = t + a.cooldownSec;
         break;

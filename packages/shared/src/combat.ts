@@ -693,6 +693,28 @@ export function bonusDiceSpec(
   return { count, sides: base.sides, bonus: base.bonus };
 }
 
+// ── D&D akční ekonomika (ADR 0042) ──────────────────────────────────────────
+
+/**
+ * Per-aktér sada id abilit, které už vyčerpaly své „once per combat" okno
+ * (Action Surge, opener Assassinate). Resetuje se na začátku každého encounteru
+ * (short rest mezi encountery / nová vlna / nový pull). Sdíleno in-memory
+ * simulátory (quest/raid), aby gating „1× za boj" nebyl duplikovaný napříč soubory.
+ * Persistované tahové simy (dungeon/party/gauntlet) drží totéž jako JSON pole
+ * `usedOncePerCombat` (Set není serializovatelný do DB).
+ */
+export type OnceUsedTracker = Set<string>;
+
+/** Smí aktér tuto ability teď použít z hlediska „once per combat"? Bez flagu vždy `true`. */
+export function abilityOnceAvailable(used: OnceUsedTracker, ability: SignatureAbility): boolean {
+  return !ability.oncePerCombat || !used.has(ability.id);
+}
+
+/** Zaznamenej použití „once per combat" ability (no-op u abilit bez flagu). */
+export function markAbilityUsed(used: OnceUsedTracker, ability: SignatureAbility): void {
+  if (ability.oncePerCombat) used.add(ability.id);
+}
+
 /**
  * Literal D&D heal dice (ADR 0036, „Fix kouzla") — nahrazuje `damageMult ×
  * HEAL_POWER_FACTOR` proxy: `Cure Wounds 1d8 + spellMod`, `Healing Word 1d4 + spellMod`,

@@ -64,6 +64,12 @@ export interface PartyRunMember {
   raging: boolean;
   mitigationTurns: number;
   mitigationPct: number;
+  /**
+   * Akční ekonomika (ADR 0042): ids „once per combat" abilit už použitých v
+   * aktuálním encounteru. Reset short restem mezi encountery. `undefined` u
+   * starších běhů → bere se jako prázdné.
+   */
+  usedOncePerCombat?: string[];
   /** Iniciativa pro aktuální encounter (d20 + DEX mod) — pořadí akcí v kole (4d). */
   initiative: number;
   /** Plný serializovatelný bojový aktér (RaidActor: role + healPower + rotace). */
@@ -192,6 +198,7 @@ function restoreMemberResources(member: PartyRunMember): void {
   member.mitigationPct = 0;
   member.spellSlots = { ...(member.actor.spellSlots ?? {}) };
   member.kiPoints = member.actor.kiPoints ?? 0;
+  member.usedOncePerCombat = []; // short rest obnoví „once per combat" okna (ADR 0042)
   if (member.rageCharges > 0 && (member.actor.rageCharges ?? 0) > 0) {
     member.rageCharges -= 1;
     member.raging = true;
@@ -248,6 +255,7 @@ export function startPartyRun(
     raging: false,
     mitigationTurns: 0,
     mitigationPct: 0,
+    usedOncePerCombat: [],
     initiative: 0,
     actor: seat.actor,
   }));
@@ -293,6 +301,9 @@ export function submitPartyAction(
       : member.actor.signatureAbilities.find((a) => a.id === abilityId);
   if (!ability || ability.kind === 'buff') return { ok: false, ready: false, reason: 'Unknown ability' };
   if ((member.cooldowns[abilityId] ?? 0) > 0) return { ok: false, ready: false, reason: 'On cooldown' };
+  if (ability.oncePerCombat && (member.usedOncePerCombat ?? []).includes(abilityId)) {
+    return { ok: false, ready: false, reason: 'Already used this fight' };
+  }
   const tier = ability.spellTier ?? 0;
   if (tier >= 1 && !hasSlotForTier(member.spellSlots, tier)) return { ok: false, ready: false, reason: 'No spell slot' };
   if ((ability.kiCost ?? 0) > member.kiPoints) return { ok: false, ready: false, reason: 'Not enough Ki' };
@@ -437,7 +448,9 @@ function takeMemberTurn(
       const tier = ability.spellTier ?? 0;
       const hasSlot = tier < 1 || hasSlotForTier(member.spellSlots, tier);
       const hasKi = (ability.kiCost ?? 0) <= member.kiPoints;
-      if (hasSlot && hasKi) {
+      // Akční ekonomika (ADR 0042): „once per combat" okno (mohlo vyprchat mezi koly).
+      const hasOnce = !ability.oncePerCombat || !(member.usedOncePerCombat ?? []).includes(ability.id);
+      if (hasSlot && hasKi && hasOnce) {
         applyMemberAbility(state, member, eff, ability, action.targetId, rng, t, emit);
         return;
       }
@@ -463,6 +476,7 @@ function applyMemberAbility(
   const tier = ability.spellTier ?? 0;
   const usedSlot = tier >= 1 ? spendSlotForTier(member.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
   if ((ability.kiCost ?? 0) > 0) member.kiPoints -= ability.kiCost ?? 0;
+  if (ability.oncePerCombat) (member.usedOncePerCombat ??= []).push(ability.id); // ADR 0042
 
   if (ability.kind === 'heal') {
     const targets = ability.aoe
@@ -528,6 +542,7 @@ function aiMemberTurn(
   for (const ability of eff.signatureAbilities) {
     if (ability.kind === 'buff') continue;
     if ((member.cooldowns[ability.id] ?? 0) > 0) continue;
+    if (ability.oncePerCombat && (member.usedOncePerCombat ?? []).includes(ability.id)) continue; // ADR 0042
     const tier = ability.spellTier ?? 0;
     if (tier >= 1 && !hasSlotForTier(member.spellSlots, tier)) continue;
     if ((ability.kiCost ?? 0) > member.kiPoints) continue;

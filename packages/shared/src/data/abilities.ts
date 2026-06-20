@@ -139,6 +139,16 @@ export interface SignatureAbility {
    * dost Ki, technika se „drží" (jako kouzlo bez slotu) → základní úder.
    */
   kiCost?: number;
+  /**
+   * D&D akční ekonomika (ADR 0042, Slice 1) — ability použitelná **nejvýše jednou
+   * za encounter**: Action Surge (short-rest recovery) a opener Assassinate
+   * („na začátku"). Po vyčerpání okna se ability „drží" (actér mlátí basic /
+   * jinou ability) až do dalšího encounteru (short rest / nová vlna / nový pull).
+   * Sledováno per aktér ve všech simulátorech přes sdílené helpery
+   * `abilityOnceAvailable`/`markAbilityUsed` (in-memory simy) resp. pole
+   * `usedOncePerCombat` (persistované tahové simy). `undefined`/false = bez limitu.
+   */
+  oncePerCombat?: boolean;
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -168,6 +178,8 @@ interface BaselineOpts {
   autoHit?: boolean;
   /** Ki cost (ADR 0034) — Monkovy techniky. */
   kiCost?: number;
+  /** Nejvýše jednou za encounter (ADR 0042) — Action Surge / opener Assassinate. */
+  oncePerCombat?: boolean;
   /** Bonus kostky na weapon hit (ADR 0036) — Divine Smite/Sneak Attack/superiority. */
   bonusDice?: DiceSpec;
   /** Level-scaling počtu bonus kostek (ADR 0036) — Sneak Attack ceil(level/N). */
@@ -208,6 +220,7 @@ function ba(
     ...(opts.save !== undefined ? { save: opts.save } : {}),
     ...(opts.autoHit !== undefined ? { autoHit: opts.autoHit } : {}),
     ...(opts.kiCost !== undefined ? { kiCost: opts.kiCost } : {}),
+    ...(opts.oncePerCombat !== undefined ? { oncePerCombat: opts.oncePerCombat } : {}),
     ...(opts.bonusDice !== undefined ? { bonusDice: opts.bonusDice } : {}),
     ...(opts.bonusDicePerLevels !== undefined ? { bonusDicePerLevels: opts.bonusDicePerLevels } : {}),
     ...(opts.advantage !== undefined ? { advantage: opts.advantage } : {}),
@@ -247,7 +260,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   fighter: [
     ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined weapon strike.', 'strike', 4, 1.0, 1),
-    ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action this turn.', 'strike', 8, 2.0, 6),
+    ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action — once per fight (recovered on a short rest).', 'strike', 8, 2.0, 6, { oncePerCombat: true }),
     ba('fighter_trip_attack', 'Trip Attack', 'A Battle Master maneuver: weapon hit plus a 1d8 superiority die (and a knockdown).', 'strike', 7, 1.0, 12, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
     ba('fighter_onslaught', 'Onslaught', 'Unleashes the fighter\'s extra attacks in a single devastating turn.', 'strike', 8, 2.0, 20),
   ],
@@ -271,7 +284,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   rogue: [
     ba('rogue_sneak_attack', 'Sneak Attack', 'A vital strike adding 1d6 per two levels of damage (1d6 at 1, up to 10d6 at 19).', 'strike', 4, 1.0, 1, { bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
     ba('rogue_poisoned_blade', 'Poisoned Blade', 'A coated blade for 1d4 piercing that poisons for 1d6 each turn over 8s.', 'dot', 9, 0, 8, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 1, sides: 6, bonus: 0 } }, damageType: 'poison', dice: { count: 1, sides: 4, bonus: 0 } }),
-    ba('rogue_assassinate', 'Assassinate', 'A deadly opener struck with advantage, adding full Sneak Attack dice.', 'strike', 8, 1.0, 14, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2 }),
+    ba('rogue_assassinate', 'Assassinate', 'A deadly opener struck with advantage, adding full Sneak Attack dice — once per fight.', 'strike', 8, 1.0, 14, { advantage: true, bonusDice: { count: 1, sides: 6, bonus: 0 }, bonusDicePerLevels: 2, oncePerCombat: true }),
   ],
   sorcerer: [
     ba('sorc_fire_bolt', 'Fire Bolt', 'A mote of fire for 1d10.', 'strike', 4, 1.1, 1, { spellTier: 0, damageType: 'fire', dice: { count: 1, sides: 10, bonus: 0 } }),

@@ -77,6 +77,8 @@ interface DuelTimer {
   abilityBonusDice?: DiceSpec;
   /** Advantage na hod na zásah (ADR 0036) — Reckless Attack/Assassinate. */
   abilityAdvantage?: boolean;
+  /** Akční ekonomika (ADR 0042) — ability použitelná nejvýše 1× za duel. */
+  abilityOncePerCombat?: boolean;
 }
 
 /**
@@ -100,6 +102,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
   };
   // Ki body (ADR 0034) jako per-duel rozpočet Monkových technik každé strany.
   const kiBudget: Record<DuelSide, number> = { a: a.kiPoints ?? 0, b: b.kiPoints ?? 0 };
+  // Akční ekonomika (ADR 0042): „once per combat" okno per strana (Action Surge, Assassinate).
+  const usedOnce: Record<DuelSide, Set<string>> = { a: new Set(), b: new Set() };
   let clock = 0;
 
   events.push({
@@ -128,6 +132,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityDamageSpec: abilityDamageSpec(ab, ab.spellTier ?? null, a.level),
       abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, a.level),
       abilityAdvantage: ab.advantage,
+      abilityOncePerCombat: ab.oncePerCombat,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -143,6 +148,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityDamageSpec: abilityDamageSpec(ab, ab.spellTier ?? null, b.level),
       abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, b.level),
       abilityAdvantage: ab.advantage,
+      abilityOncePerCombat: ab.oncePerCombat,
     })),
   ];
 
@@ -175,6 +181,10 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     ) {
       continue;
     }
+    // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
+    if (timer.abilityId && timer.abilityOncePerCombat && usedOnce[attackerSide].has(timer.abilityId)) {
+      continue;
+    }
     // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot strany; když
     // dojdou, se „drží" (postava mlátí basic údery / cantripy). Per-duel rozpočet.
     if (
@@ -190,6 +200,8 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       if (kiCost > kiBudget[attackerSide]) continue;
       kiBudget[attackerSide] -= kiCost;
     }
+    // Spotřebuj „once per combat" okno (ADR 0042) — až po slot/Ki gatingu.
+    if (timer.abilityId && timer.abilityOncePerCombat) usedOnce[attackerSide].add(timer.abilityId);
 
     const effMult = timer.abilityMult ?? 1;
     const spec = timer.abilityDamageSpec;
@@ -305,6 +317,8 @@ interface TeamTimer {
   abilityBonusDice?: DiceSpec;
   /** Advantage na hod na zásah (ADR 0036). */
   abilityAdvantage?: boolean;
+  /** Akční ekonomika (ADR 0042) — ability použitelná nejvýše 1× za zápas. */
+  abilityOncePerCombat?: boolean;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -352,6 +366,11 @@ export function simulateTeamFight(
     a: teamA.map((m) => m.kiPoints ?? 0),
     b: teamB.map((m) => m.kiPoints ?? 0),
   };
+  // Akční ekonomika (ADR 0042): „once per combat" okno per člen obou týmů.
+  const usedOnce: Record<DuelSide, Set<string>[]> = {
+    a: teamA.map(() => new Set<string>()),
+    b: teamB.map(() => new Set<string>()),
+  };
   let clock = 0;
 
   events.push({
@@ -380,6 +399,7 @@ export function simulateTeamFight(
           abilityDamageSpec: abilityDamageSpec(ab, ab.spellTier ?? null, m.level),
           abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, m.level),
           abilityAdvantage: ab.advantage,
+          abilityOncePerCombat: ab.oncePerCombat,
         });
       }
     });
@@ -420,6 +440,10 @@ export function simulateTeamFight(
     ) {
       continue;
     }
+    // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
+    if (timer.abilityId && timer.abilityOncePerCombat && usedOnce[attackerSide][timer.member]!.has(timer.abilityId)) {
+      continue;
+    }
     // Spell sloty (ADR 0034): útočné kouzlo (tier ≥ 1) čerpá slot člena; když dojdou,
     // se „drží" (člen mlátí basic údery / cantripy). Per-zápas rozpočet per člen.
     if (
@@ -435,6 +459,8 @@ export function simulateTeamFight(
       if (kiCost > kiBudget[attackerSide][timer.member]!) continue;
       kiBudget[attackerSide][timer.member]! -= kiCost;
     }
+    // Spotřebuj „once per combat" okno (ADR 0042) — až po slot/Ki gatingu.
+    if (timer.abilityId && timer.abilityOncePerCombat) usedOnce[attackerSide][timer.member]!.add(timer.abilityId);
     const effMult = timer.abilityMult ?? 1;
     const spec = timer.abilityDamageSpec;
     const hit = computeHit(attacker, defender, rng, spec ? 1 : effMult, enraged, timer.abilityDamageType, spec, {

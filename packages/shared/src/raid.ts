@@ -22,6 +22,7 @@ import { SeededRng } from './rng';
 import {
   abilityDamageMult,
   abilityDamageSpec,
+  abilityOnceAvailable,
   applyAbsorb,
   applyRage,
   bonusDiceSpec,
@@ -31,6 +32,7 @@ import {
   computeHit,
   determinationFactor,
   dotTickRaw,
+  markAbilityUsed,
   round1,
   type CombatActor,
   type CombatEvent,
@@ -369,6 +371,9 @@ function fightEncounter(
   const slotBudget = party.map((p) => ({ ...(p.spellSlots ?? {}) }) as SpellSlots);
   // Ki body (ADR 0034) per člen — rozpočet Monkových technik (`kiCost`) na pull.
   const kiBudget = party.map((p) => p.kiPoints ?? 0);
+  // Akční ekonomika (ADR 0042): „once per combat" okno per člen (Action Surge,
+  // Assassinate) — fresh per pull (každý nový pokus o encounter = nový boj).
+  const usedOnce = party.map(() => new Set<string>());
   // Aktivní mitigation okno (tank cooldowny): do kdy platí + jaké % redukce.
   const mitigationUntil = party.map(() => -1);
   const mitigationPct = party.map(() => 0);
@@ -592,6 +597,8 @@ function fightEncounter(
       if (hp[i]! <= 0) continue; // mrtvý člen nekouzlí
       const member = party[i]!;
       const ability = timer.ability!;
+      // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
+      if (!abilityOnceAvailable(usedOnce[i]!, ability)) continue;
       // Reprezentativní cíl (nejslabší nepřítel) pro rotaci + jednocílové útoky.
       const primaryEi = chooseEnemyTarget(enemyHp);
       const primaryPct =
@@ -676,6 +683,8 @@ function fightEncounter(
       const slot = spendAbilitySlot(slotBudget[i]!, ability);
       if (!slot.ok) continue;
       if (kiCost > 0) kiBudget[i]! -= kiCost;
+      markAbilityUsed(usedOnce[i]!, ability); // spotřebuj „once per combat" okno
+      // (no-op bez flagu)
       // AoE útok (ADR 0036, aktivováno dungeon overhaulem) → zasáhne VŠECHNY živé
       // nepřátele (jeden cast, víc cílů); jinak jen nejslabšího.
       const targets = ability.aoe ? livingEnemyIndices() : [primaryEi];
