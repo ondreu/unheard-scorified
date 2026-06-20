@@ -19,6 +19,8 @@ import {
   buildAttackMessage,
   canRage,
   computeHit,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   round1,
   type CombatActor,
   type CombatEvent,
@@ -79,6 +81,8 @@ interface DuelTimer {
   abilityAdvantage?: boolean;
   /** Akční ekonomika (ADR 0042) — ability použitelná nejvýše 1× za duel. */
   abilityOncePerCombat?: boolean;
+  /** Akční ekonomika (ADR 0042, Slice 2) — počet extra útoků po seslání (0 = žádné). */
+  abilityExtraActions?: number;
 }
 
 /**
@@ -133,6 +137,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, a.level),
       abilityAdvantage: ab.advantage,
       abilityOncePerCombat: ab.oncePerCombat,
+      abilityExtraActions: extraActionCount(ab),
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -149,6 +154,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, b.level),
       abilityAdvantage: ab.advantage,
       abilityOncePerCombat: ab.oncePerCombat,
+      abilityExtraActions: extraActionCount(ab),
     })),
   ];
 
@@ -252,6 +258,43 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
           })
         : missMessage(attacker.name, defender.name, hit),
     });
+
+    // Akční ekonomika (ADR 0042, Slice 2): Action Surge → extra úder(y) v tomtéž
+    // okamžiku, než přijde na řadu další timer.
+    const extras = timer.abilityExtraActions ?? 0;
+    for (let k = 0; k < extras && hp[defenderSide] > 0; k++) {
+      const xr = computeHit(attacker, defender, rng, 1, enraged);
+      let xdmg = xr.amount;
+      if (shield[defenderSide] > 0) {
+        const xabs = applyAbsorb(xdmg, shield[defenderSide]);
+        shield[defenderSide] = xabs.shieldRemaining;
+        xdmg = xabs.netDamage;
+      }
+      hp[defenderSide] = Math.max(0, hp[defenderSide] - xdmg);
+      const xh = xr.hit && attacker.lifesteal > 0 ? Math.round(xr.amount * attacker.lifesteal) : 0;
+      if (xh > 0) hp[attackerSide] = Math.min(attacker.maxHealth, hp[attackerSide] + xh);
+      events.push({
+        t: round1(clock),
+        type: xh > 0 ? 'drain' : 'ability',
+        source: attacker.name,
+        target: defender.name,
+        amount: xr.amount,
+        crit: xr.crit,
+        ability: EXTRA_ATTACK_ABILITY.name,
+        targetHealthRemaining: hp[defenderSide],
+        message: xr.hit
+          ? buildAttackMessage({
+              attacker,
+              targetName: defender.name,
+              amount: xr.amount,
+              crit: xr.crit,
+              healed: xh,
+              abilityName: EXTRA_ATTACK_ABILITY.name,
+              suffix: `${enraged ? ' [rampage]' : ''}. ${defender.name}: ${hp[defenderSide]} HP`,
+            })
+          : missMessage(attacker.name, defender.name, xr),
+      });
+    }
   }
 
   // Urči vítěze (při stropu iterací rozhodne podíl HP, při shodě strana 'a').
@@ -319,6 +362,8 @@ interface TeamTimer {
   abilityAdvantage?: boolean;
   /** Akční ekonomika (ADR 0042) — ability použitelná nejvýše 1× za zápas. */
   abilityOncePerCombat?: boolean;
+  /** Akční ekonomika (ADR 0042, Slice 2) — počet extra útoků po seslání (0 = žádné). */
+  abilityExtraActions?: number;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -400,6 +445,7 @@ export function simulateTeamFight(
           abilityBonusDice: bonusDiceSpec(ab, ab.spellTier ?? null, m.level),
           abilityAdvantage: ab.advantage,
           abilityOncePerCombat: ab.oncePerCombat,
+          abilityExtraActions: extraActionCount(ab),
         });
       }
     });
@@ -515,6 +561,43 @@ export function simulateTeamFight(
           })
         : missMessage(attacker.name, defender.name, hit),
     });
+
+    // Akční ekonomika (ADR 0042, Slice 2): Action Surge → extra úder(y) na stejný cíl.
+    const extras = timer.abilityExtraActions ?? 0;
+    for (let k = 0; k < extras && hp[defenderSide][targetIdx]! > 0; k++) {
+      const xr = computeHit(attacker, defender, rng, 1, enraged);
+      let xdmg = xr.amount;
+      if (shield[defenderSide][targetIdx]! > 0) {
+        const xabs = applyAbsorb(xdmg, shield[defenderSide][targetIdx]!);
+        shield[defenderSide][targetIdx] = xabs.shieldRemaining;
+        xdmg = xabs.netDamage;
+      }
+      hp[defenderSide][targetIdx] = Math.max(0, hp[defenderSide][targetIdx]! - xdmg);
+      const xh = xr.hit && attacker.lifesteal > 0 ? Math.round(xr.amount * attacker.lifesteal) : 0;
+      if (xh > 0) hp[attackerSide][timer.member] = Math.min(attacker.maxHealth, hp[attackerSide][timer.member]! + xh);
+      const xfell = hp[defenderSide][targetIdx] === 0;
+      events.push({
+        t: round1(clock),
+        type: xh > 0 ? 'drain' : 'ability',
+        source: attacker.name,
+        target: defender.name,
+        amount: xr.amount,
+        crit: xr.crit,
+        ability: EXTRA_ATTACK_ABILITY.name,
+        targetHealthRemaining: hp[defenderSide][targetIdx]!,
+        message: xr.hit
+          ? buildAttackMessage({
+              attacker,
+              targetName: defender.name,
+              amount: xr.amount,
+              crit: xr.crit,
+              healed: xh,
+              abilityName: EXTRA_ATTACK_ABILITY.name,
+              suffix: `${enraged ? ' [rampage]' : ''}.${xfell ? ` 💀 ${defender.name} falls.` : ` ${defender.name}: ${hp[defenderSide][targetIdx]} HP`}`,
+            })
+          : missMessage(attacker.name, defender.name, xr),
+      });
+    }
   }
 
   const fracA = hp.a.reduce((s, h, i) => s + h / teamA[i]!.maxHealth, 0);

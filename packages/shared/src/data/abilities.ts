@@ -149,6 +149,16 @@ export interface SignatureAbility {
    * `usedOncePerCombat` (persistované tahové simy). `undefined`/false = bez limitu.
    */
   oncePerCombat?: boolean;
+  /**
+   * D&D akční ekonomika (ADR 0042, Slice 2) — ability uděluje **akci navíc** ve
+   * stejném kole: po jejím vyřešení aktér hned provede `extraActions` (default 1)
+   * **extra útoků zbraní** (Action Surge = druhá Attack action, Onslaught = víc
+   * útoků) proti platnému cíli, ještě než jedná soupeř. Sjednoceno přes simulátory
+   * (sdílené `extraActionCount` + pseudo-ability `EXTRA_ATTACK_ABILITY`).
+   */
+  grantsExtraAction?: boolean;
+  /** Počet extra útoků, které `grantsExtraAction` udělí (ADR 0042). Default 1. */
+  extraActions?: number;
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -180,6 +190,10 @@ interface BaselineOpts {
   kiCost?: number;
   /** Nejvýše jednou za encounter (ADR 0042) — Action Surge / opener Assassinate. */
   oncePerCombat?: boolean;
+  /** Uděluje akci navíc ve stejném kole (ADR 0042, Slice 2) — Action Surge / Onslaught. */
+  grantsExtraAction?: boolean;
+  /** Počet extra útoků, které `grantsExtraAction` udělí (ADR 0042). Default 1. */
+  extraActions?: number;
   /** Bonus kostky na weapon hit (ADR 0036) — Divine Smite/Sneak Attack/superiority. */
   bonusDice?: DiceSpec;
   /** Level-scaling počtu bonus kostek (ADR 0036) — Sneak Attack ceil(level/N). */
@@ -221,6 +235,8 @@ function ba(
     ...(opts.autoHit !== undefined ? { autoHit: opts.autoHit } : {}),
     ...(opts.kiCost !== undefined ? { kiCost: opts.kiCost } : {}),
     ...(opts.oncePerCombat !== undefined ? { oncePerCombat: opts.oncePerCombat } : {}),
+    ...(opts.grantsExtraAction !== undefined ? { grantsExtraAction: opts.grantsExtraAction } : {}),
+    ...(opts.extraActions !== undefined ? { extraActions: opts.extraActions } : {}),
     ...(opts.bonusDice !== undefined ? { bonusDice: opts.bonusDice } : {}),
     ...(opts.bonusDicePerLevels !== undefined ? { bonusDicePerLevels: opts.bonusDicePerLevels } : {}),
     ...(opts.advantage !== undefined ? { advantage: opts.advantage } : {}),
@@ -260,9 +276,9 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   ],
   fighter: [
     ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined weapon strike.', 'strike', 4, 1.0, 1),
-    ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action — once per fight (recovered on a short rest).', 'strike', 8, 2.0, 6, { oncePerCombat: true }),
+    ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action — once per fight (recovered on a short rest).', 'strike', 8, 1.0, 6, { oncePerCombat: true, grantsExtraAction: true }),
     ba('fighter_trip_attack', 'Trip Attack', 'A Battle Master maneuver: weapon hit plus a 1d8 superiority die (and a knockdown).', 'strike', 7, 1.0, 12, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
-    ba('fighter_onslaught', 'Onslaught', 'Unleashes the fighter\'s extra attacks in a single devastating turn.', 'strike', 8, 2.0, 20),
+    ba('fighter_onslaught', 'Onslaught', 'Unleashes the fighter\'s extra attacks — two additional weapon strikes in a single devastating turn.', 'strike', 8, 1.0, 20, { grantsExtraAction: true, extraActions: 2 }),
   ],
   monk: [
     ba('monk_martial_arts', 'Martial Arts', 'A swift unarmed strike.', 'strike', 3, 1.0, 1),

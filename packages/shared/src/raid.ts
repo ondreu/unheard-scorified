@@ -32,6 +32,8 @@ import {
   computeHit,
   determinationFactor,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   markAbilityUsed,
   round1,
   type CombatActor,
@@ -689,6 +691,14 @@ function fightEncounter(
       // nepřátele (jeden cast, víc cílů); jinak jen nejslabšího.
       const targets = ability.aoe ? livingEnemyIndices() : [primaryEi];
       for (const ei of targets) memberHitEnemy(member, i, ei, ability, slot.tier);
+      // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra útok(y)
+      // zbraní v tomtéž tahu, na nejslabšího živého nepřítele.
+      const extras = extraActionCount(ability);
+      for (let k = 0; k < extras; k++) {
+        const xei = chooseEnemyTarget(enemyHp);
+        if (xei < 0) break;
+        memberHitEnemy(member, i, xei, EXTRA_ATTACK_ABILITY, null);
+      }
     } else {
       // Nepřítel útočí (enemy_basic / enemy_ability).
       const ei = timer.enemyIdx!;

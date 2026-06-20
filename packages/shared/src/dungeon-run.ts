@@ -25,6 +25,8 @@ import {
   buildAttackMessage,
   computeHit,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   healDiceSpec,
   type CombatActor,
   type CombatEvent,
@@ -487,6 +489,14 @@ export function resolveDungeonTurn(
       if (enemy.currentHealth <= 0) continue;
       combatantHitEnemy(player, state.player, state, enemy, ability, usedSlotTier, rng, t, emit);
     }
+    // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra úder(y)
+    // zbraní v tomtéž tahu, na nejslabšího živého nepřítele.
+    const extras = extraActionCount(ability);
+    for (let k = 0; k < extras; k++) {
+      const xwi = weakestEnemy(state);
+      if (xwi < 0) break;
+      combatantHitEnemy(player, state.player, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
+    }
   }
 
   // Cooldown zvolené ability.
@@ -660,6 +670,13 @@ function allyTakeTurn(
       const enemy = state.enemies[ei]!;
       if (enemy.currentHealth <= 0) continue;
       combatantHitEnemy(eff, ally, state, enemy, ability, slotTier, rng, t, emit);
+    }
+    // Akční ekonomika (ADR 0042, Slice 2): extra úder(y) parťáka na nejslabšího.
+    const allyExtras = extraActionCount(ability);
+    for (let k = 0; k < allyExtras; k++) {
+      const xwi = weakestEnemy(state);
+      if (xwi < 0) break;
+      combatantHitEnemy(eff, ally, state, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
     }
     ally.cooldowns[ability.id] = cooldownTurns(ability);
     if (ability.oncePerCombat) (ally.usedOncePerCombat ??= []).push(ability.id); // ADR 0042

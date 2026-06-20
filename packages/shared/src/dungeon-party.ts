@@ -24,6 +24,8 @@ import {
   buildAttackMessage,
   computeHit,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   healDiceSpec,
   type CombatActor,
   type CombatEvent,
@@ -516,6 +518,13 @@ function applyMemberAbility(
       const enemy = state.enemies[ei]!;
       if (enemy.currentHealth <= 0) continue;
       memberHitEnemy(state, member, eff, enemy, ability, usedSlot, rng, t, emit);
+    }
+    // Akční ekonomika (ADR 0042, Slice 2): Action Surge → extra úder(y) na nejslabšího.
+    const extras = extraActionCount(ability);
+    for (let k = 0; k < extras; k++) {
+      const xwi = weakestEnemy(state);
+      if (xwi < 0) break;
+      memberHitEnemy(state, member, eff, state.enemies[xwi]!, EXTRA_ATTACK_ABILITY, null, rng, t, emit);
     }
   }
   const cd = cooldownTurns(ability);

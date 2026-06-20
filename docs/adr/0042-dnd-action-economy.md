@@ -1,8 +1,8 @@
 # ADR 0042 — D&D akční ekonomika (once per combat / extra action / bonus action)
 
-- **Stav:** přijato — **Slice 1 hotové** (once-per-combat gating). Slice 2 (Action
-  Surge jako reálná akce navíc) a Slice 3 (bonus action jako samostatný akční slot)
-  jsou naplánované navazující přírůstky téhož ADR.
+- **Stav:** přijato — **Slice 1 + 2 hotové** (once-per-combat gating; Action Surge/
+  Onslaught jako reálná akce navíc). Slice 3 (bonus action jako samostatný akční slot
+  + `oncePerTurn`) je naplánovaný navazující přírůstek téhož ADR.
 - **Kontext:** backlog „Combat & obsah — overhaul → Akční ekonomika". Navazuje na
   MR-5 (dice-roll combat), ADR 0034 (class resources / spell sloty jako akční
   rozpočet) a ADR 0036/0037 (per-ability dice, tahový dungeon).
@@ -31,10 +31,15 @@ hlavní designová výzva (proto krájeno na slice; velké → ADR).
 
 - **Slice 1 — „once per combat" gating (✅ tady).** Nejmenší, samostatně hodnotný kus
   = oprava bugu + základ pro 2/3.
-- **Slice 2 — Action Surge / Onslaught jako reálná akce navíc** (`grantsExtraAction`):
-  místo ×2 damage spustí hned další útok/ability v tomtéž kole; navazuje na okno z S1.
-  Tady začne mít smysl i **`oncePerTurn`** (Sneak Attack se přičte jen k jednomu útoku
-  v kole, i když útoků je víc).
+- **Slice 2 — Action Surge / Onslaught jako reálná akce navíc** (`grantsExtraAction` +
+  `extraActions`, ✅): místo ×2 damage spustí hned `extraActions` extra **útoků zbraní**
+  v tomtéž kole (Action Surge 1, Onslaught 2), než jedná soupeř. Sjednoceno přes sdílené
+  `extraActionCount` + pojmenovanou pseudo-ability `EXTRA_ATTACK_ABILITY` (rozpoznatelná
+  v logu/testech) ve všech 6 simulátorech (hráč i AI). Action Surge přeladěn `damageMult
+  2.0 → 1.0` (jeho hit + 1 extra ≈ původní magnituda, ale teď reálná akce navíc).
+  **`oncePerTurn` se přesouvá do Slice 3** — extra útoky jsou plain weapon swing (bez
+  Sneak Attack rideru), takže rider se zatím nezdvojuje; oncePerTurn začne bít až s
+  bonus-action útokem, který Sneak Attack nést může.
 - **Slice 3 — bonus action jako vlastní slot** (`actionCost: 'action' | 'bonus'`): 1 akce
   + 1 bonus action / kolo, napojení do rotace, tahových turn-loopů a interaktivního UI
   (dungeon/gauntlet). Největší zásah (UI + persistence).

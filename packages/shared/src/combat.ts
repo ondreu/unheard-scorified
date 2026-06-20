@@ -716,6 +716,31 @@ export function markAbilityUsed(used: OnceUsedTracker, ability: SignatureAbility
 }
 
 /**
+ * Pseudo-ability „útok navíc" (ADR 0042, Slice 2) — basic úder zbraní, který
+ * vyřeší akce navíc z Action Surge/Onslaught. Pojmenovaná (na rozdíl od tichého
+ * basic swingu), aby byla v combat logu rozpoznatelná i testovatelná napříč
+ * simulátory. Bez `dice`/`spellTier`/`kiCost` → škáluje přes `attackPower`, zdarma.
+ */
+export const EXTRA_ATTACK_ABILITY: SignatureAbility = {
+  id: 'extra_attack',
+  name: 'Extra Attack',
+  description: 'An extra weapon attack granted by Action Surge.',
+  kind: 'strike',
+  cooldownSec: 0,
+  damageMult: 1,
+};
+
+/**
+ * Počet „akcí navíc" (ADR 0042, Slice 2), které ability udělí ve stejném kole.
+ * `grantsExtraAction` bez `extraActions` = 1 (Action Surge); Onslaught = 2.
+ * Bez flagu → 0 (žádné extra útoky).
+ */
+export function extraActionCount(ability: SignatureAbility): number {
+  if (!ability.grantsExtraAction) return 0;
+  return Math.max(1, ability.extraActions ?? 1);
+}
+
+/**
  * Literal D&D heal dice (ADR 0036, „Fix kouzla") — nahrazuje `damageMult ×
  * HEAL_POWER_FACTOR` proxy: `Cure Wounds 1d8 + spellMod`, `Healing Word 1d4 + spellMod`,
  * upcast `+dice/slot`. Spellcasting mod se přičte k `bonus` (D&D heal = kostky + mod).

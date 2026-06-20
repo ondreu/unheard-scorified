@@ -27,6 +27,8 @@ import {
   buildEnemyActor,
   canRage,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   markAbilityUsed,
   healDiceSpec,
   resolveAttack,
@@ -401,6 +403,36 @@ export function simulateQuestEncounter(
       });
       if (saveMessage) {
         events.push({ t: round1(t), type: 'ability', message: saveMessage, source: enemy.name });
+      }
+      // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught dají útok(y)
+      // navíc v tomtéž kole (extra basic swing) — hned, než jedná nepřítel.
+      const extras = chosen ? extraActionCount(chosen) : 0;
+      for (let k = 0; k < extras && enemyHp > 0; k++) {
+        const xr = resolveAttack(player, enemy, rng, {});
+        if (xr.hit) enemyHp = Math.max(0, enemyHp - xr.amount);
+        let xHealed = 0;
+        if (xr.hit && player.lifesteal > 0) {
+          xHealed = Math.round(xr.amount * player.lifesteal);
+          playerHp = Math.min(player.maxHealth, playerHp + xHealed);
+        }
+        events.push({
+          t: round1(t),
+          type: !xr.hit ? 'attack' : xHealed > 0 ? 'drain' : 'ability',
+          message: buildDndAttackMessage({
+            attackerName: player.name,
+            targetName: enemy.name,
+            result: xr,
+            abilityName: EXTRA_ATTACK_ABILITY.name,
+            healed: xHealed,
+            suffix: xr.hit ? ` ${enemy.name}: ${enemyHp} HP.` : '',
+          }),
+          source: player.name,
+          target: enemy.name,
+          amount: xr.amount,
+          crit: xr.crit,
+          ability: EXTRA_ATTACK_ABILITY.name,
+          targetHealthRemaining: enemyHp,
+        });
       }
     } else {
       t = eNext;

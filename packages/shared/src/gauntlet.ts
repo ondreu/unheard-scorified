@@ -30,6 +30,8 @@ import {
   computeHit,
   crEnemyMagnitude,
   dotTickRaw,
+  EXTRA_ATTACK_ABILITY,
+  extraActionCount,
   applyAbsorb,
   SIGNATURE_ABILITIES,
   type CombatActor,
@@ -590,6 +592,38 @@ export function resolveGauntletTurn(
       ability: named,
       targetHealthRemaining: remaining,
     });
+
+    // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra úder(y)
+    // zbraní v tomtéž tahu, než nepřítel protiútočí.
+    const extras = extraActionCount(ability);
+    for (let k = 0; k < extras && enemy.currentHealth > 0; k++) {
+      const xr = computeHit(player, enemyAsActor, rng, 1, false);
+      enemy.currentHealth -= xr.amount;
+      const xh = xr.hit ? Math.round(xr.amount * player.lifesteal) : 0;
+      if (xh > 0) state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + xh);
+      const xrem = Math.max(0, Math.round(enemy.currentHealth));
+      pushEvent({
+        t,
+        type: 'ability',
+        message: xr.hit
+          ? buildAttackMessage({
+              attacker: player,
+              targetName: enemy.name,
+              amount: xr.amount,
+              crit: xr.crit,
+              healed: xh,
+              abilityName: EXTRA_ATTACK_ABILITY.name,
+              suffix: `. Target: ${xrem} HP`,
+            })
+          : missMessage(player.name, enemy.name, xr),
+        source: player.name,
+        target: enemy.name,
+        amount: xr.amount,
+        crit: xr.crit,
+        ability: EXTRA_ATTACK_ABILITY.name,
+        targetHealthRemaining: xrem,
+      });
+    }
   }
 
   // Cooldown zvolené ability.
