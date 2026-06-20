@@ -36,6 +36,8 @@
     party: 'Party',
     waiting: 'Waiting for the party…',
     submitted: 'Action locked in',
+    endTurn: 'End turn',
+    dodge: 'Dodge',
     youFell: 'You have fallen — your allies fight on.',
     aiSoon: 'AI takes over idle players in',
   };
@@ -146,6 +148,24 @@
         socket && socket.connected
           ? await submitPartyTurn(socket, characterId, runId, abilityId, tgt)
           : await submitDungeonParty(characterId, runId, abilityId, tgt);
+      retarget();
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Formální ukončení tahu: Pass (nic) nebo Dodge (disadvantage na útoky proti tobě). */
+  async function endTurn(action: 'pass' | 'dodge'): Promise<void> {
+    if (busy || !run || run.status !== 'in_combat' || run.you?.submitted) return;
+    busy = true;
+    error = null;
+    try {
+      run =
+        socket && socket.connected
+          ? await submitPartyTurn(socket, characterId, runId, action, 0)
+          : await submitDungeonParty(characterId, runId, action, 0);
       retarget();
     } catch (err) {
       error = (err as Error).message;
@@ -297,6 +317,10 @@
               {/if}
             </button>
           {/each}
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button class="btn btn-sm flex-1" disabled={busy} title="Incoming attacks have disadvantage until your next turn" onclick={() => endTurn('dodge')}>🤺 {ui.dodge}</button>
+          <button class="btn btn-sm flex-1" disabled={busy} title="Take no action and end your turn" onclick={() => endTurn('pass')}>⏭️ {ui.endTurn}</button>
         </div>
         {#if r.you && (slotTotal(r.you.maxSpellSlots) > 0 || r.you.maxKiPoints > 0)}
           <p class="mt-2 text-xs text-[var(--text-dim)]">

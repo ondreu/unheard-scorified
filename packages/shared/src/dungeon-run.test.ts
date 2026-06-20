@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   COMPANIONS,
   DUNGEON_BASIC_ATTACK,
+  DUNGEON_DODGE_ACTION,
+  DUNGEON_PASS_ACTION,
   DUNGEONS,
   EMPTY_PROGRESSION,
   baseStatsFor,
@@ -230,6 +232,32 @@ describe('friendly targeting — heal cílí zvoleného člena party', () => {
     expect(state.allies[0]!.mitigationTurns).toBeGreaterThan(0);
     expect(state.allies[0]!.mitigationPct).toBe(0.5);
     expect(state.player.mitigationTurns).toBe(0); // hráč nedostal buff
+  });
+});
+
+describe('formální ukončení tahu — Pass / Dodge', () => {
+  it('Pass: hráč neútočí, kolo doběhne a tah se posune', () => {
+    const base = hero('fighter');
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    const enemyHpBefore = state.enemies.map((e) => e.currentHealth);
+    const turnBefore = state.turn;
+    resolveDungeonTurn(base, state, DUNGEON_PASS_ACTION, 0);
+    expect(state.turn).toBe(turnBefore + 1);
+    expect(state.log.some((e) => (e.message ?? '').includes('ends the turn'))).toBe(true);
+    // Hráč nezpůsobil poškození (žádný DoT na startu) → enemy HP beze změny.
+    state.enemies.forEach((e, i) => expect(e.currentHealth).toBe(enemyHpBefore[i]));
+  });
+
+  it('Dodge: nastaví dodging a vyprší až s další reálnou akcí', () => {
+    const base = hero('fighter');
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    resolveDungeonTurn(base, state, DUNGEON_DODGE_ACTION, 0);
+    expect(state.player.dodging).toBe(true);
+    expect(state.log.some((e) => (e.message ?? '').includes('Dodge'))).toBe(true);
+    if (state.status === 'in_combat') {
+      resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, pickTarget(state));
+      expect(state.player.dodging).toBe(false);
+    }
   });
 });
 

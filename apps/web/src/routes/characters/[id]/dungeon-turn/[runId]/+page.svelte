@@ -35,6 +35,8 @@
     noSlots: 'No slot',
     noKi: 'No Ki',
     party: 'Party',
+    endTurn: 'End turn',
+    dodge: 'Dodge',
   };
 
   const roleIcon: Record<string, string> = { tank: '🛡️', healer: '✨', dps: '⚔️' };
@@ -102,6 +104,21 @@
     error = null;
     try {
       run = await actDungeonTurn(characterId, runId, abilityId, targetFor(kind));
+      retarget();
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Formální ukončení tahu: Pass (nic) nebo Dodge (disadvantage na útoky proti tobě). */
+  async function endTurn(action: 'pass' | 'dodge'): Promise<void> {
+    if (busy || !run || run.status !== 'in_combat') return;
+    busy = true;
+    error = null;
+    try {
+      run = await actDungeonTurn(characterId, runId, action, 0);
       retarget();
     } catch (err) {
       error = (err as Error).message;
@@ -276,6 +293,10 @@
               {/if}
             </button>
           {/each}
+        </div>
+        <div class="mt-2 flex gap-2">
+          <button class="btn btn-sm flex-1" disabled={busy} title="Incoming attacks have disadvantage until your next turn" onclick={() => endTurn('dodge')}>🤺 {ui.dodge}</button>
+          <button class="btn btn-sm flex-1" disabled={busy} title="Take no action and end your turn" onclick={() => endTurn('pass')}>⏭️ {ui.endTurn}</button>
         </div>
       </section>
     {/if}

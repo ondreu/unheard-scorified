@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DUNGEON_BASIC_ATTACK,
+  DUNGEON_DODGE_ACTION,
+  DUNGEON_PASS_ACTION,
   EMPTY_PROGRESSION,
   baseStatsFor,
   deriveCombatProfile,
@@ -215,5 +217,26 @@ describe('friendly targeting — heal cílí zvolený slot člena', () => {
     const tankMember = state.members.find((m) => m.slot === 0)!;
     expect(tankMember.mitigationPct).toBe(0.5);
     expect(tankMember.mitigationTurns).toBeGreaterThan(0);
+  });
+});
+
+describe('formální ukončení tahu — Pass / Dodge (MP)', () => {
+  it('Pass: lidé neudělají nic, kolo se vyhodnotí a posune', () => {
+    const state = startPartyRun(makeSeats(), 'ragefire_chasm', 3, 20, 7);
+    const turnBefore = state.turn;
+    expect(submitPartyAction(state, 'char-tank', DUNGEON_PASS_ACTION, 0).ok).toBe(true);
+    submitPartyAction(state, 'char-dps', DUNGEON_PASS_ACTION, 0);
+    resolvePartyRound(state);
+    expect(state.turn).toBe(turnBefore + 1);
+    expect(state.log.some((e) => (e.message ?? '').includes('ends the turn'))).toBe(true);
+  });
+
+  it('Dodge: nastaví dodging na člena (vyprší až jeho dalším tahem)', () => {
+    const state = startPartyRun(makeSeats(), 'ragefire_chasm', 3, 20, 7);
+    submitPartyAction(state, 'char-tank', DUNGEON_DODGE_ACTION, 0);
+    submitPartyAction(state, 'char-dps', DUNGEON_BASIC_ATTACK.id, weakestTarget(state));
+    resolvePartyRound(state);
+    const tank = state.members.find((m) => m.owner === 'char-tank')!;
+    expect(tank.dodging).toBe(true);
   });
 });

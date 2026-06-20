@@ -39,7 +39,7 @@ import { groupEncounters } from './group';
 import { TANK_INCOMING_DAMAGE_MULT, type RaidActor, type RaidRole } from './raid';
 import { shouldCastAbility, shouldCastHeal } from './rotation';
 import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
-import { DUNGEON_BASIC_ATTACK, type DungeonRunDot, type DungeonRunEnemy } from './dungeon-run';
+import { DUNGEON_BASIC_ATTACK, DUNGEON_DODGE_ACTION, isEndTurnAction, type DungeonRunDot, type DungeonRunEnemy } from './dungeon-run';
 
 /** Délka jednoho „tahu" v sekundách — převádí cooldown abilit (s) na počet tahů. */
 const PARTY_TURN_SEC = 3;
@@ -73,6 +73,8 @@ export interface PartyRunMember {
    * starších běhů → bere se jako prázdné.
    */
   usedOncePerCombat?: string[];
+  /** Dodge (formální ukončení tahu): útoky na člena mají disadvantage do jeho dalšího tahu. */
+  dodging?: boolean;
   /** Iniciativa pro aktuální encounter (d20 + DEX mod) — pořadí akcí v kole (4d). */
   initiative: number;
   /** Plný serializovatelný bojový aktér (RaidActor: role + healPower + rotace). */
@@ -319,6 +321,13 @@ export function submitPartyAction(
   const member = state.members.find((m) => m.owner === characterId && m.currentHealth > 0);
   if (!member) return { ok: false, ready: false, reason: 'Not your turn or fallen' };
 
+  // Formální ukončení tahu (Pass/Dodge) — vždy dostupné, žádný zdroj/cooldown.
+  if (isEndTurnAction(abilityId)) {
+    state.pending[member.slot] = { abilityId, targetId: 0 };
+    const ready = livingHumans(state).every((h) => state.pending[h.slot] !== undefined);
+    return { ok: true, ready };
+  }
+
   const ability =
     abilityId === DUNGEON_BASIC_ATTACK.id
       ? DUNGEON_BASIC_ATTACK
@@ -463,6 +472,20 @@ function takeMemberTurn(
   emit: (e: CombatEvent) => void,
 ): void {
   const eff = effectiveActor(member);
+
+  // Začátek tvého tahu → případný Dodge z minulého kola vyprší.
+  member.dodging = false;
+
+  // Formální ukončení tahu (Pass/Dodge): žádná akce, neklesni do AI fallbacku.
+  if (action && isEndTurnAction(action.abilityId)) {
+    if (action.abilityId === DUNGEON_DODGE_ACTION) {
+      member.dodging = true;
+      emit({ t, type: 'ability', source: member.name, target: member.name, message: `🤺 ${member.name} takes the Dodge action — incoming attacks have disadvantage.` });
+    } else {
+      emit({ t, type: 'ability', source: member.name, target: member.name, message: `⏭️ ${member.name} ends the turn.` });
+    }
+    return;
+  }
 
   // Lidská buffrovaná akce (re-validace zdrojů; cooldown už ověřen při submitu).
   if (action) {
@@ -769,7 +792,8 @@ function enemyAttackParty(
   const target = chooseThreat(state);
   if (!target) return;
   const targetActor = effectiveActor(target);
-  const hit = computeHit(enemy.actor, targetActor, rng, 1, false);
+  // Dodge: útoky na bránícího se člena mají disadvantage.
+  const hit = computeHit(enemy.actor, targetActor, rng, 1, false, undefined, undefined, target.dodging ? { advantage: 'disadvantage' } : undefined);
   let incoming = hit.amount;
   if (target.role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
   if (target.mitigationTurns > 0 && target.mitigationPct > 0) {

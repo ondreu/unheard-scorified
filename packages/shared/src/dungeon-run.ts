@@ -60,6 +60,21 @@ export const DUNGEON_BASIC_ATTACK: SignatureAbility = {
   damageMult: 1,
 };
 
+/**
+ * Pseudo-akce „End turn" (Pass) — formální ukončení tahu bez akce: kolo doběhne
+ * (DoT tiky, parťáci, protiútok nepřátel), hráč jen neútočí. Není „ability".
+ */
+export const DUNGEON_PASS_ACTION = 'pass';
+/**
+ * Pseudo-akce „Dodge" — defensivní ukončení tahu: do tvého dalšího tahu mají
+ * útoky na tebe **disadvantage** (D&D Dodge action).
+ */
+export const DUNGEON_DODGE_ACTION = 'dodge';
+/** Je `id` formální ukončení tahu (Pass/Dodge), ne útočná/podpůrná ability? */
+export function isEndTurnAction(id: string): boolean {
+  return id === DUNGEON_PASS_ACTION || id === DUNGEON_DODGE_ACTION;
+}
+
 export type DungeonRunStatus = 'in_combat' | 'cleared' | 'dead';
 
 /** DoT „nalepený" na nepříteli (krvácení/hoření z hráčovy/parťákovy ability). */
@@ -108,6 +123,11 @@ export interface DungeonRunPlayer {
    * encountery. `undefined` u běhů z doby před slice → bere se jako prázdné.
    */
   usedOncePerCombat?: string[];
+  /**
+   * Dodge (formální ukončení tahu): do dalšího tahu hráče mají útoky na něj
+   * disadvantage. Vyprší na začátku jeho dalšího tahu. `undefined` = nebrání se.
+   */
+  dodging?: boolean;
 }
 
 /**
@@ -425,6 +445,12 @@ export function resolveDungeonTurn(
 ): { state: DungeonRunState; events: CombatEvent[] } {
   if (state.status !== 'in_combat' || state.enemies.length === 0) return { state, events: [] };
 
+  // Formální ukončení tahu (Pass/Dodge) — vlastní cesta (žádná ability/zdroj).
+  if (isEndTurnAction(abilityId)) return resolveEndTurn(base, state, abilityId === DUNGEON_DODGE_ACTION);
+
+  // Reálná akce = začátek tvého dalšího tahu → případný Dodge z minula vyprší.
+  state.player.dodging = false;
+
   const player = effectivePlayer(base, state);
   const ability =
     abilityId === DUNGEON_BASIC_ATTACK.id
@@ -548,6 +574,60 @@ export function resolveDungeonTurn(
   // bonus-action ability (Healing Word) — pokud ji nepoužil jako hlavní akci.
   takeBonusHeal(player, state.player, state, rng, t, emit);
 
+  // (3)–(5) parťáci + protiútok nepřátel + údržba (sdíleno s Pass/Dodge).
+  return resolveAlliesEnemiesMaintenance(base, player, state, rng, t, events, emit) ?? { state, events };
+}
+
+/**
+ * Formální ukončení tahu (Pass/Dodge, ADR 0037 follow-up). Hráč neútočí; kolo
+ * doběhne (DoT tiky → parťáci → protiútok nepřátel → údržba). Dodge zapne
+ * disadvantage na útoky proti hráči pro tento dojezd nepřátel.
+ */
+function resolveEndTurn(
+  base: CombatActor,
+  state: DungeonRunState,
+  dodge: boolean,
+): { state: DungeonRunState; events: CombatEvent[] } {
+  const player = effectivePlayer(base, state);
+  state.player.dodging = false; // Dodge z minula vyprší na začátku tvého tahu.
+  const rng = new SeededRng(seedFromString(`${state.seed}:turn:${state.encounterIndex}:${state.turn}`));
+  const t = state.turn;
+  const events: CombatEvent[] = [];
+  const emit = (e: CombatEvent): void => {
+    events.push(e);
+    pushLog(state, e);
+  };
+
+  // (1) DoT tiky — můžou samy dočistit encounter.
+  tickEnemyDots(state, t, emit);
+  if (livingEnemies(state).length === 0) {
+    return { state: advanceEncounter(base, state, t, events), events };
+  }
+
+  if (dodge) {
+    state.player.dodging = true;
+    emit({ t, type: 'ability', source: player.name, target: player.name, message: `🤺 ${player.name} takes the Dodge action — incoming attacks have disadvantage.` });
+  } else {
+    emit({ t, type: 'ability', source: player.name, target: player.name, message: `⏭️ ${player.name} ends the turn.` });
+  }
+
+  return resolveAlliesEnemiesMaintenance(base, player, state, rng, t, events, emit) ?? { state, events };
+}
+
+/**
+ * Kroky (3) AI parťáci, (4) protiútok nepřátel, (5) údržba — sdíleno hráčovou
+ * akcí i Pass/Dodge. Vrací výsledek runu (cleared/dead/player-down) nebo `null`,
+ * pokud boj pokračuje (volající pak vrátí aktuální stav).
+ */
+function resolveAlliesEnemiesMaintenance(
+  base: CombatActor,
+  player: CombatActor,
+  state: DungeonRunState,
+  rng: SeededRng,
+  t: number,
+  events: CombatEvent[],
+  emit: (e: CombatEvent) => void,
+): { state: DungeonRunState; events: CombatEvent[] } | null {
   if (livingEnemies(state).length === 0) {
     return { state: advanceEncounter(base, state, t, events), events };
   }
@@ -576,7 +656,7 @@ export function resolveDungeonTurn(
   tickDownTurn(state.player);
   for (const ally of state.allies) if (ally.currentHealth > 0) tickDownTurn(ally);
   state.turn += 1;
-  return { state, events };
+  return null;
 }
 
 /** DoT tiky na všech nepřátelích (sdíleno; vyšle případný `enemy_defeated`). */
@@ -926,7 +1006,9 @@ function enemyAttackParty(
   const role: RaidRole = isPlayer ? state.playerRole : state.allies[threat.allyIdx]!.role;
   const mit = isPlayer ? state.player : state.allies[threat.allyIdx]!;
 
-  const enemyHit = computeHit(enemy.actor, targetActor, rng, 1, false);
+  // Dodge (formální ukončení tahu): útoky na bránícího se hráče mají disadvantage.
+  const dodging = isPlayer && state.player.dodging === true;
+  const enemyHit = computeHit(enemy.actor, targetActor, rng, 1, false, undefined, undefined, dodging ? { advantage: 'disadvantage' } : undefined);
   let incoming = enemyHit.amount;
   if (role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
   if (mit.mitigationTurns > 0 && mit.mitigationPct > 0) {
