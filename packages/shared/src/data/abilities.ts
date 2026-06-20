@@ -30,10 +30,12 @@ export type AbilityKind = 'strike' | 'drain' | 'dot' | 'heal' | 'shield' | 'miti
  * save DC útočníka; `effect` určí, co úspěch znamená:
  *  - `'half'`   — úspěch = poloviční poškození (Fireball, Moonbeam, …).
  *  - `'negate'` — úspěch = žádné poškození (save-or-nothing).
+ *  - `'none'`   — poškození se savem **nemění** (plný úder); save jen rozhoduje o
+ *                 `condition` rideru (Stunning Strike / Trip Attack: dmg + save-or-stun).
  */
 export interface SpellSave {
   ability: AbilityScore;
-  effect: 'half' | 'negate';
+  effect: 'half' | 'negate' | 'none';
 }
 
 /**
@@ -201,6 +203,8 @@ interface BaselineOpts {
   dicePerSlotAbove?: number;
   /** Per-spell saving throw (ADR 0032). */
   save?: SpellSave;
+  /** Condition rider (Slice 2d) — na neúspěšný `save` uvalí status efekt na cíl. */
+  condition?: ConditionRider;
   /** Automatický zásah (Magic Missile). */
   autoHit?: boolean;
   /** Ki cost (ADR 0034) — Monkovy techniky. */
@@ -251,6 +255,7 @@ function ba(
     ...(opts.dice !== undefined ? { dice: opts.dice } : {}),
     ...(opts.dicePerSlotAbove !== undefined ? { dicePerSlotAbove: opts.dicePerSlotAbove } : {}),
     ...(opts.save !== undefined ? { save: opts.save } : {}),
+    ...(opts.condition !== undefined ? { condition: opts.condition } : {}),
     ...(opts.autoHit !== undefined ? { autoHit: opts.autoHit } : {}),
     ...(opts.kiCost !== undefined ? { kiCost: opts.kiCost } : {}),
     ...(opts.oncePerCombat !== undefined ? { oncePerCombat: opts.oncePerCombat } : {}),
@@ -278,7 +283,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('barb_brutal_strike', 'Brutal Strike', 'A reckless blow that adds 1d10 to the weapon hit.', 'strike', 8, 1.0, 11, { bonusDice: { count: 1, sides: 10, bonus: 0 } }),
   ],
   bard: [
-    ba('bard_vicious_mockery', 'Vicious Mockery', 'A WIS save or take 1d4 psychic damage and bleed over 6s.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0, damageType: 'psychic', save: { ability: 'wisdom', effect: 'negate' } }),
+    ba('bard_vicious_mockery', 'Vicious Mockery', 'Cutting insults for 1d4 psychic over 6s; a failed WIS save also leaves the target frightened.', 'dot', 5, 1.1, 1, { dot: { dotDurationSec: 6, dotTicks: 3, dotTickMult: 0.3 }, spellTier: 0, damageType: 'psychic', save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'frightened', durationTurns: 1 } }),
     ba('bard_healing_word', 'Healing Word', 'A word of power restores 1d4 + your spellcasting modifier to a wounded ally. +1d4 per slot above 1st.', 'heal', 5, 2.0, 1, { spellTier: 1, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, actionCost: 'bonus' }),
     ba('bard_dissonant_whispers', 'Dissonant Whispers', 'Maddening whispers deal 3d6 psychic damage (WIS save halves). +1d6 per slot above 1st.', 'strike', 7, 1.75, 9, { spellTier: 1, damageType: 'psychic', dice: { count: 3, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' } }),
   ],
@@ -297,12 +302,12 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
   fighter: [
     ba('fighter_weapon_strike', 'Weapon Strike', 'A disciplined weapon strike.', 'strike', 4, 1.0, 1),
     ba('fighter_action_surge', 'Action Surge', 'A burst of speed grants a second Attack action — once per fight (recovered on a short rest).', 'strike', 8, 1.0, 6, { oncePerCombat: true, grantsExtraAction: true }),
-    ba('fighter_trip_attack', 'Trip Attack', 'A Battle Master maneuver: weapon hit plus a 1d8 superiority die (and a knockdown).', 'strike', 7, 1.0, 12, { bonusDice: { count: 1, sides: 8, bonus: 0 } }),
+    ba('fighter_trip_attack', 'Trip Attack', 'A Battle Master maneuver: weapon hit plus a 1d8 superiority die, and a STR save or be knocked prone.', 'strike', 7, 1.0, 12, { bonusDice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'strength', effect: 'none' }, condition: { type: 'prone', durationTurns: 1 } }),
     ba('fighter_onslaught', 'Onslaught', 'Unleashes the fighter\'s extra attacks — two additional weapon strikes in a single devastating turn.', 'strike', 8, 1.0, 20, { grantsExtraAction: true, extraActions: 2 }),
   ],
   monk: [
     ba('monk_martial_arts', 'Martial Arts', 'A swift unarmed strike.', 'strike', 3, 1.0, 1),
-    ba('monk_stunning_strike', 'Stunning Strike', 'A precise blow to a pressure point that can stun (CON save). Costs 1 Ki.', 'strike', 7, 1.0, 5, { kiCost: 1 }),
+    ba('monk_stunning_strike', 'Stunning Strike', 'A precise blow to a pressure point: full weapon damage, and a CON save or be stunned. Costs 1 Ki.', 'strike', 7, 1.0, 5, { kiCost: 1, save: { ability: 'constitution', effect: 'none' }, condition: { type: 'stunned', durationTurns: 1 } }),
     ba('monk_quivering_palm', 'Quivering Palm', 'Lethal vibrations for 10d10 necrotic (CON save halves). Costs 3 Ki.', 'strike', 9, 1.0, 11, { kiCost: 3, damageType: 'necrotic', dice: { count: 10, sides: 10, bonus: 0 }, save: { ability: 'constitution', effect: 'half' } }),
   ],
   paladin: [
@@ -404,7 +409,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('sorc_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.7, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
     ba('sorc_lightning_bolt', 'Lightning Bolt', 'A stroke of lightning for 8d6 (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.2, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
     ba('sorc_ice_storm', 'Ice Storm', 'A hail of ice for 4d6 cold (DEX save halves). +1d6 per slot above 4th.', 'strike', 9, 1.9, 16, { spellTier: 4, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
-    ba('sorc_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('sorc_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves, or be slowed by the numbing chill). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, condition: { type: 'slowed', durationTurns: 1 }, aoe: true }),
   ],
   warlock: [
     ba('warlock_chill_touch', 'Chill Touch', 'A ghostly hand for 1d8 necrotic (scales with level).', 'strike', 4, 1.2, 1, { spellTier: 0, damageType: 'necrotic', dice: { count: 1, sides: 8, bonus: 0 } }),
@@ -421,7 +426,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('wiz_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.7, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
     ba('wiz_lightning_bolt', 'Lightning Bolt', 'A stroke of lightning for 8d6 (DEX save halves). +1d6 per slot above 3rd.', 'strike', 9, 2.3, 14, { spellTier: 3, damageType: 'lightning', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
     ba('wiz_ice_storm', 'Ice Storm', 'A hail of ice for 4d6 cold (DEX save halves). +1d6 per slot above 4th.', 'strike', 9, 1.9, 16, { spellTier: 4, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
-    ba('wiz_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
+    ba('wiz_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves, or be slowed by the numbing chill). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, condition: { type: 'slowed', durationTurns: 1 }, aoe: true }),
     ba('wiz_disintegrate', 'Disintegrate', 'A thin green ray for 10d6+40 force (DEX save halves). +3d6 per slot above 6th.', 'strike', 11, 2.6, 17, { spellTier: 6, damageType: 'force', dice: { count: 10, sides: 6, bonus: 40 }, dicePerSlotAbove: 3, save: { ability: 'dexterity', effect: 'half' } }),
   ],
 };

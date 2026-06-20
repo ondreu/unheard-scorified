@@ -1,11 +1,12 @@
-# ADR 0045 — Enemy schopnosti: conditiony (Slice 2a + 2b + 2c)
+# ADR 0045 — Enemy schopnosti: conditiony (Slice 2a–2d)
 
 - **Stav:** přijato. **Slice 2a** = conditiony jako mechanika v solo tahovém
   dungeonu (`dungeon-run.ts`). **Slice 2b** = stejná mechanika v **MP** tahovém
   dungeonu (`dungeon-party.ts`) přes sdílený `beginActorTurn`. **Slice 2c** =
   **živý obsah**: 10 dungeon bossů dostalo signature ability (typový úder + save +
-  condition rider) → systém přestal být dormantní. Spojité simy a hráčská kouzla =
-  follow-up (viz roadmap Slice 2d).
+  condition rider). **Slice 2d (1. část)** = conditiony jsou **obousměrné** —
+  vybraná **hráčská kouzla/techniky** dostala condition ridery. Zbytek 2d (spojité
+  simy/Gauntlet, trash/bestiář, UI) = follow-up (viz roadmap).
 - **Kontext:** navazuje na napojení enemy abilit do enginu (ADR 0044, Slice 1),
   dice-roll combat + saving throwy (MR-5 / ADR 0032) a bestiář (MR-7 / ADR 0031).
   Slice 1 nechal `EnemyAbility.save.description` jen jako flavor („STR save or be
@@ -81,6 +82,19 @@
    — boss tam jen udeří typově + se savem; conditiony se projeví jen v **tahových**
    dungeonech. Magnitudy bossů (HP/základní swing) i loot/XP beze změny.
 
+7. **Slice 2d (1. část) — hráčská kouzla + `effect: 'none'`.** Aby conditiony
+   nebyly „jen věc nepřátel", dostala vybraná **hráčská** ability condition rider
+   (engine je už symetrický — `combatantHitEnemy`/`memberHitEnemy` uvalí condition
+   na nepřítele). Pro D&D „weapon hit + save-or-condition" (Stunning Strike, Trip
+   Attack) přibyl save efekt **`'none'`**: poškození se savem **nemění** (plný
+   úder), save jen rozhoduje o rideru. Sada: **Stunning Strike** (CON, stunned),
+   **Trip Attack** (STR, prone), **Vicious Mockery** (WIS, frightened), **Cone of
+   Cold** wiz+sorc (CON-half, slowed). `SpellCardInfo.condition` vystaveno pro UI
+   štítek. **Balanc-neutrální mimo tahové dungeony:** ve spojitých simech
+   (quest/gauntlet/PVP) se rider ignoruje (nemá tahy) a `'none'` poškození nemění
+   → `gear-balance` i ostatní kontrakty beze změny; control se projeví jen v
+   tahových dungeonech (proti boss obsahu z 2c).
+
 ## Důsledky
 
 - **+** Nepřátelská (i hráčská — symetricky v `combatantHitEnemy`) ability umí
@@ -94,9 +108,9 @@
   mimo jeho tah); v MP je `noBonusAction` plně respektován.
 - **−** Bez UI panelu aktivních conditionů (jen combat-log hlášky) → follow-up
   (deslopifikace UI).
-- **Follow-up (Slice 2d):** (a) **hráčská kouzla** dostanou condition ridery (Hold
-  Person→stunned, Cause Fear→frightened, Web→restrained, Slow→slowed…) — ať
-  conditiony nejsou jen „věc nepřátel", (b) conditiony ve **spojitých** simech
+- **Follow-up (Slice 2d, zbytek):** (a) **další hráčská kouzla** s ridery (Hold
+  Person, Web, Fear…) + condition-only kouzla bez damage (autoHit + save), (b)
+  conditiony ve **spojitých** simech
   (quest/raid/PVP auto-resolve) + **Gauntlet** (timeline model: stun=pauza,
   disadvantage/slow=úprava hodu/tempa), (c) **UI** zobrazení aktivních conditionů,
   (d) **trash/bestiář** abilities + drain/dot enemy `kind` + další efekty
@@ -104,7 +118,9 @@
 
 ## Verifikace
 
-Build/test/lint/typecheck zelené (654 shared + 199 API). Kontrakt:
+Build/test/lint/typecheck zelené (662 shared + 199 API). Kontrakt:
 `conditions.test.ts` (efekty/advantage/aplikace/tik), `data/enemies.test.ts`
-(rider threading + pokrytí 5 typů), `dungeon-run.test.ts` + `dungeon-party.test.ts`
-(stun end-to-end: uvalení → ztráta tahu; short rest setře conditiony).
+(rider threading + pokrytí 5 typů), `data/dungeons.test.ts` (boss abilities),
+`dnd-combat.test.ts` (`applySpellSave` `'none'` + obousměrné podmínky + katalog
+hráčských kouzel), `spell-card.test.ts` (condition na kartě), `dungeon-run.test.ts`
++ `dungeon-party.test.ts` (stun end-to-end obou stran; short rest setře conditiony).
