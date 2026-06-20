@@ -168,6 +168,11 @@ export class LevelUpService {
       if (feat && !meetsFeatPrerequisites(feat, ctx)) {
         throw new BadRequestException('Feat prerequisites not met');
       }
+      // Feat nelze stacknout — stejný feat zvolený v jiném slotu = chyba.
+      const dupFeat = stored.some(
+        (r) => r.slotId !== slotId && r.choice.kind === 'feat' && r.choice.featId === choice.featId,
+      );
+      if (dupFeat) throw new BadRequestException('Feat already chosen');
     }
 
     // Class feature: unikátnost napříč sourozeneckými sloty stejné skupiny

@@ -151,6 +151,13 @@ export function openAbility(name: string): void {
   inspectAbility.set(name);
 }
 
+/**
+ * Level aktivní postavy — nastaví char layout při načtení. Slouží detailu ability
+ * (AbilityDetail) ke správnému zobrazení škálovaných cantripů (D&D 1→2→3→4 kostek
+ * na 5/11/17), aby zobrazení sedělo s enginem. `null` = neznámý level (→ baseline).
+ */
+export const activeCharacterLevel = writable<number | null>(null);
+
 /** Cíl whisperu — chat bublina se otevře v režimu „whisper to X". */
 export const whisperTarget = writable<{ characterId: string; name: string } | null>(null);
 

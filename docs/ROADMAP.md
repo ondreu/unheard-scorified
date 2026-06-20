@@ -127,11 +127,9 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 > overhaul**, Slice B/C). Opravit dřív, než se pustí nový backlog níže. Malé související
 > opravy řešit společně.
 
-- [ ] **Class-feature volby nejdou zvolit (Slice B2)** — v `/levelup` se nedaří vybrat žádnou class-feature volbu: **Eldritch Invocations** (Warlock), **Metamagic** (Sorcerer), **Fighting Style** (Paladin **i** Fighter). Projít `class_feature` slot flow end-to-end (`data/class-features.ts` → `levelUpSlots` → API `isValidChoice`/unikátnost → web multi-slot picker) — buď se picker nezobrazí, nebo se volba neuloží.
-- [ ] **Feat & ASI volba: matoucí UX + feat stacking** — výběr featu a statů (ASI) je neintuitivní:
-  - zvolené **staty (ASI) musí zůstat vizuálně vybrané, dokud jsou aktivní** — stejně jako už zvolený feat (prefill z persistovaných voleb).
-  - **featy nesmí jít stacknout** — feat zvolený na jednom levelu se nesmí znovu nabízet/jít zvolit na dalším level-up slotu (deduplikace už zvolených featů napříč sloty, na webu i ve validaci API).
-- [ ] **Improved Cantrips se neprojevuje v combatu** — class-progression / level track (Slice C) inzeruje na L17 „cantripy = 4 damage dice" (`cantripDiceMultiplier`), ale v combatu cantrip pořád padá jako **1d8**. Ověřit, že `cantripDiceMultiplier` (5/11/17) reálně teče do `abilityDamageSpec` ve všech simulátorech, a srovnat zobrazení s enginem.
+- [x] **Class-feature volby nejdou zvolit (Slice B2)** ✅ — příčina: slot id `cf:<group>#<index>` obsahuje `#`, který prohlížeč ve `fetch` URL strhl jako fragment → API dostalo zkomolené id a vyhodilo „slot not available". Fix: `encodeURIComponent(slotId)` ve `choose()` (web `/levelup`). Eldritch Invocations / Metamagic / Fighting Style se teď ukládají. _(engine/`isValidChoice`/unikátnost byly OK — pouze transport)._
+- [x] **Feat & ASI volba: matoucí UX + feat stacking** ✅ — (1) **ASI prefill**: zvolené staty zůstávají vizuálně vybrané (nový `syncAsiPicks()` inicializuje lokální picky z persistovaných voleb po load/choose/reset — dřív se po uložení vyčistily). (2) **Feat dedup napříč sloty**: web zašedne feat zvolený jinde (`featTakenElsewhere`, štítek „Already taken") + API `choose()` odmítne duplicitní feat (mirror class_feature unikátnosti).
+- [x] **Improved Cantrips se neprojevuje v combatu** ✅ — engine byl **správně**: `cantripDiceMultiplier` (5/11/17) teče přes `abilityDamageSpec(…, player.level)` do **všech 6 simulátorů** (`level` se propaguje i přes `deriveRaidActor`). Skutečný problém = **zobrazení**: detail ability (`AbilityDetail.svelte`) ukazoval statické `a.dice` (1d8) bez level-scalingu. Fix: detail počítá cantrip dice přes `abilityDamageSpec` z levelu aktivní postavy (nový store `activeCharacterLevel`) → L17 ukáže 4d8, sedí s enginem.
 
 ## Combat & obsah — overhaul
 

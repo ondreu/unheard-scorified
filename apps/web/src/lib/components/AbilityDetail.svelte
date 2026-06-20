@@ -3,8 +3,8 @@
    * Detail combat ability (klik na jméno ability v logu). Data z
    * `findAbilityByName` (katalog `data/abilities.ts`). UI strings anglicky.
    */
-  import { findAbilityByName, diceNotation, type SignatureAbility } from '@game/shared';
-  import { inspectAbility } from '$lib/ui-stores';
+  import { findAbilityByName, diceNotation, abilityDamageSpec, type SignatureAbility } from '@game/shared';
+  import { inspectAbility, activeCharacterLevel } from '$lib/ui-stores';
   import Badge from './Badge.svelte';
   import PixelAbilityIcon from './PixelAbilityIcon.svelte';
 
@@ -22,11 +22,17 @@
    * D&D-věrné zobrazení poškození/healu (ADR 0036): literal kostky (8d6), bonus
    * kostky na zásah (+Nd6), DoT per-tik, rider per hit; jinak `damageMult` jako %
    * (sim-knob u weapon-mult abilit). Žádné zavádějící „230 % heal".
+   *
+   * Cantripy škálují s levelem postavy (D&D 1→2→3→4 kostek na 5/11/17) — počítáme
+   * je přes `abilityDamageSpec`, aby zobrazení sedělo s enginem (jinak by L17 ukázal
+   * 1d8 místo skutečných 4d8). `level` z aktivní postavy (fallback 1 = baseline).
    */
-  function damageText(a: SignatureAbility): string {
+  function damageText(a: SignatureAbility, level: number): string {
     if (a.riderDice) return `+${diceNotation(a.riderDice)} per hit`;
-    if (a.dice && a.bonusDice) return `${diceNotation(a.dice)} (+${diceNotation(a.bonusDice)})`;
-    if (a.dice) return diceNotation(a.dice);
+    // Cantripy/leveled kouzla s literal kostkami: počítej level-scaling z enginu.
+    const scaled = a.dice ? abilityDamageSpec(a, null, level) : undefined;
+    if (scaled && a.bonusDice) return `${diceNotation(scaled)} (+${diceNotation(a.bonusDice)})`;
+    if (scaled) return diceNotation(scaled);
     if (a.dotDice) return `${diceNotation(a.dotDice)} / tick`;
     if (a.bonusDice) return `weapon +${diceNotation(a.bonusDice)}`;
     return `${Math.round(a.damageMult * 100)}%`;
@@ -100,7 +106,7 @@
             {#if a.kind !== 'buff' || a.riderDice}
               <div class="flex justify-between">
                 <dt class="text-[var(--text-dim)]">{a.kind === 'heal' ? ui.healing : ui.damage}</dt>
-                <dd>{damageText(a)}</dd>
+                <dd>{damageText(a, $activeCharacterLevel ?? 1)}</dd>
               </div>
             {/if}
             {#if a.dotTicks && a.dotDurationSec}

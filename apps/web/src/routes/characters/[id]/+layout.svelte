@@ -20,7 +20,7 @@
   import { getPushState, isPushSupported, subscribePush, unsubscribePush } from '$lib/push';
   import { RACES, CLASSES } from '@game/shared';
   import { CLASS_COLOR, ROLE_META } from '$lib/cosmetics';
-  import { notifications, openProfile } from '$lib/ui-stores';
+  import { notifications, openProfile, activeCharacterLevel } from '$lib/ui-stores';
   import { NAV_CATEGORIES, sectionsInGroup, type NavGroup } from '$lib/nav';
   import Avatar from '$lib/components/Avatar.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
@@ -97,6 +97,7 @@
   async function load(id: string): Promise<void> {
     try {
       character = await getCharacter(id);
+      activeCharacterLevel.set(character.sheet.level);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
