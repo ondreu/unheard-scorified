@@ -430,6 +430,8 @@ export interface DungeonTurnAbilityView {
   outOfSlots: boolean;
   kiCost: number;
   outOfKi: boolean;
+  /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
+  actionCost: 'action' | 'bonus';
 }
 
 export interface DungeonTurnEnemyView {
@@ -506,10 +508,11 @@ export function actDungeonTurn(
   runId: string,
   abilityId: string,
   targetId: number,
+  bonusAbilityId?: string,
 ): Promise<DungeonTurnRunView> {
   return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/turn/run/${runId}/act`, {
     method: 'POST',
-    body: JSON.stringify({ abilityId, targetId }),
+    body: JSON.stringify({ abilityId, targetId, bonusAbilityId }),
   });
 }
 
@@ -579,10 +582,11 @@ export function submitDungeonParty(
   runId: string,
   abilityId: string,
   targetId: number,
+  bonusAbilityId?: string,
 ): Promise<DungeonPartyRunView> {
   return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}/submit`, {
     method: 'POST',
-    body: JSON.stringify({ abilityId, targetId }),
+    body: JSON.stringify({ abilityId, targetId, bonusAbilityId }),
   });
 }
 
@@ -1942,6 +1946,8 @@ export interface GauntletAbilityView {
   outOfSlots: boolean;
   kiCost: number;
   outOfKi: boolean;
+  /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
+  actionCost: 'action' | 'bonus';
 }
 
 export interface GauntletDailyView {
@@ -2027,10 +2033,11 @@ export function gauntletAct(
   characterId: string,
   runId: string,
   abilityId: string,
+  bonusAbilityId?: string,
 ): Promise<GauntletRunView> {
   return request<GauntletRunView>(`/characters/${characterId}/gauntlet/run/${runId}/act`, {
     method: 'POST',
-    body: JSON.stringify({ abilityId }),
+    body: JSON.stringify({ abilityId, bonusAbilityId }),
   });
 }
 

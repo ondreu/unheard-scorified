@@ -57,6 +57,8 @@ interface PartyAbilityView {
   outOfSlots: boolean;
   kiCost: number;
   outOfKi: boolean;
+  /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
+  actionCost: 'action' | 'bonus';
 }
 
 interface PartyMemberView {
@@ -223,6 +225,7 @@ export class DungeonPartyService {
     runId: string,
     abilityId: string,
     targetId: number,
+    bonusAbilityId?: string,
   ): Promise<DungeonPartyRunView> {
     await this.ownedOrThrow(accountId, characterId);
     let run = await this.participantRunOrThrow(characterId, runId);
@@ -233,7 +236,7 @@ export class DungeonPartyService {
     if (run.status !== 'in_combat') return this.viewWithReward(run, characterId);
 
     const state = run.state;
-    const res = submitPartyAction(state, characterId, abilityId, Number(targetId) || 0);
+    const res = submitPartyAction(state, characterId, abilityId, Number(targetId) || 0, bonusAbilityId);
     if (!res.ok) throw new BadRequestException(res.reason ?? 'Invalid action');
 
     if (partyRoundReady(state)) {
@@ -467,6 +470,7 @@ export class DungeonPartyService {
                 outOfSlots: spellTier >= 1 && !hasSlotForTier(you.spellSlots ?? {}, spellTier),
                 kiCost,
                 outOfKi: kiCost > (you.kiPoints ?? Number.POSITIVE_INFINITY),
+                actionCost: a.actionCost ?? 'action',
               };
             }),
           }

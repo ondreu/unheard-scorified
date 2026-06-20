@@ -415,6 +415,10 @@ export function resolveGauntletTurn(
   base: CombatActor,
   state: GauntletRunState,
   abilityId: string,
+  /** Volitelná bonus-action ability (ADR 0042, Slice 3) — hráč ji **vědomě zvolí**
+   * vedle hlavní akce (Healing Word). Léčení čerpá `healsUsed` (diminishing). Bez
+   * tohoto id žádná bonus akce neproběhne. */
+  bonusAbilityId?: string,
 ): { state: GauntletRunState; events: CombatEvent[] } {
   if (state.status !== 'in_combat' || !state.enemy) return { state, events: [] };
 
@@ -635,17 +639,21 @@ export function resolveGauntletTurn(
 
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
 
-  // Bonus action (ADR 0042, Slice 3): po hlavní akci hráč ještě sešle jednu ready
-  // bonus-action heal (Healing Word) — D&D „1 akce + 1 bonus / kolo". Léčení čerpá
-  // run-wide `healsUsed` → podléhá `healFalloff` (diminishing), takže auto-bonus heal
-  // nerozbije roguelite heal-scarcity (balanc křivkou, ne vynecháním).
-  if (state.player.currentHealth < state.player.maxHealth) {
-    for (const b of player.signatureAbilities) {
-      if (!isBonusAction(b) || b.kind !== 'heal') continue;
-      if ((state.player.cooldowns[b.id] ?? 0) > 0) continue; // hl. akce s touto ability ji drží
-      const bTier = b.spellTier ?? 0;
-      if (bTier >= 1 && !hasSlotForTier(state.player.spellSlots, bTier)) continue;
-      if ((b.kiCost ?? 0) > (state.player.kiPoints ?? 0)) continue;
+  // Bonus action (ADR 0042, Slice 3): hráč ji **vědomě zvolí** vedle hlavní akce
+  // (Healing Word) — nic se neděje automaticky. Léčení čerpá run-wide `healsUsed`
+  // → podléhá `healFalloff` (diminishing), takže nerozbije roguelite heal-scarcity
+  // (balanc křivkou). Bez `bonusAbilityId` (nebo == hlavní akci) bonus neproběhne.
+  if (bonusAbilityId && bonusAbilityId !== abilityId && state.player.currentHealth < state.player.maxHealth) {
+    const b = player.signatureAbilities.find((a) => a.id === bonusAbilityId);
+    const bTier = b?.spellTier ?? 0;
+    const canBonus =
+      b != null &&
+      isBonusAction(b) &&
+      b.kind === 'heal' &&
+      (state.player.cooldowns[b.id] ?? 0) <= 0 &&
+      (bTier < 1 || hasSlotForTier(state.player.spellSlots, bTier)) &&
+      (b.kiCost ?? 0) <= (state.player.kiPoints ?? 0);
+    if (canBonus) {
       if (bTier >= 1) spendSlotForTier(state.player.spellSlots, bTier, abilityPrefersUpcast(b));
       if ((b.kiCost ?? 0) > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - (b.kiCost ?? 0);
       const falloff = healFalloff(state.healsUsed);
@@ -663,7 +671,6 @@ export function resolveGauntletTurn(
         amount: heal,
         ability: b.name,
       });
-      break; // jen jedna bonus akce za kolo
     }
   }
 

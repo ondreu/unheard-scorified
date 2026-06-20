@@ -83,6 +83,9 @@ export interface PartyRunMember {
 export interface PartyRunPendingAction {
   abilityId: string;
   targetId: number;
+  /** Volitelná bonus-action ability (ADR 0042, Slice 3) — hráč ji vědomě zvolí
+   * vedle hlavní akce (Healing Word). `undefined` = bez bonus akce. */
+  bonusAbilityId?: string;
 }
 
 /** Kompletní stav živého MP tahového runu (persistovaný jako JSON). */
@@ -293,6 +296,8 @@ export function submitPartyAction(
   characterId: string,
   abilityId: string,
   targetId: number,
+  /** Volitelná bonus-action ability (ADR 0042, Slice 3) — vědomá volba hráče. */
+  bonusAbilityId?: string,
 ): { ok: boolean; ready: boolean; reason?: string } {
   if (state.status !== 'in_combat') return { ok: false, ready: false, reason: 'Run finished' };
   const member = state.members.find((m) => m.owner === characterId && m.currentHealth > 0);
@@ -311,7 +316,19 @@ export function submitPartyAction(
   if (tier >= 1 && !hasSlotForTier(member.spellSlots, tier)) return { ok: false, ready: false, reason: 'No spell slot' };
   if ((ability.kiCost ?? 0) > member.kiPoints) return { ok: false, ready: false, reason: 'Not enough Ki' };
 
-  state.pending[member.slot] = { abilityId, targetId: Number(targetId) || 0 };
+  // Bonus-action volba (ADR 0042, Slice 3): ulož jen validní bonus-action ability
+  // (jinak ignoruj — resolution ji stejně přeskočí). Vědomá volba hráče.
+  const bonusValid =
+    bonusAbilityId != null &&
+    bonusAbilityId !== abilityId &&
+    isBonusAction(
+      (member.actor.signatureAbilities.find((a) => a.id === bonusAbilityId) ?? { actionCost: 'action' } as SignatureAbility),
+    );
+  state.pending[member.slot] = {
+    abilityId,
+    targetId: Number(targetId) || 0,
+    ...(bonusValid ? { bonusAbilityId } : {}),
+  };
   const humans = livingHumans(state);
   const ready = humans.every((h) => state.pending[h.slot] !== undefined);
   return { ok: true, ready };
@@ -357,8 +374,19 @@ export function resolvePartyRound(state: PartyRunState): { state: PartyRunState;
     if (member.currentHealth <= 0) continue;
     const action = member.owner != null ? state.pending[member.slot] : undefined;
     takeMemberTurn(state, member, action, rng, t, emit);
-    // Bonus action (ADR 0042, Slice 3): po hlavní akci ready bonus heal (Healing Word).
-    if (member.currentHealth > 0) takeBonusHeal(member, effectiveActor(member), state, rng, t, emit);
+    // Bonus action (ADR 0042, Slice 3): lidský hráč ji vědomě zvolil (action.bonusAbilityId);
+    // AI člen si bonus heal zvolí sám. Nic se neděje za hráče bez jeho volby.
+    if (member.currentHealth > 0) {
+      if (member.owner != null) {
+        if (action?.bonusAbilityId && action.bonusAbilityId !== action.abilityId) {
+          const eff = effectiveActor(member);
+          const bonus = eff.signatureAbilities.find((a) => a.id === action.bonusAbilityId);
+          if (bonus) resolveMemberBonusHeal(member, eff, state, bonus, rng, t, emit);
+        }
+      } else {
+        autoMemberBonusHeal(member, effectiveActor(member), state, rng, t, emit);
+      }
+    }
     if (livingEnemies(state).length === 0) {
       advanceEncounter(state, t, emit);
       state.pending = {};
@@ -468,12 +496,46 @@ function takeMemberTurn(
 }
 
 /**
- * Bonus action (ADR 0042, Slice 3): po hlavní akci člen provede jednu ready
- * **bonus-action** ability (Healing Word) — D&D „1 akce + 1 bonus / kolo". Léčí
- * nejzraněnějšího člena party. Pokud byla bonus ability použita už jako hlavní
- * akce, je na cooldownu → přeskočí se (žádná dvojitá bonus akce).
+ * Vyřeší **bonus-action** heal (ADR 0042, Slice 3) konkrétní zvolenou ability
+ * (Healing Word) — léčí nejzraněnějšího člena party. Ověří zdroje; spotřebuje
+ * slot/Ki + cooldown. Vrací `true`, pokud heal proběhl. Na cooldownu (typicky proto,
+ * že ability byla použita jako hlavní akce) → `false` (žádná dvojitá bonus akce).
  */
-function takeBonusHeal(
+function resolveMemberBonusHeal(
+  member: PartyRunMember,
+  actor: RaidActor,
+  state: PartyRunState,
+  ability: SignatureAbility,
+  rng: SeededRng,
+  t: number,
+  emit: (e: CombatEvent) => void,
+): boolean {
+  if (!isBonusAction(ability) || ability.kind !== 'heal') return false;
+  if ((member.cooldowns[ability.id] ?? 0) > 0) return false;
+  const tier = ability.spellTier ?? 0;
+  if (tier >= 1 && !hasSlotForTier(member.spellSlots, tier)) return false;
+  if ((ability.kiCost ?? 0) > member.kiPoints) return false;
+  const target = mostInjured(state);
+  if (!target || target.currentHealth >= target.maxHealth) return false;
+  const slotTier = tier >= 1 ? spendSlotForTier(member.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
+  if ((ability.kiCost ?? 0) > 0) member.kiPoints -= ability.kiCost ?? 0;
+  const healed = healAmount(actor, ability, slotTier, rng);
+  target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
+  member.cooldowns[ability.id] = cooldownTurns(ability);
+  emit({
+    t,
+    type: 'heal',
+    message: `✨ ${member.name} casts ${ability.name} as a bonus action, healing ${target.name} for ${healed}. ${target.name}: ${Math.round(target.currentHealth)} HP`,
+    source: member.name,
+    target: target.name,
+    amount: healed,
+    ability: ability.name,
+  });
+  return true;
+}
+
+/** AI člen: po hlavní akci sešle první ready bonus-action heal (D&D 1 bonus/kolo). */
+function autoMemberBonusHeal(
   member: PartyRunMember,
   actor: RaidActor,
   state: PartyRunState,
@@ -482,28 +544,7 @@ function takeBonusHeal(
   emit: (e: CombatEvent) => void,
 ): void {
   for (const ability of actor.signatureAbilities) {
-    if (!isBonusAction(ability) || ability.kind !== 'heal') continue;
-    if ((member.cooldowns[ability.id] ?? 0) > 0) continue;
-    const tier = ability.spellTier ?? 0;
-    if (tier >= 1 && !hasSlotForTier(member.spellSlots, tier)) continue;
-    if ((ability.kiCost ?? 0) > member.kiPoints) continue;
-    const target = mostInjured(state);
-    if (!target || target.currentHealth >= target.maxHealth) return;
-    const slotTier = tier >= 1 ? spendSlotForTier(member.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
-    if ((ability.kiCost ?? 0) > 0) member.kiPoints -= ability.kiCost ?? 0;
-    const healed = healAmount(actor, ability, slotTier, rng);
-    target.currentHealth = Math.min(target.maxHealth, target.currentHealth + healed);
-    member.cooldowns[ability.id] = cooldownTurns(ability);
-    emit({
-      t,
-      type: 'heal',
-      message: `✨ ${member.name} casts ${ability.name} as a bonus action, healing ${target.name} for ${healed}. ${target.name}: ${Math.round(target.currentHealth)} HP`,
-      source: member.name,
-      target: target.name,
-      amount: healed,
-      ability: ability.name,
-    });
-    return; // jen jedna bonus akce za kolo
+    if (resolveMemberBonusHeal(member, actor, state, ability, rng, t, emit)) return;
   }
 }
 
