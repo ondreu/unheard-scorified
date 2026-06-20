@@ -29,6 +29,7 @@ import {
   extraActionCount,
   healDiceSpec,
   isBonusAction,
+  selectEnemyAbility,
   type CombatActor,
   type CombatEvent,
   type SignatureAbility,
@@ -96,6 +97,11 @@ export interface DungeonRunEnemy {
   /** Plný serializovatelný bojový aktér (AC/attackBonus/resistances…). */
   actor: CombatActor;
   dots: DungeonRunDot[];
+  /**
+   * Cooldowny aktivních enemy abilit („Enemy schopnosti") — abilityId → zbývající
+   * tahy. `undefined` u běhů z doby před tímto slicem (graceful → bere se prázdné).
+   */
+  cooldowns?: Record<string, number>;
 }
 
 /** Mutabilní bojový stav hráče (mimo neměnný snapshot profilu). */
@@ -218,6 +224,7 @@ function buildEncounterEnemies(state: DungeonRunState): DungeonRunEnemy[] {
     currentHealth: actor.maxHealth,
     actor,
     dots: [],
+    cooldowns: {},
   }));
 }
 
@@ -671,6 +678,12 @@ function resolveAlliesEnemiesMaintenance(
 function tickEnemyDots(state: DungeonRunState, t: number, emit: (e: CombatEvent) => void): void {
   for (const enemy of state.enemies) {
     if (enemy.currentHealth <= 0) continue;
+    // Tik cooldownů enemy abilit („Enemy schopnosti") — jednou za kolo.
+    if (enemy.cooldowns) {
+      for (const id of Object.keys(enemy.cooldowns)) {
+        enemy.cooldowns[id] = Math.max(0, (enemy.cooldowns[id] ?? 0) - 1);
+      }
+    }
     for (const dot of enemy.dots) {
       if (dot.remainingTicks <= 0) continue;
       enemy.currentHealth = Math.max(0, enemy.currentHealth - dot.tickDamage);
@@ -1029,8 +1042,31 @@ function enemyAttackParty(
 
   // Dodge (formální ukončení tahu): útoky na bránícího se hráče mají disadvantage.
   const dodging = isPlayer && state.player.dodging === true;
-  const enemyHit = computeHit(enemy.actor, targetActor, rng, 1, false, undefined, undefined, dodging ? { advantage: 'disadvantage' } : undefined);
+  // „Enemy schopnosti": vystřel první ready útočnou ability (typové poškození +
+  // saving throw), jinak základní úder. Cooldown v tazích, tiká v `tickEnemyDots`.
+  if (!enemy.cooldowns) enemy.cooldowns = {};
+  const ability = selectEnemyAbility(enemy.actor, (a) => (enemy.cooldowns![a.id] ?? 0) <= 0);
+  const advExtra = dodging ? { advantage: 'disadvantage' as const } : undefined;
+  const enemyHit = ability
+    ? computeHit(
+        enemy.actor,
+        targetActor,
+        rng,
+        ability.damageMult,
+        false,
+        ability.damageType,
+        abilityDamageSpec(ability, null, enemy.actor.level),
+        advExtra,
+      )
+    : computeHit(enemy.actor, targetActor, rng, 1, false, undefined, undefined, advExtra);
+  if (ability) enemy.cooldowns[ability.id] = cooldownTurns(ability);
   let incoming = enemyHit.amount;
+  let enemySaveMsg: string | undefined;
+  if (ability && enemyHit.hit && ability.save) {
+    const out = applySpellSave(ability, enemy.actor, targetActor, rng, incoming);
+    incoming = out.amount;
+    enemySaveMsg = out.message;
+  }
   if (role === 'tank') incoming = Math.max(1, Math.round(incoming * TANK_INCOMING_DAMAGE_MULT));
   if (mit.mitigationTurns > 0 && mit.mitigationPct > 0) {
     incoming = Math.max(1, Math.round(incoming * (1 - mit.mitigationPct)));
@@ -1041,16 +1077,20 @@ function enemyAttackParty(
   const absorbSuffix = absorbResult.absorbed > 0 ? ` (${absorbResult.absorbed} absorbed)` : '';
   emit({
     t,
-    type: 'attack',
+    type: ability ? 'ability' : 'attack',
     message: enemyHit.hit
-      ? `${enemy.name} hits ${targetName} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. ${targetName}: ${Math.max(0, Math.round(member.currentHealth))} HP`
+      ? `${enemy.name} ${ability ? `uses ${ability.name} on` : 'hits'} ${targetName} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. ${targetName}: ${Math.max(0, Math.round(member.currentHealth))} HP`
       : missMessage(enemy.name, targetName, enemyHit),
     source: enemy.name,
     target: targetName,
     amount: absorbResult.netDamage,
     crit: enemyHit.crit,
+    ability: ability?.name,
     targetHealthRemaining: Math.max(0, Math.round(member.currentHealth)),
   });
+  if (enemySaveMsg) {
+    emit({ t, type: 'ability', source: targetName, message: enemySaveMsg });
+  }
   if (member.currentHealth <= 0) {
     member.currentHealth = 0;
     if (isPlayer) {

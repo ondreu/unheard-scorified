@@ -33,6 +33,7 @@ import {
   healDiceSpec,
   resolveAttack,
   round1,
+  selectEnemyAbility,
   type CombatActor,
   type CombatEvent,
   type EnemyStats,
@@ -221,6 +222,10 @@ export function simulateQuestEncounter(
   const hardStop = startT + QUEST_ENCOUNTER_MAX_SEC;
   let playerDown = false;
   let enemyTurns = 0;
+  // Enemy ability cooldowny („Enemy schopnosti") — abilityId → čas (t), kdy je
+  // ability zase ready. Prázdné, dokud nepřítel nemá `signatureAbilities`
+  // (dnešní obsah → fallback na legacy boss special níže).
+  const enemyAbilityReady: Record<string, number> = {};
   // Aktivní DoTy na nepříteli (ADR 0036) — DoT reálně tiká v čase (Moonbeam, Spirit
   // Guardians…), ne jeden zásah. Tiky jsou deterministické (žádný RNG).
   interface QuestDot {
@@ -450,18 +455,43 @@ export function simulateQuestEncounter(
     } else {
       t = eNext;
       eNext = t + enemy.swingInterval;
-      // Boss občas (každý 3. tah) sešle telegrafovaný „special" — silnější úder
-      // (1.6×), proti kterému si postava hodí DEX save (úspěch = poloviční dmg).
-      // Běžné údery jdou plnou silou → boss zůstává hrozbou (balanc = MR-10).
-      const special = enemy.isBoss && ++enemyTurns % 3 === 0;
-      const result = resolveAttack(enemy, player, rng, { abilityMult: special ? 1.6 : 1 });
+      enemyTurns++;
+      // „Enemy schopnosti": má-li nepřítel aktivní ability (z katalogu), vystřelí
+      // první ready (cooldown podle času) — typové poškození + per-ability saving
+      // throw. Bez abilit (dnešní obsah) → legacy boss „special": každý 3. tah
+      // silnější úder (1.6×) s DEX save na půlku. Oba zachovávají boss hrozbu.
+      const enemyAbility = selectEnemyAbility(enemy, (a) => (enemyAbilityReady[a.id] ?? 0) <= t);
+      const special = !enemyAbility && enemy.isBoss && enemyTurns % 3 === 0;
 
-      let dmg = result.amount;
+      let result: ReturnType<typeof resolveAttack>;
+      let dmg: number;
       let saveMessage: string | undefined;
-      if (result.hit && special) {
-        const save = savingThrow(player, rng, 'dexterity', actorSpellSaveDc(enemy));
-        if (save.success) dmg = Math.max(1, Math.floor(dmg / 2));
-        saveMessage = buildSaveMessage(player.name, 'dexterity', save, true);
+      let abilityLabel: string | undefined;
+      if (enemyAbility) {
+        const spec = abilityDamageSpec(enemyAbility, null, enemy.level);
+        const mult = spec ? 1 : enemyAbility.damageMult;
+        result = resolveAttack(enemy, player, rng, {
+          abilityMult: mult,
+          damageType: enemyAbility.damageType,
+          damageSpec: spec,
+        });
+        dmg = result.amount;
+        if (result.hit && enemyAbility.save) {
+          const out = applySpellSave(enemyAbility, enemy, player, rng, dmg);
+          dmg = out.amount;
+          saveMessage = out.message;
+        }
+        enemyAbilityReady[enemyAbility.id] = t + enemyAbility.cooldownSec;
+        abilityLabel = enemyAbility.name;
+      } else {
+        result = resolveAttack(enemy, player, rng, { abilityMult: special ? 1.6 : 1 });
+        dmg = result.amount;
+        if (result.hit && special) {
+          const save = savingThrow(player, rng, 'dexterity', actorSpellSaveDc(enemy));
+          if (save.success) dmg = Math.max(1, Math.floor(dmg / 2));
+          saveMessage = buildSaveMessage(player.name, 'dexterity', save, true);
+        }
+        abilityLabel = special ? 'a savage onslaught' : undefined;
       }
 
       let absorbedNote = '';
@@ -482,13 +512,14 @@ export function simulateQuestEncounter(
           attackerName: enemy.name,
           targetName: player.name,
           result: { ...result, amount: dmg },
-          abilityName: special ? 'a savage onslaught' : undefined,
+          abilityName: abilityLabel,
           suffix: result.hit ? `${absorbedNote} ${player.name}: ${Math.max(0, playerHp)} HP.` : '',
         }),
         source: enemy.name,
         target: player.name,
         amount: dmg,
         crit: result.crit,
+        ability: enemyAbility?.name,
         targetHealthRemaining: Math.max(0, playerHp),
       });
       if (saveMessage) {

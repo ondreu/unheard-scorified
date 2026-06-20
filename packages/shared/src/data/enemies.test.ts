@@ -128,6 +128,24 @@ describe('instantiateEnemy — unified enemy resolver (ADR 0043)', () => {
   it('throws on an unknown template id (authoring error, not runtime)', () => {
     expect(() => instantiateEnemy('not_a_real_enemy')).toThrow(/unknown enemy template/);
   });
+
+  it('threads catalog abilities into the combat actor (Enemy schopnosti)', () => {
+    // grave_wraith má v katalogu „Life Drain" (necrotic, save) — musí dotéct až
+    // do CombatActor.signatureAbilities přes buildEnemyActor.
+    const stats = instantiateEnemy('grave_wraith');
+    expect(stats.signatureAbilities?.map((a) => a.id)).toContain('life_drain');
+    const actor = buildEnemyActor(stats);
+    const drain = actor.signatureAbilities.find((a) => a.id === 'life_drain');
+    expect(drain).toBeDefined();
+    expect(drain!.damageType).toBe('necrotic');
+    expect(drain!.damageMult).toBeGreaterThan(1);
+    expect(drain!.save?.effect).toBe('half');
+  });
+
+  it('enemies without abilities get an empty kit (today\'s content → basic attacks)', () => {
+    const actor = buildEnemyActor(instantiateEnemy('rfc_cultist'));
+    expect(actor.signatureAbilities).toEqual([]);
+  });
 });
 
 describe('resistance / vulnerability in dice-roll combat (MR-7)', () => {

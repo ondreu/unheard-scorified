@@ -106,6 +106,18 @@ describe('simulateQuestEncounter (no-fail)', () => {
     expect(strongOut.playerHpPct).toBeGreaterThanOrEqual(weakOut.playerHpPct);
   });
 
+  it('fires enemy abilities from the catalog (Enemy schopnosti)', () => {
+    // Foe odkazuje grave_wraith (Life Drain, necrotic + save) → engine ji vystřelí.
+    const player = makeProfile(8);
+    const foe = questFoeStats(
+      { name: 'Grave Wraith', tier: 'boss', template: 'grave_wraith' },
+      60, // tanky → boj trvá, ability (cd 12 s) stihne padnout
+    );
+    const out = simulateQuestEncounter(player, foe, new SeededRng(11), 0);
+    const drainEvents = out.events.filter((e) => e.ability === 'Life Drain' && e.source === 'Grave Wraith');
+    expect(drainEvents.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('is deterministic for the same seed', () => {
     const player = makeProfile(10);
     const foe = questFoeStats({ name: 'Wolf', tier: 'standard' }, 10);

@@ -13,6 +13,7 @@
  */
 import type { AbilityScore } from '../character';
 import type { EnemyStats } from '../combat';
+import type { SignatureAbility } from './abilities';
 import {
   crStatGuide,
   type ChallengeRating,
@@ -759,6 +760,27 @@ export function enemiesByChallengeRating(cr: ChallengeRating): EnemyTemplate[] {
 
 // ── Builder → EnemyStats (combat) ────────────────────────────────────────────
 
+/**
+ * Převede katalogovou `EnemyAbility` na `SignatureAbility` (formát, který čte
+ * combat engine) — „Enemy schopnosti", napojení do enginu. Enemy ability =
+ * `kind: 'strike'` s `damageMult` (škáluje přes attackPower nepřítele) a
+ * `damageType` (typové poškození → MR-7 obrany hráče); `save` se mapuje na
+ * `effect: 'half'` (úspěch = poloviční poškození). Conditiony (stun/prone/…) =
+ * follow-up slice (zatím jen flavor v `EnemyAbility.save.description`).
+ */
+export function enemyAbilityToSignature(a: EnemyAbility): SignatureAbility {
+  return {
+    id: a.id,
+    name: a.name,
+    description: a.description,
+    kind: 'strike',
+    cooldownSec: a.cooldownSec,
+    damageMult: a.damageMult,
+    damageType: a.damageType,
+    ...(a.save ? { save: { ability: a.save.ability, effect: 'half' as const } } : {}),
+  };
+}
+
 /** Volitelný přepis statů při instanciaci (např. scale pro idle balanc). */
 export interface BestiaryEnemyOverrides {
   maxHealth?: number;
@@ -793,6 +815,7 @@ export function buildBestiaryEnemy(
     resistances: template.resistances,
     vulnerabilities: template.vulnerabilities,
     immunities: template.immunities,
+    signatureAbilities: (template.abilities ?? []).map(enemyAbilityToSignature),
   };
 }
 
@@ -870,5 +893,8 @@ export function instantiateEnemy(
     ...(t.resistances ? { resistances: t.resistances } : {}),
     ...(t.vulnerabilities ? { vulnerabilities: t.vulnerabilities } : {}),
     ...(t.immunities ? { immunities: t.immunities } : {}),
+    ...(t.abilities && t.abilities.length > 0
+      ? { signatureAbilities: t.abilities.map(enemyAbilityToSignature) }
+      : {}),
   };
 }

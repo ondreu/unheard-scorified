@@ -89,6 +89,15 @@ Katalog je **jediný zdroj pravdy enemy identity**:
 - **Gauntlet** táhne jména nepřátel z katalogu (typové obrany zatím nepropsané —
   follow-up „Enemy schopnosti").
 
-Follow-up: aktivní enemy abilities (`EnemyAbility` v enginu), typed Gauntlet
-nepřátelé, in-game **bestiář pro hráče** (encyklopedie čtoucí katalog).
+**Enemy schopnosti (ADR 0044, Slice 1):** `EnemyAbility` z katalogu se přes
+`enemyAbilityToSignature` propíše do `CombatActor.signatureAbilities`
+(`instantiateEnemy`/`buildBestiaryEnemy` → `EnemyStats.signatureAbilities` →
+`buildEnemyActor`). Engine je vystřelí (sdílený `selectEnemyAbility` + cooldown)
+napříč simulátory (raid/group auto-resolve, quest, dungeon-turn, dungeon-party) s
+typovým poškozením + per-ability saving throwem (`applySpellSave`, save = půlka).
+Zatím **dormantní** (žádný živý nepřítel ability nemá → nulový balanc dopad).
+
+Follow-up: přiřadit abilities dungeon bossům + bestiáři (content + rebalance),
+**conditiony** (stun/prone/frightened…), typed Gauntlet nepřátelé, drain/dot enemy
+ability, in-game **bestiář pro hráče** (encyklopedie čtoucí katalog).
 `SignatureAbility` (hráčské ability) nese damage typ od MR-10/ADR 0036.
