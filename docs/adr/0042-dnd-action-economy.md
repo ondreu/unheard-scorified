@@ -47,8 +47,9 @@ hlavní designová výzva (proto krájeno na slice; velké → ADR).
   po hlavní akci automaticky provede jednu ready bonus-action ability (`takeBonusHeal`,
   rotation/cooldown-gated, 1/kolo; bonus použitý jako hlavní akce se neduplikuje díky
   cooldownu). **Auto-resolved** (jako rage) — interaktivní výběr bonus akce v UI = follow-up.
-  **Gauntlet vynechán** schválně: jeho roguelite heal-scarcity (`healFalloff`) by free
-  bonus heal rozbil. Spojité simy: `actionCost` kosmetický (žádné kolo).
+  **Gauntlet je zahrnutý**: bonus heal čerpá run-wide `healsUsed` → podléhá `healFalloff`
+  (diminishing), takže auto-bonus heal nerozbije roguelite heal-scarcity (balanc křivkou,
+  ne vynecháním). Spojité simy: `actionCost` kosmetický (žádné kolo).
   **`oncePerTurn` se nezavádí** — Sneak Attack je v enginu diskrétní ability (1× za
   aktivaci/cooldown) a bonus akce je cap 1/kolo, takže D&D „1× za kolo" je strukturálně
   splněné bez nového flagu (rozhodnutí: nepřidávat mrtvé pole). Extra útoky ze Slice 2

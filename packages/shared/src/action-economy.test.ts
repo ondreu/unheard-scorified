@@ -17,6 +17,7 @@ import {
   EMPTY_PROGRESSION,
   EXTRA_ATTACK_ABILITY,
   extraActionCount,
+  GAUNTLET_BASIC_ATTACK,
   isBonusAction,
   markAbilityUsed,
   resolveDungeonTurn,
@@ -162,6 +163,17 @@ describe('bonus action (Slice 3)', () => {
     const bonusHeal = res.events.find((e) => e.ability === 'Healing Word' && /bonus action/.test(e.message));
     expect(bonusHeal).toBeDefined();
     expect(state.player.currentHealth).toBeGreaterThan(Math.floor(state.player.maxHealth * 0.4));
+  });
+
+  it('gauntlet: zraněný caster vyléčí Healing Word jako bonus action (čerpá healsUsed → diminishing)', () => {
+    const base = druid(10);
+    const state = startGauntletRun(base, 10, 3);
+    state.player.currentHealth = Math.floor(state.player.maxHealth * 0.4);
+    const healsBefore = state.healsUsed;
+    const res = resolveGauntletTurn(base, state, GAUNTLET_BASIC_ATTACK.id);
+    const bonusHeal = res.events.find((e) => e.ability === 'Healing Word' && /bonus action/.test(e.message));
+    expect(bonusHeal).toBeDefined();
+    expect(res.state.healsUsed).toBe(healsBefore + 1); // bonus heal podléhá fall-offu
   });
 });
 

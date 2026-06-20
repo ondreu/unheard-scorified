@@ -32,6 +32,7 @@ import {
   dotTickRaw,
   EXTRA_ATTACK_ABILITY,
   extraActionCount,
+  isBonusAction,
   applyAbsorb,
   SIGNATURE_ABILITIES,
   type CombatActor,
@@ -633,6 +634,38 @@ export function resolveGauntletTurn(
   if (ability.oncePerCombat) (state.player.usedOncePerCombat ??= []).push(abilityId);
 
   if (enemy.currentHealth <= 0) return { state: onEnemyDefeated(state, t, events), events };
+
+  // Bonus action (ADR 0042, Slice 3): po hlavní akci hráč ještě sešle jednu ready
+  // bonus-action heal (Healing Word) — D&D „1 akce + 1 bonus / kolo". Léčení čerpá
+  // run-wide `healsUsed` → podléhá `healFalloff` (diminishing), takže auto-bonus heal
+  // nerozbije roguelite heal-scarcity (balanc křivkou, ne vynecháním).
+  if (state.player.currentHealth < state.player.maxHealth) {
+    for (const b of player.signatureAbilities) {
+      if (!isBonusAction(b) || b.kind !== 'heal') continue;
+      if ((state.player.cooldowns[b.id] ?? 0) > 0) continue; // hl. akce s touto ability ji drží
+      const bTier = b.spellTier ?? 0;
+      if (bTier >= 1 && !hasSlotForTier(state.player.spellSlots, bTier)) continue;
+      if ((b.kiCost ?? 0) > (state.player.kiPoints ?? 0)) continue;
+      if (bTier >= 1) spendSlotForTier(state.player.spellSlots, bTier, abilityPrefersUpcast(b));
+      if ((b.kiCost ?? 0) > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - (b.kiCost ?? 0);
+      const falloff = healFalloff(state.healsUsed);
+      const heal = Math.round(player.attackPower * b.damageMult * HEAL_POWER_FACTOR * falloff);
+      state.player.currentHealth = Math.min(state.player.maxHealth, state.player.currentHealth + heal);
+      state.healsUsed += 1;
+      state.player.cooldowns[b.id] = cooldownTurns(b);
+      const dim = falloff < 1 ? ' (diminished)' : '';
+      pushEvent({
+        t,
+        type: 'heal',
+        message: `✨ ${player.name} casts ${b.name} as a bonus action, healing for ${heal}${dim}. Self: ${Math.round(state.player.currentHealth)} HP`,
+        source: player.name,
+        target: player.name,
+        amount: heal,
+        ability: b.name,
+      });
+      break; // jen jedna bonus akce za kolo
+    }
+  }
 
   // (3) Protiúder nepřítele.
   const enemyHit = computeHit(enemyAsActor, player, rng, 1, false);
