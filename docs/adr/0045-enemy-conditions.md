@@ -153,6 +153,16 @@
    (stun nepřítele → vynechá protiúder, nulové poškození control kouzlem; stunnutý
    hráč ztratí tah; reset conditionů mezi vlnami).
 
+10. **Slice 2d (UI) — zobrazení aktivních conditionů.** Sdílené `CONDITION_META`
+    (`conditions.ts`: ikona + EN štítek per typ) = jediný zdroj pravdy pro
+    zobrazení. Web komponenta `ConditionBadges.svelte` renderuje badge (ikona +
+    zbývající tahy) z `ActiveCondition[]`. Combat API views (`dungeon-turn`,
+    `dungeon-party`, `gauntlet`) rozšířeny o `conditions` na enemy/player/ally/
+    member (mirror v `apps/web/src/lib/api.ts`). Badge přidán na karty nepřátel,
+    hráče i parťáků ve všech třech tahových obrazovkách. **Čistě prezentační** —
+    bez DB migrace, beze změny enginu/balance (jen vystavení dat ze Slice 2a–2d).
+    _Pixel-art polish badge = pozdější deslopifikace UI._
+
 ## Důsledky
 
 - **+** Nepřátelská (i hráčská — symetricky v `combatantHitEnemy`) ability umí

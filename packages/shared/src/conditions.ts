@@ -166,6 +166,19 @@ export function beginActorTurn(holder: { conditions?: ActiveCondition[] }): Turn
   return eff;
 }
 
+/**
+ * UI metadata conditiony — ikona + anglický štítek (EN = jazyk hry). Jediný zdroj
+ * pravdy pro zobrazení status efektů na kartách aktérů (Slice 2d UI); web jen
+ * renderuje, nic si nehardcoduje.
+ */
+export const CONDITION_META: Record<ConditionType, { icon: string; label: string }> = {
+  stunned: { icon: '💫', label: 'Stunned' },
+  prone: { icon: '⬇️', label: 'Prone' },
+  restrained: { icon: '🕸️', label: 'Restrained' },
+  frightened: { icon: '😱', label: 'Frightened' },
+  slowed: { icon: '🐌', label: 'Slowed' },
+};
+
 /** Hláška pro combat log při uvalení conditiony (anglicky = jazyk hry). */
 const CONDITION_VERB: Record<ConditionType, string> = {
   stunned: 'is stunned',

@@ -25,6 +25,7 @@ import {
   type CombatEvent,
   type DungeonRunState,
   type DungeonRunStatus,
+  type ActiveCondition,
   type RaidReward,
   type RaidRole,
   type SpellSlots,
@@ -63,6 +64,8 @@ export interface DungeonTurnEnemyView {
   isBoss: boolean;
   maxHealth: number;
   currentHealth: number;
+  /** Aktivní conditiony (Slice 2d UI) — pro badge na kartě nepřítele. */
+  conditions: ActiveCondition[];
 }
 
 /** AI parťák (Slice 3) — pro UI panel party. */
@@ -72,6 +75,8 @@ export interface DungeonTurnAllyView {
   maxHealth: number;
   currentHealth: number;
   absorb: number;
+  /** Aktivní conditiony (Slice 2d UI). */
+  conditions: ActiveCondition[];
 }
 
 export interface DungeonTurnRunView {
@@ -99,6 +104,8 @@ export interface DungeonTurnRunView {
     rageCharges: number;
     maxRageCharges: number;
     raging: boolean;
+    /** Aktivní conditiony hráče (Slice 2d UI). */
+    conditions: ActiveCondition[];
   };
   /** AI parťáci (group, Slice 3); solo = prázdné. */
   allies: DungeonTurnAllyView[];
@@ -424,6 +431,7 @@ export class DungeonTurnService {
         rageCharges: state.player.rageCharges ?? 0,
         maxRageCharges: run.playerSnapshot.rageCharges ?? 0,
         raging: state.player.raging ?? false,
+        conditions: state.player.conditions ?? [],
       },
       allies: (state.allies ?? []).map((a) => ({
         name: a.name,
@@ -431,6 +439,7 @@ export class DungeonTurnService {
         maxHealth: a.maxHealth,
         currentHealth: Math.max(0, Math.round(a.currentHealth)),
         absorb: Math.round(a.absorb),
+        conditions: a.conditions ?? [],
       })),
       enemies: state.enemies.map((e) => ({
         idx: e.idx,
@@ -438,6 +447,7 @@ export class DungeonTurnService {
         isBoss: e.isBoss,
         maxHealth: e.maxHealth,
         currentHealth: Math.max(0, Math.round(e.currentHealth)),
+        conditions: e.conditions ?? [],
       })),
       abilities: this.abilityViews(run.playerSnapshot, state),
       events: state.log,

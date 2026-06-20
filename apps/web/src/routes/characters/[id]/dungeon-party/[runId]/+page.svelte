@@ -15,6 +15,7 @@
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
   import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
+  import ConditionBadges from '$lib/components/ConditionBadges.svelte';
   import { activeCharacterLevel, activeCharacterSpellSaveDc } from '$lib/ui-stores';
   import type { Socket } from 'socket.io-client';
   import { connectDungeonParty, joinPartyRun, submitPartyTurn } from '$lib/dungeon-party-socket';
@@ -257,6 +258,9 @@
             <div class="bar mt-2">
               <div class="bar-fill" style={`width:${hpPct(e.currentHealth, e.maxHealth)}%;background:var(--danger)`}></div>
             </div>
+            {#if e.conditions.length > 0}
+              <div class="mt-2"><ConditionBadges conditions={e.conditions} /></div>
+            {/if}
           </button>
         {/each}
       </section>
@@ -290,6 +294,9 @@
           <div class="bar mt-2">
             <div class="bar-fill" style={`width:${hpPct(m.currentHealth, m.maxHealth)}%;background:var(--success)`}></div>
           </div>
+          {#if m.conditions.length > 0}
+            <div class="mt-2"><ConditionBadges conditions={m.conditions} /></div>
+          {/if}
         </button>
       {/each}
     </section>
