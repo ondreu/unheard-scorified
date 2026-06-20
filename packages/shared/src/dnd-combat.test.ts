@@ -241,10 +241,36 @@ describe('player condition spells (Slice 2d)', () => {
     expect(trip.condition?.type).toBe('prone');
   });
 
-  it('caster control spells carry a condition on a failed save', () => {
+  it('caster control spells across the catalog carry a condition', () => {
+    // Baseline kit.
     expect(find('bard', 'bard_vicious_mockery').condition?.type).toBe('frightened');
+    expect(find('bard', 'bard_dissonant_whispers').condition?.type).toBe('frightened');
+    expect(find('cleric', 'cleric_spirit_guardians').condition?.type).toBe('slowed');
+    expect(find('monk', 'monk_quivering_palm').condition?.type).toBe('stunned');
+    expect(EXTRA_SPELLS.paladin.find((a) => a.id === 'paladin_wrathful_smite')!.condition?.type).toBe('frightened');
+    // Extra pool + subclass.
     expect(EXTRA_SPELLS.wizard.find((a) => a.id === 'wiz_cone_of_cold')!.condition?.type).toBe('slowed');
     expect(EXTRA_SPELLS.sorcerer.find((a) => a.id === 'sorc_cone_of_cold')!.condition?.type).toBe('slowed');
+    expect(EXTRA_SPELLS.bard.find((a) => a.id === 'bard_phantasmal_killer')!.condition?.type).toBe('frightened');
+    for (const [klass, id] of [['druid', 'druid_ice_storm'], ['sorcerer', 'sorc_ice_storm'], ['wizard', 'wiz_ice_storm']] as const) {
+      expect(EXTRA_SPELLS[klass].find((a) => a.id === id)!.condition?.type).toBe('slowed');
+    }
+  });
+
+  it('Ray of Frost slows on a hit with no save (save-less rider)', () => {
+    const ray = EXTRA_SPELLS.wizard.find((a) => a.id === 'wiz_ray_of_frost')!;
+    expect(ray.save).toBeUndefined();
+    expect(ray.condition).toEqual({ type: 'slowed', durationTurns: 1 });
+  });
+
+  it('condition riders span all five condition types across the player catalog', () => {
+    const all = [...CLASS_BASELINE_ABILITIES.fighter, ...CLASS_BASELINE_ABILITIES.monk,
+      ...CLASS_BASELINE_ABILITIES.bard, ...CLASS_BASELINE_ABILITIES.cleric, ...CLASS_BASELINE_ABILITIES.paladin]
+      .concat(Object.values(EXTRA_SPELLS).flat());
+    const types = new Set(all.map((a) => a.condition?.type).filter(Boolean));
+    for (const t of ['stunned', 'prone', 'frightened', 'slowed'] as const) {
+      expect(types.has(t)).toBe(true);
+    }
   });
 });
 

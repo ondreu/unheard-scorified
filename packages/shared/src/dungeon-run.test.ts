@@ -329,6 +329,27 @@ describe('conditiony (Enemy schopnosti, Slice 2a)', () => {
     expect(enemyCannotAct).toBe(true);
   });
 
+  it('save-less hráčská ability uvalí condition automaticky na zásah (Ray of Frost slow)', () => {
+    const base = hero('fighter');
+    const frost: SignatureAbility = {
+      id: 'test_frost', name: 'Ray of Frost', kind: 'strike', cooldownSec: 0, damageMult: 1,
+      damageType: 'cold', condition: { type: 'slowed', durationTurns: 1 }, // bez save → auto na zásah
+    };
+    base.signatureAbilities = [...base.signatureAbilities, frost];
+    const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);
+    const e = state.enemies[0]!;
+    e.maxHealth = 1_000_000;
+    e.currentHealth = 1_000_000;
+    state.enemies = [e];
+
+    let slowApplied = false;
+    for (let i = 0; i < 8 && state.status === 'in_combat'; i++) {
+      resolveDungeonTurn(base, state, 'test_frost', 0);
+      if (state.log.some((ev) => ev.source === base.name && (ev.message ?? '').includes('is slowed ('))) slowApplied = true;
+    }
+    expect(slowApplied).toBe(true);
+  });
+
   it('short rest mezi encountery setře conditiony', () => {
     const base = hero('fighter');
     const state = startDungeonRun(base, 'ragefire_chasm', 1, 20, 7);

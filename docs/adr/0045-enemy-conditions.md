@@ -82,18 +82,28 @@
    — boss tam jen udeří typově + se savem; conditiony se projeví jen v **tahových**
    dungeonech. Magnitudy bossů (HP/základní swing) i loot/XP beze změny.
 
-7. **Slice 2d (1. část) — hráčská kouzla + `effect: 'none'`.** Aby conditiony
-   nebyly „jen věc nepřátel", dostala vybraná **hráčská** ability condition rider
-   (engine je už symetrický — `combatantHitEnemy`/`memberHitEnemy` uvalí condition
-   na nepřítele). Pro D&D „weapon hit + save-or-condition" (Stunning Strike, Trip
-   Attack) přibyl save efekt **`'none'`**: poškození se savem **nemění** (plný
-   úder), save jen rozhoduje o rideru. Sada: **Stunning Strike** (CON, stunned),
-   **Trip Attack** (STR, prone), **Vicious Mockery** (WIS, frightened), **Cone of
-   Cold** wiz+sorc (CON-half, slowed). `SpellCardInfo.condition` vystaveno pro UI
-   štítek. **Balanc-neutrální mimo tahové dungeony:** ve spojitých simech
-   (quest/gauntlet/PVP) se rider ignoruje (nemá tahy) a `'none'` poškození nemění
-   → `gear-balance` i ostatní kontrakty beze změny; control se projeví jen v
-   tahových dungeonech (proti boss obsahu z 2c).
+7. **Slice 2d (1. část) — hráčská kouzla (plošně) + `effect: 'none'` + save-less
+   ridery.** Aby conditiony nebyly „jen věc nepřátel", dostala condition rider
+   **celá řada hráčských** abilit napříč třídami (engine je symetrický —
+   `combatantHitEnemy`/`memberHitEnemy` uvalí condition na nepřítele). Tři vzory:
+   - **`effect: 'none'`** (nový) — „weapon hit + save-or-condition": plný úder,
+     save jen gatuje rider (Stunning Strike CON→stunned, Trip Attack STR→prone,
+     Wrathful Smite WIS→frightened).
+   - **`effect: 'half'/'negate'` + condition** — damage save *i* rider z jednoho
+     hodu (Vicious Mockery, Dissonant Whispers, Phantasmal Killer, Mind Whispers →
+     frightened; Quivering Palm → stunned; Spirit Guardians, Cone of Cold ×2, Ice
+     Storm ×3 → slowed).
+   - **save-less rider** (nový) — condition **automaticky na zásah**, bez saveu
+     (Ray of Frost ×2 → slowed; D&D zpomalení na zásah je automatické). Engine:
+     `combatantHitEnemy`/`memberHitEnemy` aplikují `ability.condition` přímo, když
+     ability nemá `save`.
+
+   Pokryto stunned/prone/frightened/slowed z hráčské strany (restrained zatím
+   enemy-only — Web/Entangle nejsou v katalogu → „zbytek 2d"). `SpellCardInfo.
+   condition` vystaveno pro UI štítek. **Balanc-neutrální mimo tahové dungeony:**
+   ve spojitých simech (quest/gauntlet/PVP) se rider ignoruje (nemá tahy) a
+   `'none'` poškození nemění → `gear-balance` i ostatní kontrakty beze změny;
+   control se projeví jen v tahových dungeonech (proti boss obsahu z 2c).
 
 ## Důsledky
 

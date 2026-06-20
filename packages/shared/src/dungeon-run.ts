@@ -1007,15 +1007,18 @@ function combatantHitEnemy(
     advantage,
     bonusDice,
   });
+  // Condition rider (Slice 2a/2d): se `save` → na neúspěšný save; bez `save` →
+  // automaticky na zásah (Ray of Frost slow). `applySpellSave` řeší i half/negate dmg.
+  let rider = hit.hit && !ability.save ? ability.condition : undefined;
   if (hit.hit && ability.save) {
     const outcome = applySpellSave(ability, attacker, enemy.actor, rng, hit.amount);
     hit.amount = outcome.amount;
     if (outcome.message) emit({ t, type: 'ability', message: outcome.message, source: enemy.name, target: attacker.name });
-    // Condition rider (Slice 2a): hráčská/parťákova ability může „složit" nepřítele.
-    if (outcome.condition && enemy.currentHealth - hit.amount > 0) {
-      enemy.conditions = applyCondition(enemy.conditions, outcome.condition, attacker.name);
-      emit({ t, type: 'ability', source: attacker.name, target: enemy.name, message: conditionAppliedMessage(enemy.name, outcome.condition) });
-    }
+    rider = outcome.condition;
+  }
+  if (rider && enemy.currentHealth - hit.amount > 0) {
+    enemy.conditions = applyCondition(enemy.conditions, rider, attacker.name);
+    emit({ t, type: 'ability', source: attacker.name, target: enemy.name, message: conditionAppliedMessage(enemy.name, rider) });
   }
   enemy.currentHealth = Math.max(0, enemy.currentHealth - hit.amount);
 
