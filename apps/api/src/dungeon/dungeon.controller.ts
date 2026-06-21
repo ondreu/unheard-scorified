@@ -135,9 +135,9 @@ export class DungeonController {
     @CurrentUser() user: { accountId: string },
     @Param('characterId') characterId: string,
     @Param('runId') runId: string,
-    @Body() body: { abilityId: string; targetId?: number; bonusAbilityId?: string },
+    @Body() body: { abilityId: string; targetId?: number; bonusAbilityId?: string; castTier?: number },
   ): Promise<DungeonTurnRunView> {
-    return this.turn.act(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0, body?.bonusAbilityId);
+    return this.turn.act(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0, body?.bonusAbilityId, body?.castTier);
   }
 
   /** Předčasné opuštění tahového runu (žádná odměna). */
@@ -178,9 +178,9 @@ export class DungeonController {
     @CurrentUser() user: { accountId: string },
     @Param('characterId') characterId: string,
     @Param('runId') runId: string,
-    @Body() body: { abilityId: string; targetId?: number; bonusAbilityId?: string },
+    @Body() body: { abilityId: string; targetId?: number; bonusAbilityId?: string; castTier?: number },
   ): Promise<DungeonPartyRunView> {
-    return this.party.submit(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0, body?.bonusAbilityId);
+    return this.party.submit(user.accountId, characterId, runId, body?.abilityId, body?.targetId ?? 0, body?.bonusAbilityId, body?.castTier);
   }
 
   /** Leader ukončí běh předčasně (žádná odměna). */

@@ -10,6 +10,7 @@ import {
   GENERALIST_FACTION,
   groupContentSizes,
   hasSlotForTier,
+  isValidCastTier,
   isDungeonAbilityReady,
   isEndTurnAction,
   isDungeonId,
@@ -57,6 +58,8 @@ export interface DungeonTurnAbilityView {
   outOfKi: boolean;
   /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
   actionCost: 'action' | 'bonus';
+  /** Kostky přidané za každý slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
+  upcastPerSlot: number;
 }
 
 export interface DungeonTurnEnemyView {
@@ -237,6 +240,7 @@ export class DungeonTurnService {
     abilityId: string,
     targetId: number,
     bonusAbilityId?: string,
+    castTier?: number,
   ): Promise<DungeonTurnRunView> {
     const character = await this.ownedOrThrow(accountId, characterId);
     const run = await this.ownedRunOrThrow(characterId, runId);
@@ -253,6 +257,10 @@ export class DungeonTurnService {
       if (!ability) throw new BadRequestException('Unknown ability');
       if (!isDungeonAbilityReady(state, abilityId)) throw new BadRequestException('Ability on cooldown');
       if (!canCastDungeonAbility(state, ability)) throw new BadRequestException('Out of resources for that ability');
+      // Vědomý upcast (hráč zvolí tier slotu): musí být ≥ minTier a dostupný (anti-cheat).
+      if (castTier != null && !isValidCastTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0, castTier)) {
+        throw new BadRequestException('Invalid spell slot tier');
+      }
     }
 
     // Bonus action (ADR 0042, Slice 3) — vědomá volba hráče vedle hlavní akce.
@@ -266,7 +274,7 @@ export class DungeonTurnService {
       if (!canCastDungeonAbility(state, bonus)) throw new BadRequestException('Out of resources for that bonus action');
     }
 
-    const { state: next } = resolveDungeonTurn(snapshot, state, abilityId, Number(targetId) || 0, bonusAbilityId);
+    const { state: next } = resolveDungeonTurn(snapshot, state, abilityId, Number(targetId) || 0, bonusAbilityId, castTier);
 
     if (next.status === 'cleared') return this.finalize(run, next, character, true);
     if (next.status === 'dead') return this.finalize(run, next, character, false);
@@ -397,6 +405,7 @@ export class DungeonTurnService {
         kiCost,
         outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
         actionCost: a.actionCost ?? 'action',
+        upcastPerSlot: a.dicePerSlotAbove ?? 0,
       };
     });
   }

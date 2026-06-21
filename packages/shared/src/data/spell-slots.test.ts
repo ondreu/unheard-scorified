@@ -5,11 +5,14 @@ import {
   activitySlotCost,
   availableSlots,
   casterTypeOf,
+  castableTiers,
   highestSpellTier,
   isCaster,
+  isValidCastTier,
   longRest,
   spellSlotsFor,
   spellbookFor,
+  spendCastSlot,
   spendHighestSlots,
   spendSlotForTier,
   totalSpellSlots,
@@ -33,6 +36,64 @@ describe('spendSlotForTier — frugal vs upcast', () => {
   it('returns null when no slot of minTier or higher exists', () => {
     expect(spendSlotForTier({ 1: 1 }, 3)).toBeNull();
     expect(spendSlotForTier({ 1: 1 }, 3, true)).toBeNull();
+  });
+});
+
+describe('castableTiers — UI volba upcastu', () => {
+  it('lists every available tier >= minTier (ascending)', () => {
+    expect(castableTiers({ 1: 2, 3: 1, 5: 1 }, 3)).toEqual([3, 5]);
+  });
+
+  it('skips tiers with no remaining slot', () => {
+    expect(castableTiers({ 3: 0, 4: 2, 6: 1 }, 3)).toEqual([4, 6]);
+  });
+
+  it('cantrip/martial (minTier < 1) → no slot choice', () => {
+    expect(castableTiers({ 1: 4 }, 0)).toEqual([]);
+  });
+});
+
+describe('isValidCastTier — server validace zvoleného slotu', () => {
+  const slots = { 3: 1, 5: 1 };
+  it('accepts an available tier >= minTier', () => {
+    expect(isValidCastTier(slots, 3, 3)).toBe(true);
+    expect(isValidCastTier(slots, 3, 5)).toBe(true);
+  });
+
+  it('rejects a tier below minTier (D&D: no downcasting)', () => {
+    expect(isValidCastTier(slots, 5, 3)).toBe(false);
+  });
+
+  it('rejects a tier with no available slot', () => {
+    expect(isValidCastTier(slots, 3, 4)).toBe(false);
+  });
+
+  it('rejects out-of-range / non-integer / cantrip', () => {
+    expect(isValidCastTier(slots, 3, 10)).toBe(false);
+    expect(isValidCastTier(slots, 3, 3.5)).toBe(false);
+    expect(isValidCastTier(slots, 0, 1)).toBe(false);
+  });
+});
+
+describe('spendCastSlot — vědomá volba tieru s fallbackem', () => {
+  it('spends exactly the chosen valid tier', () => {
+    const slots = { 3: 1, 5: 1, 9: 1 };
+    expect(spendCastSlot(slots, 3, true, 5)).toBe(5);
+    expect(slots[5]).toBe(0);
+    expect(slots[9]).toBe(1); // nejvyšší slot nedotčen — hráč zvolil nižší
+  });
+
+  it('falls back to auto (preferUpcast) when choice is invalid', () => {
+    const slots = { 3: 1, 9: 1 };
+    // zvolený tier 5 nemá slot → defenzivní fallback na nejvyšší (nuke)
+    expect(spendCastSlot(slots, 3, true, 5)).toBe(9);
+  });
+
+  it('without a choice matches spendSlotForTier (auto)', () => {
+    const frugal = { 1: 1, 3: 1 };
+    expect(spendCastSlot(frugal, 1, false)).toBe(1);
+    const nuke = { 3: 1, 5: 1 };
+    expect(spendCastSlot(nuke, 3, true)).toBe(5);
   });
 });
 

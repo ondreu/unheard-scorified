@@ -256,6 +256,62 @@ export function abilityPrefersUpcast(ability: {
 }
 
 /**
+ * Tiery slotů, kterými lze toto kouzlo (tier ≥ 1) seslat: každý dostupný tier
+ * **>= `minTier`**. Pro UI **vědomé volby upcastu** (hráč vybere, jakým slotem
+ * sešle). Cantrip/martial (`minTier < 1`) → prázdné (at-will, žádná volba slotu).
+ * Nemutuje. Vrací vzestupně.
+ */
+export function castableTiers(slots: SpellSlots, minTier: number): number[] {
+  if (minTier < 1) return [];
+  const out: number[] = [];
+  for (let tier = minTier; tier <= MAX_SPELL_TIER; tier++) {
+    if ((slots[tier] ?? 0) > 0) out.push(tier);
+  }
+  return out;
+}
+
+/**
+ * Je `tier` validní slot pro seslání kouzla daného `minTier`? Tj. `tier ≥ minTier`
+ * (D&D: nelze seslat slotem nižšího levelu) a postava má alespoň jeden takový slot.
+ * Čistá kontrola (nemutuje) — server-side validace hráčem zvoleného upcast tieru.
+ * `minTier < 1` (cantrip/martial) → `false` (žádná volba slotu nedává smysl).
+ */
+export function isValidCastTier(slots: SpellSlots, minTier: number, tier: number): boolean {
+  if (minTier < 1) return false;
+  if (!Number.isInteger(tier) || tier < minTier || tier > MAX_SPELL_TIER) return false;
+  return (slots[tier] ?? 0) > 0;
+}
+
+/**
+ * Vyčerpá slot pro seslání kouzla s ohledem na **hráčovu volbu tieru** (vědomý
+ * upcast). Mutuje rozpočet, vrací použitý tier (pro škálování damage/heal) nebo
+ * `null` (žádný použitelný slot → kouzlo „fizzles" na basic úder/cantrip).
+ *
+ * `chosenTier`:
+ *  - `null`/`undefined` → **auto**: zachová dosavadní chování (`spendSlotForTier`
+ *    s `preferUpcast` = nejvyšší slot pro nuke, jinak nejnižší). Zpětná kompatibilita
+ *    pro auto-resolve i tahové režimy bez explicitní volby.
+ *  - číslo → hráč zvolil slot daného tieru. Je-li validní (≥ `minTier` a dostupný),
+ *    sešle se přesně jím; jinak **defenzivní fallback** na auto (UI/server to mají
+ *    hlídat, ale engine se nesmí zaseknout).
+ *
+ * Sdílené napříč tahovými simulátory (dungeon-turn / dungeon-party / Gauntlet) —
+ * jediný zdroj per-cast spotřeby slotu s volbou tieru.
+ */
+export function spendCastSlot(
+  slots: SpellSlots,
+  minTier: number,
+  preferUpcast: boolean,
+  chosenTier?: number | null,
+): number | null {
+  if (chosenTier != null && isValidCastTier(slots, minTier, chosenTier)) {
+    slots[chosenTier] = (slots[chosenTier] ?? 0) - 1;
+    return chosenTier;
+  }
+  return spendSlotForTier(slots, minTier, preferUpcast);
+}
+
+/**
  * Je k dispozici alespoň jeden slot tieru **>= `minTier`**? Čistá kontrola (nemutuje)
  * — pro UI (zašednutí kouzla bez slotu) a server-side validaci tahu, kde se ještě
  * nesmí utratit. `minTier ≤ 0` (cantrip/martial) → vždy `true` (at-will, bez slotu).

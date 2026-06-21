@@ -49,7 +49,7 @@ import { applyDamageInteraction, damageInteraction } from './data/damage';
 import { groupEncounters } from './group';
 import { TANK_INCOMING_DAMAGE_MULT, type RaidActor, type RaidRole } from './raid';
 import { shouldCastAbility, shouldCastHeal } from './rotation';
-import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import { abilityPrefersUpcast, hasSlotForTier, spendCastSlot, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
 /** Délka jednoho „tahu" v sekundách — převádí cooldown abilit (s) na počet tahů. */
 export const DUNGEON_TURN_SEC = 3;
@@ -474,6 +474,10 @@ export function resolveDungeonTurn(
    * vedle hlavní akce (D&D „1 akce + 1 bonus / kolo"). Nic se nedělá automaticky;
    * bez tohoto id žádná bonus akce neproběhne. */
   bonusAbilityId?: string,
+  /** Volitelný **upcast tier** — hráč vědomě zvolí, jakým slotem hlavní akci sešle
+   * (Fireball z 3. vs 5. tier slotu). `undefined` → auto (nejvyšší pro nuke). Validuje
+   * volající (server); engine na nevalidní tier defenzivně spadne do auta. */
+  castTier?: number,
 ): { state: DungeonRunState; events: CombatEvent[] } {
   if (state.status !== 'in_combat' || state.enemies.length === 0) return { state, events: [] };
 
@@ -522,7 +526,7 @@ export function resolveDungeonTurn(
 
   // Commit zdrojů (slot/Ki) — až teď, aby DoT-kill neutratil zdroj nadarmo.
   let usedSlotTier: number | null = null;
-  if (abilityTier >= 1) usedSlotTier = spendSlotForTier(state.player.spellSlots, abilityTier, abilityPrefersUpcast(ability));
+  if (abilityTier >= 1) usedSlotTier = spendCastSlot(state.player.spellSlots, abilityTier, abilityPrefersUpcast(ability), castTier);
   if (kiCost > 0) state.player.kiPoints -= kiCost;
 
   // (2) Hráčova ability.

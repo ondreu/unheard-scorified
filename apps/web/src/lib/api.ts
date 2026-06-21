@@ -464,6 +464,8 @@ export interface DungeonTurnAbilityView {
   outOfKi: boolean;
   /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
   actionCost: 'action' | 'bonus';
+  /** Kostky/slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
+  upcastPerSlot: number;
 }
 
 export interface DungeonTurnEnemyView {
@@ -544,10 +546,11 @@ export function actDungeonTurn(
   abilityId: string,
   targetId: number,
   bonusAbilityId?: string,
+  castTier?: number,
 ): Promise<DungeonTurnRunView> {
   return request<DungeonTurnRunView>(`/characters/${characterId}/dungeons/turn/run/${runId}/act`, {
     method: 'POST',
-    body: JSON.stringify({ abilityId, targetId, bonusAbilityId }),
+    body: JSON.stringify({ abilityId, targetId, bonusAbilityId, castTier }),
   });
 }
 
@@ -632,10 +635,11 @@ export function submitDungeonParty(
   abilityId: string,
   targetId: number,
   bonusAbilityId?: string,
+  castTier?: number,
 ): Promise<DungeonPartyRunView> {
   return request<DungeonPartyRunView>(`/characters/${characterId}/dungeons/party/run/${runId}/submit`, {
     method: 'POST',
-    body: JSON.stringify({ abilityId, targetId, bonusAbilityId }),
+    body: JSON.stringify({ abilityId, targetId, bonusAbilityId, castTier }),
   });
 }
 
@@ -2005,6 +2009,8 @@ export interface GauntletAbilityView {
   outOfKi: boolean;
   /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
   actionCost: 'action' | 'bonus';
+  /** Kostky/slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
+  upcastPerSlot: number;
 }
 
 export interface GauntletDailyView {
@@ -2098,10 +2104,11 @@ export function gauntletAct(
   runId: string,
   abilityId: string,
   bonusAbilityId?: string,
+  castTier?: number,
 ): Promise<GauntletRunView> {
   return request<GauntletRunView>(`/characters/${characterId}/gauntlet/run/${runId}/act`, {
     method: 'POST',
-    body: JSON.stringify({ abilityId, bonusAbilityId }),
+    body: JSON.stringify({ abilityId, bonusAbilityId, castTier }),
   });
 }
 

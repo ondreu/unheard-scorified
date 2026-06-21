@@ -12,6 +12,7 @@ import {
   gauntletDefeatedTemplates,
   gauntletRunReward,
   isGauntletAbilityReady,
+  isValidCastTier,
   levelFromXp,
   resolveGauntletTurn,
   rollGauntletDraft,
@@ -61,6 +62,8 @@ export interface GauntletAbilityView {
   outOfKi: boolean;
   /** D&D akční slot (ADR 0042) — 'action' (default) / 'bonus' (Healing Word). */
   actionCost: 'action' | 'bonus';
+  /** Kostky přidané za každý slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
+  upcastPerSlot: number;
 }
 
 export interface GauntletDailyView {
@@ -189,6 +192,7 @@ export class GauntletService {
     runId: string,
     abilityId: string,
     bonusAbilityId?: string,
+    castTier?: number,
   ): Promise<GauntletRunView> {
     const character = await this.ownedOrThrow(accountId, characterId);
     const run = await this.ownedRunOrThrow(characterId, runId);
@@ -209,6 +213,10 @@ export class GauntletService {
     if (!canCastGauntletAbility(state, ability)) {
       throw new BadRequestException('Out of spell slots for that spell');
     }
+    // Vědomý upcast (hráč zvolí tier slotu): musí být ≥ minTier a dostupný (anti-cheat).
+    if (castTier != null && !isValidCastTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0, castTier)) {
+      throw new BadRequestException('Invalid spell slot tier');
+    }
 
     // Bonus action (ADR 0042, Slice 3) — vědomá volba hráče vedle hlavní akce.
     if (bonusAbilityId) {
@@ -219,7 +227,7 @@ export class GauntletService {
       if (!canCastGauntletAbility(state, bonus)) throw new BadRequestException('Out of resources for that bonus action');
     }
 
-    const { state: next } = resolveGauntletTurn(snapshot, state, abilityId, bonusAbilityId);
+    const { state: next } = resolveGauntletTurn(snapshot, state, abilityId, bonusAbilityId, castTier);
 
     if (next.status === 'drafting' && !next.draft) {
       next.draft = await this.buildDraft(snapshot, next, character);
@@ -479,6 +487,7 @@ export class GauntletService {
         kiCost,
         outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
         actionCost: a.actionCost ?? 'action',
+        upcastPerSlot: a.dicePerSlotAbove ?? 0,
       };
     });
   }

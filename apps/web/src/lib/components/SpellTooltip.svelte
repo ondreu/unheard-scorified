@@ -13,11 +13,14 @@
   let {
     abilityId,
     level = 1,
+    slotTier,
     spellSaveDc,
     children,
   }: {
     abilityId: string;
     level?: number;
+    /** Zvolený upcast slot tier (Upcast — volba slotu) → karta ukáže upcastnuté kostky. */
+    slotTier?: number;
     spellSaveDc?: number;
     children?: import('svelte').Snippet;
   } = $props();
@@ -42,7 +45,7 @@
       onmouseleave={() => (pinned = false)}
     >ⓘ</button>
     <div class="card-pop" class:pinned role="tooltip">
-      <SpellCard {ability} {level} {spellSaveDc} compact />
+      <SpellCard {ability} {level} {slotTier} {spellSaveDc} compact />
     </div>
   {/if}
 </div>
