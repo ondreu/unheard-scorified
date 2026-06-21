@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveCombatProfile, type CombatActor } from './combat';
+import { deriveCombatProfile, type CombatActor, type EnemyStats } from './combat';
 import { QUESTS, type QuestDef, type QuestEnemyTier } from './data/quests';
 import {
   questFoeStats,
@@ -10,6 +10,7 @@ import {
 import { baseStatsFor } from './character';
 import { EMPTY_PROGRESSION } from './levelup';
 import { SeededRng } from './rng';
+import type { SignatureAbility } from './data/abilities';
 
 function makeProfile(level: number): CombatActor {
   return deriveCombatProfile({
@@ -333,5 +334,61 @@ describe('simulateQuestRun (combat objective)', () => {
     expect(QUESTS.dt_skull_rock!.combatObjective).toBe(true);
     expect(QUESTS.epl_araj_reckoning!.combatObjective).toBe(true);
     expect(QUESTS.fw_jadefire_lord!.combatObjective).toBe(true);
+  });
+});
+
+describe('conditiony ve spojitém sim (Slice 2d — quest auto-resolve)', () => {
+  // Rigged stun strike: vždy zasáhne (attackBonus 99) a save je nesplnitelný
+  // (spellSaveDc 99) → stun vždy „padne". Cooldown 0 = může re-stunnout.
+  const stunStrike: SignatureAbility = {
+    id: 'q_stun',
+    name: 'Skull Crack',
+    kind: 'strike',
+    cooldownSec: 0,
+    damageMult: 0.01,
+    damageType: 'bludgeoning',
+    save: { ability: 'constitution', effect: 'none' },
+    condition: { type: 'stunned', durationTurns: 1 },
+  };
+
+  it('enemy stun ability namapuje na vynechaný beat postavy', () => {
+    const player = makeProfile(20);
+    const foe: EnemyStats = {
+      name: 'Brute',
+      swingInterval: 2.4,
+      maxHealth: 10_000_000,
+      attackPower: 1,
+      attackBonus: 99,
+      spellSaveDc: 99,
+      signatureAbilities: [stunStrike],
+    };
+    const enc = simulateQuestEncounter(player, foe, new SeededRng(7), 0, false);
+    // Postava dostane stun (zdroj = Brute) → na svém příštím beatu „ztratí akci".
+    expect(enc.events.some((e) => e.source === 'Brute' && (e.message ?? '').includes('stunned'))).toBe(true);
+    expect(
+      enc.events.some(
+        (e) => e.source === player.name && (e.message ?? '').includes('incapacitated and loses the action'),
+      ),
+    ).toBe(true);
+  });
+
+  it('hráčská pure-control ability restrainne nepřítele bez poškození', () => {
+    const player = makeProfile(20);
+    const hold: SignatureAbility = {
+      id: 'q_hold',
+      name: 'Hold Monster',
+      kind: 'strike',
+      cooldownSec: 0,
+      damageMult: 0, // pure control (isControlSpell)
+      save: { ability: 'wisdom', effect: 'negate' },
+      condition: { type: 'restrained', durationTurns: 2 },
+    };
+    player.signatureAbilities = [hold];
+    player.spellSaveDc = 99; // nepřítel save vždy selže
+    const foe: EnemyStats = { name: 'Golem', swingInterval: 2.4, maxHealth: 10_000_000, attackPower: 1 };
+    const enc = simulateQuestEncounter(player, foe, new SeededRng(3), 0, false);
+    // Control kouzlo: seslání + restrain na nepřítele, žádný útočný „hit" z Hold Monster.
+    expect(enc.events.some((e) => (e.message ?? '').includes('casts Hold Monster'))).toBe(true);
+    expect(enc.events.some((e) => (e.message ?? '').includes('Golem') && (e.message ?? '').includes('restrained'))).toBe(true);
   });
 });

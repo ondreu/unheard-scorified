@@ -39,7 +39,23 @@ import {
   type EnemyStats,
 } from './combat';
 import { rollDice } from './dice';
-import { applySpellSave, buildDndAttackMessage, buildSaveMessage, rollInitiative, savingThrow } from './dnd-combat';
+import {
+  applySpellSave,
+  buildDndAttackMessage,
+  buildSaveMessage,
+  isControlSpell,
+  resolveControlCast,
+  rollInitiative,
+  savingThrow,
+} from './dnd-combat';
+import {
+  applyCondition,
+  beginActorTurn,
+  combineAdvantage,
+  conditionAppliedMessage,
+  grantsIncomingAdvantage,
+  type ActiveCondition,
+} from './conditions';
 import { applyDamageInteraction, crForContentLevel, damageInteraction, type DamageType } from './data/damage';
 import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import { BESTIARY, instantiateEnemy } from './data/enemies';
@@ -236,6 +252,12 @@ export function simulateQuestEncounter(
     name: string;
   }
   const dots: QuestDot[] = [];
+  // Conditiony (Slice 2d — spojité simy): status efekty namapované na timeline.
+  // „Turn" aktéra = jeho basic-swing beat (pNext/eNext); na tom beatu se condition
+  // vyhodnotí + dekrementuje (`beginActorTurn`). Stun/charmed = vynechaný beat,
+  // frightened/prone/slowed/… = disadvantage na hod. Mutabilní holdery (per encounter).
+  const playerH: { conditions?: ActiveCondition[] } = {};
+  const enemyH: { conditions?: ActiveCondition[] } = {};
   while (enemyHp > 0 && t < hardStop) {
     // Nejbližší DoT tik — když nastane dřív než další úder, vyřeš ho.
     let dotIdx = -1;
@@ -268,6 +290,19 @@ export function simulateQuestEncounter(
     if (pNext <= eNext) {
       t = pNext;
       pNext = t + player.swingInterval;
+      // Conditiony (Slice 2d): vyhodnoť + dekrementuj na začátku beatu postavy.
+      // Stun/charmed → postava ztrácí tah (žádný heal ani útok); jinak si poznač
+      // disadvantage na tento beat (frightened/prone/slowed/…).
+      const pEff = beginActorTurn(playerH);
+      if (pEff.skipTurn) {
+        events.push({
+          t: round1(t),
+          type: 'ability',
+          source: player.name,
+          message: `💫 ${player.name} is incapacitated and loses the action.`,
+        });
+        continue;
+      }
       // Healer self-sustain (solo): když to dovolí rotace (default `self_hp_below`
       // 0.5; hráč přebije prahem/always/vypnutím) a postava není na plné HP, sešle
       // heal (spálí slot) místo útoku. Group obsah léčí spoluhráče (jiný engine).
@@ -341,6 +376,34 @@ export function simulateQuestEncounter(
         readyAt[a.id] = t + a.cooldownSec;
         break;
       }
+      // Control kouzlo (Slice 2d): pure-control (Hold Person/Web/Entangle) nemá hod
+      // ani poškození → jen save → condition na nepřítele. Slot/cooldown už spotřebován.
+      if (chosen && isControlSpell(chosen)) {
+        const tgt = { actor: enemy, name: enemy.name, conditions: enemyH.conditions };
+        const outcome = resolveControlCast(chosen, player, tgt, rng, player.name);
+        enemyH.conditions = tgt.conditions;
+        events.push({
+          t: round1(t),
+          type: 'ability',
+          source: player.name,
+          target: enemy.name,
+          ability: chosen.name,
+          message: `✨ ${player.name} casts ${chosen.name} at ${enemy.name}.`,
+        });
+        if (outcome.saveMessage) {
+          events.push({ t: round1(t), type: 'ability', source: enemy.name, message: outcome.saveMessage });
+        }
+        if (outcome.applied) {
+          events.push({
+            t: round1(t),
+            type: 'ability',
+            source: player.name,
+            target: enemy.name,
+            message: conditionAppliedMessage(enemy.name, outcome.applied),
+          });
+        }
+        continue;
+      }
       // Literal D&D spell dice (ADR 0032): kouzla s `dice` (Fireball 8d6) jdou přímo
       // jako kostky (mult = 1); martial techniky/drainy škálují přes `attackPower`
       // (mult = damageMult + execute). Upcast dle slotu, kterým bylo kouzlo sesláno.
@@ -351,22 +414,39 @@ export function simulateQuestEncounter(
       const bonus = chosen ? bonusDiceSpec(chosen, slotTier, player.level) : undefined;
       // Per-ability typ poškození (MR-10d) — kouzlo přebíjí typ classy (Magic
       // Missile = force…); undefined → zdědí typ zbraně/classy útočníka.
+      // Advantage (Slice 2d): vlastní advantage ability + disadvantage z conditionů
+      // postavy (frightened/prone/…) + advantage z conditionů nepřítele (prone/
+      // restrained/stunned/blinded). `pEff` = efekty vyhodnocené pro tento beat.
       const result = resolveAttack(player, enemy, rng, {
         abilityMult: mult,
         damageType: chosen?.damageType,
         damageSpec: spec,
         autoHit: chosen?.autoHit,
-        advantage: chosen?.advantage ? 'advantage' : undefined,
+        advantage: combineAdvantage(
+          chosen?.advantage ? 'advantage' : undefined,
+          pEff.attackDisadvantage ? 'disadvantage' : undefined,
+          grantsIncomingAdvantage(enemyH.conditions) ? 'advantage' : undefined,
+        ),
         bonusDice: bonus,
       });
 
       // Per-spell saving throw (ADR 0032): kouzlo s `save` → nepřítel si hodí
       // záchranný hod proti spell save DC (úspěch = půlka / nula dle efektu).
+      // Neúspěšný save + condition rider (Slice 2d) → status efekt na nepřítele.
       let saveMessage: string | undefined;
+      let condMessage: string | undefined;
       if (result.hit && chosen?.save) {
         const outcome = applySpellSave(chosen, player, enemy, rng, result.amount);
         result.amount = outcome.amount;
         saveMessage = outcome.message;
+        if (outcome.condition) {
+          enemyH.conditions = applyCondition(enemyH.conditions, outcome.condition, player.name);
+          condMessage = conditionAppliedMessage(enemy.name, outcome.condition);
+        }
+      } else if (result.hit && chosen?.condition && !chosen.save) {
+        // Save-less rider (Ray of Frost slow) → condition automaticky na zásah.
+        enemyH.conditions = applyCondition(enemyH.conditions, chosen.condition, player.name);
+        condMessage = conditionAppliedMessage(enemy.name, chosen.condition);
       }
 
       if (result.hit) enemyHp = Math.max(0, enemyHp - result.amount);
@@ -422,6 +502,9 @@ export function simulateQuestEncounter(
       if (saveMessage) {
         events.push({ t: round1(t), type: 'ability', message: saveMessage, source: enemy.name });
       }
+      if (condMessage) {
+        events.push({ t: round1(t), type: 'ability', message: condMessage, source: player.name, target: enemy.name });
+      }
       // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught dají útok(y)
       // navíc v tomtéž kole (extra basic swing) — hned, než jedná nepřítel.
       const extras = chosen ? extraActionCount(chosen) : 0;
@@ -456,6 +539,18 @@ export function simulateQuestEncounter(
       t = eNext;
       eNext = t + enemy.swingInterval;
       enemyTurns++;
+      // Conditiony (Slice 2d): vyhodnoť + dekrementuj na začátku beatu nepřítele.
+      // Stun/charmed → nepřítel ztrácí tah; jinak disadvantage na jeho hod.
+      const eEff = beginActorTurn(enemyH);
+      if (eEff.skipTurn) {
+        events.push({
+          t: round1(t),
+          type: 'ability',
+          source: enemy.name,
+          message: `💫 ${enemy.name} is incapacitated and loses the action.`,
+        });
+        continue;
+      }
       // „Enemy schopnosti": má-li nepřítel aktivní ability (z katalogu), vystřelí
       // první ready (cooldown podle času) — typové poškození + per-ability saving
       // throw. Bez abilit (dnešní obsah) → legacy boss „special": každý 3. tah
@@ -463,9 +558,16 @@ export function simulateQuestEncounter(
       const enemyAbility = selectEnemyAbility(enemy, (a) => (enemyAbilityReady[a.id] ?? 0) <= t);
       const special = !enemyAbility && enemy.isBoss && enemyTurns % 3 === 0;
 
+      // Advantage (Slice 2d): disadvantage z conditionů nepřítele (eEff) + advantage
+      // z conditionů postavy (prone/restrained/stunned/blinded).
+      const enemyAdvantage = combineAdvantage(
+        eEff.attackDisadvantage ? 'disadvantage' : undefined,
+        grantsIncomingAdvantage(playerH.conditions) ? 'advantage' : undefined,
+      );
       let result: ReturnType<typeof resolveAttack>;
       let dmg: number;
       let saveMessage: string | undefined;
+      let condMessage: string | undefined;
       let abilityLabel: string | undefined;
       if (enemyAbility) {
         const spec = abilityDamageSpec(enemyAbility, null, enemy.level);
@@ -474,17 +576,22 @@ export function simulateQuestEncounter(
           abilityMult: mult,
           damageType: enemyAbility.damageType,
           damageSpec: spec,
+          advantage: enemyAdvantage,
         });
         dmg = result.amount;
         if (result.hit && enemyAbility.save) {
           const out = applySpellSave(enemyAbility, enemy, player, rng, dmg);
           dmg = out.amount;
           saveMessage = out.message;
+          if (out.condition) {
+            playerH.conditions = applyCondition(playerH.conditions, out.condition, enemy.name);
+            condMessage = conditionAppliedMessage(player.name, out.condition);
+          }
         }
         enemyAbilityReady[enemyAbility.id] = t + enemyAbility.cooldownSec;
         abilityLabel = enemyAbility.name;
       } else {
-        result = resolveAttack(enemy, player, rng, { abilityMult: special ? 1.6 : 1 });
+        result = resolveAttack(enemy, player, rng, { abilityMult: special ? 1.6 : 1, advantage: enemyAdvantage });
         dmg = result.amount;
         if (result.hit && special) {
           const save = savingThrow(player, rng, 'dexterity', actorSpellSaveDc(enemy));
@@ -524,6 +631,9 @@ export function simulateQuestEncounter(
       });
       if (saveMessage) {
         events.push({ t: round1(t), type: 'ability', message: saveMessage, source: player.name });
+      }
+      if (condMessage) {
+        events.push({ t: round1(t), type: 'ability', message: condMessage, source: enemy.name, target: player.name });
       }
       if (allowDefeat && playerHp <= 0) {
         playerDown = true;

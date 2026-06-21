@@ -15,6 +15,7 @@ import {
   simulateRaidRun,
   type CombatActor,
   type RaidActor,
+  type SignatureAbility,
   type RaidRole,
 } from './index';
 
@@ -309,5 +310,34 @@ describe('training dummy sandbox (MIL)', () => {
     const big = buildTrainingDummy(1000);
     expect(big.attackPower).toBeGreaterThan(small.attackPower);
     expect(small.maxHealth).toBe(big.maxHealth);
+  });
+});
+
+describe('conditiony ve spojitém sim (Slice 2d — group auto-resolve)', () => {
+  it("enemy stun ability namapuje na vynechaný beat člena party", () => {
+    const party = buildParty();
+    // Rigged stun boss: vždy zasáhne (attackBonus 99), save nesplnitelný (DC 99),
+    // slabý úder (nezabije) + obří HP (nepadne) → opakovaně stunuje threat cíl.
+    const stun: SignatureAbility = {
+      id: 'r_stun',
+      name: 'Petrifying Gaze',
+      kind: 'strike',
+      cooldownSec: 3,
+      damageMult: 0.01,
+      damageType: 'psychic',
+      save: { ability: 'wisdom', effect: 'none' },
+      condition: { type: 'stunned', durationTurns: 1 },
+    };
+    const boss: CombatActor = {
+      ...bossActor('Gorgon', 5, 5_000_000),
+      attackBonus: 99,
+      spellSaveDc: 99,
+      signatureAbilities: [stun],
+    };
+    const result = simulateRaidRun(party, [boss], 7);
+    expect(result.events.some((e) => (e.message ?? '').includes('stunned'))).toBe(true);
+    expect(
+      result.events.some((e) => (e.message ?? '').includes('incapacitated and loses the action')),
+    ).toBe(true);
   });
 });

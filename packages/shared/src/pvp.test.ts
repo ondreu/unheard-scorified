@@ -15,6 +15,7 @@ import {
   simulateTeamFight,
   STARTING_RATING,
   type CombatActor,
+  type SignatureAbility,
 } from './index';
 
 function actor(name: string, overrides: Partial<CombatActor> = {}): CombatActor {
@@ -221,5 +222,38 @@ describe('eloDelta', () => {
     const vsStrong = eloDelta(1500, 1900, true).delta;
     const vsWeak = eloDelta(1500, 1100, true).delta;
     expect(vsStrong).toBeGreaterThan(vsWeak);
+  });
+});
+
+describe('conditiony ve spojitém sim (Slice 2d — PVP)', () => {
+  const stun: SignatureAbility = {
+    id: 'p_stun',
+    name: 'Hex of Binding',
+    kind: 'strike',
+    cooldownSec: 3,
+    damageMult: 0.01,
+    damageType: 'necrotic',
+    save: { ability: 'wisdom', effect: 'none' },
+    condition: { type: 'stunned', durationTurns: 1 },
+  };
+
+  it('duelist s condition riderem stunne soupeře → vynechaný beat', () => {
+    // Oba obří HP + slabé údery → duel běží dlouho; stunner vždy zasáhne (attackBonus
+    // 99) a soupeř save vždy selže (DC 99) → opakovaně stunuje.
+    const stunner = actor('Hexer', {
+      maxHealth: 1_000_000,
+      attackPower: 1,
+      attackBonus: 99,
+      spellSaveDc: 99,
+      signatureAbilities: [stun],
+    });
+    const victim = actor('Victim', { maxHealth: 1_000_000, attackPower: 1 });
+    const r = simulatePvpDuel(stunner, victim, 7);
+    expect(r.events.some((e) => (e.message ?? '').includes('stunned'))).toBe(true);
+    expect(
+      r.events.some(
+        (e) => e.source === 'Victim' && (e.message ?? '').includes('incapacitated and loses the action'),
+      ),
+    ).toBe(true);
   });
 });
