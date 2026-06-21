@@ -207,10 +207,7 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 ## UI / UX
 
 - [ ] **Deslopifikace UI** — celkové pročištění UI od „AI-slop" vzhledu; konzistentní vizuální jazyk, méně generických tlačítek. Zastřešuje redesign **spell karet** a **combat logu** (viz výše) i obecný polish napříč obrazovkami.
-- [ ] **Notifikace / oznámení — chování jako u seriózní hry** — opravit chování, které mate:
-  - po loginu **vyskakují i už přečtená** oznámení — nemají.
-  - **přečtené, ale nesmazané** oznámení nesmí znovu vyskakovat.
-  - hráč musí mít možnost **zavřít jednotlivé karty** s upozorněním, které právě vyskočily.
+- [x] **Notifikace / oznámení — chování jako u seriózní hry** ✅ — toast vrstva (`Toasts.svelte`) rozhodovala o vyskočení jen podle 5s wall-clock okna (`at`) + per-session `seen` setu a **ignorovala perzistovaný `read` stav**. Fix: toast vyskočí jen pro **nepřečtené** notifikace (`!n.read`) → přečtené (otevřel se zvonek) už nikdy znovu nevyskočí, i kdyby nebyly smazané [pokrývá oba reportované case: po loginu i přečtené-ale-nesmazané]; freshness guard (`at`) zůstává pro restorované nepřečtené. Každý toast dostal **✕ tlačítko** (`dismiss`) — hráč zavře jednotlivou kartu, která vyskočila (ve zvonku zůstane). Bez změny store/perzistence/API.
 
 ## Platforma & distribuce
 
