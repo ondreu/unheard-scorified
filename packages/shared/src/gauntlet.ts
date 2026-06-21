@@ -40,7 +40,7 @@ import {
   type CombatEvent,
   type SignatureAbility,
 } from './combat';
-import { applySpellSave, isControlSpell, missMessage } from './dnd-combat';
+import { applySpellSave, canTargetCreatureType, isControlSpell, missMessage } from './dnd-combat';
 import {
   applyCondition,
   beginActorTurn,
@@ -51,7 +51,7 @@ import {
   turnConditionEffects,
   type ActiveCondition,
 } from './conditions';
-import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
+import { applyDamageInteraction, crForContentLevel, damageInteraction, type CreatureType } from './data/damage';
 import { BESTIARY, enemyAbilityToSignature } from './data/enemies';
 import {
   abilityPrefersUpcast,
@@ -393,6 +393,15 @@ function enemyAbilities(enemy: GauntletEnemyState): SignatureAbility[] {
   return (tmpl?.abilities ?? []).map(enemyAbilityToSignature);
 }
 
+/**
+ * Creature type aktuálního Gauntlet nepřítele (z katalogové šablony) — pro
+ * creature type targeting (Hold Person → humanoid) v enginu, API anti-cheatu i UI.
+ * `undefined` u ad-hoc vln bez `templateId`.
+ */
+export function gauntletEnemyCreatureType(enemy: GauntletEnemyState): CreatureType | undefined {
+  return enemy.templateId ? BESTIARY[enemy.templateId]?.creatureType : undefined;
+}
+
 /** `CombatActor` nepřítele pro sdílený `computeHit` (zdroj pravdy combat vzorce). */
 function enemyActor(enemy: GauntletEnemyState): CombatActor {
   const tmpl = enemy.templateId ? BESTIARY[enemy.templateId] : undefined;
@@ -411,6 +420,9 @@ function enemyActor(enemy: GauntletEnemyState): CombatActor {
     resistances: tmpl?.resistances,
     vulnerabilities: tmpl?.vulnerabilities,
     immunities: tmpl?.immunities,
+    // Creature type (Hold Person → humanoid) z katalogové šablony; ad-hoc vlna bez
+    // templateId → undefined (cílení neomezeno).
+    creatureType: tmpl?.creatureType,
   });
 }
 
@@ -569,6 +581,11 @@ export function resolveGauntletTurn(
     if (!hasSlotForTier(state.player.spellSlots, ability.spellTier ?? 0))
       return { state, events: [] };
     if ((ability.kiCost ?? 0) > (state.player.kiPoints ?? 0)) return { state, events: [] };
+    // Creature type targeting: kouzlo s omezením typu cíle (Hold Person → humanoid)
+    // jen na povolený typ aktuálního nepřítele. Neplatný cíl → odmítnuto bez zdroje.
+    if (ability.validTargetTypes && !canTargetCreatureType(ability, enemyActor(state.enemy!).creatureType)) {
+      return { state, events: [] };
+    }
   }
   let usedSlotTier: number | null = null;
 

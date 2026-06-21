@@ -39,6 +39,7 @@ import {
   crStatGuide,
   damageInteraction,
   type ChallengeRating,
+  type CreatureType,
   type DamageInteraction,
   type DamageType,
 } from './data/damage';
@@ -218,6 +219,13 @@ export interface CombatActor {
    */
   attackDie?: number;
   // ── D&D bestiář (MR-7) — typové poškození a obrany ─────────────────────────
+  /**
+   * D&D creature type aktéra (humanoid/beast/undead/…) — řídí **creature type
+   * targeting** (Hold Person jen na humanoidy, viz `canTargetCreatureType`).
+   * Postavy = `humanoid`; nepřátelé dědí typ z katalogové šablony (`instantiateEnemy`).
+   * `undefined` = neznámý (ad-hoc/narativní nepřítel) → cílení neomezeno (graceful).
+   */
+  creatureType?: CreatureType;
   /** Typ poškození základního útoku aktéra. `undefined` = fyzické (bludgeoning). */
   damageType?: DamageType;
   /** Typy poškození, vůči kterým má aktér resistance (×0.5). */
@@ -433,6 +441,9 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     // Per-class weapon/cantrip dice + damage type (MR-10b) — tvar a typové
     // poškození hráčova útoku (magnitudu drží `attackPower`).
     attackDie: CLASSES[klass].attackDie,
+    // Postavy jsou v D&D humanoidi → cílitelné Hold Personem (creature type
+    // targeting; relevantní hlavně v PVP, kde je „nepřítel" hráč).
+    creatureType: 'humanoid',
     damageType: CLASSES[klass].attackDamageType,
     saveMods,
     spellSaveDc: 8 + prof + castingMod,
@@ -505,6 +516,12 @@ export interface EnemyStats {
   /** Spell save DC speciálních útoků (saving throw cíle). */
   spellSaveDc?: number;
   // ── D&D bestiář (MR-7) — typové poškození a obrany ─────────────────────────
+  /**
+   * D&D creature type (z katalogové šablony) — pro creature type targeting
+   * (Hold Person → humanoid). Nese `instantiateEnemy`; `buildEnemyActor` ho
+   * propíše do `CombatActor.creatureType`. `undefined` = ad-hoc nepřítel.
+   */
+  creatureType?: CreatureType;
   /** Typ poškození základního útoku. `undefined` = fyzické (bludgeoning). */
   damageType?: DamageType;
   /** Resistance vůči typům poškození (×0.5). */
@@ -557,6 +574,7 @@ export function buildEnemyActor(def: EnemyStats): CombatActor {
     attackBonus: def.attackBonus ?? guide.attackBonus,
     damageBonus: def.damageBonus,
     spellSaveDc: def.spellSaveDc ?? guide.saveDc,
+    creatureType: def.creatureType,
     damageType: def.damageType,
     resistances: def.resistances,
     vulnerabilities: def.vulnerabilities,

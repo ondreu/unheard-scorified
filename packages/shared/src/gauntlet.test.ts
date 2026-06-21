@@ -22,6 +22,7 @@ import {
   type GauntletRunState,
   type SignatureAbility,
   BESTIARY,
+  hasCondition,
 } from './index';
 
 function hero(
@@ -451,6 +452,49 @@ describe('conditiony v Gauntletu (Slice 2d)', () => {
     if (s.status === 'drafting' && s.draft) s = applyGauntletDraft(base, s, s.draft[0]!.id, 10);
     // Nová vlna = short rest → conditiony hráče pryč.
     expect(s.player.conditions?.length ?? 0).toBe(0);
+  });
+});
+
+describe('creature type targeting v Gauntletu', () => {
+  const hold: SignatureAbility = {
+    id: 'gaunt_hold_person',
+    name: 'Hold Person',
+    kind: 'strike',
+    cooldownSec: 0,
+    damageMult: 0,
+    save: { ability: 'wisdom', effect: 'negate' },
+    condition: { type: 'stunned', durationTurns: 2 },
+    validTargetTypes: ['humanoid'],
+  };
+
+  it('Hold Person se odmítne na ne-humanoidním nepříteli (žádný efekt)', () => {
+    const base = hero(10, 'wizard');
+    base.signatureAbilities = [...base.signatureAbilities, hold];
+    base.spellSaveDc = 99;
+    const state = startGauntletRun(base, 10, 7);
+    state.enemy!.templateId = 'dire_wolf'; // beast
+    const hpBefore = state.enemy!.currentHealth;
+
+    const r = resolveGauntletTurn(base, state, 'gaunt_hold_person');
+    expect(r.events).toHaveLength(0); // odmítnuto bez zdroje/efektu
+    expect(hasCondition(r.state.enemy!.conditions, 'stunned')).toBe(false);
+    expect(r.state.enemy!.currentHealth).toBe(hpBefore);
+  });
+
+  it('Hold Person projde na humanoidním nepříteli', () => {
+    const base = hero(10, 'wizard');
+    base.signatureAbilities = [...base.signatureAbilities, hold];
+    base.spellSaveDc = 99;
+    const state = startGauntletRun(base, 10, 7);
+    state.enemy!.templateId = 'rfc_cultist'; // humanoid
+
+    let s = state;
+    let applied = false;
+    for (let i = 0; i < 5 && s.status === 'in_combat'; i++) {
+      s = resolveGauntletTurn(base, s, 'gaunt_hold_person').state;
+      if (hasCondition(s.enemy?.conditions, 'stunned')) applied = true;
+    }
+    expect(applied).toBe(true);
   });
 });
 

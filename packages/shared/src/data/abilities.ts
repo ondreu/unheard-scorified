@@ -16,7 +16,7 @@ import type { AbilityScore } from '../character';
 import type { ConditionRider } from '../conditions';
 import type { DiceSpec } from '../dice';
 import type { ClassId, SubclassId } from './classes';
-import type { DamageType } from './damage';
+import type { CreatureType, DamageType } from './damage';
 
 /**
  * Druh abilit — řídí log i mechaniku v enginu. `buff` (ADR 0036) = koncentrační
@@ -178,6 +178,14 @@ export interface SignatureAbility {
    * cooldown timeru). `undefined` = `'action'`.
    */
   actionCost?: 'action' | 'bonus';
+  /**
+   * Creature type targeting (Creature type targeting) — kouzlo lze seslat **jen na
+   * cíle daných D&D creature typů** (Hold Person → `['humanoid']`, Hold Monster =
+   * bez omezení). `undefined`/prázdné = cokoli. Vyhodnocuje sdílený
+   * `canTargetCreatureType` (engine i UI gating) proti `CombatActor.creatureType`
+   * cíle; cíl bez známého typu (ad-hoc / narativní nepřítel) projde (graceful).
+   */
+  validTargetTypes?: readonly CreatureType[];
 }
 
 /** Šablona katalogu (id se doplní z klíče). */
@@ -227,6 +235,8 @@ interface BaselineOpts {
   aoe?: boolean;
   /** Koncentrační buff rider (ADR 0036) — Hunter's Mark/Hex +1d6 na každý zásah. */
   riderDice?: DiceSpec;
+  /** Creature type targeting — kouzlo jen na vybrané typy (Hold Person → humanoid). */
+  validTargetTypes?: readonly CreatureType[];
 }
 
 function ba(
@@ -267,6 +277,7 @@ function ba(
     ...(opts.advantage !== undefined ? { advantage: opts.advantage } : {}),
     ...(opts.aoe !== undefined ? { aoe: opts.aoe } : {}),
     ...(opts.riderDice !== undefined ? { riderDice: opts.riderDice } : {}),
+    ...(opts.validTargetTypes !== undefined ? { validTargetTypes: opts.validTargetTypes } : {}),
   };
 }
 
@@ -371,7 +382,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('bard_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true, actionCost: 'bonus' }),
     ba('bard_phantasmal_killer', 'Phantasmal Killer', "A vision of the target's worst fear for 4d10 psychic (WIS save halves, or be frightened). +1d10 per slot above 4th.", 'strike', 9, 2.0, 16, { spellTier: 4, damageType: 'psychic', dice: { count: 4, sides: 10, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'wisdom', effect: 'half' }, condition: { type: 'frightened', durationTurns: 1 } }),
     ba('bard_synaptic_static', 'Synaptic Static', 'An explosion of psychic energy for 8d6 (INT save halves). +1d6 per slot above 5th.', 'strike', 10, 2.2, 17, { spellTier: 5, damageType: 'psychic', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'intelligence', effect: 'half' }, aoe: true }),
-    ba('bard_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } }),
+    ba('bard_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } , validTargetTypes: ['humanoid'] }),
   ],
   cleric: [
     ba('cleric_toll_the_dead', 'Toll the Dead', 'A mournful bell tolls for 1d8 necrotic (WIS save negates; scales with level).', 'strike', 4, 1.0, 1, { spellTier: 0, damageType: 'necrotic', dice: { count: 1, sides: 8, bonus: 0 }, save: { ability: 'wisdom', effect: 'negate' } }),
@@ -381,7 +392,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('cleric_prayer_of_healing', 'Prayer of Healing', 'A prayer heals all wounded allies for 2d8 + your spellcasting modifier. +1d8 per slot above 2nd.', 'heal', 9, 2.5, 5, { spellTier: 2, dice: { count: 2, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, aoe: true }),
     ba('cleric_mass_healing_word', 'Mass Healing Word', 'Words of hope heal all wounded allies for 1d4 + your spellcasting modifier. +1d4 per slot above 3rd.', 'heal', 9, 2.6, 14, { spellTier: 3, dice: { count: 1, sides: 4, bonus: 0 }, dicePerSlotAbove: 1, aoe: true, actionCost: 'bonus' }),
     ba('cleric_flame_strike', 'Flame Strike', 'A column of divine fire for 8d6 (4d6 fire + 4d6 radiant; DEX save halves). +1d6 per slot above 5th.', 'strike', 10, 2.2, 17, { spellTier: 5, damageType: 'radiant', dice: { count: 8, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, aoe: true }),
-    ba('cleric_hold_person', 'Hold Person', 'Paralyzing prayer seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } }),
+    ba('cleric_hold_person', 'Hold Person', 'Paralyzing prayer seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } , validTargetTypes: ['humanoid'] }),
   ],
   druid: [
     ba('druid_thorn_whip', 'Thorn Whip', 'A vine lashes the target for 1d6 piercing (scales with level).', 'strike', 4, 1.0, 1, { spellTier: 0, damageType: 'piercing', dice: { count: 1, sides: 6, bonus: 0 } }),
@@ -392,7 +403,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('druid_ice_storm', 'Ice Storm', 'A hail of ice for 4d6 cold over slick ground (DEX save halves, or be slowed). +1d6 per slot above 4th.', 'strike', 9, 1.9, 16, { spellTier: 4, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, condition: { type: 'slowed', durationTurns: 1 }, aoe: true }),
     ba('druid_insect_plague', 'Insect Plague', 'A biting swarm gnaws for 4d10 piercing each turn over 8s (CON save halves).', 'dot', 10, 0, 17, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 4, sides: 10, bonus: 0 } }, spellTier: 5, damageType: 'piercing', save: { ability: 'constitution', effect: 'half' }, aoe: true }),
     ba('druid_entangle', 'Entangle', 'Grasping weeds erupt from the ground — no damage, but a failed STR save leaves the target restrained.', 'strike', 8, 0, 1, { spellTier: 1, save: { ability: 'strength', effect: 'negate' }, condition: { type: 'restrained', durationTurns: 2 } }),
-    ba('druid_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } }),
+    ba('druid_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } , validTargetTypes: ['humanoid'] }),
   ],
   paladin: [
     ba('paladin_thunderous_smite', 'Thunderous Smite', 'A thunderclap blow adding 2d6 thunder to the weapon hit. +1d6 per slot above 1st.', 'strike', 7, 1.0, 5, { spellTier: 1, damageType: 'thunder', bonusDice: { count: 2, sides: 6, bonus: 0 }, dicePerSlotAbove: 1 }),
@@ -417,7 +428,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('sorc_ice_storm', 'Ice Storm', 'A hail of ice for 4d6 cold over slick ground (DEX save halves, or be slowed). +1d6 per slot above 4th.', 'strike', 9, 1.9, 16, { spellTier: 4, damageType: 'cold', dice: { count: 4, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'dexterity', effect: 'half' }, condition: { type: 'slowed', durationTurns: 1 }, aoe: true }),
     ba('sorc_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves, or be slowed by the numbing chill). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, condition: { type: 'slowed', durationTurns: 1 }, aoe: true }),
     ba('sorc_web', 'Web', 'Thick, clinging webbing fills the area — no damage, but a failed DEX save leaves the target restrained.', 'strike', 8, 0, 5, { spellTier: 2, save: { ability: 'dexterity', effect: 'negate' }, condition: { type: 'restrained', durationTurns: 2 } }),
-    ba('sorc_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } }),
+    ba('sorc_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } , validTargetTypes: ['humanoid'] }),
   ],
   warlock: [
     ba('warlock_chill_touch', 'Chill Touch', 'A ghostly hand for 1d8 necrotic (scales with level).', 'strike', 4, 1.2, 1, { spellTier: 0, damageType: 'necrotic', dice: { count: 1, sides: 8, bonus: 0 } }),
@@ -425,7 +436,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('warlock_arms_of_hadar', 'Arms of Hadar', 'Tendrils of dark energy lash all foes for 2d6 necrotic (STR save halves). +1d6 per slot above 1st.', 'strike', 8, 1.5, 1, { spellTier: 1, damageType: 'necrotic', dice: { count: 2, sides: 6, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'strength', effect: 'half' }, aoe: true }),
     ba('warlock_shatter', 'Shatter', 'A burst of sound for 3d8 thunder (CON save halves). +1d8 per slot above 2nd.', 'strike', 8, 1.7, 5, { spellTier: 2, damageType: 'thunder', dice: { count: 3, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, aoe: true }),
     ba('warlock_blight', 'Blight', 'Necrotic energy withers the target for 8d8 (CON save halves). +1d8 per slot above 4th.', 'strike', 9, 2.3, 16, { spellTier: 4, damageType: 'necrotic', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' } }),
-    ba('warlock_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } }),
+    ba('warlock_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } , validTargetTypes: ['humanoid'] }),
   ],
   wizard: [
     ba('wiz_ray_of_frost', 'Ray of Frost', 'A frigid beam for 1d8 cold that also slows the target on a hit (scales with level).', 'strike', 4, 1.05, 1, { spellTier: 0, damageType: 'cold', dice: { count: 1, sides: 8, bonus: 0 }, condition: { type: 'slowed', durationTurns: 1 } }),
@@ -438,7 +449,7 @@ export const EXTRA_SPELLS: Record<ClassId, BaselineAbility[]> = {
     ba('wiz_cone_of_cold', 'Cone of Cold', 'A blast of frigid air for 8d8 cold (CON save halves, or be slowed by the numbing chill). +1d8 per slot above 5th.', 'strike', 10, 2.4, 17, { spellTier: 5, damageType: 'cold', dice: { count: 8, sides: 8, bonus: 0 }, dicePerSlotAbove: 1, save: { ability: 'constitution', effect: 'half' }, condition: { type: 'slowed', durationTurns: 1 }, aoe: true }),
     ba('wiz_disintegrate', 'Disintegrate', 'A thin green ray for 10d6+40 force (DEX save halves). +3d6 per slot above 6th.', 'strike', 11, 2.6, 17, { spellTier: 6, damageType: 'force', dice: { count: 10, sides: 6, bonus: 40 }, dicePerSlotAbove: 3, save: { ability: 'dexterity', effect: 'half' } }),
     ba('wiz_web', 'Web', 'Thick, clinging webbing fills the area — no damage, but a failed DEX save leaves the target restrained.', 'strike', 8, 0, 5, { spellTier: 2, save: { ability: 'dexterity', effect: 'negate' }, condition: { type: 'restrained', durationTurns: 2 } }),
-    ba('wiz_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } }),
+    ba('wiz_hold_person', 'Hold Person', 'Paralyzing magic seizes a humanoid — no damage, but a failed WIS save leaves it held helpless (stunned).', 'strike', 10, 0, 5, { spellTier: 2, save: { ability: 'wisdom', effect: 'negate' }, condition: { type: 'stunned', durationTurns: 1 } , validTargetTypes: ['humanoid'] }),
   ],
 };
 

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   canCastDungeonAbility,
+  canTargetCreatureType,
   dungeonRunAbilities,
   hasSlotForTier,
   isDuelableEnemy,
@@ -14,6 +15,7 @@ import {
   type ActiveCondition,
   type CombatActor,
   type CombatEvent,
+  type CreatureType,
   type DungeonRunState,
   type DungeonRunStatus,
   type SpellSlots,
@@ -38,6 +40,8 @@ export interface DuelAbilityView {
   outOfKi: boolean;
   actionCost: 'action' | 'bonus';
   upcastPerSlot: number;
+  /** Creature type targeting — kouzlo jen na tyto typy (Hold Person → humanoid). `undefined` = bez omezení. */
+  validTargetTypes?: CreatureType[];
 }
 
 export interface DuelEnemyView {
@@ -46,6 +50,8 @@ export interface DuelEnemyView {
   isBoss: boolean;
   maxHealth: number;
   currentHealth: number;
+  /** D&D creature type (pro creature type targeting UI gating). `undefined` = neznámý. */
+  creatureType?: CreatureType;
   conditions: ActiveCondition[];
 }
 
@@ -149,6 +155,13 @@ export class DuelService {
       if (castTier != null && !isValidCastTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0, castTier)) {
         throw new BadRequestException('Invalid spell slot tier');
       }
+      // Creature type targeting (anti-cheat): Hold Person → humanoid apod.
+      if (ability.validTargetTypes && !ability.aoe) {
+        const target = state.enemies[Number(targetId) || 0];
+        if (target && target.currentHealth > 0 && !canTargetCreatureType(ability, target.actor.creatureType)) {
+          throw new BadRequestException('That spell cannot target this creature type');
+        }
+      }
     }
     if (bonusAbilityId) {
       const bonus = dungeonRunAbilities(snapshot).find((a) => a.id === bonusAbilityId);
@@ -200,6 +213,7 @@ export class DuelService {
         outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
         actionCost: a.actionCost ?? 'action',
         upcastPerSlot: a.dicePerSlotAbove ?? 0,
+        ...(a.validTargetTypes ? { validTargetTypes: [...a.validTargetTypes] } : {}),
       };
     });
   }
@@ -231,6 +245,7 @@ export class DuelService {
         isBoss: e.isBoss,
         maxHealth: e.maxHealth,
         currentHealth: Math.max(0, Math.round(e.currentHealth)),
+        creatureType: e.actor.creatureType,
         conditions: e.conditions ?? [],
       })),
       abilities: this.abilityViews(run.playerSnapshot, state),

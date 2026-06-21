@@ -9,7 +9,7 @@ import type { AbilityScore } from './character';
 import { actorSaveMod, actorSpellSaveDc, type CombatActor, type HitResult } from './combat';
 import { applyCondition, type ActiveCondition, type ConditionRider } from './conditions';
 import type { SignatureAbility } from './data/abilities';
-import { damageInteractionNote } from './data/damage';
+import { damageInteractionNote, type CreatureType } from './data/damage';
 import { rollD20, rollSave, type SaveRoll } from './dice';
 import { SeededRng } from './rng';
 
@@ -85,6 +85,25 @@ export function isControlSpell(ability: SignatureAbility): boolean {
     !ability.bonusDice &&
     !!ability.condition
   );
+}
+
+/**
+ * Creature type targeting — smí daná ability zasáhnout cíl tohoto creature typu?
+ * D&D-věrné: Hold Person (`validTargetTypes: ['humanoid']`) jde jen na humanoidy,
+ * Hold Monster (bez omezení) na cokoli. Jediný zdroj pravdy pro engine i UI gating.
+ *
+ * - Bez `validTargetTypes` (nebo prázdné) → cílení **neomezeno** (default kouzel).
+ * - Cíl s neznámým typem (`undefined` — ad-hoc / narativní nepřítel bez katalogové
+ *   šablony) → **projde** (graceful; neblokujeme legacy/narativní obsah).
+ */
+export function canTargetCreatureType(
+  ability: SignatureAbility,
+  targetCreatureType: CreatureType | undefined,
+): boolean {
+  const allowed = ability.validTargetTypes;
+  if (!allowed || allowed.length === 0) return true;
+  if (!targetCreatureType) return true;
+  return allowed.includes(targetCreatureType);
 }
 
 /** Výsledek seslání pure-control kouzla (Slice 2d). */

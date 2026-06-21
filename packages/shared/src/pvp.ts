@@ -28,7 +28,7 @@ import {
 import type { DiceSpec } from './dice';
 import type { SignatureAbility } from './data/abilities';
 import { shouldCastAbility } from './rotation';
-import { applySpellSave, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
+import { applySpellSave, canTargetCreatureType, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
 import {
   applyCondition,
   beginActorTurn,
@@ -222,6 +222,11 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
         selfHpPct: attacker.maxHealth > 0 ? hp[attackerSide] / attacker.maxHealth : 0,
       })
     ) {
+      continue;
+    }
+    // Creature type targeting: kouzlo s omezením typu cíle (Hold Person → humanoid)
+    // se proti nepovolenému typu soupeře „drží". Hráči jsou humanoidi → v PVP inertní.
+    if (timer.ability?.validTargetTypes && !canTargetCreatureType(timer.ability, defender.creatureType)) {
       continue;
     }
     // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
@@ -587,6 +592,11 @@ export function simulateTeamFight(
           attacker.maxHealth > 0 ? hp[attackerSide][timer.member]! / attacker.maxHealth : 0,
       })
     ) {
+      continue;
+    }
+    // Creature type targeting: kouzlo s omezením typu cíle (Hold Person → humanoid)
+    // se proti nepovolenému typu soupeře „drží". Hráči jsou humanoidi → v PVP inertní.
+    if (timer.ability?.validTargetTypes && !canTargetCreatureType(timer.ability, defender.creatureType)) {
       continue;
     }
     // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.

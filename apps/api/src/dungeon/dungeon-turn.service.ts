@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import {
   buildCompanionParty,
   canCastDungeonAbility,
+  canTargetCreatureType,
   computeGroupReward,
   deriveRaidActor,
   DUNGEONS,
@@ -24,6 +25,7 @@ import {
   weeklyLockoutId,
   type CombatActor,
   type CombatEvent,
+  type CreatureType,
   type DungeonRunState,
   type DungeonRunStatus,
   type ActiveCondition,
@@ -60,6 +62,12 @@ export interface DungeonTurnAbilityView {
   actionCost: 'action' | 'bonus';
   /** Kostky přidané za každý slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
   upcastPerSlot: number;
+  /**
+   * Creature type targeting — kouzlo lze seslat jen na tyto creature typy
+   * (Hold Person → `['humanoid']`). `undefined` = bez omezení. UI z toho + z
+   * `DungeonTurnEnemyView.creatureType` zašedne ability proti nepovolenému cíli.
+   */
+  validTargetTypes?: CreatureType[];
 }
 
 export interface DungeonTurnEnemyView {
@@ -68,6 +76,8 @@ export interface DungeonTurnEnemyView {
   isBoss: boolean;
   maxHealth: number;
   currentHealth: number;
+  /** D&D creature type (pro creature type targeting UI gating). `undefined` = neznámý. */
+  creatureType?: CreatureType;
   /** Aktivní conditiony (Slice 2d UI) — pro badge na kartě nepřítele. */
   conditions: ActiveCondition[];
 }
@@ -261,6 +271,14 @@ export class DungeonTurnService {
       if (castTier != null && !isValidCastTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0, castTier)) {
         throw new BadRequestException('Invalid spell slot tier');
       }
+      // Creature type targeting (anti-cheat): kouzlo s `validTargetTypes` (Hold Person
+      // → humanoid) jen na povolený typ zvoleného cíle. AoE control neexistuje.
+      if (ability.validTargetTypes && !ability.aoe) {
+        const target = state.enemies[Number(targetId) || 0];
+        if (target && target.currentHealth > 0 && !canTargetCreatureType(ability, target.actor.creatureType)) {
+          throw new BadRequestException('That spell cannot target this creature type');
+        }
+      }
     }
 
     // Bonus action (ADR 0042, Slice 3) — vědomá volba hráče vedle hlavní akce.
@@ -406,6 +424,7 @@ export class DungeonTurnService {
         outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
         actionCost: a.actionCost ?? 'action',
         upcastPerSlot: a.dicePerSlotAbove ?? 0,
+        ...(a.validTargetTypes ? { validTargetTypes: [...a.validTargetTypes] } : {}),
       };
     });
   }
@@ -460,6 +479,7 @@ export class DungeonTurnService {
         isBoss: e.isBoss,
         maxHealth: e.maxHealth,
         currentHealth: Math.max(0, Math.round(e.currentHealth)),
+        creatureType: e.actor.creatureType,
         conditions: e.conditions ?? [],
       })),
       abilities: this.abilityViews(run.playerSnapshot, state),

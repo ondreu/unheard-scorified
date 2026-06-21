@@ -35,7 +35,7 @@ import {
   type SignatureAbility,
 } from './combat';
 import { rollDice } from './dice';
-import { applySpellSave, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
+import { applySpellSave, canTargetCreatureType, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
 import {
   applyCondition,
   beginActorTurn,
@@ -368,6 +368,16 @@ export function submitPartyAction(
   // volba se odmítne (anti-cheat); `undefined` = auto (žádná volba, zpětně kompatibilní).
   if (castTier != null && !isValidCastTier(member.spellSlots, tier, castTier)) {
     return { ok: false, ready: false, reason: 'Invalid spell slot tier' };
+  }
+  // Creature type targeting (anti-cheat): kouzlo s omezením typu cíle (Hold Person
+  // → humanoid) jde seslat jen na povolený typ. Single-target; AoE control neexistuje.
+  if (ability.validTargetTypes && !ability.aoe) {
+    const tid = Number(targetId) || 0;
+    const valid = state.enemies[tid]?.currentHealth ?? 0;
+    const ei = valid > 0 ? tid : weakestEnemy(state);
+    if (ei >= 0 && !canTargetCreatureType(ability, state.enemies[ei]!.actor.creatureType)) {
+      return { ok: false, ready: false, reason: 'Cannot target that creature type' };
+    }
   }
 
   // Bonus-action volba (ADR 0042, Slice 3): ulož jen validní bonus-action ability
@@ -768,6 +778,9 @@ function aiMemberTurn(
       return;
     }
     if (wi < 0 || !shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
+    // Creature type targeting: AI člen drží kouzlo s omezením typu cíle, když
+    // nejslabší cíl není povolený typ (Hold Person jen na humanoidy).
+    if (ability.validTargetTypes && !ability.aoe && !canTargetCreatureType(ability, state.enemies[wi]!.actor.creatureType)) continue;
     applyMemberAbility(state, member, eff, ability, wi, rng, t, emit, attackerDisadvantage);
     return;
   }

@@ -135,6 +135,9 @@
     {#if card.mitigation}
       <div class="row"><dt>Damage reduced</dt><dd>{Math.round(card.mitigation.pct * 100)}%{#if card.mitigation.durationSec} / {card.mitigation.durationSec}s{/if}</dd></div>
     {/if}
+    {#if card.validTargetTypes && card.validTargetTypes.length > 0}
+      <div class="row"><dt>Targets</dt><dd class="capitalize">{card.validTargetTypes.join(', ')} only</dd></div>
+    {/if}
     <div class="row">
       <dt>Cooldown</dt>
       <dd>{card.cooldownSec > 0 ? `${card.cooldownSec}s` : '—'}</dd>

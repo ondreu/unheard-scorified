@@ -36,7 +36,7 @@ import {
   type SignatureAbility,
 } from './combat';
 import { rollDice } from './dice';
-import { applySpellSave, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
+import { applySpellSave, canTargetCreatureType, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
 import {
   applyCondition,
   beginActorTurn,
@@ -529,6 +529,16 @@ export function resolveDungeonTurn(
   if (!hasSlotForTier(state.player.spellSlots, abilityTier)) return { state, events: [] };
   const kiCost = ability.kiCost ?? 0;
   if (kiCost > state.player.kiPoints) return { state, events: [] };
+  // Creature type targeting: kouzla s `validTargetTypes` (Hold Person → humanoid)
+  // jde seslat jen na povolený typ. Single-target check (AoE control neexistuje);
+  // neplatný cíl → odmítnuto bez spotřeby zdroje (server/UI to gatuje napřed).
+  if (ability.validTargetTypes && !ability.aoe) {
+    const valid = state.enemies[targetId]?.currentHealth ?? 0;
+    const ei = valid > 0 ? targetId : weakestEnemy(state);
+    if (ei >= 0 && !canTargetCreatureType(ability, state.enemies[ei]!.actor.creatureType)) {
+      return { state, events: [] };
+    }
+  }
 
   const rng = new SeededRng(seedFromString(`${state.seed}:turn:${state.encounterIndex}:${state.turn}`));
   const t = state.turn;
@@ -895,6 +905,9 @@ function allyTakeTurn(
 
     // Útočná ability (strike/drain/dot) → potřebuje živý cíl + dovolení rotace.
     if (wi < 0 || !shouldCastAbility(eff.rotation, ability.id, ctx)) continue;
+    // Creature type targeting: AI parťák drží kouzlo s omezením typu cíle, pokud
+    // nejslabší cíl není povolený typ (Hold Person jen na humanoidy).
+    if (ability.validTargetTypes && !ability.aoe && !canTargetCreatureType(ability, state.enemies[wi]!.actor.creatureType)) continue;
     const slotTier = tier >= 1 ? spendSlotForTier(ally.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
     if (kiCost > 0) ally.kiPoints -= kiCost;
     const targets = ability.aoe ? living : [wi];

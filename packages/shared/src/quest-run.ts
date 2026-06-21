@@ -43,6 +43,7 @@ import {
   applySpellSave,
   buildDndAttackMessage,
   buildSaveMessage,
+  canTargetCreatureType,
   isControlSpell,
   resolveControlCast,
   rollInitiative,
@@ -359,6 +360,9 @@ export function simulateQuestEncounter(
       let slotTier: number | null = null;
       for (const a of abilities) {
         if ((readyAt[a.id] ?? startT) > t) continue;
+        // Creature type targeting: kouzlo s omezením typu (Hold Person → humanoid)
+        // se proti nepovolenému typu nepřítele „drží" (→ basic úder).
+        if (a.validTargetTypes && !canTargetCreatureType(a, enemy.creatureType)) continue;
         // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
         if (!abilityOnceAvailable(usedOnce, a)) continue;
         // Ki (ADR 0034): Monkova technika potřebuje dost Ki; jinak se „drží" (→ basic).

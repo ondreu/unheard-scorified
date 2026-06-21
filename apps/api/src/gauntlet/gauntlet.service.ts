@@ -2,10 +2,12 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   applyGauntletDraft,
   canCastGauntletAbility,
+  canTargetCreatureType,
   capGauntletReward,
   CLASSES,
   dailyPeriodId,
   gauntletAbilities,
+  gauntletEnemyCreatureType,
   hasSlotForTier,
   gauntletDailyGoldCap,
   gauntletDailyXpCap,
@@ -24,6 +26,7 @@ import {
   type ClassId,
   type CombatActor,
   type CombatEvent,
+  type CreatureType,
   type GauntletDraftOption,
   type GauntletReward,
   type GauntletRunState,
@@ -64,6 +67,8 @@ export interface GauntletAbilityView {
   actionCost: 'action' | 'bonus';
   /** Kostky přidané za každý slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
   upcastPerSlot: number;
+  /** Creature type targeting — kouzlo jen na tyto typy (Hold Person → humanoid). `undefined` = bez omezení. */
+  validTargetTypes?: CreatureType[];
 }
 
 export interface GauntletDailyView {
@@ -103,6 +108,8 @@ export interface GauntletRunView {
     isElite: boolean;
     maxHealth: number;
     currentHealth: number;
+    /** D&D creature type (pro creature type targeting UI gating). `undefined` = neznámý. */
+    creatureType?: CreatureType;
     /** Aktivní conditiony nepřítele (Slice 2d UI). */
     conditions: ActiveCondition[];
   } | null;
@@ -220,6 +227,11 @@ export class GauntletService {
     // Vědomý upcast (hráč zvolí tier slotu): musí být ≥ minTier a dostupný (anti-cheat).
     if (castTier != null && !isValidCastTier(state.player.spellSlots ?? {}, ability.spellTier ?? 0, castTier)) {
       throw new BadRequestException('Invalid spell slot tier');
+    }
+    // Creature type targeting (anti-cheat): kouzlo s `validTargetTypes` (Hold Person
+    // → humanoid) jen na povolený typ aktuálního nepřítele.
+    if (ability.validTargetTypes && state.enemy && !canTargetCreatureType(ability, gauntletEnemyCreatureType(state.enemy))) {
+      throw new BadRequestException('That spell cannot target this creature type');
     }
 
     // Bonus action (ADR 0042, Slice 3) — vědomá volba hráče vedle hlavní akce.
@@ -492,6 +504,7 @@ export class GauntletService {
         outOfKi: kiCost > (state.player.kiPoints ?? Number.POSITIVE_INFINITY),
         actionCost: a.actionCost ?? 'action',
         upcastPerSlot: a.dicePerSlotAbove ?? 0,
+        ...(a.validTargetTypes ? { validTargetTypes: [...a.validTargetTypes] } : {}),
       };
     });
   }
@@ -533,6 +546,7 @@ export class GauntletService {
             isElite: state.enemy.isElite,
             maxHealth: state.enemy.maxHealth,
             currentHealth: Math.max(0, Math.round(state.enemy.currentHealth)),
+            creatureType: gauntletEnemyCreatureType(state.enemy),
             conditions: state.enemy.conditions ?? [],
           }
         : null,

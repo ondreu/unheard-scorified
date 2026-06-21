@@ -12,7 +12,7 @@
 import { abilityDamageSpec, bonusDiceSpec } from './combat';
 import type { ConditionType } from './conditions';
 import type { SignatureAbility, AbilityKind, SpellSave } from './data/abilities';
-import type { DamageType } from './data/damage';
+import type { CreatureType, DamageType } from './data/damage';
 import { diceNotation, diceRange, type DiceSpec } from './dice';
 
 /** Jeden řádek „dice + rozptyl" na kartě (např. `8d6` → `8–48`). */
@@ -69,6 +69,8 @@ export interface SpellCardInfo {
   drainHealFraction?: number;
   /** Mitigation: podíl sníženého poškození + doba trvání. */
   mitigation?: { pct: number; durationSec?: number };
+  /** Creature type targeting — kouzlo jen na tyto typy (Hold Person → humanoid). `undefined` = bez omezení. */
+  validTargetTypes?: readonly CreatureType[];
 }
 
 /** `DiceSpec` → `DiceLine` (notace + rozptyl). */
@@ -117,6 +119,7 @@ export function buildSpellCard(
         ? ability.dicePerSlotAbove
         : undefined,
     drainHealFraction: ability.drainHealFraction,
+    validTargetTypes: ability.validTargetTypes,
   };
 
   if (ability.dotDice || ability.dotTicks || ability.dotDurationSec) {

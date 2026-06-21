@@ -20,6 +20,7 @@ import {
   submitPartyAction,
   weeklyLockoutId,
   type CombatEvent,
+  type CreatureType,
   type PartyRunSeatInput,
   type PartyRunState,
   type PartyRunStatus,
@@ -63,6 +64,8 @@ interface PartyAbilityView {
   actionCost: 'action' | 'bonus';
   /** Kostky přidané za každý slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
   upcastPerSlot: number;
+  /** Creature type targeting — kouzlo jen na tyto typy (Hold Person → humanoid). `undefined` = bez omezení. */
+  validTargetTypes?: CreatureType[];
 }
 
 interface PartyMemberView {
@@ -98,6 +101,7 @@ export interface DungeonPartyRunView {
     isBoss: boolean;
     maxHealth: number;
     currentHealth: number;
+    creatureType?: CreatureType;
     conditions: ActiveCondition[];
   }[];
   /** Stav volajícího hráče (jeho ability bar + zdroje); null, pokud padl. */
@@ -458,6 +462,7 @@ export class DungeonPartyService {
         isBoss: e.isBoss,
         maxHealth: e.maxHealth,
         currentHealth: Math.max(0, Math.round(e.currentHealth)),
+        creatureType: e.actor.creatureType,
         conditions: e.conditions ?? [],
       })),
       you: you
@@ -490,6 +495,7 @@ export class DungeonPartyService {
                 outOfKi: kiCost > (you.kiPoints ?? Number.POSITIVE_INFINITY),
                 actionCost: a.actionCost ?? 'action',
                 upcastPerSlot: a.dicePerSlotAbove ?? 0,
+                ...(a.validTargetTypes ? { validTargetTypes: [...a.validTargetTypes] } : {}),
               };
             }),
           }

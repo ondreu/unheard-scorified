@@ -35,6 +35,7 @@
     cooldown: 'CD',
     noSlots: 'No slot',
     noKi: 'No Ki',
+    badTarget: 'Bad target',
     bonusAction: 'Bonus action',
     bonusActionHint: 'cast alongside your action this turn',
     bonusNone: 'None',
@@ -101,7 +102,17 @@
     return castableTiers(run.player.spellSlots, a.spellTier).length >= 2;
   }
 
+  // Creature type targeting: kouzlo s `validTargetTypes` (Hold Person → humanoid)
+  // jen na povolený typ aktuálně zvoleného nepřítele → jinak zašednout.
+  function invalidForTarget(a: DuelRunView['abilities'][number]): boolean {
+    if (!a.validTargetTypes || a.validTargetTypes.length === 0) return false;
+    const target = run?.enemies.find((e) => e.idx === targetId && e.currentHealth > 0);
+    if (!target || !target.creatureType) return false; // neznámý typ → povol (graceful)
+    return !a.validTargetTypes.includes(target.creatureType);
+  }
+
   function onAbilityTap(a: DuelRunView['abilities'][number]): void {
+    if (invalidForTarget(a)) return;
     if (canChooseUpcast(a)) pendingCast = a;
     else void act(a.id, a.kind);
   }
@@ -289,7 +300,7 @@
             >
               <button
                 class="btn flex w-full items-center gap-2 text-left"
-                disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
+                disabled={busy || !a.ready || a.outOfSlots || a.outOfKi || invalidForTarget(a)}
                 onclick={() => onAbilityTap(a)}
               >
                 <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
@@ -303,6 +314,8 @@
                   <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
                 {:else if a.outOfKi}
                   <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
+                {:else if invalidForTarget(a)}
+                  <span class="shrink-0 text-xs text-[var(--danger)]" title={`Only: ${a.validTargetTypes?.join(', ')}`}>{ui.badTarget}</span>
                 {/if}
               </button>
             </SpellTooltip>

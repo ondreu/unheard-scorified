@@ -41,7 +41,7 @@ import {
   type SignatureAbility,
 } from './combat';
 import { isAbilityEnabled, shouldCastAbility } from './rotation';
-import { applySpellSave, isControlSpell, missMessage, resolveControlCast, rollTag } from './dnd-combat';
+import { applySpellSave, canTargetCreatureType, isControlSpell, missMessage, resolveControlCast, rollTag } from './dnd-combat';
 import {
   applyCondition,
   beginActorTurn,
@@ -727,6 +727,9 @@ function fightEncounter(
       }
       // Útočná ability (strike/drain/dot) → potřebuje živý cíl.
       if (primaryEi < 0) continue;
+      // Creature type targeting: kouzlo s omezením typu cíle (Hold Person → humanoid)
+      // se proti nepovolenému typu nejslabšího nepřítele „drží" (→ basic swing).
+      if (ability.validTargetTypes && !ability.aoe && !canTargetCreatureType(ability, enemies[primaryEi]!.creatureType)) continue;
       // Ki (ADR 0034): Monkova technika (`kiCost`) potřebuje dost Ki; jinak se „drží".
       const kiCost = ability.kiCost ?? 0;
       if (kiCost > (kiBudget[i] ?? 0)) continue;

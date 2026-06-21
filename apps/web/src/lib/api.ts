@@ -1,4 +1,4 @@
-import type { ActiveCondition, BestiaryView, CharacterSheet } from '@game/shared';
+import type { ActiveCondition, BestiaryView, CharacterSheet, CreatureType } from '@game/shared';
 export type { BestiaryView, BestiaryEntryView } from '@game/shared';
 import { authReady, clearSession, currentSession, setSession, type Session } from './auth';
 
@@ -466,6 +466,8 @@ export interface DungeonTurnAbilityView {
   actionCost: 'action' | 'bonus';
   /** Kostky/slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
   upcastPerSlot: number;
+  /** Creature type targeting — kouzlo jen na tyto typy (Hold Person → humanoid). */
+  validTargetTypes?: CreatureType[];
 }
 
 export interface DungeonTurnEnemyView {
@@ -474,6 +476,8 @@ export interface DungeonTurnEnemyView {
   isBoss: boolean;
   maxHealth: number;
   currentHealth: number;
+  /** D&D creature type (creature type targeting). `undefined` = neznámý. */
+  creatureType?: CreatureType;
   conditions: ActiveCondition[];
 }
 
@@ -2087,6 +2091,8 @@ export interface GauntletAbilityView {
   actionCost: 'action' | 'bonus';
   /** Kostky/slot tier nad `spellTier` (Upcast — volba slotu). 0 = neupcastovatelné. */
   upcastPerSlot: number;
+  /** Creature type targeting — kouzlo jen na tyto typy (Hold Person → humanoid). */
+  validTargetTypes?: CreatureType[];
 }
 
 export interface GauntletDailyView {
@@ -2135,6 +2141,7 @@ export interface GauntletRunView {
     isElite: boolean;
     maxHealth: number;
     currentHealth: number;
+    creatureType?: CreatureType;
     conditions: ActiveCondition[];
   } | null;
   abilities: GauntletAbilityView[];

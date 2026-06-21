@@ -1653,6 +1653,7 @@ export function instantiateEnemy(
     ...(o.challengeRating != null ? { challengeRating: o.challengeRating } : {}),
     ...(o.maxHealth != null ? { maxHealth: o.maxHealth } : {}),
     ...(o.attackPower != null ? { attackPower: o.attackPower } : {}),
+    creatureType: t.creatureType,
     damageType: t.attackType,
     ...(t.resistances ? { resistances: t.resistances } : {}),
     ...(t.vulnerabilities ? { vulnerabilities: t.vulnerabilities } : {}),
