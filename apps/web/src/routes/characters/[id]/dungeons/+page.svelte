@@ -5,11 +5,14 @@
   import { browser } from '$app/environment';
   import {
     ApiError,
+    abandonDungeonTurn,
     enterDungeon,
     enterDungeonTurn,
     enterDungeonTurnGroup,
+    getDungeonTurnRuns,
     listDungeons,
     type DungeonListItem,
+    type DungeonTurnRunSummary,
   } from '$lib/api';
   import SceneBanner from '$lib/components/SceneBanner.svelte';
   import CardAccent from '$lib/components/CardAccent.svelte';
@@ -45,12 +48,21 @@
     solo: 'Solo',
     savedThisWeek: '🔒 Saved this week',
     savedHint: 'Already cleared this week — no further reward until reset.',
+    activeRun: 'You have a turn-based run in progress',
+    activeRunHint: 'Resume it or abandon it before starting a new dungeon.',
+    resume: 'Resume',
+    abandon: 'Abandon',
+    abandoning: 'Abandoning…',
   };
 
   let dungeons = $state<DungeonListItem[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let enteringId = $state<string | null>(null);
+  // Osiřelý/rozehraný tahový run (zavřel tab uprostřed) — blokuje nový vstup, tak ho
+  // surfacujeme s možností Resume / Abandon (jinak hráč nemá z UI jak ho zrušit).
+  let activeRun = $state<DungeonTurnRunSummary | null>(null);
+  let abandoning = $state(false);
   // Zvolená velikost party per dungeon (default 1 = solo).
   let sizeById = $state<Record<string, number>>({});
   // Zvolená role hráče per dungeon pro group tahový mód (default dps).
@@ -63,7 +75,12 @@
   async function load(): Promise<void> {
     loading = true;
     try {
-      dungeons = await listDungeons(characterId);
+      const [list, runs] = await Promise.all([
+        listDungeons(characterId),
+        getDungeonTurnRuns(characterId).catch(() => [] as DungeonTurnRunSummary[]),
+      ]);
+      dungeons = list;
+      activeRun = runs.find((r) => r.status === 'in_combat') ?? null;
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await goto('/login');
@@ -72,6 +89,25 @@
       error = (err as Error).message;
     } finally {
       loading = false;
+    }
+  }
+
+  async function resumeRun(): Promise<void> {
+    if (!activeRun) return;
+    await goto(`/characters/${characterId}/dungeon-turn/${activeRun.runId}`);
+  }
+
+  async function abandonRun(): Promise<void> {
+    if (!activeRun) return;
+    abandoning = true;
+    error = null;
+    try {
+      await abandonDungeonTurn(characterId, activeRun.runId);
+      activeRun = null;
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      abandoning = false;
     }
   }
 
@@ -131,6 +167,23 @@
 
   {#if error}
     <p class="text-[var(--danger)]">{error}</p>
+  {/if}
+
+  {#if activeRun}
+    <div class="panel panel-pad border border-[var(--gold-bright)]/50">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-semibold text-[var(--gold-bright)]">⚔️ {ui.activeRun}</p>
+          <p class="text-sm text-[var(--text-dim)]">{activeRun.dungeonName} — {ui.activeRunHint}</p>
+        </div>
+        <div class="flex shrink-0 gap-2">
+          <button class="btn btn-sm" disabled={abandoning} onclick={resumeRun}>{ui.resume}</button>
+          <button class="btn btn-sm btn-danger" disabled={abandoning} onclick={abandonRun}>
+            {abandoning ? ui.abandoning : ui.abandon}
+          </button>
+        </div>
+      </div>
+    </div>
   {/if}
 
   {#if loading}

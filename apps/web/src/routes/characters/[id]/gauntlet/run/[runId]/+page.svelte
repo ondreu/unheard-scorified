@@ -18,7 +18,7 @@
   import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
   import ConditionBadges from '$lib/components/ConditionBadges.svelte';
-  import { activeCharacterLevel, activeCharacterSpellSaveDc } from '$lib/ui-stores';
+  import { activeCharacterLevel, activeCharacterSpellSaveDc, openNpc } from '$lib/ui-stores';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -175,6 +175,13 @@
           <span class="font-semibold">
             {e.name}
             {#if e.isElite}<span class="ml-2 rounded bg-[var(--danger)]/30 px-1.5 py-0.5 text-xs font-bold text-[var(--danger)]">{ui.elite}</span>{/if}
+            <button
+              type="button"
+              class="ml-1 rounded-full px-1 text-xs text-[var(--text-faint)] hover:text-[var(--info)]"
+              title="View stat block"
+              aria-label="View stat block"
+              onclick={() => openNpc(e.name)}
+            >ⓘ</button>
           </span>
           <span class="text-sm text-[var(--text-dim)]">{e.currentHealth} / {e.maxHealth}</span>
         </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { findAbilityById, findAbilityByName } from './combat-lookup';
-import { CLASS_BASELINE_ABILITIES } from './data/abilities';
+import { findAbilityById, findAbilityByName, findEnemyByName } from './combat-lookup';
+import { CLASS_BASELINE_ABILITIES, EXTRA_SPELLS, SUBCLASS_ABILITIES } from './data/abilities';
+import { BESTIARY, BESTIARY_IDS } from './data/enemies';
 
 describe('findAbilityById', () => {
   it('resolves a concrete catalog id with its spell tier intact', () => {
@@ -27,5 +28,32 @@ describe('findAbilityById', () => {
 
   it('name lookup still works (combat-log path)', () => {
     expect(findAbilityByName('Fireball')?.name).toBe('Fireball');
+  });
+
+  it('name lookup covers prepared-pool, subclass and enemy abilities (every cast has a card)', () => {
+    // Bug fix: combat log only iterated baseline + signature → EXTRA_SPELLS,
+    // subclass and enemy casts had no clickable card.
+    const sampleExtra = Object.values(EXTRA_SPELLS).flat()[0];
+    if (sampleExtra) expect(findAbilityByName(sampleExtra.name)?.name).toBe(sampleExtra.name);
+    const sampleSubclass = Object.values(SUBCLASS_ABILITIES)[0];
+    if (sampleSubclass) expect(findAbilityByName(sampleSubclass.name)?.name).toBe(sampleSubclass.name);
+    const enemyAbility = BESTIARY_IDS.flatMap((id) => BESTIARY[id]?.abilities ?? [])[0];
+    if (enemyAbility) expect(findAbilityByName(enemyAbility.name)?.name).toBe(enemyAbility.name);
+  });
+});
+
+describe('findEnemyByName (NPC inspect card)', () => {
+  it('exposes AC and a bestiary stat-block for catalog enemies', () => {
+    // Pick a catalog template that appears in the bestiary (gauntlet/quest fallback).
+    const template = BESTIARY[BESTIARY_IDS[0]!]!;
+    const npc = findEnemyByName(template.name);
+    expect(npc).toBeDefined();
+    expect(npc!.armorClass).toBeGreaterThan(0);
+    expect(npc!.bestiary?.templateId).toBe(template.id);
+    expect(npc!.bestiary?.creatureType).toBe(template.creatureType);
+  });
+
+  it('returns undefined for an unknown enemy name', () => {
+    expect(findEnemyByName('Definitely Not An Enemy')).toBeUndefined();
   });
 });

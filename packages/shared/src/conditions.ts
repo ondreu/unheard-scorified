@@ -218,15 +218,47 @@ export function beginActorTurn(holder: { conditions?: ActiveCondition[] }): Turn
  * pravdy pro zobrazení status efektů na kartách aktérů (Slice 2d UI); web jen
  * renderuje, nic si nehardcoduje.
  */
-export const CONDITION_META: Record<ConditionType, { icon: string; label: string }> = {
-  stunned: { icon: '💫', label: 'Stunned' },
-  prone: { icon: '⬇️', label: 'Prone' },
-  restrained: { icon: '🕸️', label: 'Restrained' },
-  frightened: { icon: '😱', label: 'Frightened' },
-  slowed: { icon: '🐌', label: 'Slowed' },
-  poisoned: { icon: '🤢', label: 'Poisoned' },
-  charmed: { icon: '💗', label: 'Charmed' },
-  blinded: { icon: '🌫️', label: 'Blinded' },
+export const CONDITION_META: Record<ConditionType, { icon: string; label: string; description: string }> = {
+  stunned: {
+    icon: '💫',
+    label: 'Stunned',
+    description: 'Loses its turn. Attacks against it have advantage.',
+  },
+  prone: {
+    icon: '⬇️',
+    label: 'Prone',
+    description: 'Disadvantage on its attacks. Attacks against it have advantage.',
+  },
+  restrained: {
+    icon: '🕸️',
+    label: 'Restrained',
+    description: 'Disadvantage on its attacks. Attacks against it have advantage.',
+  },
+  frightened: {
+    icon: '😱',
+    label: 'Frightened',
+    description: 'Disadvantage on its attacks.',
+  },
+  slowed: {
+    icon: '🐌',
+    label: 'Slowed',
+    description: 'Disadvantage on its attacks. No bonus action.',
+  },
+  poisoned: {
+    icon: '🤢',
+    label: 'Poisoned',
+    description: 'Disadvantage on its attacks.',
+  },
+  charmed: {
+    icon: '💗',
+    label: 'Charmed',
+    description: "Can't attack the source. Loses its turn.",
+  },
+  blinded: {
+    icon: '🌫️',
+    label: 'Blinded',
+    description: 'Disadvantage on its attacks. Attacks against it have advantage.',
+  },
 };
 
 /** Hláška pro combat log při uvalení conditiony (anglicky = jazyk hry). */
