@@ -98,6 +98,10 @@ export const characters = pgTable('characters', {
   // Kosmeticky zvolený („active") mount (M10+). Power je odvozený z vlastněných
   // mountů (character_mounts), tahle volba je čistě vizuál → monetizace skinů.
   activeMountId: varchar('active_mount_id', { length: 64 }),
+  // Bestiář (ADR 0046): kdy hráč naposledy otevřel bestiář. Záznam objevený
+  // později (`character_bestiary.discoveredAt > bestiary_seen_at`) = „nově
+  // objeveno" (UI badge). NULL = nikdy neotevřel → vše objevené je „nové".
+  bestiarySeenAt: timestamp('bestiary_seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

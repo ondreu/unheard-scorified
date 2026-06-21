@@ -20,7 +20,11 @@ export class BestiaryRepository {
       .where(eq(characterBestiary.characterId, characterId));
     const out: Record<string, BestiaryProgress> = {};
     for (const row of rows) {
-      out[row.enemyTemplateId] = { discovered: true, kills: row.kills };
+      out[row.enemyTemplateId] = {
+        discovered: true,
+        kills: row.kills,
+        discoveredAtMs: row.discoveredAt.getTime(),
+      };
     }
     return out;
   }

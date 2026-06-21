@@ -1560,6 +1560,10 @@ export function getBestiary(characterId: string): Promise<BestiaryView> {
   return request<BestiaryView>(`/characters/${characterId}/bestiary`);
 }
 
+export function markBestiarySeen(characterId: string): Promise<BestiaryView> {
+  return request<BestiaryView>(`/characters/${characterId}/bestiary/seen`, { method: 'POST' });
+}
+
 export function claimAchievement(
   characterId: string,
   achievementId: string,

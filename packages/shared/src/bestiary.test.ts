@@ -68,6 +68,29 @@ describe('bestiary', () => {
     const undiscovered = view.entries.find((e) => e.templateId !== firstId)!;
     expect(undiscovered.discovered).toBe(false);
     expect(undiscovered.kills).toBe(0);
+    expect(undiscovered.isNew).toBe(false);
+  });
+
+  it('isNew / newCount: objeveno po seenAt = nové, předtím ne', () => {
+    const [a, b] = BESTIARY_IDS;
+    const seenAtMs = 1000;
+    const view = buildBestiaryView(
+      {
+        [a!]: { discovered: true, kills: 1, discoveredAtMs: 500 }, // před seenAt
+        [b!]: { discovered: true, kills: 1, discoveredAtMs: 2000 }, // po seenAt → nové
+      },
+      { seenAtMs },
+    );
+    expect(view.newCount).toBe(1);
+    expect(view.entries.find((e) => e.templateId === a)!.isNew).toBe(false);
+    expect(view.entries.find((e) => e.templateId === b)!.isNew).toBe(true);
+
+    // seenAt null = nikdy neotevřeno → vše objevené je nové.
+    const fresh = buildBestiaryView(
+      { [a!]: { discovered: true, kills: 1, discoveredAtMs: 500 } },
+      { seenAtMs: null },
+    );
+    expect(fresh.entries.find((e) => e.templateId === a)!.isNew).toBe(true);
   });
 
   it('gauntletDefeatedTemplates: deterministické, jen katalogová id, počet = vlny', () => {

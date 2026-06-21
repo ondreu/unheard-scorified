@@ -26,7 +26,19 @@ export class BestiaryService {
     const character = await this.characters.findOwned(accountId, characterId);
     if (!character) throw new NotFoundException('Character not found');
     const progress = await this.bestiary.progressFor(characterId);
-    return buildBestiaryView(progress);
+    return buildBestiaryView(progress, { seenAtMs: character.bestiarySeenAt?.getTime() ?? null });
+  }
+
+  /**
+   * Označí bestiář za prohlédnutý (resetuje „nově objeveno" badge). Volá se, když
+   * hráč otevře stránku bestiáře. Vrací aktualizovaný view (s vynulovaným newCount).
+   */
+  async markSeen(accountId: string, characterId: string): Promise<BestiaryView> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+    await this.characters.setBestiarySeenAt(characterId, new Date());
+    const progress = await this.bestiary.progressFor(characterId);
+    return buildBestiaryView(progress, { seenAtMs: Date.now() });
   }
 
   /** Zaznamená poražené nepřátele z dokončeného questu (jen katalogové foe). */

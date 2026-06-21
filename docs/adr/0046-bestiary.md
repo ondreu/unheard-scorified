@@ -1,6 +1,6 @@
 # ADR 0046 — Bestiář pro hráče (in-game encyklopedie nepřátel)
 
-- **Stav:** přijato (Slice 1 hotový — jádro: browse + odemčení z questů/dungeonů)
+- **Stav:** přijato (hotovo — všechny 3 slice: jádro, plné pokrytí setkání, polish)
 - **Kontext:** navazuje na sjednocený enemy model (`data/enemies.ts` katalog,
   ADR 0043), CR + typové obrany (MR-7, ADR 0031) a enemy schopnosti/conditiony
   (ADR 0044/0045). Backlog položka „Bestiář pro hráče". Rozhodnutí PM:
@@ -61,7 +61,12 @@ nešlo spolehlivě z `id`.
   `gauntletDefeatedTemplates` deterministicky odvodí poražené šablony z vyčištěných
   vln). Sdílený `BestiaryService.recordKills(counts)` pro procedurální obsah.
   **Aréna/PVP vynechány** — soupeři jsou hráči, ne katalogové nestvůry.
-- **Zbývá (Slice 3):** filtry (creature type / CR), detail stat-block, indikátor
-  „nově objeveno", pixel-art rámeček (deslopifikace UI).
+- **Pokrytí Slice 3 (polish):** filtry (creature-type chipy + fulltext + „discovered
+  only"), detail stat-block (modal s abilities/save/condition), indikátor „nově
+  objeveno" — per-postava `characters.bestiary_seen_at` (migrace `0045`),
+  `BestiaryView.newCount` + `isNew` (záznam s `discoveredAt > seenAt`),
+  `POST /bestiary/seen` resetuje při otevření stránky. `buildBestiaryView` přijímá
+  `{ seenAtMs }` (čistá vrstva, kontraktní test). Pixel-art rámeček ponechán na
+  deslopifikaci UI.
 - `EnemyStats.templateId` je obecně užitečné (budoucí „kde nepřítele potkat",
   analytika), balanc-neutrální.

@@ -104,6 +104,23 @@ describe('flow: bestiary', () => {
     expect(view.discoveredCount).toBe(1);
   });
 
+  it('nově objevené: clear značí NEW, markSeen je vynuluje pro příští návštěvu', async () => {
+    const a = await player('Scout');
+    const dungeonId = Object.keys(DUNGEONS)[0]!;
+    await service.recordDungeonClear(a.id, dungeonId);
+
+    // První pohled: objevené záznamy jsou „nové" (seenAt = null).
+    let view = await service.getBestiary(a.accountId, a.id);
+    expect(view.newCount).toBeGreaterThan(0);
+    expect(view.entries.some((e) => e.isNew)).toBe(true);
+
+    // markSeen → příští view už nic nového neukáže.
+    await service.markSeen(a.accountId, a.id);
+    view = await service.getBestiary(a.accountId, a.id);
+    expect(view.newCount).toBe(0);
+    expect(view.entries.every((e) => !e.isNew)).toBe(true);
+  });
+
   it('getBestiary cizí postavy hází 404', async () => {
     const a = await player('Owner');
     const b = await player('Intruder');

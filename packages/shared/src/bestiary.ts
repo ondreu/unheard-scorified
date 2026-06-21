@@ -93,12 +93,16 @@ export interface BestiaryEntry {
 export interface BestiaryProgress {
   discovered: boolean;
   kills: number;
+  /** Kdy byl záznam objeven (ms epoch) — pro indikátor „nově objeveno". */
+  discoveredAtMs?: number;
 }
 
 /** Záznam pro UI = statický stat-block + per-postava stav. */
 export interface BestiaryEntryView extends BestiaryEntry {
   discovered: boolean;
   kills: number;
+  /** Objeveno po posledním otevření bestiáře → UI „NEW" badge. */
+  isNew: boolean;
 }
 
 /** Souhrnný pohled na bestiář postavy. */
@@ -107,6 +111,8 @@ export interface BestiaryView {
   discoveredCount: number;
   totalCount: number;
   totalKills: number;
+  /** Počet záznamů objevených od posledního otevření bestiáře. */
+  newCount: number;
 }
 
 function abilityView(a: EnemyAbility): BestiaryAbilityView {
@@ -192,18 +198,28 @@ export function dungeonTemplateCounts(dungeonId: string): Record<string, number>
 
 /**
  * Sestaví `BestiaryView` z per-postava progress mapy (templateId → {kills}).
- * Záznam bez progresu = neobjevený (kills 0) — UI ho ukáže zašedlý.
+ * Záznam bez progresu = neobjevený (kills 0) — UI ho ukáže zašedlý. `seenAtMs`
+ * (kdy hráč naposledy otevřel bestiář) určí „nově objevené" záznamy; `null`/
+ * `undefined` = nikdy neotevřeno → vše objevené je nové.
  */
-export function buildBestiaryView(progress: Record<string, BestiaryProgress>): BestiaryView {
+export function buildBestiaryView(
+  progress: Record<string, BestiaryProgress>,
+  opts: { seenAtMs?: number | null } = {},
+): BestiaryView {
+  const seenAtMs = opts.seenAtMs ?? null;
   const entries = allBestiaryEntries().map<BestiaryEntryView>((entry) => {
     const p = progress[entry.templateId];
-    return { ...entry, discovered: p?.discovered ?? false, kills: p?.kills ?? 0 };
+    const discovered = p?.discovered ?? false;
+    const isNew =
+      discovered && (seenAtMs === null || (p?.discoveredAtMs ?? 0) > seenAtMs);
+    return { ...entry, discovered, kills: p?.kills ?? 0, isNew };
   });
   return {
     entries,
     discoveredCount: entries.filter((e) => e.discovered).length,
     totalCount: entries.length,
     totalKills: entries.reduce((sum, e) => sum + e.kills, 0),
+    newCount: entries.filter((e) => e.isNew).length,
   };
 }
 
