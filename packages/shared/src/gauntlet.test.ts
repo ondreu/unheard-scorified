@@ -21,6 +21,7 @@ import {
   type CombatActor,
   type GauntletRunState,
   type SignatureAbility,
+  BESTIARY,
 } from './index';
 
 function hero(
@@ -410,5 +411,54 @@ describe('conditiony v Gauntletu (Slice 2d)', () => {
     if (s.status === 'drafting' && s.draft) s = applyGauntletDraft(base, s, s.draft[0]!.id, 10);
     // Nová vlna = short rest → conditiony hráče pryč.
     expect(s.player.conditions?.length ?? 0).toBe(0);
+  });
+});
+
+describe('Enemy schopnosti v Gauntletu (Slice 2d — draw z katalogu)', () => {
+  it('buildGauntletEnemy nese templateId z katalogu (jméno sedí na šablonu)', () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 30; seed++) {
+      const e = buildGauntletEnemy(10, 1, new SeededRng(seed));
+      expect(e.templateId).toBeDefined();
+      expect(BESTIARY[e.templateId!]).toBeDefined();
+      expect(e.name).toBe(BESTIARY[e.templateId!]!.name);
+      seen.add(e.templateId!);
+    }
+    expect(seen.size).toBeGreaterThan(1); // pool je rozmanitý
+  });
+
+  it('nepřítel s katalogovou condition ability stunne hráče (typový úder + save → condition)', () => {
+    const base = hero(20);
+    const state = startGauntletRun(base, 20, 7);
+    // Vnutíme nepřítele se stun ability z katalogu (Mind Devourer — Mind Blast,
+    // INT save or stunned). Obří HP (nepadne), slabý úder, vysoká úroveň → vysoké
+    // save DC → hráč selže → stun. Cooldown reset přijde s novou vlnou (sem nedojde).
+    state.enemy = {
+      name: BESTIARY.mind_devourer!.name,
+      templateId: 'mind_devourer',
+      isElite: true,
+      maxHealth: 50_000_000,
+      currentHealth: 50_000_000,
+      attackPower: 1,
+      armor: 0,
+      level: 30,
+      dots: [],
+      conditions: [],
+      cooldowns: {},
+    };
+    let condSeen = false;
+    let stunLostTurn = false;
+    let s = state;
+    for (let i = 0; i < 40 && s.status === 'in_combat'; i++) {
+      const r = resolveGauntletTurn(base, s, GAUNTLET_BASIC_ATTACK.id);
+      s = r.state;
+      if (s.log.some((e) => e.source === s.enemy?.name && (e.message ?? '').includes('Mind Blast'))) {
+        // ability se vystřelila
+      }
+      if (s.log.some((e) => (e.message ?? '').includes('stunned'))) condSeen = true;
+      if (s.log.some((e) => (e.message ?? '').includes('is stunned and loses the turn'))) stunLostTurn = true;
+    }
+    expect(condSeen).toBe(true); // condition se uvalila
+    expect(stunLostTurn).toBe(true); // a hráč kvůli ní ztratil tah
   });
 });

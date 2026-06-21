@@ -41,7 +41,16 @@ import {
   type SignatureAbility,
 } from './combat';
 import { isAbilityEnabled, shouldCastAbility } from './rotation';
-import { applySpellSave, missMessage, rollTag } from './dnd-combat';
+import { applySpellSave, isControlSpell, missMessage, resolveControlCast, rollTag } from './dnd-combat';
+import {
+  applyCondition,
+  beginActorTurn,
+  combineAdvantage,
+  conditionAppliedMessage,
+  grantsIncomingAdvantage,
+  turnConditionEffects,
+  type ActiveCondition,
+} from './conditions';
 import { applyDamageInteraction, damageInteraction } from './data/damage';
 import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 
@@ -384,6 +393,12 @@ function fightEncounter(
   const enemies = enemyActors;
   const enemyHp = enemies.map((e) => e.maxHealth);
   const enemyDead = enemies.map(() => false);
+  // Conditiony (Slice 2d — spojité simy): status efekty na členech/nepřátelích.
+  // „Turn" aktéra = jeho **basic-swing** timer (`member`/`enemy_basic`) — na něm se
+  // condition vyhodnotí + dekrementuje; ability timery jen čtou (netikají). Stun/
+  // charmed = vynechaný beat, ostatní = disadvantage. Per-pull (fresh = short rest).
+  const memberConditions: (ActiveCondition[] | undefined)[] = party.map(() => undefined);
+  const enemyConditions: (ActiveCondition[] | undefined)[] = enemies.map(() => undefined);
   const encStart = clock;
   const note = attempt > 0 ? ` (pull ${attempt + 1}, weakened)` : '';
 
@@ -452,6 +467,7 @@ function fightEncounter(
     ei: number,
     ability: SignatureAbility | undefined,
     slotTier: number | null,
+    attackerDisadvantage = false,
   ): void => {
     const enemy = enemies[ei]!;
     const targetHpPct = enemy.maxHealth > 0 ? enemyHp[ei]! / enemy.maxHealth : 0;
@@ -460,15 +476,30 @@ function fightEncounter(
     const spec = ability ? abilityDamageSpec(ability, slotTier, member.level) : undefined;
     const mult = ability ? (spec ? 1 : abilityDamageMult(ability, targetHpPct)) : 1;
     const bonusDice = ability ? bonusDiceSpec(ability, slotTier, member.level) : undefined;
+    // Advantage (Slice 2d): ability advantage + disadvantage z conditionů člena +
+    // advantage z conditionů nepřítele (prone/restrained/stunned/blinded).
+    const advantage = combineAdvantage(
+      ability?.advantage ? 'advantage' : undefined,
+      attackerDisadvantage ? 'disadvantage' : undefined,
+      grantsIncomingAdvantage(enemyConditions[ei]) ? 'advantage' : undefined,
+    );
     const hit = computeHit(member, enemy, rng, mult, false, ability?.damageType, spec, {
-      advantage: ability?.advantage ? 'advantage' : undefined,
+      advantage,
       bonusDice,
     });
     // Per-spell saving throw (ADR 0032) → nepřítel si hodí proti spell save DC člena.
+    // Neúspěšný save + condition rider (Slice 2d) → status efekt na nepřítele.
     if (hit.hit && ability?.save) {
       const outcome = applySpellSave(ability, member, enemy, rng, hit.amount);
       hit.amount = outcome.amount;
       if (outcome.message) events.push({ t: round1(clock), type: 'ability', source: enemy.name, message: outcome.message });
+      if (outcome.condition) {
+        enemyConditions[ei] = applyCondition(enemyConditions[ei], outcome.condition, member.name);
+        events.push({ t: round1(clock), type: 'ability', source: member.name, target: enemy.name, message: conditionAppliedMessage(enemy.name, outcome.condition) });
+      }
+    } else if (hit.hit && ability?.condition && !ability.save) {
+      enemyConditions[ei] = applyCondition(enemyConditions[ei], ability.condition, member.name);
+      events.push({ t: round1(clock), type: 'ability', source: member.name, target: enemy.name, message: conditionAppliedMessage(enemy.name, ability.condition) });
     }
     enemyHp[ei] = Math.max(0, enemyHp[ei]! - hit.amount);
     const healFrac = member.lifesteal + (ability?.kind === 'drain' ? (ability.drainHealFraction ?? 0) : 0);
@@ -525,6 +556,21 @@ function fightEncounter(
       const i = timer.memberIdx!;
       if (hp[i]! <= 0) continue; // mrtvý člen mlčí
       const member = party[i]!;
+      // Conditiony (Slice 2d): basic-swing beat = „turn" člena → vyhodnoť + dekrementuj.
+      // Stun/charmed = ztráta beatu; jinak disadvantage na případný útok (heal nedotčen).
+      const memberH = { conditions: memberConditions[i] };
+      const memberEff = beginActorTurn(memberH);
+      memberConditions[i] = memberH.conditions;
+      if (memberEff.skipTurn) {
+        events.push({
+          t: round1(clock),
+          type: 'ability',
+          source: member.name,
+          message: `💫 ${member.name} is incapacitated and loses the action.`,
+        });
+        continue;
+      }
+      const memberDisadv = memberEff.attackDisadvantage;
 
       if (member.role === 'healer') {
         // Léčí nejzraněnějšího živého spoluhráče (vč. sebe).
@@ -566,12 +612,12 @@ function fightEncounter(
         } else if (canDps) {
           // Nikdo zraněný (nebo pure-DPS healer) → úder nejslabšímu nepříteli (slabý — healer).
           const ei = chooseEnemyTarget(enemyHp);
-          if (ei >= 0) memberHitEnemy(member, i, ei, undefined, null);
+          if (ei >= 0) memberHitEnemy(member, i, ei, undefined, null, memberDisadv);
         }
         // jinak (pure HPS a nikdo zraněný) → healer tento swing nic nedělá
       } else {
         const ei = chooseEnemyTarget(enemyHp);
-        if (ei >= 0) memberHitEnemy(member, i, ei, undefined, null);
+        if (ei >= 0) memberHitEnemy(member, i, ei, undefined, null, memberDisadv);
       }
     } else if (timer.kind === 'dot_tick') {
       const ei = timer.enemyIdx!;
@@ -599,6 +645,10 @@ function fightEncounter(
       if (hp[i]! <= 0) continue; // mrtvý člen nekouzlí
       const member = party[i]!;
       const ability = timer.ability!;
+      // Conditiony (Slice 2d): stunnutý/charmnutý člen nemůže ani kouzlit (ability
+      // timer netiká — dekrement řeší basic-swing beat). Disadvantage čteme živě.
+      const memberCondEff = turnConditionEffects(memberConditions[i]);
+      if (memberCondEff.skipTurn) continue;
       // Akční ekonomika (ADR 0042): „once per combat" ability už vyčerpaná → drž ji.
       if (!abilityOnceAvailable(usedOnce[i]!, ability)) continue;
       // Reprezentativní cíl (nejslabší nepřítel) pro rotaci + jednocílové útoky.
@@ -687,10 +737,24 @@ function fightEncounter(
       if (kiCost > 0) kiBudget[i]! -= kiCost;
       markAbilityUsed(usedOnce[i]!, ability); // spotřebuj „once per combat" okno
       // (no-op bez flagu)
+      // Control kouzlo (Slice 2d): pure-control (Hold Person/Web/Entangle) → bez
+      // hodu/poškození, jen save → condition na nepřítele (AoE = na všechny živé).
+      if (isControlSpell(ability)) {
+        const ctrlTargets = ability.aoe ? livingEnemyIndices() : [primaryEi];
+        for (const ei of ctrlTargets) {
+          const tgt = { actor: enemies[ei]!, name: enemies[ei]!.name, conditions: enemyConditions[ei] };
+          const outcome = resolveControlCast(ability, member, tgt, rng, member.name);
+          enemyConditions[ei] = tgt.conditions;
+          events.push({ t: round1(clock), type: 'ability', source: member.name, target: enemies[ei]!.name, ability: ability.name, message: `✨ ${member.name} casts ${ability.name} at ${enemies[ei]!.name}.` });
+          if (outcome.saveMessage) events.push({ t: round1(clock), type: 'ability', source: enemies[ei]!.name, message: outcome.saveMessage });
+          if (outcome.applied) events.push({ t: round1(clock), type: 'ability', source: member.name, target: enemies[ei]!.name, message: conditionAppliedMessage(enemies[ei]!.name, outcome.applied) });
+        }
+        continue;
+      }
       // AoE útok (ADR 0036, aktivováno dungeon overhaulem) → zasáhne VŠECHNY živé
       // nepřátele (jeden cast, víc cílů); jinak jen nejslabšího.
       const targets = ability.aoe ? livingEnemyIndices() : [primaryEi];
-      for (const ei of targets) memberHitEnemy(member, i, ei, ability, slot.tier);
+      for (const ei of targets) memberHitEnemy(member, i, ei, ability, slot.tier, memberCondEff.attackDisadvantage);
       // Akční ekonomika (ADR 0042, Slice 2): Action Surge/Onslaught → extra útok(y)
       // zbraní v tomtéž tahu, na nejslabšího živého nepřítele.
       const extras = extraActionCount(ability);
@@ -704,19 +768,50 @@ function fightEncounter(
       const ei = timer.enemyIdx!;
       if (enemyHp[ei]! <= 0) continue; // mrtvý nepřítel neútočí
       const enemy = enemies[ei]!;
+      // Conditiony (Slice 2d): basic-swing beat tiká nepřátelské conditiony; ability
+      // timer jen čte (netiká). Stun/charmed = vynechaný beat; jinak disadvantage.
+      let enemyAtkDisadv = false;
+      if (timer.kind === 'enemy_basic') {
+        const eH = { conditions: enemyConditions[ei] };
+        const eEff = beginActorTurn(eH);
+        enemyConditions[ei] = eH.conditions;
+        if (eEff.skipTurn) {
+          events.push({ t: round1(clock), type: 'ability', source: enemy.name, message: `💫 ${enemy.name} is incapacitated and loses the action.` });
+          continue;
+        }
+        enemyAtkDisadv = eEff.attackDisadvantage;
+      } else {
+        const eEff = turnConditionEffects(enemyConditions[ei]);
+        if (eEff.skipTurn) continue; // stunnutý/charmnutý nepřítel nekouzlí
+        enemyAtkDisadv = eEff.attackDisadvantage;
+      }
       const tIdx = chooseBossTarget(party, hp);
       if (tIdx < 0) break;
       const target = party[tIdx]!;
       const ability = timer.kind === 'enemy_ability' ? timer.ability : undefined;
       // Enemy ability („Enemy schopnosti"): typové poškození (damageType) + per-
       // ability saving throw (cíl si hodí proti enemy spell save DC; úspěch půlí).
-      const hit = computeHit(enemy, target, rng, ability?.damageMult ?? 1, enraged, ability?.damageType);
+      // Advantage (Slice 2d): disadvantage z conditionů nepřítele + advantage z
+      // conditionů cíle (prone/restrained/stunned/blinded).
+      const enemyAdvantage = combineAdvantage(
+        enemyAtkDisadv ? 'disadvantage' : undefined,
+        grantsIncomingAdvantage(memberConditions[tIdx]) ? 'advantage' : undefined,
+      );
+      const hit = computeHit(enemy, target, rng, ability?.damageMult ?? 1, enraged, ability?.damageType, undefined, { advantage: enemyAdvantage });
       let dmg = hit.amount;
       let enemySaveMsg: string | undefined;
+      let enemyCondMsg: string | undefined;
       if (hit.hit && ability?.save) {
         const out = applySpellSave(ability, enemy, target, rng, dmg);
         dmg = out.amount;
         enemySaveMsg = out.message;
+        if (out.condition) {
+          memberConditions[tIdx] = applyCondition(memberConditions[tIdx], out.condition, enemy.name);
+          enemyCondMsg = conditionAppliedMessage(target.name, out.condition);
+        }
+      } else if (hit.hit && ability?.condition && !ability.save) {
+        memberConditions[tIdx] = applyCondition(memberConditions[tIdx], ability.condition, enemy.name);
+        enemyCondMsg = conditionAppliedMessage(target.name, ability.condition);
       }
       if (target.role === 'tank') dmg = Math.max(1, Math.round(dmg * TANK_MITIGATION));
       // Aktivní mitigation cooldown (Shield Wall / Ardent Defender).
@@ -767,6 +862,9 @@ function fightEncounter(
       }
       if (enemySaveMsg) {
         events.push({ t: round1(clock), type: 'ability', source: target.name, message: enemySaveMsg });
+      }
+      if (enemyCondMsg) {
+        events.push({ t: round1(clock), type: 'ability', source: enemy.name, target: target.name, message: enemyCondMsg });
       }
       if (hp[tIdx] === 0) {
         events.push({

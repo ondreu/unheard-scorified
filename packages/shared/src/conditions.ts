@@ -146,6 +146,30 @@ export function combineAdvantage(...modes: (AdvantageMode | undefined)[]): Advan
 }
 
 /**
+ * Advantage/disadvantage hodu na zásah ve **spojitých (timeline) simulátorech**
+ * (quest/group auto-resolve/PVP, Slice 2d). Sjednocuje tři zdroje: vlastní
+ * `advantage` ability (Reckless Attack…), **disadvantage z conditionů útočníka**
+ * (frightened/prone/restrained/slowed/poisoned/blinded) a **advantage z conditionů
+ * cíle** (prone/restrained/stunned/blinded = útoky proti němu mají advantage).
+ *
+ * V timeline modelu = „turn" aktéra je jeho **basic-swing beat**; disadvantage se
+ * čte z efektů vyhodnocených pro tento beat (`turnConditionEffects`), cílová
+ * advantage z živých conditionů cíle (`grantsIncomingAdvantage`). Vrací
+ * `AdvantageMode` (vč. `'normal'`), který lze rovnou předat `computeHit`/`resolveAttack`.
+ */
+export function timelineAttackAdvantage(
+  attackerConditions: readonly ActiveCondition[] | undefined,
+  defenderConditions: readonly ActiveCondition[] | undefined,
+  abilityAdvantage?: boolean,
+): AdvantageMode {
+  return combineAdvantage(
+    abilityAdvantage ? 'advantage' : undefined,
+    turnConditionEffects(attackerConditions).attackDisadvantage ? 'disadvantage' : undefined,
+    grantsIncomingAdvantage(defenderConditions) ? 'advantage' : undefined,
+  );
+}
+
+/**
  * Uvalí condition na seznam aktivních conditionů (in-place na kopii). Stejný typ
  * se **obnoví na delší dobu** (max ze stávajícího a nového trvání) místo skládání.
  * Vrací nový seznam (volající ho přiřadí mutabilnímu aktérovi).

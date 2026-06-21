@@ -26,8 +26,18 @@ import {
   type CombatEvent,
 } from './combat';
 import type { DiceSpec } from './dice';
+import type { SignatureAbility } from './data/abilities';
 import { shouldCastAbility } from './rotation';
-import { missMessage } from './dnd-combat';
+import { applySpellSave, isControlSpell, missMessage, resolveControlCast } from './dnd-combat';
+import {
+  applyCondition,
+  beginActorTurn,
+  combineAdvantage,
+  conditionAppliedMessage,
+  grantsIncomingAdvantage,
+  turnConditionEffects,
+  type ActiveCondition,
+} from './conditions';
 import type { DamageType } from './data/damage';
 import { spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import {
@@ -83,6 +93,8 @@ interface DuelTimer {
   abilityOncePerCombat?: boolean;
   /** Akční ekonomika (ADR 0042, Slice 2) — počet extra útoků po seslání (0 = žádné). */
   abilityExtraActions?: number;
+  /** Původní ability (Slice 2d) — pro per-spell save / condition rider / control kouzlo. */
+  ability?: SignatureAbility;
 }
 
 /**
@@ -138,6 +150,7 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityAdvantage: ab.advantage,
       abilityOncePerCombat: ab.oncePerCombat,
       abilityExtraActions: extraActionCount(ab),
+      ability: ab,
     })),
     ...b.signatureAbilities.map((ab) => ({
       next: ab.cooldownSec,
@@ -155,8 +168,14 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
       abilityAdvantage: ab.advantage,
       abilityOncePerCombat: ab.oncePerCombat,
       abilityExtraActions: extraActionCount(ab),
+      ability: ab,
     })),
   ];
+
+  // Conditiony (Slice 2d — spojité simy): status efekty per strana. „Turn" = basic-
+  // swing beat (timer bez ability); na něm se conditiony vyhodnotí + dekrementují,
+  // ability timery jen čtou. Stun/charmed = vynechaný beat, ostatní = disadvantage.
+  const conditions: Record<DuelSide, ActiveCondition[] | undefined> = { a: undefined, b: undefined };
 
   let iterations = 0;
   while (hp.a > 0 && hp.b > 0 && iterations++ < PVP_MAX_ITERATIONS) {
@@ -177,6 +196,24 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
 
     // Heal/shield ability v 1v1 nedávají smysl (žádný spojenec) → přeskoč.
     if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield' || timer.abilityKind === 'mitigation') continue;
+    // Conditiony (Slice 2d): basic-swing beat (timer bez ability) = „turn" → vyhodnoť
+    // + dekrementuj; ability timery jen čtou (netikají). Stun/charmed = vynechaný beat
+    // (basic) / přeskočené seslání (ability); jinak disadvantage na tento hod.
+    let atkDisadv = false;
+    if (!timer.abilityId) {
+      const h = { conditions: conditions[attackerSide] };
+      const eff = beginActorTurn(h);
+      conditions[attackerSide] = h.conditions;
+      if (eff.skipTurn) {
+        events.push({ t: round1(clock), type: 'ability', source: attacker.name, message: `💫 ${attacker.name} is incapacitated and loses the action.` });
+        continue;
+      }
+      atkDisadv = eff.attackDisadvantage;
+    } else {
+      const eff = turnConditionEffects(conditions[attackerSide]);
+      if (eff.skipTurn) continue; // stunnutý/charmnutý aktér nekouzlí
+      atkDisadv = eff.attackDisadvantage;
+    }
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&
@@ -209,10 +246,28 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
     // Spotřebuj „once per combat" okno (ADR 0042) — až po slot/Ki gatingu.
     if (timer.abilityId && timer.abilityOncePerCombat) usedOnce[attackerSide].add(timer.abilityId);
 
+    // Control kouzlo (Slice 2d): pure-control (Hold Person/Web/…) → bez hodu/poškození,
+    // jen save → condition na soupeře. Slot/Ki už spotřebovány výše.
+    if (timer.ability && isControlSpell(timer.ability)) {
+      const tgt = { actor: defender, name: defender.name, conditions: conditions[defenderSide] };
+      const outcome = resolveControlCast(timer.ability, attacker, tgt, rng, attacker.name);
+      conditions[defenderSide] = tgt.conditions;
+      events.push({ t: round1(clock), type: 'ability', source: attacker.name, target: defender.name, ability: timer.ability.name, message: `✨ ${attacker.name} casts ${timer.ability.name} at ${defender.name}.` });
+      if (outcome.saveMessage) events.push({ t: round1(clock), type: 'ability', source: defender.name, message: outcome.saveMessage });
+      if (outcome.applied) events.push({ t: round1(clock), type: 'ability', source: attacker.name, target: defender.name, message: conditionAppliedMessage(defender.name, outcome.applied) });
+      continue;
+    }
+
     const effMult = timer.abilityMult ?? 1;
     const spec = timer.abilityDamageSpec;
+    // Advantage (Slice 2d): ability advantage + disadvantage z conditionů útočníka +
+    // advantage z conditionů soupeře (prone/restrained/stunned/blinded).
     const hit = computeHit(attacker, defender, rng, spec ? 1 : effMult, enraged, timer.abilityDamageType, spec, {
-      advantage: timer.abilityAdvantage ? 'advantage' : undefined,
+      advantage: combineAdvantage(
+        timer.abilityAdvantage ? 'advantage' : undefined,
+        atkDisadv ? 'disadvantage' : undefined,
+        grantsIncomingAdvantage(conditions[defenderSide]) ? 'advantage' : undefined,
+      ),
       bonusDice: timer.abilityBonusDice,
     });
     let dmg = hit.amount;
@@ -258,6 +313,26 @@ export function simulatePvpDuel(a: CombatActor, b: CombatActor, seed: number): P
           })
         : missMessage(attacker.name, defender.name, hit),
     });
+
+    // Condition rider (Slice 2d): damage + rider (Trip Attack/Stunning Strike/…).
+    // Save se hodí jen kvůli condition (poškození v PVP zůstává beze změny — balanc).
+    if (hit.hit && timer.ability?.condition) {
+      let applied: ActiveCondition['type'] | undefined;
+      if (timer.ability.save) {
+        const out = applySpellSave(timer.ability, attacker, defender, rng, 0);
+        if (out.message) events.push({ t: round1(clock), type: 'ability', source: defender.name, message: out.message });
+        if (out.condition) {
+          conditions[defenderSide] = applyCondition(conditions[defenderSide], out.condition, attacker.name);
+          applied = out.condition.type;
+        }
+      } else {
+        conditions[defenderSide] = applyCondition(conditions[defenderSide], timer.ability.condition, attacker.name);
+        applied = timer.ability.condition.type;
+      }
+      if (applied) {
+        events.push({ t: round1(clock), type: 'ability', source: attacker.name, target: defender.name, message: conditionAppliedMessage(defender.name, timer.ability.condition) });
+      }
+    }
 
     // Akční ekonomika (ADR 0042, Slice 2): Action Surge → extra úder(y) v tomtéž
     // okamžiku, než přijde na řadu další timer.
@@ -364,6 +439,8 @@ interface TeamTimer {
   abilityOncePerCombat?: boolean;
   /** Akční ekonomika (ADR 0042, Slice 2) — počet extra útoků po seslání (0 = žádné). */
   abilityExtraActions?: number;
+  /** Původní ability (Slice 2d) — pro per-spell save / condition rider / control kouzlo. */
+  ability?: SignatureAbility;
 }
 
 /** Index živého nepřítele s nejnižším HP (focus fire); -1 když nikdo nežije. */
@@ -446,10 +523,17 @@ export function simulateTeamFight(
           abilityAdvantage: ab.advantage,
           abilityOncePerCombat: ab.oncePerCombat,
           abilityExtraActions: extraActionCount(ab),
+          ability: ab,
         });
       }
     });
   }
+
+  // Conditiony (Slice 2d): status efekty per člen obou týmů (jako duel, per index).
+  const conditions: Record<DuelSide, (ActiveCondition[] | undefined)[]> = {
+    a: teamA.map(() => undefined),
+    b: teamB.map(() => undefined),
+  };
 
   const alive = (side: DuelSide): boolean => hp[side].some((h) => h > 0);
 
@@ -475,6 +559,23 @@ export function simulateTeamFight(
     const defender = team[defenderSide][targetIdx]!;
     const enraged = clock >= PVP_RAMPAGE_SEC;
     if (timer.abilityKind === 'heal' || timer.abilityKind === 'shield' || timer.abilityKind === 'mitigation') continue;
+    // Conditiony (Slice 2d): basic-swing beat tiká conditiony člena, ability timer
+    // jen čte. Stun/charmed = vynechaný beat / přeskočené seslání; jinak disadvantage.
+    let atkDisadv = false;
+    if (!timer.abilityId) {
+      const h = { conditions: conditions[attackerSide][timer.member] };
+      const eff = beginActorTurn(h);
+      conditions[attackerSide][timer.member] = h.conditions;
+      if (eff.skipTurn) {
+        events.push({ t: round1(clock), type: 'ability', source: attacker.name, message: `💫 ${attacker.name} is incapacitated and loses the action.` });
+        continue;
+      }
+      atkDisadv = eff.attackDisadvantage;
+    } else {
+      const eff = turnConditionEffects(conditions[attackerSide][timer.member]);
+      if (eff.skipTurn) continue;
+      atkDisadv = eff.attackDisadvantage;
+    }
     // Deklarativní rotace (MIL): pravidlo může ability „podržet"; default = always.
     if (
       timer.abilityId &&
@@ -507,10 +608,26 @@ export function simulateTeamFight(
     }
     // Spotřebuj „once per combat" okno (ADR 0042) — až po slot/Ki gatingu.
     if (timer.abilityId && timer.abilityOncePerCombat) usedOnce[attackerSide][timer.member]!.add(timer.abilityId);
+
+    // Control kouzlo (Slice 2d): pure-control → jen save → condition na cíl (bez dmg).
+    if (timer.ability && isControlSpell(timer.ability)) {
+      const tgt = { actor: defender, name: defender.name, conditions: conditions[defenderSide][targetIdx] };
+      const outcome = resolveControlCast(timer.ability, attacker, tgt, rng, attacker.name);
+      conditions[defenderSide][targetIdx] = tgt.conditions;
+      events.push({ t: round1(clock), type: 'ability', source: attacker.name, target: defender.name, ability: timer.ability.name, message: `✨ ${attacker.name} casts ${timer.ability.name} at ${defender.name}.` });
+      if (outcome.saveMessage) events.push({ t: round1(clock), type: 'ability', source: defender.name, message: outcome.saveMessage });
+      if (outcome.applied) events.push({ t: round1(clock), type: 'ability', source: attacker.name, target: defender.name, message: conditionAppliedMessage(defender.name, outcome.applied) });
+      continue;
+    }
+
     const effMult = timer.abilityMult ?? 1;
     const spec = timer.abilityDamageSpec;
     const hit = computeHit(attacker, defender, rng, spec ? 1 : effMult, enraged, timer.abilityDamageType, spec, {
-      advantage: timer.abilityAdvantage ? 'advantage' : undefined,
+      advantage: combineAdvantage(
+        timer.abilityAdvantage ? 'advantage' : undefined,
+        atkDisadv ? 'disadvantage' : undefined,
+        grantsIncomingAdvantage(conditions[defenderSide][targetIdx]) ? 'advantage' : undefined,
+      ),
       bonusDice: timer.abilityBonusDice,
     });
     let dmg = hit.amount;
@@ -561,6 +678,26 @@ export function simulateTeamFight(
           })
         : missMessage(attacker.name, defender.name, hit),
     });
+
+    // Condition rider (Slice 2d): damage + rider → save (jen kvůli condition; PVP
+    // poškození beze změny). Save-less rider = auto na zásah.
+    if (hit.hit && !fell && timer.ability?.condition) {
+      let landed = false;
+      if (timer.ability.save) {
+        const out = applySpellSave(timer.ability, attacker, defender, rng, 0);
+        if (out.message) events.push({ t: round1(clock), type: 'ability', source: defender.name, message: out.message });
+        if (out.condition) {
+          conditions[defenderSide][targetIdx] = applyCondition(conditions[defenderSide][targetIdx], out.condition, attacker.name);
+          landed = true;
+        }
+      } else {
+        conditions[defenderSide][targetIdx] = applyCondition(conditions[defenderSide][targetIdx], timer.ability.condition, attacker.name);
+        landed = true;
+      }
+      if (landed) {
+        events.push({ t: round1(clock), type: 'ability', source: attacker.name, target: defender.name, message: conditionAppliedMessage(defender.name, timer.ability.condition) });
+      }
+    }
 
     // Akční ekonomika (ADR 0042, Slice 2): Action Surge → extra úder(y) na stejný cíl.
     const extras = timer.abilityExtraActions ?? 0;

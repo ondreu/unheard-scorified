@@ -34,6 +34,7 @@ import {
   extraActionCount,
   isBonusAction,
   applyAbsorb,
+  selectEnemyAbility,
   SIGNATURE_ABILITIES,
   type CombatActor,
   type CombatEvent,
@@ -51,7 +52,7 @@ import {
   type ActiveCondition,
 } from './conditions';
 import { applyDamageInteraction, crForContentLevel, damageInteraction } from './data/damage';
-import { BESTIARY } from './data/enemies';
+import { BESTIARY, enemyAbilityToSignature } from './data/enemies';
 import {
   abilityPrefersUpcast,
   hasSlotForTier,
@@ -128,6 +129,14 @@ export interface GauntletEnemyState {
   dots: GauntletDot[];
   /** Aktivní conditiony (Slice 2d) — status efekty uvalené hráčovými kouzly. */
   conditions?: ActiveCondition[];
+  /**
+   * Id katalogové šablony (`enemies.ts`, ADR 0043) — z ní se táhne **signature
+   * ability** nepřítele (typový úder + save + condition rider; Slice 2d). `undefined`
+   * = běh z doby před touto změnou (graceful → bez abilit, jen basic úder).
+   */
+  templateId?: string;
+  /** abilityId → zbývající počet tahů do dostupnosti (enemy cooldowny, Slice 2d). */
+  cooldowns?: Record<string, number>;
 }
 
 /** Mutabilní bojový stav hráče (mimo neměnný snapshot profilu). */
@@ -285,11 +294,12 @@ export function gauntletAbilities(base: CombatActor, picks: GauntletPick[]): Sig
 
 // ── Generování nepřátel ──────────────────────────────────────────────────────
 
-// Jména nepřátel se táhnou ze sdíleného katalogu nestvůr (`enemies.ts`, ADR 0043)
-// — žádný paralelní seznam jmen. Bereme jen jméno (identita); typové obrany se do
-// Gauntlet combatu zatím NEpropisují (magnitudy/typing beze změny — typed Gauntlet
-// nepřátelé = follow-up „Enemy schopnosti"). Pool = curated podmnožina katalogu.
-const NORMAL_ENEMY_NAMES = [
+// Nepřátelé se táhnou ze sdíleného katalogu nestvůr (`enemies.ts`, ADR 0043) —
+// žádný paralelní seznam. Bereme **id šablony** → jméno + signature ability
+// (typový úder + save + condition rider; Slice 2d). Typové **obrany** nepřítele se
+// do Gauntletu dál NEpropisují (magnitudy beze změny); aplikuje se jen ability.
+// Pool = curated podmnožina katalogu.
+const NORMAL_ENEMY_IDS = [
   'skeleton_warrior',
   'rotting_zombie',
   'goblin_cutter',
@@ -298,15 +308,15 @@ const NORMAL_ENEMY_NAMES = [
   'hill_ogre',
   'grave_wraith',
   'frost_elemental',
-].map((id) => BESTIARY[id]!.name);
-const ELITE_ENEMY_NAMES = [
+];
+const ELITE_ENEMY_IDS = [
   'stone_golem',
   'young_red_dragon',
   'mind_devourer',
   'ancient_treant',
   'pit_fiend_spawn',
   'fire_elemental',
-].map((id) => BESTIARY[id]!.name);
+];
 
 /**
  * Deterministicky postaví nepřítele pro danou vlnu. HP i dmg rostou s vlnou;
@@ -332,13 +342,15 @@ export function buildGauntletEnemy(
   const attackPower = Math.round(base.attackPower * GAUNTLET_AP_GROWTH ** waveStep * eliteAp);
   const armor = Math.round(level * 2 + wave * 4);
 
-  const pool = isElite ? ELITE_ENEMY_NAMES : NORMAL_ENEMY_NAMES;
-  const name = pool[rng.int(0, pool.length - 1)]!;
+  const pool = isElite ? ELITE_ENEMY_IDS : NORMAL_ENEMY_IDS;
+  const templateId = pool[rng.int(0, pool.length - 1)]!;
+  const name = BESTIARY[templateId]!.name;
 
   // Efektivní úroveň roste s vlnou → AC/attackBonus drží krok s hráčem (MR-5).
   const effLevel = level + waveStep;
   return {
     name,
+    templateId,
     isElite,
     maxHealth,
     currentHealth: maxHealth,
@@ -347,7 +359,15 @@ export function buildGauntletEnemy(
     level: effLevel,
     dots: [],
     conditions: [],
+    cooldowns: {},
   };
+}
+
+/** Signature ability nepřítele z katalogové šablony (Slice 2d). Prázdné, když
+ * `templateId` chybí (staré běhy) nebo šablona nemá ability. */
+function enemyAbilities(enemy: GauntletEnemyState): SignatureAbility[] {
+  const tmpl = enemy.templateId ? BESTIARY[enemy.templateId] : undefined;
+  return (tmpl?.abilities ?? []).map(enemyAbilityToSignature);
 }
 
 /** `CombatActor` nepřítele pro sdílený `computeHit` (zdroj pravdy combat vzorce). */
@@ -360,6 +380,7 @@ function enemyActor(enemy: GauntletEnemyState): CombatActor {
     armor: enemy.armor,
     isBoss: enemy.isElite,
     level: enemy.level,
+    signatureAbilities: enemyAbilities(enemy),
   });
 }
 
@@ -859,35 +880,76 @@ export function resolveGauntletTurn(
       message: `💫 ${enemy.name} is stunned and cannot act!`,
     });
   } else {
+    // Enemy schopnosti (Slice 2d): když má nepřítel z katalogu ready signature
+    // ability, vystřelí ji (typové poškození + per-ability saving throw + condition
+    // rider na hráče); jinak basic úder. Cooldowny v tazích (per-vlna, fresh enemy).
+    if (enemy.cooldowns === undefined) enemy.cooldowns = {};
+    const cds = enemy.cooldowns;
+    const enemyAbility = selectEnemyAbility(enemyAsActor, (a) => (cds[a.id] ?? 0) <= 0);
     // Advantage (Slice 2d): útok na prone/restrained/stunnutého hráče, proti
     // disadvantage z vlastní conditiony nepřítele (frightened/slow/…).
     const enemyAdvantage = combineAdvantage(
       grantsIncomingAdvantage(state.player.conditions) ? 'advantage' : undefined,
       enemyEff.attackDisadvantage ? 'disadvantage' : undefined,
     );
-    const enemyHit = computeHit(enemyAsActor, player, rng, 1, false, undefined, undefined, {
-      advantage: enemyAdvantage,
-    });
+    const spec = enemyAbility ? abilityDamageSpec(enemyAbility, null, enemy.level) : undefined;
+    const mult = enemyAbility ? (spec ? 1 : enemyAbility.damageMult) : 1;
+    const enemyHit = computeHit(
+      enemyAsActor,
+      player,
+      rng,
+      mult,
+      false,
+      enemyAbility?.damageType,
+      spec,
+      { advantage: enemyAdvantage },
+    );
     let incoming = enemyHit.amount;
+    // Per-ability saving throw + condition rider (Slice 2d): hráč si hodí proti
+    // enemy spell save DC; úspěch dle efektu, neúspěch → condition.
+    let enemyCondMsg: string | undefined;
+    let enemySaveMsg: string | undefined;
+    if (enemyHit.hit && enemyAbility?.save) {
+      const out = applySpellSave(enemyAbility, enemyAsActor, player, rng, incoming);
+      incoming = out.amount;
+      enemySaveMsg = out.message;
+      if (out.condition) {
+        state.player.conditions = applyCondition(state.player.conditions, out.condition, enemy.name);
+        enemyCondMsg = conditionAppliedMessage(player.name, out.condition);
+      }
+    } else if (enemyHit.hit && enemyAbility?.condition && !enemyAbility.save) {
+      state.player.conditions = applyCondition(state.player.conditions, enemyAbility.condition, enemy.name);
+      enemyCondMsg = conditionAppliedMessage(player.name, enemyAbility.condition);
+    }
     if (state.player.mitigationTurns > 0 && state.player.mitigationPct > 0) {
       incoming = Math.max(1, Math.round(incoming * (1 - state.player.mitigationPct)));
     }
     const absorbResult = applyAbsorb(incoming, state.player.absorb);
     state.player.absorb = absorbResult.shieldRemaining;
     state.player.currentHealth -= absorbResult.netDamage;
+    // Drain (Life Drain): nepřítel se vyléčí o podíl uděleného poškození.
+    if (enemyHit.hit && enemyAbility?.kind === 'drain' && enemyAbility.drainHealFraction) {
+      const healed = Math.round(absorbResult.netDamage * enemyAbility.drainHealFraction);
+      if (healed > 0) enemy.currentHealth = Math.min(enemy.maxHealth, enemy.currentHealth + healed);
+    }
+    if (enemyAbility) cds[enemyAbility.id] = cooldownTurns(enemyAbility);
     const absorbSuffix = absorbResult.absorbed > 0 ? ` (${absorbResult.absorbed} absorbed)` : '';
+    const verb = enemyAbility ? `uses ${enemyAbility.name} on` : 'hits';
     pushEvent({
       t,
-      type: 'attack',
+      type: enemyAbility ? 'ability' : 'attack',
       message: enemyHit.hit
-        ? `${enemy.name} hits ${player.name} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. You: ${Math.max(0, Math.round(state.player.currentHealth))} HP`
+        ? `${enemy.name} ${verb} ${player.name} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. You: ${Math.max(0, Math.round(state.player.currentHealth))} HP`
         : missMessage(enemy.name, player.name, enemyHit),
       source: enemy.name,
       target: player.name,
       amount: absorbResult.netDamage,
       crit: enemyHit.crit,
+      ability: enemyAbility?.name,
       targetHealthRemaining: Math.max(0, Math.round(state.player.currentHealth)),
     });
+    if (enemySaveMsg) pushEvent({ t, type: 'ability', source: player.name, message: enemySaveMsg });
+    if (enemyCondMsg) pushEvent({ t, type: 'ability', source: enemy.name, target: player.name, message: enemyCondMsg });
   }
 
   if (state.player.currentHealth <= 0) {
@@ -907,6 +969,12 @@ export function resolveGauntletTurn(
   // (4) Údržba: dekrement cooldownů + mitigace, posun tahu.
   for (const id of Object.keys(state.player.cooldowns)) {
     state.player.cooldowns[id] = Math.max(0, (state.player.cooldowns[id] ?? 0) - 1);
+  }
+  // Enemy cooldowny (Slice 2d) — dekrement po tahu (reset přijde s novou vlnou).
+  if (enemy.cooldowns) {
+    for (const id of Object.keys(enemy.cooldowns)) {
+      enemy.cooldowns[id] = Math.max(0, (enemy.cooldowns[id] ?? 0) - 1);
+    }
   }
   if (state.player.mitigationTurns > 0) {
     state.player.mitigationTurns -= 1;
