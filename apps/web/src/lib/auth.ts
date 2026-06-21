@@ -12,6 +12,13 @@ export interface Session {
  */
 export const session = writable<Session | null>(null);
 
+/**
+ * `false` dokud na startu neproběhne pokus o obnovu session z refresh cookie.
+ * Stránky/komponenty mají počkat na `authReady`, než rozhodnou „logged out"
+ * (jinak by po reloadu bliklo odhlášení, než dorazí silent refresh).
+ */
+export const authReady = writable<boolean>(false);
+
 export function setSession(value: Session): void {
   session.set(value);
 }

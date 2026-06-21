@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { session } from '$lib/auth';
+  import { authReady, session } from '$lib/auth';
 </script>
 
 <main class="mx-auto flex min-h-dvh max-w-2xl flex-col items-center justify-center px-6 py-16 text-center">
@@ -11,7 +11,9 @@
   </p>
 
   <div class="mt-10 flex flex-wrap justify-center gap-3">
-    {#if $session}
+    {#if !$authReady}
+      <span class="px-6 py-2.5 text-[var(--text-dim)]">Loading…</span>
+    {:else if $session}
       <a href="/characters" class="btn btn-primary px-6 py-2.5">Enter the world →</a>
     {:else}
       <a href="/login" class="btn btn-primary px-6 py-2.5">Log in</a>

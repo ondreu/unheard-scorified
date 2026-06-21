@@ -1,5 +1,5 @@
 import type { ActiveCondition, CharacterSheet } from '@game/shared';
-import { clearSession, currentSession, setSession, type Session } from './auth';
+import { authReady, clearSession, currentSession, setSession, type Session } from './auth';
 
 export interface CharacterView {
   id: string;
@@ -225,9 +225,40 @@ export function login(username: string, password: string): Promise<Session> {
   );
 }
 
+/**
+ * Single-flight refresh: paralelní 401 (dashboard posílá víc dotazů naráz)
+ * sdílí JEDEN `/auth/refresh`. Bez toho by každý request rotoval token
+ * samostatně → první smaže JTI, ostatní dostanou „revoked" → odhlášení.
+ */
+let inflightRefresh: Promise<Session> | null = null;
+
 /** Obnoví session přes httpOnly cookie (nevyžaduje refresh token v JS). */
 function refreshSession(): Promise<Session> {
-  return request<Session>('/auth/refresh', { method: 'POST', body: JSON.stringify({}) }, false);
+  if (!inflightRefresh) {
+    inflightRefresh = request<Session>(
+      '/auth/refresh',
+      { method: 'POST', body: JSON.stringify({}) },
+      false,
+    ).finally(() => {
+      inflightRefresh = null;
+    });
+  }
+  return inflightRefresh;
+}
+
+/**
+ * Pokus o obnovu session z refresh cookie při startu aplikace (root layout).
+ * Session žije jen v paměti → po reloadu/reopenu tabu ji nutno rehydratovat,
+ * jinak hra vypadá odhlášeně i s platnou 30denní cookie.
+ */
+export async function bootstrapSession(): Promise<void> {
+  try {
+    setSession(await refreshSession());
+  } catch {
+    clearSession();
+  } finally {
+    authReady.set(true);
+  }
 }
 
 /** Odhlásí uživatele: revokuje refresh token na serveru + maže cookie. */
