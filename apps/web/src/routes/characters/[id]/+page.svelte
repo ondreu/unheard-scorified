@@ -241,6 +241,12 @@
           <div class="text-xs text-[var(--text-faint)]">Health</div>
           <div class="font-semibold">{c.sheet.derived.health}</div>
         </div>
+        <div class="rounded-lg bg-black/20 px-3 py-2">
+          <div class="text-xs text-[var(--text-faint)]" title="Base AC (10 + DEX); gear armor adds in combat">
+            Armor Class
+          </div>
+          <div class="font-semibold">{c.sheet.derived.armorClass}</div>
+        </div>
         {#if c.sheet.derived.kiPoints > 0}
           <div class="rounded-lg bg-black/20 px-3 py-2">
             <div class="text-xs text-[var(--text-faint)]">Ki</div>

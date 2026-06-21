@@ -557,6 +557,19 @@ export function abandonDungeonTurn(characterId: string, runId: string): Promise<
   });
 }
 
+export interface DungeonTurnRunSummary {
+  runId: string;
+  dungeonId: string;
+  dungeonName: string;
+  status: 'in_combat' | 'cleared' | 'dead';
+  reward: { xp: number; gold: number; items: string[] };
+  createdAt: string;
+}
+
+export function getDungeonTurnRuns(characterId: string): Promise<DungeonTurnRunSummary[]> {
+  return request<DungeonTurnRunSummary[]>(`/characters/${characterId}/dungeons/turn/runs`);
+}
+
 // ── Živé MP tahové sezení (ADR 0038, Slice 4) ──────────────────────────────────
 
 export interface DungeonPartyMemberView {

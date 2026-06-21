@@ -132,10 +132,13 @@ export function rollInitiative(actor: CombatActor, rng: SeededRng): number {
 
 // ── Combat-log řádky (anglicky = jazyk hry) ──────────────────────────────────
 
-/** Breakdown hodu na zásah pro log: „rolls 14 + 6 = 20 vs AC 13". */
-function rollVsAc(roll: HitResult['roll'], targetAc: number): string {
+/** Breakdown hodu na zásah pro log: „rolls 14 + 6 = 20 vs AC 13 (advantage)". */
+function rollVsAc(roll: HitResult['roll'], targetAc: number, advantage?: HitResult['advantage']): string {
   const sign = roll.modifier >= 0 ? '+' : '−';
-  return `rolls ${roll.natural} ${sign} ${Math.abs(roll.modifier)} = ${roll.total} vs AC ${targetAc}`;
+  // Advantage/disadvantage (D&D 5e) → krátká nota (útok na stunnutý/prone cíl =
+  // advantage, ne auto-hit). `normal` = bez noty.
+  const advNote = advantage === 'advantage' ? ' (advantage)' : advantage === 'disadvantage' ? ' (disadvantage)' : '';
+  return `rolls ${roll.natural} ${sign} ${Math.abs(roll.modifier)} = ${roll.total} vs AC ${targetAc}${advNote}`;
 }
 
 export interface DndAttackMessageInput {
@@ -160,7 +163,7 @@ export interface DndAttackMessageInput {
 export function buildDndAttackMessage(input: DndAttackMessageInput): string {
   const { attackerName, targetName, result, abilityName, slotNote, healed, suffix } = input;
   const verb = abilityName ? `casts ${abilityName}${slotNote ?? ''} at` : 'attacks';
-  const head = `${attackerName} ${verb} ${targetName}: ${rollVsAc(result.roll, result.targetAc)}`;
+  const head = `${attackerName} ${verb} ${targetName}: ${rollVsAc(result.roll, result.targetAc, result.advantage)}`;
   const tail = suffix ?? '';
   if (!result.hit) return `${head} → MISS.${tail}`;
   const healNote = healed && healed > 0 ? `, healing for ${healed}` : '';
@@ -174,11 +177,12 @@ export function buildDndAttackMessage(input: DndAttackMessageInput): string {
   return `${head} → HIT for ${result.amount} damage${typeNote}${healNote}.${tail}`;
 }
 
-/** Kompaktní tag hodu na zásah pro hutné logy: `[d20: 14 + 6 = 20 vs AC 13]`. */
+/** Kompaktní tag hodu na zásah pro hutné logy: `[d20: 14 + 6 = 20 vs AC 13 adv]`. */
 export function rollTag(result: HitResult): string {
   const r = result.roll;
   const sign = r.modifier >= 0 ? '+' : '−';
-  return `[d20: ${r.natural} ${sign} ${Math.abs(r.modifier)} = ${r.total} vs AC ${result.targetAc}]`;
+  const adv = result.advantage === 'advantage' ? ' adv' : result.advantage === 'disadvantage' ? ' dis' : '';
+  return `[d20: ${r.natural} ${sign} ${Math.abs(r.modifier)} = ${r.total} vs AC ${result.targetAc}${adv}]`;
 }
 
 /** Krátká hláška „minul" pro simulátory s vlastním formátem logu. */

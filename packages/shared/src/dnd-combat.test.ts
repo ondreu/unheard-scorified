@@ -10,7 +10,7 @@ import {
 } from './combat';
 import { buildDndAttackMessage, applySpellSave, isControlSpell, resolveControlCast, rollInitiative } from './dnd-combat';
 import { CLASS_BASELINE_ABILITIES, EXTRA_SPELLS, type SignatureAbility } from './data/abilities';
-import { diceAverage } from './dice';
+import { attackHits, diceAverage } from './dice';
 import { baseStatsFor } from './character';
 import { EMPTY_PROGRESSION } from './levelup';
 import { SeededRng } from './rng';
@@ -351,6 +351,7 @@ describe('helpers + message format', () => {
         crit: false,
         roll: { natural: 14, modifier: 6, total: 20, isCrit: false, isFumble: false },
         targetAc: 13,
+        advantage: 'normal',
         amount: 28,
       },
     });
@@ -364,6 +365,7 @@ describe('helpers + message format', () => {
         crit: false,
         roll: { natural: 4, modifier: 6, total: 10, isCrit: false, isFumble: false },
         targetAc: 16,
+        advantage: 'normal',
         amount: 0,
       },
     });
@@ -377,6 +379,7 @@ describe('helpers + message format', () => {
         crit: true,
         roll: { natural: 20, modifier: 7, total: 27, isCrit: true, isFumble: false },
         targetAc: 15,
+        advantage: 'normal',
         amount: 60,
       },
       abilityName: 'Fireball',
@@ -384,6 +387,29 @@ describe('helpers + message format', () => {
     });
     expect(crit).toContain('casts Fireball (3rd-level slot)');
     expect(crit).toContain('CRITICAL HIT for 60 damage');
+  });
+
+  it('attacking a controlled target uses D&D advantage (not auto-hit) and the log says so', () => {
+    // Rozhodnutí PM: striktně D&D advantage. Útok na stunnutého/prone cíl dostane
+    // advantage na hod — ne automatický zásah; HitResult to nese a log zkomunikuje.
+    const attacker = hero(10);
+    const defender = hero(10, 'wizard');
+
+    for (let s = 0; s < 60; s++) {
+      const res = resolveAttack(attacker, defender, new SeededRng(s), { advantage: 'advantage' });
+      expect(res.advantage).toBe('advantage');
+      // Zásah je dán hodem vs AC (D&D), NE vynucen → advantage je výhoda, ne auto-hit.
+      expect(res.hit).toBe(attackHits(res.roll, res.targetAc));
+      const msg = buildDndAttackMessage({ attackerName: 'Hero', targetName: 'Mob', result: res });
+      expect(msg).toContain('(advantage)');
+    }
+
+    // Normální útok (bez conditiony) advantage notu nemá.
+    const plain = resolveAttack(attacker, defender, new SeededRng(1));
+    expect(plain.advantage).toBe('normal');
+    expect(buildDndAttackMessage({ attackerName: 'Hero', targetName: 'Mob', result: plain })).not.toContain(
+      '(advantage)',
+    );
   });
 
   it('rollInitiative returns d20 + DEX mod in range', () => {

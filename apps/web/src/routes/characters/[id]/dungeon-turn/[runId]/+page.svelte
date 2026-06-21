@@ -16,7 +16,7 @@
   import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
   import ConditionBadges from '$lib/components/ConditionBadges.svelte';
-  import { activeCharacterLevel, activeCharacterSpellSaveDc } from '$lib/ui-stores';
+  import { activeCharacterLevel, activeCharacterSpellSaveDc, openNpc } from '$lib/ui-stores';
 
   // Game-facing UI strings (English; kept separate from logic for future i18n).
   const ui = {
@@ -200,26 +200,35 @@
     {#if r.enemies.length > 0 && !finished}
       <section class="space-y-2">
         {#each r.enemies as e (e.idx)}
-          <button
-            class="panel panel-pad w-full text-left {e.idx === targetId ? 'ring-2 ring-[var(--gold-bright)]' : ''} {e.currentHealth <= 0 ? 'opacity-40' : ''}"
-            disabled={e.currentHealth <= 0}
-            onclick={() => (targetId = e.idx)}
-          >
-            <div class="flex items-center justify-between">
-              <span class="font-semibold">
-                {e.name}
-                {#if e.isBoss}<span class="ml-2 rounded bg-[var(--danger)]/30 px-1.5 py-0.5 text-xs font-bold text-[var(--danger)]">{ui.boss}</span>{/if}
-                {#if e.idx === targetId && e.currentHealth > 0}<span class="ml-2 text-xs text-[var(--gold-bright)]">🎯 {ui.target}</span>{/if}
-              </span>
-              <span class="text-sm text-[var(--text-dim)]">{e.currentHealth} / {e.maxHealth}</span>
-            </div>
-            <div class="bar mt-2">
-              <div class="bar-fill" style={`width:${hpPct(e.currentHealth, e.maxHealth)}%;background:var(--danger)`}></div>
-            </div>
-            {#if e.conditions.length > 0}
-              <div class="mt-2"><ConditionBadges conditions={e.conditions} /></div>
-            {/if}
-          </button>
+          <div class="relative">
+            <button
+              class="panel panel-pad w-full text-left {e.idx === targetId ? 'ring-2 ring-[var(--gold-bright)]' : ''} {e.currentHealth <= 0 ? 'opacity-40' : ''}"
+              disabled={e.currentHealth <= 0}
+              onclick={() => (targetId = e.idx)}
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-semibold">
+                  {e.name}
+                  {#if e.isBoss}<span class="ml-2 rounded bg-[var(--danger)]/30 px-1.5 py-0.5 text-xs font-bold text-[var(--danger)]">{ui.boss}</span>{/if}
+                  {#if e.idx === targetId && e.currentHealth > 0}<span class="ml-2 text-xs text-[var(--gold-bright)]">🎯 {ui.target}</span>{/if}
+                </span>
+                <span class="text-sm text-[var(--text-dim)]">{e.currentHealth} / {e.maxHealth}</span>
+              </div>
+              <div class="bar mt-2">
+                <div class="bar-fill" style={`width:${hpPct(e.currentHealth, e.maxHealth)}%;background:var(--danger)`}></div>
+              </div>
+              {#if e.conditions.length > 0}
+                <div class="mt-2"><ConditionBadges conditions={e.conditions} /></div>
+              {/if}
+            </button>
+            <button
+              type="button"
+              class="absolute right-1.5 top-1.5 rounded-full px-1 text-xs text-[var(--text-faint)] hover:text-[var(--info)]"
+              title="View stat block"
+              aria-label="View stat block"
+              onclick={() => openNpc(e.name)}
+            >ⓘ</button>
+          </div>
         {/each}
       </section>
     {/if}
