@@ -1074,6 +1074,183 @@ const TEMPLATES: readonly EnemyTemplate[] = [
       },
     ],
   },
+
+  // ── Bestiary expansion — The Caldmoor Reaches (fills thin creature types) ────
+  // Celestial — radiant servitors of the Dawnhollow light, bound or corrupted by
+  // the blight that seeps across the Reaches.
+  {
+    id: 'votive_cherub',
+    name: 'Votive Cherub',
+    description: 'A minor celestial bound to a shrine-lantern, its light soured by the blight.',
+    creatureType: 'celestial',
+    cr: 2,
+    attackType: 'radiant',
+    resistances: ['radiant', 'fire'],
+    vulnerabilities: ['necrotic'],
+    abilities: [
+      {
+        id: 'votive_searing_glare',
+        name: 'Searing Glare',
+        damageMult: 1.5,
+        damageType: 'radiant',
+        cooldownSec: 9,
+        description: 'A burst of holy light that sears the eyes.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be blinded.' },
+        condition: { type: 'blinded', durationTurns: 1 },
+      },
+    ],
+  },
+  {
+    id: 'fallen_seraph',
+    name: 'Fallen Seraph',
+    description: 'A once-radiant guardian of the Vale, now a wrathful husk wreathed in cold fire.',
+    creatureType: 'celestial',
+    cr: 9,
+    attackType: 'radiant',
+    resistances: ['radiant', 'fire', 'cold'],
+    vulnerabilities: ['necrotic'],
+    abilities: [
+      {
+        id: 'fallen_judgment',
+        name: 'Searing Judgment',
+        damageMult: 1.7,
+        damageType: 'radiant',
+        cooldownSec: 11,
+        description: 'A pillar of accusing light that withers the unworthy.',
+        save: { ability: 'wisdom', description: 'WIS save for half damage, or be frightened.' },
+        condition: { type: 'frightened', durationTurns: 2 },
+      },
+    ],
+  },
+
+  // Construct — clockwork wardens and blight-wrought golems of the deep workshops.
+  {
+    id: 'clockwork_sentinel',
+    name: 'Clockwork Sentinel',
+    description: 'A tireless brass automaton still guarding ruins its makers long abandoned.',
+    creatureType: 'construct',
+    cr: 2,
+    attackType: 'bludgeoning',
+    immunities: ['poison', 'psychic'],
+    resistances: ['necrotic'],
+    vulnerabilities: ['lightning'],
+  },
+  {
+    id: 'blight_golem',
+    name: 'Blight-Wrought Golem',
+    description: 'A hulking effigy packed with rotting matter, leaking toxic sludge with every step.',
+    creatureType: 'construct',
+    cr: 6,
+    attackType: 'bludgeoning',
+    immunities: ['poison', 'necrotic'],
+    vulnerabilities: ['fire'],
+    abilities: [
+      {
+        id: 'blight_slam',
+        name: 'Blight Slam',
+        damageMult: 1.6,
+        damageType: 'poison',
+        cooldownSec: 10,
+        description: 'A reeking fist that splatters caustic blight on impact.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be poisoned.' },
+        condition: { type: 'poisoned', durationTurns: 2 },
+      },
+    ],
+  },
+
+  // Dragon — a white wyrm denning in the frost-bitten northern Reaches.
+  {
+    id: 'young_white_dragon',
+    name: 'Young White Dragon',
+    description: 'A vicious frost wyrm that drags prey back to its glacial lair.',
+    creatureType: 'dragon',
+    cr: 6,
+    attackType: 'piercing',
+    immunities: ['cold'],
+    vulnerabilities: ['fire'],
+    isBoss: true,
+    abilities: [
+      {
+        id: 'white_frost_breath',
+        name: 'Cone of Frost',
+        damageMult: 1.8,
+        damageType: 'cold',
+        cooldownSec: 12,
+        description: 'A roaring exhalation of killing cold.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be slowed.' },
+        condition: { type: 'slowed', durationTurns: 2 },
+      },
+    ],
+  },
+
+  // Fey — capricious spirits of the bramble-choked wilds.
+  {
+    id: 'caldmoor_pixie',
+    name: 'Caldmoor Pixie',
+    description: 'A flickering wild fey that scatters beguiling dust to lead travellers astray.',
+    creatureType: 'fey',
+    cr: 0.5,
+    attackType: 'psychic',
+    abilities: [
+      {
+        id: 'beguiling_dust',
+        name: 'Beguiling Dust',
+        damageMult: 0,
+        damageType: 'psychic',
+        cooldownSec: 10,
+        description: 'A puff of enchanted dust that bends the mind — no harm, but bewitching.',
+        save: { ability: 'wisdom', description: 'WIS save or be charmed.' },
+        condition: { type: 'charmed', durationTurns: 1 },
+      },
+    ],
+  },
+  {
+    id: 'briar_hag',
+    name: 'Briar Hag',
+    description: 'A crone of the thornwood who lashes intruders with living bramble.',
+    creatureType: 'fey',
+    cr: 5,
+    attackType: 'slashing',
+    resistances: ['cold', 'poison'],
+    abilities: [
+      {
+        id: 'briar_snare',
+        name: 'Bramble Snare',
+        damageMult: 1.5,
+        damageType: 'piercing',
+        cooldownSec: 10,
+        description: 'Whipping thorns that bind and tear at the same time.',
+        save: { ability: 'strength', description: 'STR save for half damage, or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
+  },
+
+  // Ooze — a creeping acidic horror from the flooded undercity.
+  {
+    id: 'caustic_pudding',
+    name: 'Caustic Pudding',
+    description: 'A slick black ooze that dissolves whatever it engulfs.',
+    creatureType: 'ooze',
+    cr: 2,
+    attackType: 'acid',
+    immunities: ['acid'],
+    resistances: ['lightning', 'slashing'],
+    abilities: [
+      {
+        id: 'pudding_dissolve',
+        name: 'Dissolving Engulf',
+        kind: 'dot',
+        damageMult: 1.3,
+        damageType: 'acid',
+        cooldownSec: 11,
+        dotDurationSec: 8,
+        dotTicks: 4,
+        dotDice: { count: 1, sides: 6, bonus: 0 },
+        description: 'Smothers its prey in acid that keeps eating away after contact.',
+      },
+    ],
+  },
 ];
 
 /** Bestiář indexovaný podle id. */

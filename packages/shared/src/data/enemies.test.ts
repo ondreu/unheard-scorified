@@ -85,6 +85,12 @@ describe('bestiary integrity', () => {
     expect(bite?.condition?.type).toBe('poisoned');
   });
 
+  it('covers every D&D creature type with at least one template', () => {
+    for (const ct of CREATURE_TYPES) {
+      expect(enemiesByCreatureType(ct).length, ct).toBeGreaterThan(0);
+    }
+  });
+
   it('indexes by creature type and CR', () => {
     expect(enemiesByCreatureType('undead').length).toBeGreaterThan(0);
     expect(enemiesByChallengeRating(5).every((t) => t.cr === 5)).toBe(true);
