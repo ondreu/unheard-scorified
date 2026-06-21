@@ -99,7 +99,6 @@
         <dd>
           <span class="dice">{card.damage.notation}</span>
           <span class="range">({card.damage.range})</span>
-          {#if card.damageType && dtype}<span class="dtype" style={`color:${dtype.color}`}>{dtype.icon} {cap(card.damageType)}</span>{/if}
         </dd>
       </div>
     {/if}
@@ -244,13 +243,6 @@
   .range {
     color: var(--text-dim, #9aa);
     font-size: 0.74rem;
-  }
-  .dtype {
-    margin-left: 0.25rem;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--accent, #7db4e0);
   }
   .tags {
     display: flex;
