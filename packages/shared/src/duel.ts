@@ -12,7 +12,9 @@
  */
 import { instantiateEnemy } from './data/enemies';
 import { BESTIARY } from './data/enemies';
+import { buildEnemyActor } from './combat';
 import { simulateQuestEncounter } from './quest-run';
+import { startDungeonRun, type DungeonRunState } from './dungeon-run';
 import { SeededRng } from './rng';
 import type { CombatActor, CombatEvent } from './combat';
 
@@ -55,4 +57,28 @@ export function simulateDuel(player: CombatActor, templateId: string, seed: numb
     victory: !outcome.playerDefeated,
     playerHpPct: outcome.playerHpPct,
   };
+}
+
+/** Synteticky `dungeonId` duel runu (odlišuje ho v logu/persistenci od dungeonů). */
+export function duelDungeonId(templateId: string): string {
+  return `duel:${templateId}`;
+}
+
+/**
+ * Spustí **tahový** duel (Slice 2): jeden testovací encounter (single enemy z
+ * katalogu na nativním CR) přes generalizovaný tahový dungeon engine
+ * (`startDungeonRun` s vlastním encounterem). Solo, **žádné odměny** — clear/smrt
+ * řeší volající (nepřipisuje XP/loot/kill counter). Stav je plně serializovatelný
+ * (persistuje se jako `DungeonRunState`, ovládá se `resolveDungeonTurn`).
+ */
+export function startDuelRun(
+  base: CombatActor,
+  templateId: string,
+  level: number,
+  seed: number,
+): DungeonRunState {
+  const template = BESTIARY[templateId];
+  if (!template) throw new Error(`startDuelRun: unknown enemy template "${templateId}"`);
+  const enemy = buildEnemyActor(instantiateEnemy(templateId, { challengeRating: template.cr }));
+  return startDungeonRun(base, duelDungeonId(templateId), 1, level, seed, [], [[enemy]], template.name);
 }

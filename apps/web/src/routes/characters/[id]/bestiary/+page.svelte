@@ -7,6 +7,7 @@
     getBestiary,
     markBestiarySeen,
     duelEnemy,
+    enterDuel,
     type BestiaryView,
     type BestiaryEntryView,
     type DuelResult,
@@ -33,9 +34,11 @@
     new: 'NEW',
     boss: 'Boss',
     close: 'Close',
-    duel: '⚔️ Duel (test)',
+    duel: '⚔️ Quick duel',
     dueling: 'Fighting…',
     duelAgain: 'Duel again',
+    duelTurn: '🎲 Turn-based',
+    entering: 'Starting…',
     duelHint: 'Test fight at this creature’s stat-block — no rewards, XP, or kills.',
     victory: '🏆 Victory',
     defeat: '💀 Defeated',
@@ -56,6 +59,8 @@
   let duel = $state<DuelResult | null>(null);
   let dueling = $state(false);
   let duelError = $state<string | null>(null);
+  // Tahový duel (Slice 2) — spuštění → navigace na run stránku.
+  let entering = $state(false);
 
   const characterId = $derived($page.params.id ?? '');
 
@@ -69,6 +74,7 @@
   function resetDuel(): void {
     duel = null;
     dueling = false;
+    entering = false;
     duelError = null;
   }
 
@@ -92,6 +98,20 @@
       duelError = (err as Error).message;
     } finally {
       dueling = false;
+    }
+  }
+
+  /** Spustí tahový duel a přejde na jeho run stránku. */
+  async function startTurnDuel(): Promise<void> {
+    if (!selected || entering) return;
+    entering = true;
+    duelError = null;
+    try {
+      const r = await enterDuel(characterId, selected.templateId);
+      await goto(`/characters/${characterId}/duel/${r.runId}`);
+    } catch (err) {
+      duelError = (err as Error).message;
+      entering = false;
     }
   }
 
@@ -305,9 +325,14 @@
       {#if e.discovered}
         <div class="mt-4 border-t border-[var(--border)] pt-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <button class="btn btn-sm" onclick={runDuel} disabled={dueling}>
-              {dueling ? ui.dueling : duel ? ui.duelAgain : ui.duel}
-            </button>
+            <div class="flex flex-wrap gap-2">
+              <button class="btn btn-sm" onclick={runDuel} disabled={dueling || entering}>
+                {dueling ? ui.dueling : duel ? ui.duelAgain : ui.duel}
+              </button>
+              <button class="btn btn-sm" onclick={startTurnDuel} disabled={dueling || entering}>
+                {entering ? ui.entering : ui.duelTurn}
+              </button>
+            </div>
             {#if duel}
               <span class="text-sm font-semibold" style={duel.victory ? 'color:var(--gold-bright)' : 'color:var(--danger)'}>
                 {duel.victory ? ui.victory : ui.defeat} · {duel.playerHpPct}% {ui.hpLeft}
