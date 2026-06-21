@@ -222,7 +222,7 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 ## Auth
 
 - [ ] **Email auth** — registrace/login přes e-mail s potvrzením (rozšiřuje stávající průřezový auth follow-up níže).
-- [ ] **Logout bug — session se neudrží** — hra hráče **neustále odhlašuje**, jako by byl login v `sessionStorage` (mizí po zavření tabu / vyprší moc brzy). Ověřit perzistenci session / refresh tokenu; souvisí s průřezovým auth follow-upem (httpOnly cookie + refresh rotace).
+- [x] **Logout bug — session se neudrží** ✅ — dvě příčiny, obě odpovídaly symptomům: (1) **chybějící rehydratace session při startu** — `session` store žil jen v paměti (`auth.ts`) a po reloadu/reopenu tabu se z 30denní httpOnly refresh cookie nikde neobnovil → hra vypadala odhlášeně („mizí po zavření tabu"). Fix: `bootstrapSession()` (silent `/auth/refresh` z cookie) volaný v root `+layout.svelte` `onMount` + nový `authReady` store (landing nebliká „Log in" před obnovou). (2) **race condition při rotaci refresh tokenu** („vyprší moc brzy") — `request()` spouštěl `refreshSession()` nezávisle pro každý paralelní 401 (dashboard posílá víc dotazů naráz); server rotuje JTI (smaže starý) → první refresh uspěl, ostatní dostaly „revoked" → `clearSession()` → odhlášení každých ~15 min (po vypršení access tokenu). Fix: **single-flight refresh** (sdílený in-flight `Promise` ve `api.ts`). Backend rotace beze změny. _Follow-up: multi-tab/PWA souběh tabů může pořád rotaci závodit (samostatný refresh per tab) — řešit grace-window na serveru, pokud se projeví._
 
 ## Questy & příběh
 
