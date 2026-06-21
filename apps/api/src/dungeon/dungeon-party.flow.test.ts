@@ -71,7 +71,7 @@ describe('Slice 4 flow: živé MP tahové dungeon sezení', () => {
       new DungeonPartyRepository(db),
       new DungeonPartyEventsRelay(),
       new NoopDungeonPartyScheduler(),
-      new BestiaryService(charRepo, new BestiaryRepository(db)),
+      new BestiaryService(charRepo, new BestiaryRepository(db), null as never),
     );
   });
 

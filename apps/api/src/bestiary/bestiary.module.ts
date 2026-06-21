@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CharacterModule } from '../character/character.module';
+import { RotationModule } from '../rotation/rotation.module';
 import { BestiaryController } from './bestiary.controller';
 import { BestiaryRepository } from './bestiary.repository';
 import { BestiaryService } from './bestiary.service';
@@ -11,7 +12,7 @@ import { BestiaryService } from './bestiary.service';
  * exportovaný — `ActivityModule`/`DungeonModule` ho používají k zápisu killů.
  */
 @Module({
-  imports: [AuthModule, CharacterModule],
+  imports: [AuthModule, CharacterModule, RotationModule],
   controllers: [BestiaryController],
   providers: [BestiaryService, BestiaryRepository],
   exports: [BestiaryService],

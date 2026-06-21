@@ -86,7 +86,7 @@ describe('M6 flow: profese & reputace', () => {
       mountRepo,
       rotation,
       new HistoryRepository(db),
-      new BestiaryService(charRepo, new BestiaryRepository(db)),
+      new BestiaryService(charRepo, new BestiaryRepository(db), null as never),
       new NoopActivityScheduler(),
     );
   });

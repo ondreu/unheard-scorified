@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
-import type { BestiaryView } from '@game/shared';
+import type { BestiaryView, DuelResult } from '@game/shared';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BestiaryService } from './bestiary.service';
@@ -29,5 +29,16 @@ export class BestiaryController {
     @Param('characterId') characterId: string,
   ): Promise<BestiaryView> {
     return this.bestiary.markSeen(user.accountId, characterId);
+  }
+
+  /** Testovací duel proti katalogovému nepříteli — auto-resolve, **bez odměn**. */
+  @Post(':templateId/duel')
+  @HttpCode(200)
+  duel(
+    @CurrentUser() user: { accountId: string },
+    @Param('characterId') characterId: string,
+    @Param('templateId') templateId: string,
+  ): Promise<DuelResult> {
+    return this.bestiary.duel(user.accountId, characterId, templateId);
   }
 }

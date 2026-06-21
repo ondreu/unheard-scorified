@@ -1581,6 +1581,22 @@ export function markBestiarySeen(characterId: string): Promise<BestiaryView> {
   return request<BestiaryView>(`/characters/${characterId}/bestiary/seen`, { method: 'POST' });
 }
 
+/** Výsledek testovacího duelu z bestiáře (auto-resolve, bez odměn). */
+export interface DuelResult {
+  playerName: string;
+  enemyName: string;
+  events: CombatEvent[];
+  victory: boolean;
+  playerHpPct: number;
+}
+
+/** Vyzve katalogového nepřítele na testovací duel (auto-resolve, **bez odměn**). */
+export function duelEnemy(characterId: string, templateId: string): Promise<DuelResult> {
+  return request<DuelResult>(`/characters/${characterId}/bestiary/${templateId}/duel`, {
+    method: 'POST',
+  });
+}
+
 export function claimAchievement(
   characterId: string,
   achievementId: string,

@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   buildBestiaryView,
   dungeonTemplateCounts,
+  isDuelableEnemy,
+  levelFromXp,
   questTemplateCounts,
+  seedFromString,
+  simulateDuel,
   type BestiaryView,
+  type DuelResult,
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
+import { RotationService } from '../rotation/rotation.service';
 import { BestiaryRepository } from './bestiary.repository';
 
 /**
@@ -19,6 +25,7 @@ export class BestiaryService {
   constructor(
     private readonly characters: CharacterRepository,
     private readonly bestiary: BestiaryRepository,
+    private readonly rotation: RotationService,
   ) {}
 
   /** Bestiář postavy (všechny katalogové záznamy + per-postava progres). */
@@ -39,6 +46,23 @@ export class BestiaryService {
     await this.characters.setBestiarySeenAt(characterId, new Date());
     const progress = await this.bestiary.progressFor(characterId);
     return buildBestiaryView(progress, { seenAtMs: Date.now() });
+  }
+
+  /**
+   * Testovací duel (bez odměn): vyzve katalogového nepřítele na auto-resolve
+   * souboj proti snapshotu bojového profilu postavy. **Žádné XP / loot / kill
+   * counter / lockout** — čistě k testování balancu a hráčskému průzkumu. Boj jde
+   * přes sdílený `simulateDuel` (allowDefeat → lze prohrát). Deterministicky
+   * seedováno časem (každý duel jiný), server-authoritative.
+   */
+  async duel(accountId: string, characterId: string, templateId: string): Promise<DuelResult> {
+    const character = await this.characters.findOwned(accountId, characterId);
+    if (!character) throw new NotFoundException('Character not found');
+    if (!isDuelableEnemy(templateId)) throw new BadRequestException('Unknown enemy');
+    const level = levelFromXp(character.totalXp);
+    const snapshot = await this.rotation.buildCombatProfile(character, level);
+    const seed = seedFromString(`duel:${characterId}:${templateId}:${Date.now()}`);
+    return simulateDuel(snapshot, templateId, seed);
   }
 
   /** Zaznamená poražené nepřátele z dokončeného questu (jen katalogové foe). */

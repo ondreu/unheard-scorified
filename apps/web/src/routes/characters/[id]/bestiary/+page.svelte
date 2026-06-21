@@ -6,9 +6,12 @@
     ApiError,
     getBestiary,
     markBestiarySeen,
+    duelEnemy,
     type BestiaryView,
     type BestiaryEntryView,
+    type DuelResult,
   } from '$lib/api';
+  import CombatLog, { type ActorMeta } from '$lib/components/CombatLog.svelte';
 
   const ui = {
     title: 'Bestiary',
@@ -30,6 +33,13 @@
     new: 'NEW',
     boss: 'Boss',
     close: 'Close',
+    duel: '⚔️ Duel (test)',
+    dueling: 'Fighting…',
+    duelAgain: 'Duel again',
+    duelHint: 'Test fight at this creature’s stat-block — no rewards, XP, or kills.',
+    victory: '🏆 Victory',
+    defeat: '💀 Defeated',
+    hpLeft: 'HP left',
   };
 
   let view = $state<BestiaryView | null>(null);
@@ -42,7 +52,48 @@
   let query = $state('');
   let selected = $state<BestiaryEntryView | null>(null);
 
+  // Duel (testovací souboj, bez odměn) — stav uvnitř detail modalu.
+  let duel = $state<DuelResult | null>(null);
+  let dueling = $state(false);
+  let duelError = $state<string | null>(null);
+
   const characterId = $derived($page.params.id ?? '');
+
+  // Stranová mapa pro combat log z výsledku duelu (ty = player, foe = enemy).
+  const duelActors = $derived.by<Record<string, ActorMeta>>(() => {
+    if (!duel) return {};
+    return { [duel.playerName]: { side: 'player' }, [duel.enemyName]: { side: 'enemy' } };
+  });
+
+  /** Zruší stav duelu (při zavření / přepnutí nepřítele). */
+  function resetDuel(): void {
+    duel = null;
+    dueling = false;
+    duelError = null;
+  }
+
+  function openEntry(e: BestiaryEntryView): void {
+    resetDuel();
+    selected = e;
+  }
+
+  function closeEntry(): void {
+    selected = null;
+    resetDuel();
+  }
+
+  async function runDuel(): Promise<void> {
+    if (!selected || dueling) return;
+    dueling = true;
+    duelError = null;
+    try {
+      duel = await duelEnemy(characterId, selected.templateId);
+    } catch (err) {
+      duelError = (err as Error).message;
+    } finally {
+      dueling = false;
+    }
+  }
 
   onMount(load);
 
@@ -157,7 +208,7 @@
                 type="button"
                 class="w-full rounded-lg border border-[var(--border)] p-3 text-left transition-opacity hover:border-[var(--gold-bright)]"
                 class:bestiary-locked={!e.discovered}
-                onclick={() => (selected = e)}
+                onclick={() => openEntry(e)}
               >
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
@@ -191,11 +242,11 @@
 </div>
 
 <!-- Detail stat-block -->
-<svelte:window onkeydown={(ev) => ev.key === 'Escape' && (selected = null)} />
+<svelte:window onkeydown={(ev) => ev.key === 'Escape' && closeEntry()} />
 {#if selected}
   {@const e = selected}
   <div class="bestiary-overlay">
-    <button class="bestiary-backdrop" aria-label={ui.close} onclick={() => (selected = null)}></button>
+    <button class="bestiary-backdrop" aria-label={ui.close} onclick={closeEntry}></button>
     <div class="bestiary-modal" class:bestiary-locked={!e.discovered} role="dialog" aria-modal="true" aria-label={e.name}>
       <div class="flex items-start justify-between gap-2">
         <div>
@@ -211,7 +262,7 @@
             {ui.kills}
           </p>
         </div>
-        <button class="btn btn-sm" onclick={() => (selected = null)}>{ui.close}</button>
+        <button class="btn btn-sm" onclick={closeEntry}>{ui.close}</button>
       </div>
 
       {#if e.discovered}
@@ -249,6 +300,30 @@
             </li>
           {/each}
         </ul>
+      {/if}
+
+      {#if e.discovered}
+        <div class="mt-4 border-t border-[var(--border)] pt-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <button class="btn btn-sm" onclick={runDuel} disabled={dueling}>
+              {dueling ? ui.dueling : duel ? ui.duelAgain : ui.duel}
+            </button>
+            {#if duel}
+              <span class="text-sm font-semibold" style={duel.victory ? 'color:var(--gold-bright)' : 'color:var(--danger)'}>
+                {duel.victory ? ui.victory : ui.defeat} · {duel.playerHpPct}% {ui.hpLeft}
+              </span>
+            {/if}
+          </div>
+          {#if !duel && !duelError}
+            <p class="mt-1 text-[11px] text-[var(--text-faint)]">{ui.duelHint}</p>
+          {/if}
+          {#if duelError}<p class="mt-2 text-sm text-[var(--danger)]">{duelError}</p>{/if}
+          {#if duel}
+            <div class="mt-3 max-h-72 overflow-y-auto rounded-lg border border-[var(--border)] p-2">
+              <CombatLog events={duel.events} actors={duelActors} paced={false} />
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
   </div>
