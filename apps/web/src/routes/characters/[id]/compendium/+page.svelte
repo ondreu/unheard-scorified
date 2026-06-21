@@ -29,6 +29,9 @@
     close: 'Close',
     available: 'Available to',
     cantrip: 'Cantrip',
+    gauntlet: 'Gauntlet',
+    gauntletDraft: 'Offered in the Gauntlet draft pool',
+    draftOnly: 'Gauntlet draft pool',
   };
 
   const spells = allCompendiumSpells();
@@ -55,7 +58,8 @@
   });
 
   const tiers = $derived.by<number[]>(() => {
-    return [...new Set(spells.map((s) => s.spellTier))].sort((a, b) => a - b);
+    const t = spells.map((s) => s.spellTier).filter((v): v is number => v != null);
+    return [...new Set(t)].sort((a, b) => a - b);
   });
 
   const elements = $derived.by<DamageType[]>(() => {
@@ -75,17 +79,23 @@
     });
   });
 
-  // Grupování dle tieru (zachová pořadí dle tieru pak jména).
-  const groups = $derived.by<{ tier: number; label: string; entries: CompendiumSpell[] }[]>(() => {
+  // Grupování dle tieru (tier-less Gauntlet draft kouzla na konec).
+  const TIERLESS = 99;
+  const groups = $derived.by<{ key: number; label: string; entries: CompendiumSpell[] }[]>(() => {
     const byTier = new Map<number, CompendiumSpell[]>();
     for (const s of filtered) {
-      const arr = byTier.get(s.spellTier) ?? [];
+      const key = s.spellTier ?? TIERLESS;
+      const arr = byTier.get(key) ?? [];
       arr.push(s);
-      byTier.set(s.spellTier, arr);
+      byTier.set(key, arr);
     }
     return [...byTier.entries()]
       .sort((a, b) => a[0] - b[0])
-      .map(([tier, entries]) => ({ tier, label: spellTierLabel(tier), entries }));
+      .map(([key, entries]) => ({
+        key,
+        label: spellTierLabel(key === TIERLESS ? undefined : key),
+        entries,
+      }));
   });
 </script>
 
@@ -152,7 +162,7 @@
     <p class="text-[var(--text-dim)]">{ui.none}</p>
   {/if}
 
-  {#each groups as group (group.tier)}
+  {#each groups as group (group.key)}
     <section class="panel panel-pad">
       <h2 class="panel-title">{group.label}</h2>
       <ul class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -166,11 +176,14 @@
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <span class="font-semibold text-[var(--text)]">{s.name}</span>
-                  <p class="truncate text-xs text-[var(--text-dim)]">{s.classNames.join(', ')}</p>
+                  <p class="truncate text-xs text-[var(--text-dim)]">
+                    {s.classNames.length ? s.classNames.join(', ') : ui.draftOnly}
+                  </p>
                 </div>
                 <div class="flex shrink-0 flex-col items-end gap-1 text-xs">
                   {#if s.damageType}<span class="spell-chip" style="color:var(--gold-bright)">{cap(s.damageType)}</span>{/if}
                   {#if s.condition}<span class="spell-chip" style="color:var(--danger)">{CONDITION_META[s.condition]?.label ?? s.condition}</span>{/if}
+                  {#if s.gauntletDraft}<span class="spell-chip" style="color:var(--info)" title={ui.gauntletDraft}>⚡ {ui.gauntlet}</span>{/if}
                 </div>
               </div>
             </button>
@@ -189,7 +202,10 @@
     <button class="spell-backdrop" aria-label={ui.close} onclick={() => (selected = null)}></button>
     <div class="spell-modal" role="dialog" aria-modal="true" aria-label={s.name}>
       <div class="mb-3 flex items-start justify-between gap-2">
-        <p class="text-xs text-[var(--text-dim)]">{ui.available}: {s.classNames.join(', ')}</p>
+        <p class="text-xs text-[var(--text-dim)]">
+          {ui.available}: {s.classNames.length ? s.classNames.join(', ') : ui.draftOnly}
+          {#if s.gauntletDraft && s.classNames.length}<span style="color:var(--info)"> · ⚡ {ui.gauntlet}</span>{/if}
+        </p>
         <button class="btn btn-sm" onclick={() => (selected = null)}>{ui.close}</button>
       </div>
       <SpellCard ability={s.ability} />
