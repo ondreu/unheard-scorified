@@ -15,6 +15,8 @@ import type { CombatActor } from './combat';
 import { ZONES, allZones, type ZoneId } from './data/zones';
 import { questFoeStats, simulateQuestEncounter, type QuestRunResult } from './quest-run';
 import type { QuestEnemyTier } from './data/quests';
+import { BESTIARY, enemyTemplatesNearCr } from './data/enemies';
+import { crForContentLevel } from './data/damage';
 import { SeededRng } from './rng';
 
 /** Pauza mezi kroky v timeline logu (s) — drobné odsazení jako u questů. */
@@ -37,22 +39,6 @@ export function questingZoneForLevel(level: number): ZoneId {
   }
   return pick.id;
 }
-
-/**
- * Generické pooly nepřátel per zóna (flavor pro grind log). Žádný balanc —
- * konkrétní HP/AP odvodí `questFoeStats` z levelu a tieru. Drženo u grind logiky
- * (content), ať `zones.ts` zůstane čistá definice zón.
- */
-export const GRIND_FOES: Record<ZoneId, string[]> = {
-  northshire: ['Kobold Tunneler', 'Ashen Hand Thug', 'Timber Wolf', 'Riverpaw Gnoll'],
-  westfall: ['Ashen Hand Bandit', 'Harvest Golem', 'Coastal Marshlurker', 'Riverpaw Brute'],
-  duskwood: ['Nightbane Lycan', 'Skeletal Raider', 'Black Widow', 'Restless Dead'],
-  eastern_plaguelands: ['Plagued Ghoul', 'Crimson Zealot', 'Carrion Vulture', 'Diseased Bear'],
-  durotar: ['Valley Scorpid', 'Cinder Cultist', 'Thornroot Boar', 'Mottled Raptor'],
-  barrens: ['Thornback Boarkin', 'Savannah Lion', 'Kharzul Centaur', 'Plainstrider'],
-  thousand_needles: ['Greyhorn Brave', 'Galuk Ogre', 'Screeching Harpy', 'Salt Flat Lizard'],
-  felwood: ['Tainted Ursafolk', 'Duskcabal Satyr', 'Blightpine Wolf', 'Corrupt Sprite'],
-};
 
 /** Počet soubojů ve flavor logu dle délky — víc času = víc střetů (clamp 2..6). */
 function encounterCount(durationSec: number): number {
@@ -81,7 +67,10 @@ export function simulateGrindRun(
 ): QuestRunResult {
   const rng = new SeededRng(seed);
   const zone = ZONES[params.zoneId];
-  const foes = GRIND_FOES[params.zoneId];
+  // Nepřátelé se táhnou z **celého katalogu** dle CR zakotveného levelu (žádný
+  // per-zone seznam) → grind potkává reálné katalogové nestvůry s identitou,
+  // typovými obranami a ability; magnitudu dál řídí `questFoeStats` z levelu/tieru.
+  const pool = enemyTemplatesNearCr(crForContentLevel(params.level), { limit: 8 });
   const steps: QuestRunResult['steps'] = [
     {
       kind: 'narrative',
@@ -92,14 +81,21 @@ export function simulateGrindRun(
   let t = 0;
   const count = encounterCount(durationSec);
   for (let i = 0; i < count; i++) {
-    const name = foes[Math.floor(rng.next() * foes.length)] ?? 'a roaming foe';
+    const templateId = pool[Math.floor(rng.next() * pool.length)] ?? pool[0]!;
+    const name = BESTIARY[templateId]!.name;
     const tier = foeTier(rng);
-    const enc = simulateQuestEncounter(player, questFoeStats({ name, tier }, params.level), rng, t);
+    const enc = simulateQuestEncounter(
+      player,
+      questFoeStats({ name, tier, template: templateId }, params.level),
+      rng,
+      t,
+    );
     t = enc.endT + STEP_GAP_SEC;
     steps.push({
       kind: 'combat',
       text: `You cross paths with ${name}.`,
       enemyName: name,
+      templateId,
       events: enc.events,
       playerHpPct: enc.playerHpPct,
     });

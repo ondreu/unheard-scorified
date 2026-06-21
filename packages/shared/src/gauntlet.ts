@@ -52,7 +52,7 @@ import {
   type ActiveCondition,
 } from './conditions';
 import { applyDamageInteraction, crForContentLevel, damageInteraction, type CreatureType } from './data/damage';
-import { BESTIARY, enemyAbilityToSignature } from './data/enemies';
+import { BESTIARY, enemyAbilityToSignature, enemyTemplatesNearCr } from './data/enemies';
 import {
   abilityPrefersUpcast,
   hasSlotForTier,
@@ -296,28 +296,13 @@ export function gauntletAbilities(base: CombatActor, picks: GauntletPick[]): Sig
 // ── Generování nepřátel ──────────────────────────────────────────────────────
 
 // Nepřátelé se táhnou ze sdíleného katalogu nestvůr (`enemies.ts`, ADR 0043) —
-// žádný paralelní seznam. Bereme **id šablony** → jméno + signature ability
-// (typový úder + save + condition rider; Slice 2d) + **typové obrany** (resistance/
-// vulnerability/immunity — viz `enemyActor`), aby D&D typový systém fungoval i tady.
-// Magnitudy (HP/dmg) zůstávají odvozené z vlny. Pool = curated podmnožina katalogu.
-const NORMAL_ENEMY_IDS = [
-  'skeleton_warrior',
-  'rotting_zombie',
-  'goblin_cutter',
-  'dire_wolf',
-  'cultist_pyromancer',
-  'hill_ogre',
-  'grave_wraith',
-  'frost_elemental',
-];
-const ELITE_ENEMY_IDS = [
-  'stone_golem',
-  'young_red_dragon',
-  'mind_devourer',
-  'ancient_treant',
-  'pit_fiend_spawn',
-  'fire_elemental',
-];
+// žádný paralelní seznam. Pool se **odvozuje z celého katalogu dle CR** efektivní
+// úrovně vlny (`enemyTemplatesNearCr`): normální vlny = nejbližší ne-boss šablony,
+// elite vlny = vyšší CR band (+2 přes `crForContentLevel(.., true)`) včetně bossů.
+// Bereme **id šablony** → jméno + signature ability (typový úder + save + condition
+// rider; Slice 2d) + **typové obrany** (resistance/vulnerability/immunity — viz
+// `enemyActor`), aby D&D typový systém fungoval i tady. Magnitudy (HP/dmg) zůstávají
+// odvozené z vlny → výběr šablony je balanc-neutrální (mění jen identitu/obrany).
 
 /**
  * Deterministicky postaví nepřítele pro danou vlnu. HP i dmg rostou s vlnou;
@@ -333,22 +318,26 @@ export function buildGauntletEnemy(
   const eliteHp = isElite ? 2.4 : 1;
   const eliteAp = isElite ? 1.7 : 1;
   const waveStep = wave - 1;
+  // Efektivní úroveň roste s vlnou → AC/attackBonus drží krok s hráčem (MR-5).
+  const effLevel = level + waveStep;
 
   // Literal D&D magnituda (ADR 0032): base HP/dmg z Challenge Ratingu efektivní
   // úrovně (level + vlna), pak **kompoundovaný** (exponenciální) růst za vlnu →
   // start je D&D-kotvený, obtížnost pak stoupá stále strměji (přeroste hráčův
   // snowball z draftů → přirozená hranice runu = skóre).
-  const base = crEnemyMagnitude(crForContentLevel(level + waveStep, false), false);
+  const base = crEnemyMagnitude(crForContentLevel(effLevel, false), false);
   const maxHealth = Math.round(base.maxHealth * GAUNTLET_HP_GROWTH ** waveStep * eliteHp);
   const attackPower = Math.round(base.attackPower * GAUNTLET_AP_GROWTH ** waveStep * eliteAp);
   const armor = Math.round(level * 2 + wave * 4);
 
-  const pool = isElite ? ELITE_ENEMY_IDS : NORMAL_ENEMY_IDS;
+  // Identita z katalogu dle CR efektivní úrovně (elite = vyšší band + bossové).
+  const pool = enemyTemplatesNearCr(crForContentLevel(effLevel, isElite), {
+    includeBoss: isElite,
+    limit: isElite ? 6 : 8,
+  });
   const templateId = pool[rng.int(0, pool.length - 1)]!;
   const name = BESTIARY[templateId]!.name;
 
-  // Efektivní úroveň roste s vlnou → AC/attackBonus drží krok s hráčem (MR-5).
-  const effLevel = level + waveStep;
   return {
     name,
     templateId,

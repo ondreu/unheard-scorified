@@ -6,6 +6,7 @@ import {
   buildBestiaryEnemy,
   enemiesByChallengeRating,
   enemiesByCreatureType,
+  enemyTemplatesNearCr,
   getEnemyTemplate,
   instantiateEnemy,
 } from './enemies';
@@ -89,6 +90,26 @@ describe('bestiary integrity', () => {
     for (const ct of CREATURE_TYPES) {
       expect(enemiesByCreatureType(ct).length, ct).toBeGreaterThan(0);
     }
+  });
+
+  it('enemyTemplatesNearCr picks catalog templates closest to the target CR', () => {
+    // Vše platné id, seřazené dle vzdálenosti CR, default bez bossů.
+    const low = enemyTemplatesNearCr(0.25, { limit: 5 });
+    expect(low.length).toBe(5);
+    for (const id of low) expect(id in BESTIARY).toBe(true);
+    expect(low.every((id) => !BESTIARY[id]!.isBoss)).toBe(true);
+    // Nejbližší k CR 0.25 jsou nízko-CR nestvůry (≤ vyšší než band by nemělo přebít).
+    const dists = low.map((id) => Math.abs(BESTIARY[id]!.cr - 0.25));
+    expect([...dists]).toEqual([...dists].sort((a, b) => a - b));
+
+    // includeBoss zpřístupní i boss šablony (u CR, kde nějaká boss šablona je).
+    const withBoss = enemyTemplatesNearCr(10, { includeBoss: true, limit: 20 });
+    const noBoss = enemyTemplatesNearCr(10, { includeBoss: false, limit: 20 });
+    expect(withBoss.some((id) => BESTIARY[id]!.isBoss)).toBe(true);
+    expect(noBoss.every((id) => !BESTIARY[id]!.isBoss)).toBe(true);
+
+    // Deterministické.
+    expect(enemyTemplatesNearCr(5, { limit: 4 })).toEqual(enemyTemplatesNearCr(5, { limit: 4 }));
   });
 
   it('indexes by creature type and CR', () => {

@@ -1515,6 +1515,33 @@ export function enemiesByChallengeRating(cr: ChallengeRating): EnemyTemplate[] {
   return TEMPLATES.filter((t) => t.cr === cr);
 }
 
+/**
+ * Kandidátní šablony nestvůr nejblíže cílovému CR — pro **procedurální obsah**
+ * (Gauntlet vlny, grind „Gone Questing"), který tahá nepřátele **z celého
+ * katalogu automaticky dle CR** místo curated seznamů. Vrací `limit` id
+ * seřazených dle vzdálenosti CR (shoda → dle id, determinismus). `includeBoss`
+ * přidá i boss šablony (default vynechány — bossové nejsou běžný trash).
+ *
+ * Magnitudu (HP/dmg) si volající dál řídí sám (z vlny/levelu) — šablona dává jen
+ * **identitu** (jméno, creature type, typové obrany, ability). CR tu slouží jen
+ * k výběru tematicky/úrovňově vhodných nestvůr.
+ */
+export function enemyTemplatesNearCr(
+  targetCr: number,
+  opts: { includeBoss?: boolean; limit?: number } = {},
+): string[] {
+  const limit = Math.max(1, opts.limit ?? 8);
+  const includeBoss = opts.includeBoss ?? false;
+  return [...TEMPLATES]
+    .filter((t) => includeBoss || !t.isBoss)
+    .sort(
+      (a, b) =>
+        Math.abs(a.cr - targetCr) - Math.abs(b.cr - targetCr) || a.id.localeCompare(b.id),
+    )
+    .slice(0, limit)
+    .map((t) => t.id);
+}
+
 // ── Builder → EnemyStats (combat) ────────────────────────────────────────────
 
 /**
