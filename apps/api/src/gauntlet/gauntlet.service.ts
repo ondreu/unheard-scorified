@@ -153,8 +153,12 @@ export class GauntletService {
     };
   }
 
-  /** Vstup do Gauntletu — snapshot profilu + první vlna. */
-  async enter(accountId: string, characterId: string): Promise<GauntletRunView> {
+  /**
+   * Vstup do Gauntletu — snapshot profilu + první vlna. `seed` je volitelný
+   * override (deterministické testy); produkce ho nechává odvodit z `Date.now()`,
+   * aby každý run byl jiný.
+   */
+  async enter(accountId: string, characterId: string, seed?: number): Promise<GauntletRunView> {
     const character = await this.ownedOrThrow(accountId, characterId);
 
     const existing = await this.repo.findActiveForCharacter(characterId);
@@ -164,8 +168,8 @@ export class GauntletService {
 
     const level = levelFromXp(character.totalXp);
     const snapshot = await this.rotation.buildCombatProfile(character, level);
-    const seed = seedFromString(`gauntlet:${characterId}:${Date.now()}`);
-    const state = startGauntletRun(snapshot, level, seed);
+    const runSeed = seed ?? seedFromString(`gauntlet:${characterId}:${Date.now()}`);
+    const state = startGauntletRun(snapshot, level, runSeed);
 
     const run = await this.repo.createRun({
       characterId,

@@ -118,7 +118,7 @@ describe('M13 flow: The Gauntlet', () => {
 
   it('act vyčistí vlnu → drafting se 3 nabídkami; draft posune na vlnu 2', async () => {
     const c = await newCharacter('g2', 'Champion', { strong: true });
-    const run = await gauntlet.enter(c.accountId, c.id);
+    const run = await gauntlet.enter(c.accountId, c.id, 1234);
     const cleared = await fightCurrentWave(c.accountId, c.id, run.runId);
     expect(cleared.status).toBe('drafting');
     expect(cleared.wavesCleared).toBe(1);
@@ -132,7 +132,7 @@ describe('M13 flow: The Gauntlet', () => {
 
   it('retire zinkasuje odměnu za vyčištěné vlny + zapíše denní strop', async () => {
     const c = await newCharacter('g3', 'Retiree', { strong: true });
-    const run = await gauntlet.enter(c.accountId, c.id);
+    const run = await gauntlet.enter(c.accountId, c.id, 1234);
     await fightCurrentWave(c.accountId, c.id, run.runId); // alespoň 1 vlna
 
     const before = (await charRepo.findById(c.id))!.totalXp;
@@ -158,7 +158,7 @@ describe('M13 flow: The Gauntlet', () => {
     // Vyčerpej denní strop dopředu.
     await repo.addDaily(c.id, dailyPeriodId(T0), status.daily.xpCap, status.daily.goldCap);
 
-    const run = await gauntlet.enter(c.accountId, c.id);
+    const run = await gauntlet.enter(c.accountId, c.id, 1234);
     await fightCurrentWave(c.accountId, c.id, run.runId);
     const before = (await charRepo.findById(c.id))!.totalXp;
     const ended = await gauntlet.retire(c.accountId, c.id, run.runId);
@@ -184,7 +184,8 @@ describe('M13 flow: The Gauntlet', () => {
 
   it('celý run dojede do terminálního stavu a udělí (capovanou) odměnu', async () => {
     const c = await newCharacter('g8', 'Gladiator', { strong: true });
-    const run = await gauntlet.enter(c.accountId, c.id);
+    // Fixní seed → deterministický run (jinak seed = charId[random UUID]+Date.now → flaky).
+    const run = await gauntlet.enter(c.accountId, c.id, 1234);
     let view = await gauntlet.getRun(c.accountId, c.id, run.runId);
     for (let i = 0; i < 4000 && (view.status === 'in_combat' || view.status === 'drafting'); i++) {
       if (view.status === 'drafting') {
