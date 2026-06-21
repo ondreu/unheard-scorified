@@ -463,6 +463,14 @@ function riderFromAbilities(
 export interface EnemyStats {
   name: string;
   /**
+   * Odkaz na katalogovou šablonu (`enemies.ts`), ze které byl nepřítel
+   * instanciován (`instantiateEnemy`). Slouží bestiáři ke spárování instance
+   * s katalogovým záznamem (odemčení/kill counter) — instanční `id` se totiž
+   * může lišit (variantní spawny, např. `rfc_cultist_b`). Chybí ⇒ ad-hoc
+   * nepřítel bez katalogové identity (balanc/combat beze změny).
+   */
+  templateId?: string;
+  /**
    * Max HP. **Volitelné** (ADR 0032): když chybí, odvodí se z Challenge Ratingu
    * (`crStatGuide(cr).hitPoints`). Explicitní hodnota přebíjí (gauntlet vlny,
    * trénovací terč, ad-hoc encountery).

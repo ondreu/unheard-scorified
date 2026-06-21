@@ -54,3 +54,4 @@ export * from './trade';
 export * from './achievements';
 export * from './goals';
 export * from './data/mounts';
+export * from './bestiary';

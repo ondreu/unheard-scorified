@@ -1227,6 +1227,7 @@ export function instantiateEnemy(
   const isBoss = o.isBoss ?? t.isBoss ?? false;
   return {
     id: o.id ?? t.id,
+    templateId: t.id,
     name: o.name ?? t.name,
     swingInterval: o.swingInterval ?? t.swingInterval ?? DEFAULT_SWING,
     ...(isBoss ? { isBoss: true } : {}),

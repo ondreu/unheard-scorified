@@ -722,6 +722,25 @@ export const characterAchievements = pgTable(
 );
 
 /**
+ * Bestiář (encyklopedie nepřátel). PK = (postava, šablona nepřítele). Záznam
+ * vzniká při prvním setkání (`discovered`); `kills` se inkrementuje při poražení
+ * (claim questu / clear dungeonu). `enemyTemplateId` = id z `@game/shared`
+ * katalogu (`enemies.ts`). Záznamy bez řádku = neobjevené (UI je zobrazí zašedlé).
+ */
+export const characterBestiary = pgTable(
+  'character_bestiary',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    enemyTemplateId: varchar('enemy_template_id', { length: 48 }).notNull(),
+    kills: integer('kills').notNull().default(0),
+    discoveredAt: timestamp('discovered_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.enemyTemplateId] })],
+);
+
+/**
  * Vyzvednuté denní/týdenní cíle (M9). PK = (postava, cíl, období) → cíl jde
  * splnit znovu v dalším období (`periodId` = UTC den / pondělí). `goalId` z
  * `@game/shared` katalogu. Splnění se odvozuje lazy z herního stavu v období.
@@ -1155,6 +1174,8 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
 export type CharacterAchievement = typeof characterAchievements.$inferSelect;
 export type NewCharacterAchievement = typeof characterAchievements.$inferInsert;
+export type CharacterBestiaryRow = typeof characterBestiary.$inferSelect;
+export type NewCharacterBestiaryRow = typeof characterBestiary.$inferInsert;
 export type CharacterGoalClaim = typeof characterGoalClaims.$inferSelect;
 export type NewCharacterGoalClaim = typeof characterGoalClaims.$inferInsert;
 export type Trade = typeof trades.$inferSelect;

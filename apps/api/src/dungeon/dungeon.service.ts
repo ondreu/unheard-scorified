@@ -48,6 +48,7 @@ import { RaidRepository } from '../raid/raid.repository';
 import { RAID_QUEUE, type RaidQueue } from '../raid/raid.matchmaking';
 import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
 
 const RECENT_RUNS_LIMIT = 8;
 
@@ -153,6 +154,7 @@ export class DungeonService {
     private readonly rotation: RotationService,
     private readonly completed: CompletedQuestRepository,
     private readonly history: HistoryRepository,
+    private readonly bestiary: BestiaryService,
     @Inject(RAID_QUEUE) private readonly queue: RaidQueue,
   ) {}
 
@@ -362,6 +364,10 @@ export class DungeonService {
           body: `${m.character.name} joined ${leader.name}'s ${dungeon.name} and the party ${result.victory ? 'cleared it' : 'wiped'}.`,
           characterId: m.character.id,
         });
+      }
+      // Bestiář: clear dungeonu odemkne + počítá poražené nepřátele každému členu.
+      if (result.victory) {
+        await this.bestiary.recordDungeonClear(m.character.id, dungeonId);
       }
     }
 

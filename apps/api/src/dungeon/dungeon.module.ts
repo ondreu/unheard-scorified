@@ -22,6 +22,7 @@ import {
   DUNGEON_PARTY_SCHEDULER,
 } from './dungeon-party.scheduler';
 import { GroupRepository } from '../group/group.repository';
+import { BestiaryModule } from '../bestiary/bestiary.module';
 
 /**
  * Dungeony (M5, sjednoceno M8.5-B na group PVE run model). SP i group (3/5) běží
@@ -41,6 +42,7 @@ import { GroupRepository } from '../group/group.repository';
     RotationModule,
     QuestModule,
     ProfessionDataModule,
+    BestiaryModule,
   ],
   controllers: [DungeonController],
   // GroupRepository je stateless (jen DB) — poskytnut přímo, aby se předešlo

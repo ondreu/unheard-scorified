@@ -55,6 +55,7 @@ import { ProfessionRepository, ReputationRepository } from '../profession/profes
 import { MountRepository } from '../mount/mount.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
 import type { Character, CharacterActivity } from '../db/schema';
 import { ActivityRepository } from './activity.repository';
 import { ACTIVITY_SCHEDULER, type ActivityScheduler } from './activity.scheduler';
@@ -154,6 +155,7 @@ export class ActivityService {
     private readonly mounts: MountRepository,
     private readonly rotation: RotationService,
     private readonly history: HistoryRepository,
+    private readonly bestiary: BestiaryService,
     @Inject(ACTIVITY_SCHEDULER) private readonly scheduler: ActivityScheduler,
   ) {}
 
@@ -303,8 +305,12 @@ export class ActivityService {
           // Prohra: nulová odměna, quest se nedokončí (lze opakovat se silnějším buildem).
           questFailed = true;
           reward = { xp: 0, gold: 0, items: [] };
-        } else if (quest.kind === 'story') {
-          await this.completed.markCompleted(characterId, questId);
+        } else {
+          if (quest.kind === 'story') {
+            await this.completed.markCompleted(characterId, questId);
+          }
+          // Bestiář: poražení katalogoví foe se odemknou + počítají (úspěšný claim).
+          await this.bestiary.recordQuestKills(characterId, questId);
         }
       }
     } else if (row.activityType === 'grind') {
