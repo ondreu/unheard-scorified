@@ -47,6 +47,46 @@ function clearWave(base: CombatActor, state: GauntletRunState): GauntletRunState
   return s;
 }
 
+describe('typové obrany v Gauntletu (frost immunity)', () => {
+  // Vnutí konkrétní katalogovou šablonu jako aktuálního nepřítele, sešle danou
+  // ability a vrátí poškození způsobené nepříteli (HP před − po).
+  function damageWith(templateId: string, ability: SignatureAbility): number {
+    const base = hero(12, 'wizard');
+    base.signatureAbilities = [...base.signatureAbilities, ability];
+    const state = startGauntletRun(base, 12, 1);
+    // Velké HP, ať jeden úder nepřítele nezabije (jinak se HP klampne / vlna se posune).
+    state.enemy = { ...state.enemy!, name: BESTIARY[templateId]!.name, templateId, maxHealth: 100000, currentHealth: 100000 };
+    const before = state.enemy.currentHealth;
+    const after = resolveGauntletTurn(base, state, ability.id).state;
+    return before - (after.enemy?.currentHealth ?? before);
+  }
+
+  const strike = (id: string, damageType: SignatureAbility['damageType']): SignatureAbility => ({
+    id,
+    name: id,
+    kind: 'strike',
+    cooldownSec: 0,
+    damageMult: 1,
+    damageType,
+    autoHit: true, // ať 0 dmg nejde na vrub minutí, ale obrany
+    dice: { count: 8, sides: 6, bonus: 0 },
+  });
+
+  it('cold-immune Frost Elemental takes 0 from a cold spell (bug fix)', () => {
+    expect(damageWith('frost_elemental', strike('test_cold', 'cold'))).toBe(0);
+  });
+
+  it('defenses are type-specific — a force spell still lands on the same enemy', () => {
+    expect(damageWith('frost_elemental', strike('test_force', 'force'))).toBeGreaterThan(0);
+  });
+
+  it('fire-vulnerable enemy takes more from fire than from a non-typed match', () => {
+    const fire = damageWith('frost_elemental', strike('test_fire', 'fire'));
+    const force = damageWith('frost_elemental', strike('test_force2', 'force'));
+    expect(fire).toBeGreaterThan(force); // vulnerability ×2 vs normal
+  });
+});
+
 describe('spell sloty v Gauntletu (ADR 0034)', () => {
   const total = (m: Record<number, number>): number =>
     Object.values(m).reduce((a, b) => a + b, 0);
