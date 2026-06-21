@@ -684,6 +684,8 @@ export interface QuestStepResult {
   text: string;
   /** Jen combat: jméno nepřítele. */
   enemyName?: string;
+  /** Jen combat: id katalogové šablony nepřítele (`enemies.ts`), pokud ji foe nese. */
+  templateId?: string;
   /** Jen combat: log souboje. */
   events?: CombatEvent[];
   /** Jen combat: zbylé HP postavy v % (flavor). */
@@ -781,6 +783,7 @@ export function simulateQuestRun(
       kind: 'combat',
       text: step.intro,
       enemyName: step.foe.name,
+      ...(step.foe.template ? { templateId: step.foe.template } : {}),
       events: enc.events,
       playerHpPct: enc.playerHpPct,
       defeated: enc.playerDefeated || undefined,
