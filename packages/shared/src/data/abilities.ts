@@ -325,7 +325,7 @@ export const CLASS_BASELINE_ABILITIES: Record<ClassId, BaselineAbility[]> = {
     ba('paladin_divine_smite', 'Divine Smite', 'A radiant strike for 180% weapon damage.', 'strike', 5, 1.8, 1, { spellTier: 1 }),
     ba('paladin_lay_on_hands', 'Lay on Hands', 'Draws on a sacred pool of healing for 4d8 — no spell slot (refreshes on a Long Rest).', 'heal', 26, 2.2, 1, { dice: { count: 4, sides: 8, bonus: 0 } }),
     ba('paladin_searing_smite', 'Searing Smite', 'A flaming blow for 1d6 fire that ignites the foe for 1d6 fire each turn over 8s.', 'dot', 8, 0, 12, { dot: { dotDurationSec: 8, dotTicks: 4, dotTickMult: 0, dotDice: { count: 1, sides: 6, bonus: 0 } }, spellTier: 1, damageType: 'fire', dice: { count: 1, sides: 6, bonus: 0 } }),
-    ba('paladin_cure_wounds', 'Cure Wounds', 'A quick prayer restores 1d8 + your spellcasting modifier. +1d8 per slot above 1st.', 'heal', 4, 1.3, 20, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
+    ba('paladin_cure_wounds', 'Cure Wounds', 'A quick prayer restores 1d8 + your spellcasting modifier. +1d8 per slot above 1st.', 'heal', 6, 1.3, 20, { spellTier: 1, dice: { count: 1, sides: 8, bonus: 0 }, dicePerSlotAbove: 1 }),
   ],
   ranger: [
     ba('ranger_hunters_mark', "Hunter's Mark", 'Marks the prey (concentration): every weapon hit deals +1d6 damage for the fight.', 'buff', 5, 0, 1, { spellTier: 1, riderDice: { count: 1, sides: 6, bonus: 0 } }),
