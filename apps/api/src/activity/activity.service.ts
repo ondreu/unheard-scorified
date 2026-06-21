@@ -322,6 +322,13 @@ export class ActivityService {
         row.durationSec,
         state.seed,
       ).steps;
+      // Bestiář: grind teď tahá katalogové nestvůry (dle CR) → poražené se počítají
+      // (no-fail, takže každý combat krok = jeden kill). Best-effort jako u questů.
+      const counts: Record<string, number> = {};
+      for (const s of questLog) {
+        if (s.kind === 'combat' && s.templateId) counts[s.templateId] = (counts[s.templateId] ?? 0) + 1;
+      }
+      if (Object.keys(counts).length > 0) await this.bestiary.recordKills(characterId, counts);
     }
 
     const gain = applyXpGain(character.totalXp, reward.xp);

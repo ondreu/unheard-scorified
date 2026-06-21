@@ -5,6 +5,7 @@ import { referenceXpPerHour } from './leveling';
 import { deriveCombatProfile, type CombatActor } from './combat';
 import { baseStatsFor } from './character';
 import { EMPTY_PROGRESSION } from './levelup';
+import { BESTIARY } from './data/enemies';
 
 function makeProfile(level: number): CombatActor {
   return deriveCombatProfile({
@@ -77,6 +78,10 @@ describe('simulateGrindRun', () => {
     for (const c of combats) {
       expect(c.enemyName).toBeTruthy();
       expect(c.events!.at(-1)!.type).toBe('enemy_defeated'); // nelze prohrát
+      // Foe se táhne z katalogu dle CR → nese platný templateId (= bestiář kredit + identita).
+      expect(c.templateId).toBeTruthy();
+      expect(c.templateId! in BESTIARY).toBe(true);
+      expect(BESTIARY[c.templateId!]!.name).toBe(c.enemyName);
     }
   });
 
