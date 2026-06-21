@@ -79,7 +79,7 @@ describe('M9 flow: groups (party)', () => {
     const history = new HistoryRepository(db);
     const dungeons = new DungeonService(
       charRepo, invService, invRepo, makeGrant(db, invRepo), push, raidRepo, lockouts, reputation, rotation, completed, history,
-      new BestiaryService(charRepo, new BestiaryRepository(db)), queue,
+      new BestiaryService(charRepo, new BestiaryRepository(db), null as never), queue,
     );
     const arena = new ArenaService(
       charRepo, invService, arenaRepo, push,

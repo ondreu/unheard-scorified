@@ -68,7 +68,7 @@ describe('M13 flow: The Gauntlet', () => {
       rotation,
       new HistoryRepository(db),
       repo,
-      new BestiaryService(charRepo, new BestiaryRepository(db)),
+      new BestiaryService(charRepo, new BestiaryRepository(db), null as never),
     );
   });
 

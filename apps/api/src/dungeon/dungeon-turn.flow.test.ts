@@ -60,7 +60,7 @@ describe('Slice 2 flow: turn-based solo dungeon', () => {
       new RotationService(charRepo, new LevelUpRepository(db), new RotationRepository(db), invService),
       new HistoryRepository(db),
       new DungeonTurnRepository(db),
-      new BestiaryService(charRepo, new BestiaryRepository(db)),
+      new BestiaryService(charRepo, new BestiaryRepository(db), null as never),
     );
   });
 

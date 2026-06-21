@@ -4,14 +4,39 @@ import { JwtService } from '@nestjs/jwt';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { DUNGEONS, dungeonTemplateCounts } from '@game/shared';
+import { BESTIARY_IDS, DUNGEONS, dungeonTemplateCounts, type CombatActor } from '@game/shared';
 import { AuthService } from '../auth/auth.service';
 import { CharacterRepository } from '../character/character.repository';
 import { CharacterService } from '../character/character.service';
 import type { Database } from '../db/db.module';
+import type { RotationService } from '../rotation/rotation.service';
 import * as schema from '../db/schema';
 import { BestiaryRepository } from './bestiary.repository';
 import { BestiaryService } from './bestiary.service';
+
+/**
+ * Lehký stub bojového profilu (duel nepotřebuje plný RotationService) — vrátí
+ * silnou postavu, aby duel proti běžnému foe spolehlivě skončil rozhodnutě.
+ */
+const rotationStub = {
+  buildCombatProfile: async (character: { name: string }, level: number): Promise<CombatActor> => ({
+    name: character.name,
+    level,
+    maxHealth: 2000,
+    attackPower: 400,
+    swingInterval: 2,
+    critChance: 0.1,
+    critMultiplier: 2,
+    armor: 0,
+    lifesteal: 0,
+    shield: 0,
+    armorClass: 18,
+    attackBonus: 10,
+    spellSaveDc: 15,
+    damageType: 'slashing',
+    signatureAbilities: [],
+  }),
+} as unknown as RotationService;
 
 /**
  * Integrační test bestiáře nad pglite: odemčení/kill counter z dokončeného
@@ -33,7 +58,7 @@ describe('flow: bestiary', () => {
     auth = new AuthService(db, new JwtService());
     charRepo = new CharacterRepository(db);
     characters = new CharacterService(charRepo);
-    service = new BestiaryService(charRepo, new BestiaryRepository(db));
+    service = new BestiaryService(charRepo, new BestiaryRepository(db), rotationStub);
   });
 
   beforeEach(() => {
@@ -119,6 +144,24 @@ describe('flow: bestiary', () => {
     view = await service.getBestiary(a.accountId, a.id);
     expect(view.newCount).toBe(0);
     expect(view.entries.every((e) => !e.isNew)).toBe(true);
+  });
+
+  it('duel: vrátí log + výsledek, ale NEpřipíše žádné odměny ani killy', async () => {
+    const a = await player('Duelist');
+    const tid = BESTIARY_IDS[0]!;
+    const res = await service.duel(a.accountId, a.id, tid);
+    expect(res.events.length).toBeGreaterThan(0);
+    expect(typeof res.victory).toBe('boolean');
+    expect(res.enemyName.length).toBeGreaterThan(0);
+    // Bez odměn: bestiář se duelem nezmění (žádné objevení ani kill counter).
+    const view = await service.getBestiary(a.accountId, a.id);
+    expect(view.totalKills).toBe(0);
+    expect(view.discoveredCount).toBe(0);
+  });
+
+  it('duel na neznámého nepřítele hází', async () => {
+    const a = await player('BadDuelist');
+    await expect(service.duel(a.accountId, a.id, 'nope_not_real')).rejects.toThrow();
   });
 
   it('getBestiary cizí postavy hází 404', async () => {

@@ -29,6 +29,7 @@ export * from './combat-lookup';
 export * from './spell-card';
 export * from './spell-compendium';
 export * from './quest-run';
+export * from './duel';
 export * from './grind';
 export * from './data/dungeons';
 export * from './data/factions';
