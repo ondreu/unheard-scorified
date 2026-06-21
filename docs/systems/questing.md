@@ -122,6 +122,24 @@ generovaný deterministicky při claimu. Detail rozhodnutí: `docs/adr/0024`.
   (jednoduchý beat z `description`) — doplní se v dalším
   content passu (viz ROADMAP M10+ „Více a kvalitnějších questů").
 
+## Skill checky (D&D ability checks, auto-resolved — ADR 0048)
+
+Questy mohou obsahovat **skill-check kroky** (`QuestSkillCheckStep`) — D&D ability
+checky vyhodnocené **automaticky** při claimu (idle, žádná nová interakce). Hod
+d20 + atribut modifikátor (+ proficiency bonus, je-li postava ve skillu proficient)
+vs `dc` (`skills.ts → skillCheck`). Výsledek:
+
+- **větví narativ** (`success` / `failure` text) v příběhovém logu;
+- **upraví odměnu** (XP+zlato): úspěch `+15 %`, neúspěch `−10 %` (default, laditelné
+  per krok přes `reward`); quest se **vždy dokončí** (idle-safe, jako no-fail combat).
+
+Proficiency zdrojem je **Background** postavy (`BACKGROUNDS[].skillProficiencies`),
+protažený do `CombatActor.skillProficiencies` (`deriveCombatProfile` ←
+`RotationService.buildCombatProfile`). 18 skillů → atribut drží `SKILL_ABILITY`
+(jediný zdroj pravdy). `QuestRunResult.rewardMultiplier` (clamp 0.5–2.0; `1.0` =
+žádné checky) aplikuje `ActivityService.claim` na XP/zlato (loot beze změny).
+Class/race skill proficiencies a interaktivní volba přístupu = follow-up (MIL 1).
+
 ## Dungeon attunement (M9)
 
 `DungeonDef.attunement?: { questAnyOf: string[] }` (mirroruje `RaidAttunement`):

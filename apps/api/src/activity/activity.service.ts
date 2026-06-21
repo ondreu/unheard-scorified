@@ -306,6 +306,15 @@ export class ActivityService {
           questFailed = true;
           reward = { xp: 0, gold: 0, items: [] };
         } else {
+          // Skill checky (auto-resolved): úspěch/neúspěch upraví XP+zlato (loot beze
+          // změny). Quest se vždy dokončí (idle-safe). `1.0` = žádné checky.
+          if (run.rewardMultiplier !== 1) {
+            reward = {
+              ...reward,
+              xp: Math.max(0, Math.round(reward.xp * run.rewardMultiplier)),
+              gold: Math.max(0, Math.round(reward.gold * run.rewardMultiplier)),
+            };
+          }
           if (quest.kind === 'story') {
             await this.completed.markCompleted(characterId, questId);
           }

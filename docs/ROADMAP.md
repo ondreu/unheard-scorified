@@ -249,7 +249,7 @@ docs/   ROADMAP.md · adr/ (rozhodnutí) · systems/ (specy)
 ## Questy & příběh
 
 - [ ] **Přepis questového příběhu + rozšíření** _(slučuje „rozšířit questy" + „nový příběh")_ — smazat texty stávajících questů a napsat **nový koherentní příběh** v settingu The Caldmoor Reaches, **přidat nové questy** (především na **začátek hry** — onboarding příběhem) a celkově rozšířit questový obsah. Engine/mechaniky beze změny, jen narativ + nové záznamy.
-- [ ] **Skill checky v questování** _(slučuje „přidat checky" + „skill check do questování")_ — dialogové/questové volby s **D&D skill checky** (DC + atribut/skill): Charisma check, Intimidation, Persuasion, … s úspěch/neúspěch větvením. Navazuje na „❓ dialogové volby s skill checky" v RP sekci níže.
+- [x] **Skill checky v questování** ✅ _(ADR 0048; rozhodnutí PM: auto-resolved /idle/ + bonus/penalta k odměně)_ — questy mají **skill-check kroky** (`QuestSkillCheckStep`) vyhodnocené **automaticky** při claimu (D&D ability check: d20 + atribut + proficiency vs DC, `skills.ts → skillCheck`, deterministicky ze seedu). Výsledek **větví narativ** (success/failure text) a **upraví odměnu** (úspěch +15 %, neúspěch −10 %, laditelné per krok; clamp 0.5–2.0× XP+zlato) — quest se **vždy dokončí** (idle-safe). Proficiency zdrojem je **Background** (`BACKGROUNDS[].skillProficiencies` → `CombatActor.skillProficiencies`, dosud jen lore → teď mechanický dopad); 18 skillů → atribut v `SKILL_ABILITY`. Web quest log dostal render skill-check kroku (🎲 skill/DC/výsledek + proficiency `✦`). Ukázky v Dawnhollow Vale (Investigation, Persuasion). Bez DB migrace. _Follow-up: class/race proficiencies, interaktivní volba přístupu (MIL 1), checky v repeatable/grindu._
 
 ## RP / D&D / BG3 prvky
 

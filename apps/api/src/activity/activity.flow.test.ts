@@ -136,7 +136,12 @@ describe('M2 flow: leveling & idle smyčka', () => {
 
     vi.setSystemTime(T0 + KOBOLD.durationSec * 1000 + 1);
     const result = await activity.claim(accountId, id);
-    expect(result.reward.xp).toBe(Math.round(KOBOLD.baseXp * activityEfficiency(KOBOLD.durationSec)));
+    // Skill check (auto-resolved) v questu upraví odměnu: úspěch +15 %, neúspěch −10 %
+    // (default delty `quest-run.ts`). Quest se vždy dokončí. Očekávané XP = base × mult.
+    const baseXp = Math.round(KOBOLD.baseXp * activityEfficiency(KOBOLD.durationSec));
+    const check = result.questLog!.find((s) => s.kind === 'skill_check');
+    const mult = check ? (check.success ? 1.15 : 0.9) : 1;
+    expect(result.reward.xp).toBe(Math.round(baseXp * mult));
     expect(result.reward.gold).toBeGreaterThan(0);
     expect(result.character.sheet.level).toBe(1);
     expect(result.character.gold).toBe(result.reward.gold);

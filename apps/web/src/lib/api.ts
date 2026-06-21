@@ -85,13 +85,21 @@ export interface ClaimResult {
 
 /** Krok vygenerovaného příběhového logu questu (M9). */
 export interface QuestStepResult {
-  kind: 'narrative' | 'combat';
+  kind: 'narrative' | 'combat' | 'skill_check';
   text: string;
   enemyName?: string;
   events?: CombatEvent[];
   playerHpPct?: number;
   /** Combat-objective quest (M12): tenhle souboj postava prohrála. */
   defeated?: boolean;
+  // Skill check (auto-resolved ability check).
+  skill?: string;
+  skillAbility?: string;
+  dc?: number;
+  rollTotal?: number;
+  rollNatural?: number;
+  success?: boolean;
+  proficient?: boolean;
 }
 
 export interface DungeonListItem {
