@@ -297,9 +297,9 @@ export function gauntletAbilities(base: CombatActor, picks: GauntletPick[]): Sig
 
 // Nepřátelé se táhnou ze sdíleného katalogu nestvůr (`enemies.ts`, ADR 0043) —
 // žádný paralelní seznam. Bereme **id šablony** → jméno + signature ability
-// (typový úder + save + condition rider; Slice 2d). Typové **obrany** nepřítele se
-// do Gauntletu dál NEpropisují (magnitudy beze změny); aplikuje se jen ability.
-// Pool = curated podmnožina katalogu.
+// (typový úder + save + condition rider; Slice 2d) + **typové obrany** (resistance/
+// vulnerability/immunity — viz `enemyActor`), aby D&D typový systém fungoval i tady.
+// Magnitudy (HP/dmg) zůstávají odvozené z vlny. Pool = curated podmnožina katalogu.
 const NORMAL_ENEMY_IDS = [
   'skeleton_warrior',
   'rotting_zombie',
@@ -395,6 +395,7 @@ function enemyAbilities(enemy: GauntletEnemyState): SignatureAbility[] {
 
 /** `CombatActor` nepřítele pro sdílený `computeHit` (zdroj pravdy combat vzorce). */
 function enemyActor(enemy: GauntletEnemyState): CombatActor {
+  const tmpl = enemy.templateId ? BESTIARY[enemy.templateId] : undefined;
   return buildEnemyActor({
     name: enemy.name,
     maxHealth: enemy.maxHealth,
@@ -404,6 +405,12 @@ function enemyActor(enemy: GauntletEnemyState): CombatActor {
     isBoss: enemy.isElite,
     level: enemy.level,
     signatureAbilities: enemyAbilities(enemy),
+    // Typové obrany z katalogu (resistance/vulnerability/immunity) — aby D&D typový
+    // systém (frost elementál immune cold, vuln fire…) fungoval i v Gauntletu. Magnitudy
+    // (HP/dmg) zůstávají z vlny; obrany jen modulují přicházející typové poškození.
+    resistances: tmpl?.resistances,
+    vulnerabilities: tmpl?.vulnerabilities,
+    immunities: tmpl?.immunities,
   });
 }
 

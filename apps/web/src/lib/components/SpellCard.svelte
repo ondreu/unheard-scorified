@@ -38,8 +38,27 @@
 
   const ABILITY_NUM = { dexterity: 'DEX', strength: 'STR', constitution: 'CON', intelligence: 'INT', wisdom: 'WIS', charisma: 'CHA' } as Record<string, string>;
 
+  // Damage typy (D&D 5e) — ikona + barva pro čitelný element chip na kartě. Jediné
+  // místo, kde se mapuje vzhled typu poškození v UI (fire/cold/force/…).
+  const DTYPE_META: Record<string, { icon: string; color: string }> = {
+    slashing: { icon: '⚔️', color: '#b9c2cc' },
+    piercing: { icon: '🗡️', color: '#b9c2cc' },
+    bludgeoning: { icon: '🔨', color: '#b9c2cc' },
+    fire: { icon: '🔥', color: '#ff7043' },
+    cold: { icon: '❄️', color: '#4fc3f7' },
+    lightning: { icon: '⚡', color: '#ffd54f' },
+    thunder: { icon: '💥', color: '#9fa8da' },
+    acid: { icon: '🧪', color: '#9ccc65' },
+    poison: { icon: '☠️', color: '#7cb342' },
+    necrotic: { icon: '💀', color: '#8e7cc3' },
+    radiant: { icon: '✨', color: '#ffe082' },
+    force: { icon: '🌀', color: '#ce93d8' },
+    psychic: { icon: '🧠', color: '#f06292' },
+  };
+
   const card = $derived(buildSpellCard(ability, { level, slotTier, spellSaveDc }));
   const meta = $derived(KIND_META[card.kind] ?? { label: card.kind, color: 'var(--text-dim)', icon: '✨' });
+  const dtype = $derived(card.damageType ? DTYPE_META[card.damageType] : undefined);
 
   function cap(s: string): string {
     return s.charAt(0).toUpperCase() + s.slice(1);
@@ -59,7 +78,14 @@
       <div class="name">{card.name}</div>
       <div class="sub">{slotLabel(card)}{#if card.actionCost === 'bonus'} · Bonus action{/if}</div>
     </div>
-    <Badge color={meta.color} icon={meta.icon}>{meta.label}</Badge>
+    <div class="head-badges">
+      {#if card.damageType && dtype}
+        <span class="dtype-chip" style={`--dtype:${dtype.color}`} title={`${cap(card.damageType)} damage`}>
+          {dtype.icon} {cap(card.damageType)}
+        </span>
+      {/if}
+      <Badge color={meta.color} icon={meta.icon}>{meta.label}</Badge>
+    </div>
   </div>
 
   {#if card.description && !compact}
@@ -73,7 +99,7 @@
         <dd>
           <span class="dice">{card.damage.notation}</span>
           <span class="range">({card.damage.range})</span>
-          {#if card.damageType}<span class="dtype">{cap(card.damageType)}</span>{/if}
+          {#if card.damageType && dtype}<span class="dtype" style={`color:${dtype.color}`}>{dtype.icon} {cap(card.damageType)}</span>{/if}
         </dd>
       </div>
     {/if}
@@ -151,6 +177,27 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+  .head-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+  }
+  .dtype-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    color: var(--dtype);
+    border: 1px solid color-mix(in srgb, var(--dtype) 45%, transparent);
+    background: color-mix(in srgb, var(--dtype) 14%, transparent);
+    white-space: nowrap;
   }
   .name {
     font-weight: 700;
