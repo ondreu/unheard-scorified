@@ -18,6 +18,8 @@ import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
+import { BestiaryRepository } from '../bestiary/bestiary.repository';
 import { GauntletRepository } from './gauntlet.repository';
 import { GauntletService, type GauntletRunView } from './gauntlet.service';
 
@@ -66,6 +68,7 @@ describe('M13 flow: The Gauntlet', () => {
       rotation,
       new HistoryRepository(db),
       repo,
+      new BestiaryService(charRepo, new BestiaryRepository(db)),
     );
   });
 

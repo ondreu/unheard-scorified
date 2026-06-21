@@ -1,0 +1,1 @@
+ALTER TABLE "characters" ADD COLUMN "bestiary_seen_at" timestamp with time zone;

@@ -20,6 +20,8 @@ import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
+import { BestiaryRepository } from '../bestiary/bestiary.repository';
 import { DungeonTurnService, type DungeonTurnRunView } from './dungeon-turn.service';
 import { DungeonTurnRepository } from './dungeon-turn.repository';
 
@@ -58,6 +60,7 @@ describe('Slice 2 flow: turn-based solo dungeon', () => {
       new RotationService(charRepo, new LevelUpRepository(db), new RotationRepository(db), invService),
       new HistoryRepository(db),
       new DungeonTurnRepository(db),
+      new BestiaryService(charRepo, new BestiaryRepository(db)),
     );
   });
 

@@ -31,6 +31,7 @@ import {
 import { CharacterRepository } from '../character/character.repository';
 import { GroupRepository } from '../group/group.repository';
 import { InventoryGrantService } from '../inventory/inventory-grant.service';
+import { BestiaryService } from '../bestiary/bestiary.service';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { ReputationRepository } from '../profession/profession.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
@@ -138,6 +139,7 @@ export class DungeonPartyService {
     private readonly repo: DungeonPartyRepository,
     private readonly relay: DungeonPartyEventsRelay,
     @Inject(DUNGEON_PARTY_SCHEDULER) private readonly scheduler: DungeonPartyScheduler,
+    private readonly bestiary: BestiaryService,
   ) {}
 
   /**
@@ -379,6 +381,7 @@ export class DungeonPartyService {
           await this.reputation.addStanding(p.characterId, GENERALIST_FACTION, dungeonReputationGain(dungeon.recommendedLevel));
         }
       }
+      if (victory) await this.bestiary.recordDungeonClear(p.characterId, run.dungeonId);
       await this.repo.setParticipantReward(run.id, p.characterId, reward);
       this.recordHistory(p.characterId, run.dungeonId, victory, lockedOut, reward);
       out.set(p.characterId, { reward, lockedOut });

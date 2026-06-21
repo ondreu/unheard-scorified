@@ -117,6 +117,11 @@ export class CharacterRepository {
     return row!;
   }
 
+  /** Označí bestiář za „prohlédnutý" k danému času (ADR 0046 — NEW badge reset). */
+  async setBestiarySeenAt(id: string, at: Date): Promise<void> {
+    await this.db.update(characters).set({ bestiarySeenAt: at }).where(eq(characters.id, id));
+  }
+
   /** Smaže postavu (cascade FK smaže i inventář/aktivity/guild membership atd.). */
   async delete(id: string): Promise<void> {
     await this.db.delete(characters).where(eq(characters.id, id));

@@ -17,6 +17,8 @@ import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
+import { BestiaryRepository } from '../bestiary/bestiary.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { CompletedQuestRepository } from '../quest/quest.repository';
@@ -76,7 +78,8 @@ describe('M9 flow: groups (party)', () => {
 
     const history = new HistoryRepository(db);
     const dungeons = new DungeonService(
-      charRepo, invService, invRepo, makeGrant(db, invRepo), push, raidRepo, lockouts, reputation, rotation, completed, history, queue,
+      charRepo, invService, invRepo, makeGrant(db, invRepo), push, raidRepo, lockouts, reputation, rotation, completed, history,
+      new BestiaryService(charRepo, new BestiaryRepository(db)), queue,
     );
     const arena = new ArenaService(
       charRepo, invService, arenaRepo, push,

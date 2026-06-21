@@ -1,4 +1,5 @@
-import type { ActiveCondition, CharacterSheet } from '@game/shared';
+import type { ActiveCondition, BestiaryView, CharacterSheet } from '@game/shared';
+export type { BestiaryView, BestiaryEntryView } from '@game/shared';
 import { authReady, clearSession, currentSession, setSession, type Session } from './auth';
 
 export interface CharacterView {
@@ -1553,6 +1554,14 @@ export interface AchievementClaimResult {
 
 export function getAchievements(characterId: string): Promise<AchievementsView> {
   return request<AchievementsView>(`/characters/${characterId}/achievements`);
+}
+
+export function getBestiary(characterId: string): Promise<BestiaryView> {
+  return request<BestiaryView>(`/characters/${characterId}/bestiary`);
+}
+
+export function markBestiarySeen(characterId: string): Promise<BestiaryView> {
+  return request<BestiaryView>(`/characters/${characterId}/bestiary/seen`, { method: 'POST' });
 }
 
 export function claimAchievement(

@@ -8,6 +8,7 @@ import { ProfessionDataModule } from '../profession/profession-data.module';
 import { PushModule } from '../push/push.module';
 import { QuestModule } from '../quest/quest.module';
 import { RotationModule } from '../rotation/rotation.module';
+import { BestiaryModule } from '../bestiary/bestiary.module';
 import { ActivityController } from './activity.controller';
 import { ActivityRepository } from './activity.repository';
 import { ActivityService } from './activity.service';
@@ -28,6 +29,7 @@ import { ACTIVITY_SCHEDULER, BullMqActivityScheduler } from './activity.schedule
     ProfessionDataModule,
     MountDataModule,
     RotationModule,
+    BestiaryModule,
   ],
   controllers: [ActivityController],
   providers: [

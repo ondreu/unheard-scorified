@@ -21,6 +21,8 @@ import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
+import { BestiaryRepository } from '../bestiary/bestiary.repository';
 import { PushRepository } from '../push/push.repository';
 import { PushService } from '../push/push.service';
 import { RaidRepository } from '../raid/raid.repository';
@@ -72,6 +74,7 @@ describe('M8.5 flow: dungeons (group PVE run)', () => {
       new RotationService(charRepo, new LevelUpRepository(db), new RotationRepository(db), invService),
       completedRepo,
       new HistoryRepository(db),
+      new BestiaryService(charRepo, new BestiaryRepository(db)),
       new InMemoryRaidQueue(),
     );
   });

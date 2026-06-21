@@ -22,6 +22,8 @@ import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
 import { RotationRepository } from '../rotation/rotation.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
+import { BestiaryRepository } from '../bestiary/bestiary.repository';
 import { ActivityRepository } from './activity.repository';
 import { ActivityService } from './activity.service';
 import { NoopActivityScheduler } from './activity.scheduler';
@@ -76,6 +78,7 @@ describe('M2 flow: leveling & idle smyčka', () => {
       new MountRepository(db),
       rotation,
       new HistoryRepository(db),
+      new BestiaryService(charRepo, new BestiaryRepository(db)),
       new NoopActivityScheduler(),
     );
   });

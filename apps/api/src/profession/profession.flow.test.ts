@@ -20,6 +20,8 @@ import { LevelUpRepository } from '../levelup/levelup.repository';
 import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
 import { RotationRepository } from '../rotation/rotation.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
+import { BestiaryRepository } from '../bestiary/bestiary.repository';
 import { ActivityRepository } from '../activity/activity.repository';
 import { ActivityService } from '../activity/activity.service';
 import { NoopActivityScheduler } from '../activity/activity.scheduler';
@@ -84,6 +86,7 @@ describe('M6 flow: profese & reputace', () => {
       mountRepo,
       rotation,
       new HistoryRepository(db),
+      new BestiaryService(charRepo, new BestiaryRepository(db)),
       new NoopActivityScheduler(),
     );
   });

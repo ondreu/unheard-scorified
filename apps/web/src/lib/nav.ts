@@ -152,6 +152,14 @@ export const NAV_SECTIONS: NavSection[] = [
     group: 'character',
   },
   {
+    path: 'bestiary',
+    icon: '🐉',
+    title: 'Bestiary',
+    sub: 'Enemies you have faced',
+    accent: 'var(--r-rare, #0070dd)',
+    group: 'character',
+  },
+  {
     path: 'history',
     icon: '📖',
     title: 'History',
