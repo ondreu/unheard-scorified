@@ -1251,6 +1251,246 @@ const TEMPLATES: readonly EnemyTemplate[] = [
       },
     ],
   },
+
+  // ── Bestiary expansion II — more Caldmoor Reaches creatures ──────────────────
+  // Low-CR beasts of the blighted wilds (early-game variety).
+  {
+    id: 'carrion_crow_flock',
+    name: 'Carrion Crow Flock',
+    description: 'A shrieking murder of crows that descends on the wounded and the dead alike.',
+    creatureType: 'beast',
+    cr: 0.25,
+    attackType: 'piercing',
+  },
+  {
+    id: 'blightfen_rat_swarm',
+    name: 'Blightfen Rat Swarm',
+    description: 'A seething tide of plague-slick rats boiling out of the fen.',
+    creatureType: 'beast',
+    cr: 0.5,
+    attackType: 'piercing',
+    resistances: ['poison'],
+    abilities: [
+      {
+        id: 'rat_plague_bite',
+        name: 'Plague Bite',
+        kind: 'dot',
+        damageMult: 1.2,
+        damageType: 'poison',
+        cooldownSec: 9,
+        dotDurationSec: 6,
+        dotTicks: 3,
+        dotDice: { count: 1, sides: 4, bonus: 0 },
+        description: 'A filthy bite that festers with sickness.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be poisoned.' },
+        condition: { type: 'poisoned', durationTurns: 2 },
+      },
+    ],
+  },
+  {
+    id: 'caldmoor_dire_bear',
+    name: 'Caldmoor Dire Bear',
+    description: 'A massive, scarred bruin driven to fury by the blight in its veins.',
+    creatureType: 'beast',
+    cr: 3,
+    attackType: 'slashing',
+  },
+
+  // Construct — a lesser warden to pair with the deep-workshop golems.
+  {
+    id: 'animated_armor',
+    name: 'Animated Armor',
+    description: 'An empty suit of plate that clanks to life when its hall is disturbed.',
+    creatureType: 'construct',
+    cr: 1,
+    attackType: 'slashing',
+    immunities: ['poison', 'psychic'],
+  },
+
+  // Dragon — an acid wyrm lurking in the drowned undercity.
+  {
+    id: 'young_black_dragon',
+    name: 'Young Black Dragon',
+    description: 'A cruel reptile that lairs in flooded ruins, melting prey with caustic breath.',
+    creatureType: 'dragon',
+    cr: 7,
+    attackType: 'piercing',
+    immunities: ['acid'],
+    isBoss: true,
+    abilities: [
+      {
+        id: 'black_acid_breath',
+        name: 'Acid Breath',
+        damageMult: 1.8,
+        damageType: 'acid',
+        cooldownSec: 12,
+        description: 'A line of hissing acid that blinds and burns.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be blinded.' },
+        condition: { type: 'blinded', durationTurns: 1 },
+      },
+    ],
+  },
+
+  // Elemental — storm and mire spirits stirred up by the blight.
+  {
+    id: 'storm_wisp',
+    name: 'Storm Wisp',
+    description: 'A crackling mote of living lightning that darts and stings.',
+    creatureType: 'elemental',
+    cr: 3,
+    attackType: 'lightning',
+    immunities: ['lightning'],
+    resistances: ['thunder'],
+    abilities: [
+      {
+        id: 'storm_arc',
+        name: 'Stunning Arc',
+        damageMult: 1.6,
+        damageType: 'lightning',
+        cooldownSec: 11,
+        description: 'A forking jolt that locks the muscles.',
+        save: { ability: 'constitution', description: 'CON save for half damage, or be stunned.' },
+        condition: { type: 'stunned', durationTurns: 1 },
+      },
+    ],
+  },
+  {
+    id: 'mire_elemental',
+    name: 'Mire Elemental',
+    description: 'A lumbering mass of animate bog that drags victims down into the muck.',
+    creatureType: 'elemental',
+    cr: 4,
+    attackType: 'bludgeoning',
+    resistances: ['acid', 'poison'],
+    abilities: [
+      {
+        id: 'mire_engulf',
+        name: 'Engulfing Mud',
+        damageMult: 1.5,
+        damageType: 'bludgeoning',
+        cooldownSec: 10,
+        description: 'A wave of clinging mud that pins the prey in place.',
+        save: { ability: 'strength', description: 'STR save for half damage, or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
+  },
+
+  // Fiend — a tormenting imp from the Baron's service.
+  {
+    id: 'imp_tormentor',
+    name: 'Imp Tormentor',
+    description: 'A spiteful little devil that flits about, jabbing with a fire-wreathed tail.',
+    creatureType: 'fiend',
+    cr: 2,
+    attackType: 'fire',
+    resistances: ['fire'],
+    vulnerabilities: ['radiant'],
+  },
+
+  // Giant — a frost giant raider from the northern Reaches.
+  {
+    id: 'frost_giant_reaver',
+    name: 'Frost Giant Reaver',
+    description: 'A towering raider whose greataxe falls like an avalanche.',
+    creatureType: 'giant',
+    cr: 8,
+    attackType: 'slashing',
+    resistances: ['cold'],
+    abilities: [
+      {
+        id: 'reaver_crushing_blow',
+        name: 'Crushing Blow',
+        damageMult: 1.7,
+        damageType: 'bludgeoning',
+        cooldownSec: 11,
+        description: 'A two-handed smash that hammers the target to the ground.',
+        save: { ability: 'strength', description: 'STR save for half damage, or be knocked prone.' },
+        condition: { type: 'prone', durationTurns: 1 },
+      },
+    ],
+  },
+
+  // Monstrosity — a stone-skinned sentinel perched among the ruins.
+  {
+    id: 'gargoyle_sentinel',
+    name: 'Gargoyle Sentinel',
+    description: 'A leering stone watcher that holds perfectly still until prey draws near.',
+    creatureType: 'monstrosity',
+    cr: 2,
+    attackType: 'slashing',
+    resistances: ['bludgeoning', 'piercing', 'slashing'],
+  },
+
+  // Plant — a thorny horror of the strangling thornwood.
+  {
+    id: 'bramble_horror',
+    name: 'Bramble Horror',
+    description: 'A shambling knot of animate thorn-vine that drags itself toward warmth.',
+    creatureType: 'plant',
+    cr: 3,
+    attackType: 'piercing',
+    vulnerabilities: ['fire'],
+    resistances: ['piercing'],
+    abilities: [
+      {
+        id: 'bramble_lash',
+        name: 'Thorn Lash',
+        damageMult: 1.4,
+        damageType: 'piercing',
+        cooldownSec: 9,
+        description: 'A whipping coil of thorns that wraps and holds.',
+        save: { ability: 'strength', description: 'STR save for half damage, or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
+  },
+
+  // Aberration — a creeping gloom that gnaws at the mind.
+  {
+    id: 'gloom_lurker',
+    name: 'Gloom Lurker',
+    description: 'A formless dark that whispers terrors into the minds of the living.',
+    creatureType: 'aberration',
+    cr: 4,
+    attackType: 'psychic',
+    resistances: ['cold', 'necrotic'],
+    abilities: [
+      {
+        id: 'gloom_dread_whisper',
+        name: 'Dread Whisper',
+        damageMult: 1.5,
+        damageType: 'psychic',
+        cooldownSec: 10,
+        description: 'A chorus of alien whispers that floods the heart with terror.',
+        save: { ability: 'wisdom', description: 'WIS save for half damage, or be frightened.' },
+        condition: { type: 'frightened', durationTurns: 2 },
+      },
+    ],
+  },
+
+  // Ooze — a transparent cube that engulfs whatever it drifts into.
+  {
+    id: 'gelatinous_cube',
+    name: 'Gelatinous Cube',
+    description: 'A near-invisible cube of acid that slides down corridors, dissolving all it meets.',
+    creatureType: 'ooze',
+    cr: 2,
+    attackType: 'acid',
+    immunities: ['acid'],
+    abilities: [
+      {
+        id: 'cube_engulf',
+        name: 'Engulf',
+        damageMult: 1.5,
+        damageType: 'acid',
+        cooldownSec: 11,
+        description: 'Slides over its prey and traps it in suffocating jelly.',
+        save: { ability: 'dexterity', description: 'DEX save for half damage, or be restrained.' },
+        condition: { type: 'restrained', durationTurns: 2 },
+      },
+    ],
+  },
 ];
 
 /** Bestiář indexovaný podle id. */
