@@ -9,13 +9,13 @@
     getDungeonTurnRun,
     type DungeonTurnRunView,
   } from '$lib/api';
-  import { ITEMS } from '@game/shared';
+  import { ITEMS, castableTiers } from '@game/shared';
   import CombatLog from '$lib/components/CombatLog.svelte';
   import { dungeonTurnActors } from '$lib/combat-actors';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
   import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
-  import UpcastPicker from '$lib/components/UpcastPicker.svelte';
+  import UpcastDialog from '$lib/components/UpcastDialog.svelte';
   import ConditionBadges from '$lib/components/ConditionBadges.svelte';
   import { activeCharacterLevel, activeCharacterSpellSaveDc, openNpc } from '$lib/ui-stores';
 
@@ -66,8 +66,8 @@
   // Friendly cíl léčení: index člena party (0 = hráč, 1..N = parťák). Heal ability
   // posílá tenhle index místo nepřátelského `targetId`.
   let healTargetId = $state(0);
-  // Vědomě zvolený upcast tier per ability (Upcast — volba slotu). undefined = auto.
-  let upcastTier = $state<Record<string, number | undefined>>({});
+  // Upcast (volba slotu, UI A): otevřený cast dialog pro zvolené kouzlo (null = zavřeno).
+  let pendingCast = $state<DungeonTurnRunView['abilities'][number] | null>(null);
 
   const characterId = $derived($page.params.id ?? '');
   const runId = $derived($page.params.runId ?? '');
@@ -116,15 +116,28 @@
     return FRIENDLY_KINDS.has(kind) ? healTargetId : targetId;
   }
 
-  async function act(abilityId: string, kind: string): Promise<void> {
+  // Má kouzlo reálnou volbu upcastu? (upcastovatelné + ≥ 2 dostupné tiery). Pak tap
+  // otevře cast dialog místo okamžitého seslání; jinak castuje hned (auto).
+  function canChooseUpcast(a: DungeonTurnRunView['abilities'][number]): boolean {
+    if (!run || a.upcastPerSlot <= 0) return false;
+    return castableTiers(run.player.spellSlots, a.spellTier).length >= 2;
+  }
+
+  function onAbilityTap(a: DungeonTurnRunView['abilities'][number]): void {
+    if (canChooseUpcast(a)) pendingCast = a;
+    else void act(a.id, a.kind);
+  }
+
+  async function act(abilityId: string, kind: string, castTier?: number): Promise<void> {
     if (busy || !run || run.status !== 'in_combat') return;
     busy = true;
     error = null;
     // Bonus action proběhne jen když ji hráč zvolil a liší se od hlavní akce.
     const bonus = bonusAbilityId && bonusAbilityId !== abilityId ? bonusAbilityId : undefined;
     try {
-      run = await actDungeonTurn(characterId, runId, abilityId, targetFor(kind), bonus, upcastTier[abilityId]);
+      run = await actDungeonTurn(characterId, runId, abilityId, targetFor(kind), bonus, castTier);
       bonusAbilityId = null;
+      pendingCast = null;
       retarget();
     } catch (err) {
       error = (err as Error).message;
@@ -345,39 +358,30 @@
         {/if}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {#each r.abilities as a (a.id)}
-            <div>
-              <SpellTooltip
-                abilityId={a.id}
-                level={$activeCharacterLevel ?? 1}
-                slotTier={upcastTier[a.id]}
-                spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
+            <SpellTooltip
+              abilityId={a.id}
+              level={$activeCharacterLevel ?? 1}
+              spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
+            >
+              <button
+                class="btn flex w-full items-center gap-2 text-left"
+                disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
+                onclick={() => onAbilityTap(a)}
               >
-                <button
-                  class="btn flex w-full items-center gap-2 text-left"
-                  disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
-                  onclick={() => act(a.id, a.kind)}
-                >
-                  <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
-                  <span class="min-w-0 flex-1 truncate">{a.name}</span>
-                  {#if !a.ready}
-                    <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
-                  {:else if a.outOfSlots}
-                    <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
-                  {:else if a.outOfKi}
-                    <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
-                  {/if}
-                </button>
-              </SpellTooltip>
-              {#if a.ready && !a.outOfSlots}
-                <UpcastPicker
-                  spellTier={a.spellTier}
-                  upcastPerSlot={a.upcastPerSlot}
-                  slots={r.player.spellSlots}
-                  bind:selected={upcastTier[a.id]}
-                  disabled={busy}
-                />
-              {/if}
-            </div>
+                <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
+                <span class="min-w-0 flex-1 truncate">{a.name}</span>
+                {#if a.ready && !a.outOfSlots && canChooseUpcast(a)}
+                  <span class="shrink-0 text-xs text-[var(--accent)]" title="Choose upcast slot">▲</span>
+                {/if}
+                {#if !a.ready}
+                  <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
+                {:else if a.outOfSlots}
+                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
+                {:else if a.outOfKi}
+                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
+                {/if}
+              </button>
+            </SpellTooltip>
           {/each}
         </div>
         <div class="mt-2 flex gap-2">
@@ -385,6 +389,19 @@
           <button class="btn btn-sm flex-1" disabled={busy} title="Take no action and end your turn" onclick={() => endTurn('pass')}>⏭️ {ui.endTurn}</button>
         </div>
       </section>
+    {/if}
+
+    <!-- Upcast cast dialog (volba slotu, UI A) -->
+    {#if pendingCast}
+      <UpcastDialog
+        ability={pendingCast}
+        slots={r.player.spellSlots}
+        level={$activeCharacterLevel ?? 1}
+        spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
+        {busy}
+        oncast={(tier) => act(pendingCast!.id, pendingCast!.kind, tier)}
+        oncancel={() => (pendingCast = null)}
+      />
     {/if}
 
     <!-- End screen -->

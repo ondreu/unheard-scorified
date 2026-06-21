@@ -11,13 +11,13 @@
     type GauntletDraftOption,
     type GauntletRunView,
   } from '$lib/api';
-  import { ITEMS } from '@game/shared';
+  import { ITEMS, castableTiers } from '@game/shared';
   import CombatLog from '$lib/components/CombatLog.svelte';
   import { gauntletActors } from '$lib/combat-actors';
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
   import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
-  import UpcastPicker from '$lib/components/UpcastPicker.svelte';
+  import UpcastDialog from '$lib/components/UpcastDialog.svelte';
   import ConditionBadges from '$lib/components/ConditionBadges.svelte';
   import { activeCharacterLevel, activeCharacterSpellSaveDc, openNpc } from '$lib/ui-stores';
 
@@ -61,8 +61,8 @@
 
   // Vědomě zvolená bonus action (ADR 0042) — proběhne vedle hlavní akce; null = žádná.
   let bonusAbilityId = $state<string | null>(null);
-  // Vědomě zvolený upcast tier per ability (Upcast — volba slotu). undefined = auto.
-  let upcastTier = $state<Record<string, number | undefined>>({});
+  // Upcast (volba slotu, UI A): otevřený cast dialog pro zvolené kouzlo (null = zavřeno).
+  let pendingCast = $state<GauntletRunView['abilities'][number] | null>(null);
 
   const characterId = $derived($page.params.id ?? '');
   const runId = $derived($page.params.runId ?? '');
@@ -88,14 +88,26 @@
     }
   }
 
-  async function act(abilityId: string): Promise<void> {
+  // Má kouzlo reálnou volbu upcastu? Pak tap otevře cast dialog; jinak castuje hned.
+  function canChooseUpcast(a: GauntletRunView['abilities'][number]): boolean {
+    if (!run?.player || a.upcastPerSlot <= 0) return false;
+    return castableTiers(run.player.spellSlots, a.spellTier).length >= 2;
+  }
+
+  function onAbilityTap(a: GauntletRunView['abilities'][number]): void {
+    if (canChooseUpcast(a)) pendingCast = a;
+    else void act(a.id);
+  }
+
+  async function act(abilityId: string, castTier?: number): Promise<void> {
     if (busy || !run || run.status !== 'in_combat') return;
     busy = true;
     error = null;
     const bonus = bonusAbilityId && bonusAbilityId !== abilityId ? bonusAbilityId : undefined;
     try {
-      run = await gauntletAct(characterId, runId, abilityId, bonus, upcastTier[abilityId]);
+      run = await gauntletAct(characterId, runId, abilityId, bonus, castTier);
       bonusAbilityId = null;
+      pendingCast = null;
     } catch (err) {
       error = (err as Error).message;
     } finally {
@@ -268,42 +280,46 @@
         {/if}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {#each r.abilities as a (a.id)}
-            <div>
-              <SpellTooltip
-                abilityId={a.id}
-                level={$activeCharacterLevel ?? 1}
-                slotTier={upcastTier[a.id]}
-                spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
+            <SpellTooltip
+              abilityId={a.id}
+              level={$activeCharacterLevel ?? 1}
+              spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
+            >
+              <button
+                class="btn flex w-full items-center gap-2 text-left"
+                disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
+                onclick={() => onAbilityTap(a)}
               >
-                <button
-                  class="btn flex w-full items-center gap-2 text-left"
-                  disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
-                  onclick={() => act(a.id)}
-                >
-                  <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
-                  <span class="min-w-0 flex-1 truncate">{a.name}</span>
-                  {#if !a.ready}
-                    <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
-                  {:else if a.outOfSlots}
-                    <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
-                  {:else if a.outOfKi}
-                    <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
-                  {/if}
-                </button>
-              </SpellTooltip>
-              {#if a.ready && !a.outOfSlots}
-                <UpcastPicker
-                  spellTier={a.spellTier}
-                  upcastPerSlot={a.upcastPerSlot}
-                  slots={r.player.spellSlots}
-                  bind:selected={upcastTier[a.id]}
-                  disabled={busy}
-                />
-              {/if}
-            </div>
+                <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
+                <span class="min-w-0 flex-1 truncate">{a.name}</span>
+                {#if a.ready && !a.outOfSlots && canChooseUpcast(a)}
+                  <span class="shrink-0 text-xs text-[var(--accent)]" title="Choose upcast slot">▲</span>
+                {/if}
+                {#if !a.ready}
+                  <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
+                {:else if a.outOfSlots}
+                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
+                {:else if a.outOfKi}
+                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
+                {/if}
+              </button>
+            </SpellTooltip>
           {/each}
         </div>
       </section>
+    {/if}
+
+    <!-- Upcast cast dialog (volba slotu, UI A) -->
+    {#if pendingCast && r.player}
+      <UpcastDialog
+        ability={pendingCast}
+        slots={r.player.spellSlots}
+        level={$activeCharacterLevel ?? 1}
+        spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
+        {busy}
+        oncast={(tier) => act(pendingCast!.id, tier)}
+        oncancel={() => (pendingCast = null)}
+      />
     {/if}
 
     <!-- Draft (between waves) -->
