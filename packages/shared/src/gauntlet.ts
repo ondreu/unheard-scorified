@@ -363,6 +363,28 @@ export function buildGauntletEnemy(
   };
 }
 
+/**
+ * Katalogové šablony (+počty) nepřátel poražených v Gauntlet runu, odvozené
+ * **deterministicky** ze seedu runu a počtu vyčištěných vln (`wavesCleared`).
+ * Každá vyčištěná vlna = jeden poražený nepřítel; jeho `templateId` je plně
+ * reprodukovatelný (stejné seedování rng jako engine). Slouží bestiáři k
+ * zápisu kill counterů po skončení runu. `level` neovlivňuje výběr šablony
+ * (jen magnitudu), ale předáváme ho pro shodu s `buildGauntletEnemy`.
+ */
+export function gauntletDefeatedTemplates(
+  seed: string | number,
+  level: number,
+  wavesCleared: number,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (let wave = 1; wave <= wavesCleared; wave++) {
+    const rng = new SeededRng(seedFromString(`${seed}:enemy:${wave}`));
+    const { templateId } = buildGauntletEnemy(level, wave, rng);
+    if (templateId) counts[templateId] = (counts[templateId] ?? 0) + 1;
+  }
+  return counts;
+}
+
 /** Signature ability nepřítele z katalogové šablony (Slice 2d). Prázdné, když
  * `templateId` chybí (staré běhy) nebo šablona nemá ability. */
 function enemyAbilities(enemy: GauntletEnemyState): SignatureAbility[] {

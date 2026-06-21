@@ -39,6 +39,14 @@ export class BestiaryService {
     await this.record(characterId, dungeonTemplateCounts(dungeonId));
   }
 
+  /**
+   * Zaznamená poražené nepřátele z předpočítané mapy templateId → počet
+   * (procedurální obsah, např. Gauntlet — viz `gauntletDefeatedTemplates`).
+   */
+  async recordKills(characterId: string, counts: Record<string, number>): Promise<void> {
+    await this.record(characterId, counts);
+  }
+
   /** Best-effort zápis kill counterů (selhání nesmí shodit volající claim). */
   private async record(characterId: string, counts: Record<string, number>): Promise<void> {
     if (Object.keys(counts).length === 0) return;

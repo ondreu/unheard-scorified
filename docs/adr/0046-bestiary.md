@@ -55,9 +55,13 @@ nešlo spolehlivě z `id`.
 - Migrace `0044_…` (nová tabulka, žádný dopad na stávající data).
 - API modul `bestiary/` exportuje `BestiaryService` → `ActivityModule` /
   `DungeonModule` ho injektují pro zápis killů.
-- **Pokrytí Slice 1:** idle quest claim + idle/group dungeon clear. **Zbývá
-  (Slice 2):** Gauntlet, tahový dungeon (`dungeon-turn`), dungeon-party, aréna/PVP
-  + indikátor „nově objeveno". **Slice 3:** filtry (creature type / CR), detail
-  stat-block polish, pixel-art rámeček.
+- **Pokrytí Slice 1:** idle quest claim + idle/group dungeon clear.
+- **Pokrytí Slice 2:** tahový solo dungeon (`DungeonTurnService`), MP tahový
+  dungeon (`DungeonPartyService`) a Gauntlet (`GauntletService` →
+  `gauntletDefeatedTemplates` deterministicky odvodí poražené šablony z vyčištěných
+  vln). Sdílený `BestiaryService.recordKills(counts)` pro procedurální obsah.
+  **Aréna/PVP vynechány** — soupeři jsou hráči, ne katalogové nestvůry.
+- **Zbývá (Slice 3):** filtry (creature type / CR), detail stat-block, indikátor
+  „nově objeveno", pixel-art rámeček (deslopifikace UI).
 - `EnemyStats.templateId` je obecně užitečné (budoucí „kde nepřítele potkat",
   analytika), balanc-neutrální.

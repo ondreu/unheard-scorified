@@ -89,6 +89,21 @@ describe('flow: bestiary', () => {
     expect(view.entries.find((e) => e.templateId === tid)!.kills).toBe(counts[tid!]! * 2);
   });
 
+  it('recordKills (procedurální obsah, např. Gauntlet) napočítá zadané šablony', async () => {
+    const a = await player('Survivor');
+    const dungeonId = Object.keys(DUNGEONS)[0]!;
+    const tid = Object.keys(dungeonTemplateCounts(dungeonId))[0]!;
+
+    await service.recordKills(a.id, { [tid]: 5 });
+    let view = await service.getBestiary(a.accountId, a.id);
+    expect(view.entries.find((e) => e.templateId === tid)!.kills).toBe(5);
+
+    // Prázdná mapa = no-op (žádný pád, žádné objevení).
+    await service.recordKills(a.id, {});
+    view = await service.getBestiary(a.accountId, a.id);
+    expect(view.discoveredCount).toBe(1);
+  });
+
   it('getBestiary cizí postavy hází 404', async () => {
     const a = await player('Owner');
     const b = await player('Intruder');

@@ -4,6 +4,7 @@ import { CharacterModule } from '../character/character.module';
 import { HistoryModule } from '../history/history.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { RotationModule } from '../rotation/rotation.module';
+import { BestiaryModule } from '../bestiary/bestiary.module';
 import { GauntletController } from './gauntlet.controller';
 import { GauntletRepository } from './gauntlet.repository';
 import { GauntletService } from './gauntlet.service';
@@ -15,7 +16,7 @@ import { GauntletService } from './gauntlet.service';
  * sdílený engine z `@game/shared` a inventory grant pro odměny. Viz ADR 0028.
  */
 @Module({
-  imports: [AuthModule, CharacterModule, InventoryModule, RotationModule, HistoryModule],
+  imports: [AuthModule, CharacterModule, InventoryModule, RotationModule, HistoryModule, BestiaryModule],
   controllers: [GauntletController],
   providers: [GauntletService, GauntletRepository],
 })

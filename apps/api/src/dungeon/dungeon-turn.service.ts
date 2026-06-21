@@ -32,6 +32,7 @@ import {
 } from '@game/shared';
 import { CharacterRepository } from '../character/character.repository';
 import { InventoryGrantService } from '../inventory/inventory-grant.service';
+import { BestiaryService } from '../bestiary/bestiary.service';
 import { LockoutRepository } from '../lockout/lockout.repository';
 import { ReputationRepository } from '../profession/profession.repository';
 import { CompletedQuestRepository } from '../quest/quest.repository';
@@ -136,6 +137,7 @@ export class DungeonTurnService {
     private readonly rotation: RotationService,
     private readonly history: HistoryRepository,
     private readonly repo: DungeonTurnRepository,
+    private readonly bestiary: BestiaryService,
   ) {}
 
   /** Vstup do tahového (solo) dungeonu — snapshot profilu + první encounter. */
@@ -331,6 +333,8 @@ export class DungeonTurnService {
       if (reward.items.length > 0) {
         await this.grant.grant(character.id, reward.items.map((itemId) => ({ itemId, quantity: 1 })));
       }
+      // Bestiář: clear (i lockoutovaný) odemkne + napočítá poražené nepřátele.
+      await this.bestiary.recordDungeonClear(character.id, run.dungeonId);
       if (!lockedOut) {
         const dungeon = DUNGEONS[run.dungeonId];
         if (dungeon) {

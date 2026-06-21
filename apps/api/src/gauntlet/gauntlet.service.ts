@@ -9,6 +9,7 @@ import {
   hasSlotForTier,
   gauntletDailyGoldCap,
   gauntletDailyXpCap,
+  gauntletDefeatedTemplates,
   gauntletRunReward,
   isGauntletAbilityReady,
   levelFromXp,
@@ -36,6 +37,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { InventoryGrantService } from '../inventory/inventory-grant.service';
 import { RotationService } from '../rotation/rotation.service';
 import { HistoryRepository } from '../history/history.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
 import type { Character, GauntletRun } from '../db/schema';
 import { GauntletRepository } from './gauntlet.repository';
 
@@ -132,6 +134,7 @@ export class GauntletService {
     private readonly rotation: RotationService,
     private readonly history: HistoryRepository,
     private readonly repo: GauntletRepository,
+    private readonly bestiary: BestiaryService,
   ) {}
 
   /** Přehled minihry: aktivní run, nejlepší skóre, denní progres stropu. */
@@ -309,6 +312,12 @@ export class GauntletService {
     }
 
     await this.repo.finalizeRun(run.id, state, state.status, state.wavesCleared, reward);
+
+    // Bestiář: každá vyčištěná vlna = poražený nepřítel (deterministicky ze seedu).
+    await this.bestiary.recordKills(
+      character.id,
+      gauntletDefeatedTemplates(state.seed, run.level, state.wavesCleared),
+    );
 
     try {
       const itemNote = reward.items.length > 0 ? `, ${reward.items.length} materials` : '';

@@ -22,6 +22,8 @@ import { RotationService } from '../rotation/rotation.service';
 import { RotationRepository } from '../rotation/rotation.repository';
 import { HistoryRepository } from '../history/history.repository';
 import { GroupRepository } from '../group/group.repository';
+import { BestiaryService } from '../bestiary/bestiary.service';
+import { BestiaryRepository } from '../bestiary/bestiary.repository';
 import { DungeonPartyService, type DungeonPartyRunView } from './dungeon-party.service';
 import { DungeonPartyRepository } from './dungeon-party.repository';
 import { DungeonPartyEventsRelay } from './dungeon-party.events';
@@ -69,6 +71,7 @@ describe('Slice 4 flow: živé MP tahové dungeon sezení', () => {
       new DungeonPartyRepository(db),
       new DungeonPartyEventsRelay(),
       new NoopDungeonPartyScheduler(),
+      new BestiaryService(charRepo, new BestiaryRepository(db)),
     );
   });
 

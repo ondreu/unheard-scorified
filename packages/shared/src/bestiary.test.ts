@@ -9,6 +9,7 @@ import {
 import { BESTIARY, BESTIARY_IDS, instantiateEnemy } from './data/enemies';
 import { DUNGEONS } from './data/dungeons';
 import { QUESTS } from './data/quests';
+import { gauntletDefeatedTemplates } from './gauntlet';
 
 describe('bestiary', () => {
   it('katalog → entries: jeden záznam per šablona, validní pole', () => {
@@ -67,5 +68,15 @@ describe('bestiary', () => {
     const undiscovered = view.entries.find((e) => e.templateId !== firstId)!;
     expect(undiscovered.discovered).toBe(false);
     expect(undiscovered.kills).toBe(0);
+  });
+
+  it('gauntletDefeatedTemplates: deterministické, jen katalogová id, počet = vlny', () => {
+    expect(gauntletDefeatedTemplates(12345, 10, 0)).toEqual({});
+    const a = gauntletDefeatedTemplates(12345, 10, 7);
+    const b = gauntletDefeatedTemplates(12345, 10, 7);
+    expect(a).toEqual(b); // determinismus
+    const total = Object.values(a).reduce((s, n) => s + n, 0);
+    expect(total).toBe(7); // každá vyčištěná vlna = 1 poražený nepřítel
+    for (const id of Object.keys(a)) expect(id in BESTIARY).toBe(true);
   });
 });
