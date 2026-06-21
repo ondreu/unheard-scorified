@@ -827,6 +827,12 @@ export interface HitResult {
   roll: AttackRoll;
   /** AC cíle, proti které se házelo. */
   targetAc: number;
+  /**
+   * Advantage/disadvantage použitá pro tento hod (D&D 5e). `'normal'` = bez ní.
+   * Surfacuje se do combat logu (útok na stunnutého/prone/… cíl = advantage, ne
+   * auto-hit — rozhodnutí PM: striktně D&D advantage).
+   */
+  advantage: AdvantageMode;
   /** Hod na poškození (jen při zásahu). */
   damage?: DiceRoll;
   /** Notace kostek poškození pro log (např. `5d6+18`). */
@@ -869,10 +875,11 @@ function rollHit(
 ): HitResult {
   const targetAc = actorAc(defender);
   const damageType = attackDamageType(attacker, damageTypeOverride);
-  const roll = rollAttack(rng, actorAttackBonus(attacker), extra.advantage ?? 'normal');
+  const advantage = extra.advantage ?? 'normal';
+  const roll = rollAttack(rng, actorAttackBonus(attacker), advantage);
   const hit = autoHit || attackHits(roll, targetAc);
   if (!hit) {
-    return { amount: 0, crit: false, hit: false, roll, targetAc, damageType, damageInteraction: 'normal' };
+    return { amount: 0, crit: false, hit: false, roll, targetAc, advantage, damageType, damageInteraction: 'normal' };
   }
   const crit = roll.isCrit;
   // Literal spell dice (ADR 0032) přebijí weapon dice; crit zdvojí počet kostek.
@@ -906,6 +913,7 @@ function rollHit(
     hit: true,
     roll,
     targetAc,
+    advantage,
     damage,
     damageNotation: extra.bonusDice
       ? `${diceNotation(spec)} + ${diceNotation(extra.bonusDice)}`
@@ -1010,6 +1018,16 @@ export interface AttackMessageInput {
   abilityName?: string;
   /** Doplněk za hlavní větu (např. ` [rampage]. Target: 42 HP`). */
   suffix: string;
+  /**
+   * Advantage/disadvantage hodu na zásah (D&D 5e) — surfacuje útok na stunnutý/
+   * prone/… cíl jako advantage (ne auto-hit). `'normal'`/`undefined` = bez noty.
+   */
+  advantage?: AdvantageMode;
+}
+
+/** Nota o advantage/disadvantage pro combat log (`' (advantage)'` / `''`). */
+export function advantageNote(mode: AdvantageMode | undefined): string {
+  return mode === 'advantage' ? ' (advantage)' : mode === 'disadvantage' ? ' (disadvantage)' : '';
 }
 
 /**
@@ -1024,15 +1042,16 @@ export interface AttackMessageInput {
 export function buildAttackMessage(input: AttackMessageInput): string {
   const { attacker, targetName, amount, crit, healed, abilityName, suffix } = input;
   const critTag = crit ? ' (crit!)' : '';
+  const advTag = advantageNote(input.advantage);
   if (healed > 0) {
     if (abilityName) {
-      return `🩸 ${attacker.name} hits ${targetName} with ${abilityName} for ${amount}${critTag}, healing for ${healed}${suffix}`;
+      return `🩸 ${attacker.name} hits ${targetName} with ${abilityName} for ${amount}${critTag}${advTag}, healing for ${healed}${suffix}`;
     }
     const source = attacker.lifestealSource ? ` (from ${attacker.lifestealSource})` : '';
-    return `🩸 ${attacker.name} hits ${targetName} for ${amount}${critTag} and heals for ${healed}${source}${suffix}`;
+    return `🩸 ${attacker.name} hits ${targetName} for ${amount}${critTag}${advTag} and heals for ${healed}${source}${suffix}`;
   }
   if (abilityName) {
-    return `${attacker.name} casts ${abilityName} on ${targetName} for ${amount}${critTag}${suffix}`;
+    return `${attacker.name} casts ${abilityName} on ${targetName} for ${amount}${critTag}${advTag}${suffix}`;
   }
-  return `${attacker.name} hits ${targetName} for ${amount}${critTag}${suffix}`;
+  return `${attacker.name} hits ${targetName} for ${amount}${critTag}${advTag}${suffix}`;
 }

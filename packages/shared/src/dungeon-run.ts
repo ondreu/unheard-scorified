@@ -23,6 +23,7 @@ import {
   applyRage,
   bonusDiceSpec,
   buildAttackMessage,
+  advantageNote,
   computeHit,
   dotTickRaw,
   EXTRA_ATTACK_ABILITY,
@@ -1061,6 +1062,7 @@ function combatantHitEnemy(
           targetName: enemy.name,
           amount: hit.amount,
           crit: hit.crit,
+          advantage: hit.advantage,
           healed,
           abilityName: named,
           suffix: `. ${enemy.name}: ${remaining} HP`,
@@ -1188,7 +1190,7 @@ function enemyAttackParty(
     t,
     type: ability ? 'ability' : 'attack',
     message: enemyHit.hit
-      ? `${enemy.name} ${ability ? `uses ${ability.name} on` : 'hits'} ${targetName} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${absorbSuffix}. ${targetName}: ${Math.max(0, Math.round(member.currentHealth))} HP`
+      ? `${enemy.name} ${ability ? `uses ${ability.name} on` : 'hits'} ${targetName} for ${absorbResult.netDamage}${enemyHit.crit ? ' (crit!)' : ''}${advantageNote(enemyHit.advantage)}${absorbSuffix}. ${targetName}: ${Math.max(0, Math.round(member.currentHealth))} HP`
       : missMessage(enemy.name, targetName, enemyHit),
     source: enemy.name,
     target: targetName,
