@@ -1049,6 +1049,37 @@ export const dungeonTurnRunsRelations = relations(dungeonTurnRuns, ({ one }) => 
 }));
 
 /**
+ * Tahový duel (Duel v bestiáři, Slice 2) — interaktivní **testovací** souboj
+ * postavy proti jednomu katalogovému nepříteli. Sdílí engine s tahovým dungeonem
+ * (`DungeonRunState`), ale **bez jakýchkoli odměn** (žádné reward sloupce),
+ * v samostatné tabulce, aby duely nekolidovaly s aktivním dungeon runem.
+ */
+export const duelRuns = pgTable('duel_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  /** Katalogová šablona vyzvaného nepřítele (`data/enemies.ts`). */
+  templateId: varchar('template_id', { length: 64 }).notNull(),
+  /** Bojový profil postavy při vstupu (snapshot — anti-cheat/determinismus). */
+  playerSnapshot: jsonb('player_snapshot').$type<CombatActor>().notNull(),
+  level: integer('level').notNull(),
+  /** Kompletní mutabilní stav runu (engine `DungeonRunState`). */
+  state: jsonb('state').$type<DungeonRunState>().notNull(),
+  status: varchar('status', { length: 16 }).$type<DungeonRunStatus>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+});
+
+export const duelRunsRelations = relations(duelRuns, ({ one }) => ({
+  character: one(characters, {
+    fields: [duelRuns.characterId],
+    references: [characters.id],
+  }),
+}));
+
+/**
  * Živé MP tahové dungeon sezení (ADR 0038, Slice 4) — sdílený multi-owner run
  * party reálných hráčů (+ případných AI parťáků). Stav (`PartyRunState`) drží
  * buffrované akce kola; `roundDeadline` = po něm AI fallback doplní nečinné
@@ -1208,6 +1239,8 @@ export type GauntletRun = typeof gauntletRuns.$inferSelect;
 export type NewGauntletRun = typeof gauntletRuns.$inferInsert;
 export type DungeonTurnRun = typeof dungeonTurnRuns.$inferSelect;
 export type NewDungeonTurnRun = typeof dungeonTurnRuns.$inferInsert;
+export type DuelRun = typeof duelRuns.$inferSelect;
+export type NewDuelRun = typeof duelRuns.$inferInsert;
 export type DungeonPartyRun = typeof dungeonPartyRuns.$inferSelect;
 export type NewDungeonPartyRun = typeof dungeonPartyRuns.$inferInsert;
 export type DungeonPartyParticipant = typeof dungeonPartyParticipants.$inferSelect;

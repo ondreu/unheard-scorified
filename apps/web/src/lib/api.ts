@@ -1597,6 +1597,66 @@ export function duelEnemy(characterId: string, templateId: string): Promise<Duel
   });
 }
 
+// ── Tahový duel (Duel v bestiáři, Slice 2) — stateful, bez odměn ──────────────
+
+export interface DuelRunView {
+  runId: string;
+  templateId: string;
+  enemyName: string;
+  status: 'in_combat' | 'cleared' | 'dead';
+  player: {
+    name: string;
+    maxHealth: number;
+    currentHealth: number;
+    absorb: number;
+    mitigationTurns: number;
+    spellSlots: Record<number, number>;
+    maxSpellSlots: Record<number, number>;
+    kiPoints: number;
+    maxKiPoints: number;
+    rageCharges: number;
+    maxRageCharges: number;
+    raging: boolean;
+    conditions: ActiveCondition[];
+  };
+  enemies: DungeonTurnEnemyView[];
+  abilities: DungeonTurnAbilityView[];
+  events: CombatEvent[];
+  /** Po skončení: vyhrál hráč? `null` dokud běží. */
+  victory: boolean | null;
+}
+
+/** Spustí tahový duel proti katalogovému nepříteli (**bez odměn**). */
+export function enterDuel(characterId: string, templateId: string): Promise<DuelRunView> {
+  return request<DuelRunView>(`/characters/${characterId}/duel/${templateId}/enter`, {
+    method: 'POST',
+  });
+}
+
+export function getDuelRun(characterId: string, runId: string): Promise<DuelRunView> {
+  return request<DuelRunView>(`/characters/${characterId}/duel/run/${runId}`);
+}
+
+export function actDuel(
+  characterId: string,
+  runId: string,
+  abilityId: string,
+  targetId: number,
+  bonusAbilityId?: string,
+  castTier?: number,
+): Promise<DuelRunView> {
+  return request<DuelRunView>(`/characters/${characterId}/duel/run/${runId}/act`, {
+    method: 'POST',
+    body: JSON.stringify({ abilityId, targetId, bonusAbilityId, castTier }),
+  });
+}
+
+export function abandonDuel(characterId: string, runId: string): Promise<DuelRunView> {
+  return request<DuelRunView>(`/characters/${characterId}/duel/run/${runId}/abandon`, {
+    method: 'POST',
+  });
+}
+
 export function claimAchievement(
   characterId: string,
   achievementId: string,

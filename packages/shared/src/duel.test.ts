@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { isDuelableEnemy, simulateDuel } from './duel';
-import { BESTIARY_IDS } from './data/enemies';
+import { isDuelableEnemy, simulateDuel, startDuelRun } from './duel';
+import { DUNGEON_BASIC_ATTACK, resolveDungeonTurn } from './dungeon-run';
+import { BESTIARY, BESTIARY_IDS } from './data/enemies';
 import type { CombatActor } from './combat';
 
 /** Minimální „silná" testovací postava (mimikuje snapshot bojového profilu). */
@@ -60,5 +61,33 @@ describe('duel (bestiary test fight)', () => {
 
   it('hází na neznámou šablonu', () => {
     expect(() => simulateDuel(strongActor(), 'ghost_template', 1)).toThrow();
+  });
+});
+
+describe('startDuelRun (tahový duel)', () => {
+  const sampleId = BESTIARY_IDS[0]!;
+
+  it('postaví single-enemy tahový run z katalogové šablony', () => {
+    const state = startDuelRun(strongActor(), sampleId, 20, 999);
+    expect(state.status).toBe('in_combat');
+    expect(state.encounterCount).toBe(1);
+    expect(state.enemies).toHaveLength(1);
+    expect(state.enemies[0]!.name).toBe(BESTIARY[sampleId]!.name);
+    expect(state.label).toBe(BESTIARY[sampleId]!.name);
+    expect(state.allies).toHaveLength(0);
+    expect(state.customEncounters).toBeDefined();
+  });
+
+  it('resolveDungeonTurn na duel runu funguje (hráč udeří, vrátí eventy)', () => {
+    const base = strongActor();
+    const state = startDuelRun(base, sampleId, 20, 42);
+    const { state: next, events } = resolveDungeonTurn(base, state, DUNGEON_BASIC_ATTACK.id, 0);
+    expect(events.length).toBeGreaterThan(0);
+    // Silná postava → buď nepřítel utrpěl poškození, nebo už padl (encounter clear).
+    expect(['in_combat', 'cleared']).toContain(next.status);
+  });
+
+  it('hází na neznámou šablonu', () => {
+    expect(() => startDuelRun(strongActor(), 'ghost_template', 20, 1)).toThrow();
   });
 });

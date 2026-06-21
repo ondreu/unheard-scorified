@@ -19,6 +19,7 @@ import { MountModule } from './mount/mount.module';
 import { ProfessionModule } from './profession/profession.module';
 import { ProgressionModule } from './progression/progression.module';
 import { BestiaryModule } from './bestiary/bestiary.module';
+import { DuelModule } from './duel/duel.module';
 import { PushModule } from './push/push.module';
 import { QuestModule } from './quest/quest.module';
 import { RedisModule } from './redis/redis.module';
@@ -66,6 +67,7 @@ const devModules =
     BankModule,
     GauntletModule,
     BestiaryModule,
+    DuelModule,
     ...devModules,
   ],
 })

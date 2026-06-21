@@ -7,6 +7,7 @@
 import type { ActorMeta } from '$lib/components/CombatLog.svelte';
 import type {
   ArenaMatchView,
+  DuelRunView,
   DungeonPartyRunView,
   DungeonRunView,
   DungeonTurnRunView,
@@ -36,6 +37,13 @@ export function dungeonIdleActors(r: DungeonRunView): ActorMap {
   const map: ActorMap = {};
   for (const p of r.party) map[p.name] = { side: 'ally' };
   for (const e of r.encounters) map[e.name] = { side: 'enemy' };
+  return map;
+}
+
+/** Tahový duel (solo, testovací): ty = hráč, vyzvaný nepřítel = enemy. */
+export function duelTurnActors(r: DuelRunView): ActorMap {
+  const map: ActorMap = { [r.player.name]: { side: 'player' } };
+  for (const e of r.enemies) map[e.name] = { side: 'enemy' };
   return map;
 }
 

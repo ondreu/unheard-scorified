@@ -182,6 +182,14 @@ export interface DungeonRunAlly {
 export interface DungeonRunState {
   seed: number;
   dungeonId: string;
+  /**
+   * Vlastní encountery (duel / test fight) — když je `customEncounters` přítomné,
+   * engine bere nepřátele odsud místo z dungeon dat (`groupEncounters`). Každý
+   * prvek = jedna skupina nepřátel (encounter). `undefined` → klasický dungeon.
+   */
+  customEncounters?: CombatActor[][];
+  /** Lidsky čitelný popisek lokace (duel = jméno nepřítele) pro log; default `dungeonId`. */
+  label?: string;
   /** Velikost party pro škálování nepřátel (solo = 1, group = 3). */
   size: number;
   level: number;
@@ -230,9 +238,14 @@ export function dungeonRunAbilities(base: CombatActor): SignatureAbility[] {
 
 // ── Encounter lifecycle ──────────────────────────────────────────────────────
 
-/** Postaví nepřátele daného encounteru z dungeon dat (škálováno velikostí party). */
+/** Skupiny encounterů runu — vlastní (duel) nebo z dungeon dat (škálováno party). */
+function encounterGroups(state: DungeonRunState): CombatActor[][] {
+  return state.customEncounters ?? groupEncounters('dungeon', state.dungeonId, state.size);
+}
+
+/** Postaví nepřátele daného encounteru (z dungeon dat / vlastní duel encounter). */
 function buildEncounterEnemies(state: DungeonRunState): DungeonRunEnemy[] {
-  const groups = groupEncounters('dungeon', state.dungeonId, state.size);
+  const groups = encounterGroups(state);
   const group = groups[state.encounterIndex] ?? [];
   return group.map((actor, idx) => ({
     idx,
@@ -320,18 +333,25 @@ export function startDungeonRun(
   level: number,
   seed: number,
   allies: RaidActor[] = [],
+  /** Vlastní encountery (duel / test fight) — nahradí nepřátele z dungeon dat. */
+  customEncounters?: CombatActor[][],
+  /** Popisek lokace pro log (duel = jméno nepřítele); default `dungeonId`. */
+  label?: string,
 ): DungeonRunState {
   const playerRole: RaidRole = (base as Partial<RaidActor>).role ?? 'dps';
+  const encounterCount = (customEncounters ?? groupEncounters('dungeon', dungeonId, size)).length;
   const state: DungeonRunState = {
     seed,
     dungeonId,
+    ...(customEncounters ? { customEncounters } : {}),
+    ...(label ? { label } : {}),
     size,
     level,
     playerName: base.name,
     playerRole,
     turn: 0,
     encounterIndex: 0,
-    encounterCount: groupEncounters('dungeon', dungeonId, size).length,
+    encounterCount,
     status: 'in_combat',
     player: {
       maxHealth: base.maxHealth,
@@ -1218,7 +1238,7 @@ function enemyAttackParty(
       emit({
         t,
         type: 'player_defeated',
-        message: `💀 ${targetName} has fallen in ${state.dungeonId} (encounter ${state.encounterIndex + 1}).`,
+        message: `💀 ${targetName} has fallen in ${state.label ?? state.dungeonId} (encounter ${state.encounterIndex + 1}).`,
         source: enemy.name,
         target: targetName,
       });
