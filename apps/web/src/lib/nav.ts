@@ -160,6 +160,14 @@ export const NAV_SECTIONS: NavSection[] = [
     group: 'character',
   },
   {
+    path: 'compendium',
+    icon: '📚',
+    title: 'Spell Compendium',
+    sub: 'Every spell in the game',
+    accent: '#7db4e0',
+    group: 'character',
+  },
+  {
     path: 'history',
     icon: '📖',
     title: 'History',
