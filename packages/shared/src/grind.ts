@@ -105,5 +105,6 @@ export function simulateGrindRun(
     kind: 'narrative',
     text: `With the light fading over ${zone.name}, ${player.name} gathers up the spoils and heads back.`,
   });
-  return { steps, success: true };
+  // Gone Questing nemá skill checky → neutrální odměna (1.0).
+  return { steps, success: true, rewardMultiplier: 1 };
 }

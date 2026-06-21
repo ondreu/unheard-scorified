@@ -25,6 +25,7 @@ export * from './dice';
 export * from './conditions';
 export * from './combat';
 export * from './dnd-combat';
+export * from './skills';
 export * from './combat-lookup';
 export * from './spell-card';
 export * from './spell-compendium';

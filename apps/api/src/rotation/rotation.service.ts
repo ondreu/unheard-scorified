@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   abilityScoresFor,
   aggregateProgression,
+  BACKGROUNDS,
   baseStatsFor,
   defaultRotation,
   deriveCombatProfile,
@@ -174,6 +175,10 @@ export class RotationService {
       progression,
       // Kniha kouzel (ADR 0039) — aktivní kouzla. null/undefined = legacy baseline kit.
       preparedSpells: character.preparedSpells ?? undefined,
+      // Skill proficiencies z Backgroundu → questové skill checky (skills.ts).
+      skillProficiencies: character.background
+        ? BACKGROUNDS[character.background as keyof typeof BACKGROUNDS]?.skillProficiencies
+        : undefined,
     });
     return rotation ? { ...profile, rotation } : profile;
   }

@@ -253,6 +253,13 @@ export interface CombatActor {
   weaponRiderDice?: DiceSpec;
   /** Jméno aktivního rider buffu (pro combat log). */
   riderName?: string;
+  /**
+   * Skill proficiencies postavy (D&D 5e, např. `'Persuasion'`) — zdrojem je
+   * Background (`BACKGROUNDS[].skillProficiencies`). Řídí, zda se k ability
+   * checku přičte proficiency bonus (`skills.ts → skillCheck`). Mimo combat
+   * (questové skill checky); v boji se nečte. `undefined`/`[]` = bez proficiency.
+   */
+  skillProficiencies?: readonly string[];
   signatureAbilities: SignatureAbility[];
   /**
    * Deklarativní rotace (MIL) — řídí, zda/kdy se signature ability sešle.
@@ -337,6 +344,12 @@ export interface CombatProfileInput {
    * dostupné vždy nezávisle na výběru.
    */
   preparedSpells?: readonly string[] | null;
+  /**
+   * Skill proficiencies z Backgroundu (např. `'Persuasion'`) — protáhnou se do
+   * `CombatActor.skillProficiencies` pro questové ability checky (`skills.ts`).
+   * `undefined` = postava bez proficiency (graceful — check bez bonusu).
+   */
+  skillProficiencies?: readonly string[];
 }
 
 /**
@@ -345,7 +358,7 @@ export interface CombatProfileInput {
  * tagy mění crit/haste/damage/lifesteal, class+subclass+level odemykají abilit kit.
  */
 export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
-  const { level, klass, subclass, primary, equipment, progression, preparedSpells } = input;
+  const { level, klass, subclass, primary, equipment, progression, preparedSpells, skillProficiencies } = input;
   const primaryStat: AbilityScore = CLASSES[klass].primaryStat;
 
   // D&D strop: innate skóre (array + rasa + ASI) je clampnuto na 20; magic-item
@@ -457,6 +470,7 @@ export function deriveCombatProfile(input: CombatProfileInput): CombatActor {
     // Koncentrační buff rider (ADR 0036): Hunter's Mark / Hex se v idle modelu drží
     // celý encounter → +riderDice na každý zásah. Jeden naráz (koncentrace) = první.
     ...riderFromAbilities(abilities),
+    ...(skillProficiencies ? { skillProficiencies } : {}),
     signatureAbilities: abilities,
   };
 }

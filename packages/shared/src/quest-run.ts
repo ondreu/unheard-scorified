@@ -61,6 +61,7 @@ import { applyDamageInteraction, crForContentLevel, damageInteraction, type Dama
 import { abilityPrefersUpcast, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import { BESTIARY, instantiateEnemy } from './data/enemies';
 import { shouldCastHeal } from './rotation';
+import { skillCheck, SKILL_ABILITY, type SkillName } from './skills';
 import type { SignatureAbility } from './data/abilities';
 import {
   type QuestDef,
@@ -681,10 +682,10 @@ export function simulateQuestEncounter(
   };
 }
 
-/** Jeden krok vygenerovaného příběhového logu (narativní text nebo combat). */
+/** Jeden krok vygenerovaného příběhového logu (narativní text, combat nebo skill check). */
 export interface QuestStepResult {
-  kind: 'narrative' | 'combat';
-  /** Narativní próza, nebo úvodní věta combat kroku. */
+  kind: 'narrative' | 'combat' | 'skill_check';
+  /** Narativní próza / úvodní věta combat kroku / úvod skill checku. */
   text: string;
   /** Jen combat: jméno nepřítele. */
   enemyName?: string;
@@ -696,6 +697,21 @@ export interface QuestStepResult {
   playerHpPct?: number;
   /** Jen combat-objective questy: tenhle souboj postava prohrála. */
   defeated?: boolean;
+  // ── Skill check (auto-resolved ability check) ──────────────────────────────
+  /** Jen skill_check: testovaný skill (`'Persuasion'`…). */
+  skill?: SkillName;
+  /** Jen skill_check: řídící atribut (`'charisma'`…) pro UI. */
+  skillAbility?: string;
+  /** Jen skill_check: DC checku. */
+  dc?: number;
+  /** Jen skill_check: hozený total (d20 + modifikátor). */
+  rollTotal?: number;
+  /** Jen skill_check: padlo na d20 (1–20). */
+  rollNatural?: number;
+  /** Jen skill_check: uspěl check (total ≥ DC)? */
+  success?: boolean;
+  /** Jen skill_check: byla postava proficient (proficiency bonus se započítal)? */
+  proficient?: boolean;
 }
 
 export interface QuestRunResult {
@@ -706,7 +722,22 @@ export interface QuestRunResult {
    * nepřipíše odměnu a quest nedokončí (lze opakovat). Viz `QuestDef.combatObjective`.
    */
   success: boolean;
+  /**
+   * Násobitel odměny (XP i zlato) z výsledků skill checků (úspěch = bonus,
+   * neúspěch = penalta). `1.0` = žádné checky / neutrální. Volající (claim) jím
+   * vynásobí základní odměnu. Quest se vždy dokončí (idle-safe). Clampnuto
+   * `REWARD_MULT_FLOOR..REWARD_MULT_CEIL`.
+   */
+  rewardMultiplier: number;
 }
+
+/** Default bonus odměny za úspěšný skill check (frakce). */
+const SKILL_CHECK_SUCCESS_BONUS = 0.15;
+/** Default penalta odměny za neúspěšný skill check (frakce). */
+const SKILL_CHECK_FAILURE_PENALTY = 0.1;
+/** Clamp výsledného násobitele odměny (skill checky nesmí odměnu rozhodit). */
+const REWARD_MULT_FLOOR = 0.5;
+const REWARD_MULT_CEIL = 2;
 
 /**
  * Deterministicky vybere podmnožinu událostí z poolu repeatable questu a poskládá
@@ -770,9 +801,31 @@ export function simulateQuestRun(
   const result: QuestStepResult[] = [];
   let t = 0;
   let success = true;
+  // Skill check odměna: sčítají se delty (úspěch +bonus, neúspěch −penalta) kolem 1.0.
+  let rewardDelta = 0;
   for (const step of steps) {
     if (step.kind === 'narrative') {
       result.push({ kind: 'narrative', text: step.text });
+      continue;
+    }
+    if (step.kind === 'skill_check') {
+      // Auto-resolved D&D ability check (idle): d20 + atribut (+ proficiency) vs DC.
+      // Výsledek větví narativ a upraví odměnu, ale quest se vždy dokončí.
+      const check = skillCheck(player, rng, step.skill, step.dc);
+      const bonus = step.reward?.successBonus ?? SKILL_CHECK_SUCCESS_BONUS;
+      const penalty = step.reward?.failurePenalty ?? SKILL_CHECK_FAILURE_PENALTY;
+      rewardDelta += check.success ? bonus : -penalty;
+      result.push({
+        kind: 'skill_check',
+        text: `${step.intro} ${check.success ? step.success : step.failure}`,
+        skill: step.skill,
+        skillAbility: SKILL_ABILITY[step.skill],
+        dc: step.dc,
+        rollTotal: check.total,
+        rollNatural: check.natural,
+        success: check.success,
+        proficient: check.proficient,
+      });
       continue;
     }
     const enc = simulateQuestEncounter(
@@ -798,7 +851,8 @@ export function simulateQuestRun(
       break;
     }
   }
-  return { steps: result, success };
+  const rewardMultiplier = Math.max(REWARD_MULT_FLOOR, Math.min(REWARD_MULT_CEIL, 1 + rewardDelta));
+  return { steps: result, success, rewardMultiplier };
 }
 
 /** Má quest vícekrokový příběh (story kroky nebo náhodné události)? */

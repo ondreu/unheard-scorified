@@ -18,6 +18,7 @@
  * a `docs/systems/progression.md`.
  */
 import { type ZoneId } from './zones';
+import { type SkillName } from '../skills';
 
 export type QuestKind = 'story' | 'repeatable';
 
@@ -60,7 +61,35 @@ export interface QuestCombatStep {
   foe: QuestFoe;
 }
 
-export type QuestStep = QuestNarrativeStep | QuestCombatStep;
+/**
+ * Skill-check krok — auto-resolved D&D ability check uvnitř questu (idle).
+ * Při claimu se deterministicky (seed = čas startu) hodí d20 + atribut + případný
+ * proficiency bonus vs `dc` (viz `skills.ts → skillCheck`, `quest-run.ts`).
+ * Výsledek **větví narativ** (`success`/`failure` text) a **upraví odměnu**
+ * (úspěch = bonus, neúspěch = penalta), ale quest se **vždy dokončí** (idle-safe,
+ * jako no-fail combat — rozhodnutí PM). Hráč nevolí; sleduje, co se stalo.
+ */
+export interface QuestSkillCheckStep {
+  kind: 'skill_check';
+  /** D&D skill (např. `'Persuasion'`); řídící atribut určuje `SKILL_ABILITY`. */
+  skill: SkillName;
+  /** Cílová obtížnost (DC). D&D vodítka: 10 easy, 15 medium, 20 hard. */
+  dc: number;
+  /** Úvodní věta — situace, kterou check řeší (anglicky). */
+  intro: string;
+  /** Narativ při úspěchu (anglicky). */
+  success: string;
+  /** Narativ při neúspěchu (anglicky). */
+  failure: string;
+  /**
+   * Úprava odměny (XP i zlato) za výsledek checku — frakce vůči základu, sčítá se
+   * napříč checky questu (úspěch kladně, neúspěch záporně), pak clamp.
+   * Default: úspěch `+0.15`, neúspěch `-0.10` (laditelný balanc, ne model).
+   */
+  reward?: { successBonus?: number; failurePenalty?: number };
+}
+
+export type QuestStep = QuestNarrativeStep | QuestCombatStep | QuestSkillCheckStep;
 
 /**
  * Šablona náhodné události pro repeatable quest. Z poolu se při každém běhu
@@ -121,6 +150,13 @@ const c = (intro: string, name: string, tier: QuestEnemyTier): QuestCombatStep =
   intro,
   foe: { name, tier },
 });
+const sc = (
+  skill: SkillName,
+  dc: number,
+  intro: string,
+  success: string,
+  failure: string,
+): QuestSkillCheckStep => ({ kind: 'skill_check', skill, dc, intro, success, failure });
 
 export const QUESTS: Record<string, QuestDef> = {
   // ╔══ ALLIANCE ════════════════════════════════════════════════════════════╗
@@ -139,6 +175,13 @@ export const QUESTS: Record<string, QuestDef> = {
     steps: [
       n('Marshal McBride hands you a worn shortsword. "The kobolds out of Echo Ridge Mine have grown bold — they raid our supplies at night. Thin them out before the Abbey goes hungry." You set off along the creek toward the mine.'),
       c('A candle-helmed kobold blocks the mine mouth, hissing "You no take candle!"', 'Kobold Tunneler', 'minion'),
+      sc(
+        'Investigation',
+        12,
+        'The tunnels fork into darkness. Faint drag-marks in the tallow dust hint at where the kobolds haul their plunder.',
+        'You read the trail like a page — the freshest tracks lead straight to the den, sparing you a long search and netting a dropped coin-purse along the way.',
+        'The marks blur together in the gloom and you waste long hours doubling back through dead-end shafts before you find the den.',
+      ),
       n('Inside, the tunnels reek of tallow and fear. Scratched into the rock you find a crude Ashen Hand brand — someone has been arming these creatures.'),
       c('A robed kobold raises a sputtering ward, the air crackling with stolen magic.', 'Kobold Geomancer', 'standard'),
       n('You pry a sealed letter from the geomancer\'s claws — Harrowfield wax, the mark of the Ashen Hand. The kobolds were only the first thread of something larger. You carry the letter back to the Abbey.'),
@@ -160,6 +203,13 @@ export const QUESTS: Record<string, QuestDef> = {
       n('The letter spoke of a courier moving through Dawnhollow under cover of dusk. Brother Sammuel asks you to follow the old vineyard road and learn what the Brotherhood is planning so close to Stormwind.'),
       c('A masked lookout perched in the vines spots you and draws a dagger.', 'Ashen Hand Lookout', 'minion'),
       n('From the lookout\'s satchel spills a map dotted with marks across Aldermere and Harrowfield — supply caches, every one. You press on toward the rendezvous they\'d circled twice.'),
+      sc(
+        'Persuasion',
+        13,
+        'A nervous farmhand at the rendezvous mistakes you for one of the Brotherhood. He could tell you when the courier is due — if you can keep up the act.',
+        'You play the part to the hilt; the farmhand spills the courier\'s schedule and even slips you coin "for the cause." You lie in wait at the perfect moment.',
+        'Your story frays under his questions. He bolts before you can stop him, and you must chase the courier down the hard way.',
+      ),
       c('The courier himself wheels his horse around, blade flashing. "You\'ve seen too much, whelp!"', 'Ashen Hand Courier', 'standard'),
       n('Among the courier\'s effects is a coded ledger naming the next strike: the farmsteads of Harrowfield. The Abbey can no longer pretend the war stays beyond its walls. You ride for the western road.'),
     ],

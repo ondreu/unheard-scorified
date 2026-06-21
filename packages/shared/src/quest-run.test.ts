@@ -392,3 +392,67 @@ describe('conditiony ve spojitém sim (Slice 2d — quest auto-resolve)', () => 
     expect(enc.events.some((e) => (e.message ?? '').includes('Golem') && (e.message ?? '').includes('restrained'))).toBe(true);
   });
 });
+
+describe('skill checks v questu (auto-resolved, idle)', () => {
+  const skillQuest: QuestDef = {
+    id: 'test_skill',
+    name: 'Test',
+    description: 'd',
+    zoneId: 'northshire',
+    kind: 'story',
+    requiredLevel: 1,
+    durationSec: 600,
+    baseXp: 100,
+    baseGold: 10,
+    goldVariance: 0,
+    steps: [
+      { kind: 'narrative', text: 'intro' },
+      {
+        kind: 'skill_check',
+        skill: 'Persuasion',
+        dc: 12,
+        intro: 'You try to talk your way past.',
+        success: 'The guard waves you through.',
+        failure: 'The guard turns you away.',
+      },
+    ],
+  };
+
+  it('je deterministický a do logu dá výsledek checku + detail hodu', () => {
+    const player = makeProfile(5);
+    const a = simulateQuestRun(skillQuest, player, 99);
+    const b = simulateQuestRun(skillQuest, player, 99);
+    expect(a).toEqual(b);
+    const step = a.steps.find((s) => s.kind === 'skill_check')!;
+    expect(step.skill).toBe('Persuasion');
+    expect(step.dc).toBe(12);
+    expect(typeof step.rollTotal).toBe('number');
+    expect(typeof step.success).toBe('boolean');
+    // Text větví dle výsledku.
+    expect(step.text).toContain(step.success ? 'waves you through' : 'turns you away');
+  });
+
+  it('úspěch zvyšuje a neúspěch snižuje rewardMultiplier (quest se vždy dokončí)', () => {
+    const player = makeProfile(5);
+    // Najdi seed s úspěchem a seed s neúspěchem (oba existují → check je náhodný).
+    let win: number | undefined;
+    let loss: number | undefined;
+    for (let seed = 0; seed < 100 && (win === undefined || loss === undefined); seed++) {
+      const run = simulateQuestRun(skillQuest, player, seed);
+      const step = run.steps.find((s) => s.kind === 'skill_check')!;
+      if (step.success && win === undefined) win = seed;
+      if (!step.success && loss === undefined) loss = seed;
+    }
+    expect(win).toBeDefined();
+    expect(loss).toBeDefined();
+    expect(simulateQuestRun(skillQuest, player, win!).rewardMultiplier).toBeGreaterThan(1);
+    expect(simulateQuestRun(skillQuest, player, loss!).rewardMultiplier).toBeLessThan(1);
+    // Vždy dokončeno (idle-safe) — žádný skill check questy „neprohrává".
+    expect(simulateQuestRun(skillQuest, player, loss!).success).toBe(true);
+  });
+
+  it('questy bez skill checku mají neutrální rewardMultiplier (1.0)', () => {
+    const run = simulateQuestRun(QUESTS.ns_stonefield_watch!, makeProfile(3), 1);
+    expect(run.rewardMultiplier).toBe(1);
+  });
+});

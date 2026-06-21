@@ -53,6 +53,9 @@
     questStory: 'What happened',
     hpLeft: 'HP left',
     defeated: 'Defeated',
+    checkSuccess: 'Success',
+    checkFailure: 'Failure',
+    dc: 'DC',
     defeatedMsg:
       'You were defeated and earned no reward. Grow stronger and try this challenge again.',
     ongoing: 'In progress elsewhere',
@@ -529,6 +532,24 @@
               {#each r.questLog as step, i (i)}
                 {#if step.kind === 'narrative'}
                   <p class="italic leading-relaxed text-[var(--text-dim)]">{step.text}</p>
+                {:else if step.kind === 'skill_check'}
+                  <div
+                    class="rounded-md border border-[var(--border)]/60 bg-[var(--surface)]/50 p-2"
+                  >
+                    <p
+                      class="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
+                      class:text-[var(--success)]={step.success}
+                      class:text-[var(--danger)]={!step.success}
+                    >
+                      🎲 {step.skill}
+                      <span class="text-[var(--text-faint)]">{ui.dc} {step.dc}</span>
+                      <span class="ml-auto font-mono normal-case">
+                        {step.rollTotal}{step.proficient ? '✦' : ''} ·
+                        {step.success ? ui.checkSuccess : ui.checkFailure}
+                      </span>
+                    </p>
+                    <p class="italic leading-relaxed text-[var(--text-dim)]">{step.text}</p>
+                  </div>
                 {:else}
                   <div
                     class="rounded-md border border-[var(--border)]/60 bg-[var(--surface)]/50 p-2"
