@@ -15,6 +15,7 @@
   import PixelAbilityIcon from '$lib/components/PixelAbilityIcon.svelte';
   import SpellSlotBar from '$lib/components/SpellSlotBar.svelte';
   import SpellTooltip from '$lib/components/SpellTooltip.svelte';
+  import UpcastPicker from '$lib/components/UpcastPicker.svelte';
   import ConditionBadges from '$lib/components/ConditionBadges.svelte';
   import { activeCharacterLevel, activeCharacterSpellSaveDc, openNpc } from '$lib/ui-stores';
   import type { Socket } from 'socket.io-client';
@@ -60,6 +61,8 @@
   let targetId = $state(0);
   // Vědomě zvolená bonus action (ADR 0042) — proběhne vedle hlavní akce; null = žádná.
   let bonusAbilityId = $state<string | null>(null);
+  // Vědomě zvolený upcast tier per ability (Upcast — volba slotu). undefined = auto.
+  let upcastTier = $state<Record<string, number | undefined>>({});
   // Friendly cíl léčení: `slot` člena party. Heal ability posílá tenhle slot místo
   // nepřátelského `targetId`. null = ještě nezvoleno → default na vlastní slot.
   let healTargetId = $state<number | null>(null);
@@ -159,10 +162,11 @@
     const bonus = bonusAbilityId && bonusAbilityId !== abilityId ? bonusAbilityId : undefined;
     try {
       // Preferuj WS (server-authoritative ack); REST fallback, když socket nejede.
+      const tier = upcastTier[abilityId];
       run =
         socket && socket.connected
-          ? await submitPartyTurn(socket, characterId, runId, abilityId, tgt, bonus)
-          : await submitDungeonParty(characterId, runId, abilityId, tgt, bonus);
+          ? await submitPartyTurn(socket, characterId, runId, abilityId, tgt, bonus, tier)
+          : await submitDungeonParty(characterId, runId, abilityId, tgt, bonus, tier);
       bonusAbilityId = null;
       retarget();
     } catch (err) {
@@ -363,27 +367,39 @@
         {/if}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {#each r.you.abilities as a (a.id)}
-            <SpellTooltip
-              abilityId={a.id}
-              level={$activeCharacterLevel ?? 1}
-              spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
-            >
-              <button
-                class="btn flex w-full items-center gap-2 text-left"
-                disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
-                onclick={() => submit(a.id, a.kind)}
+            <div>
+              <SpellTooltip
+                abilityId={a.id}
+                level={$activeCharacterLevel ?? 1}
+                slotTier={upcastTier[a.id]}
+                spellSaveDc={$activeCharacterSpellSaveDc ?? undefined}
               >
-                <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
-                <span class="min-w-0 flex-1 truncate">{a.name}</span>
-                {#if !a.ready}
-                  <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
-                {:else if a.outOfSlots}
-                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
-                {:else if a.outOfKi}
-                  <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
-                {/if}
-              </button>
-            </SpellTooltip>
+                <button
+                  class="btn flex w-full items-center gap-2 text-left"
+                  disabled={busy || !a.ready || a.outOfSlots || a.outOfKi}
+                  onclick={() => submit(a.id, a.kind)}
+                >
+                  <PixelAbilityIcon name={a.name} kind={a.kind as never} size={22} />
+                  <span class="min-w-0 flex-1 truncate">{a.name}</span>
+                  {#if !a.ready}
+                    <span class="shrink-0 text-xs text-[var(--text-dim)]">{ui.cooldown} {a.cooldownRemaining}</span>
+                  {:else if a.outOfSlots}
+                    <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noSlots}</span>
+                  {:else if a.outOfKi}
+                    <span class="shrink-0 text-xs text-[var(--danger)]">{ui.noKi}</span>
+                  {/if}
+                </button>
+              </SpellTooltip>
+              {#if r.you && a.ready && !a.outOfSlots}
+                <UpcastPicker
+                  spellTier={a.spellTier}
+                  upcastPerSlot={a.upcastPerSlot}
+                  slots={r.you.spellSlots}
+                  bind:selected={upcastTier[a.id]}
+                  disabled={busy}
+                />
+              {/if}
+            </div>
           {/each}
         </div>
         <div class="mt-2 flex gap-2">

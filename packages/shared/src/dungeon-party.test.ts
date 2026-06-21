@@ -107,6 +107,41 @@ describe('submitPartyAction — vlastnictví + buffrování', () => {
   });
 });
 
+describe('submitPartyAction — vědomý upcast (volba slotu)', () => {
+  // 1 lidský wizard (má upcastovatelné kouzlo) + 2 AI parťáci.
+  function casterSeats(): PartyRunSeatInput[] {
+    return [
+      { owner: 'char-wiz', actor: actor('wizard', 'dps', 'Merlin') },
+      { owner: null, actor: actor('fighter', 'tank', 'Tankman') },
+      { owner: null, actor: actor('cleric', 'healer', 'Lyra') },
+    ];
+  }
+  function upcastable(state: PartyRunState): SignatureAbility {
+    const wiz = state.members.find((m) => m.owner === 'char-wiz')!;
+    const ab = wiz.actor.signatureAbilities.find(
+      (a) => (a.dicePerSlotAbove ?? 0) > 0 && (a.spellTier ?? 0) >= 1,
+    );
+    expect(ab, 'wizard kit má mít upcastovatelné kouzlo').toBeDefined();
+    return ab!;
+  }
+
+  it('přijme platný zvolený tier slotu (≥ minTier, dostupný)', () => {
+    const state = startPartyRun(casterSeats(), 'ragefire_chasm', 3, 20, 7);
+    const ab = upcastable(state);
+    const res = submitPartyAction(state, 'char-wiz', ab.id, weakestTarget(state), undefined, ab.spellTier);
+    expect(res.ok).toBe(true);
+    expect(state.pending[0]?.castTier).toBe(ab.spellTier);
+  });
+
+  it('odmítne nevalidní tier slotu (nedostupný / mimo rozsah)', () => {
+    const state = startPartyRun(casterSeats(), 'ragefire_chasm', 3, 20, 7);
+    const ab = upcastable(state);
+    const res = submitPartyAction(state, 'char-wiz', ab.id, weakestTarget(state), undefined, 99);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toMatch(/slot tier/i);
+  });
+});
+
 describe('conditiony (Enemy schopnosti, Slice 2b)', () => {
   const stunStrike: SignatureAbility = {
     id: 'enemy_stun',

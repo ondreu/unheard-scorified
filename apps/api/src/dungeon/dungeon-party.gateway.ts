@@ -95,13 +95,13 @@ export class DungeonPartyGateway implements OnGatewayInit, OnGatewayConnection {
   @SubscribeMessage('party:submit')
   async submit(
     client: Socket,
-    payload: { characterId?: string; runId?: string; abilityId?: string; targetId?: number; bonusAbilityId?: string },
+    payload: { characterId?: string; runId?: string; abilityId?: string; targetId?: number; bonusAbilityId?: string; castTier?: number },
   ): Promise<{ ok: boolean; run?: DungeonPartyRunView; error?: string }> {
     const accountId = (client.data as SocketState).accountId;
-    const { characterId, runId, abilityId, targetId, bonusAbilityId } = payload ?? {};
+    const { characterId, runId, abilityId, targetId, bonusAbilityId, castTier } = payload ?? {};
     if (!accountId || !characterId || !runId || !abilityId) return { ok: false, error: 'Bad request' };
     try {
-      const run = await this.party.submit(accountId, characterId, runId, abilityId, targetId ?? 0, bonusAbilityId);
+      const run = await this.party.submit(accountId, characterId, runId, abilityId, targetId ?? 0, bonusAbilityId, castTier);
       return { ok: true, run };
     } catch (err) {
       return { ok: false, error: (err as Error).message };

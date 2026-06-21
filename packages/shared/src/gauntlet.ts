@@ -56,6 +56,7 @@ import { BESTIARY, enemyAbilityToSignature } from './data/enemies';
 import {
   abilityPrefersUpcast,
   hasSlotForTier,
+  spendCastSlot,
   spendSlotForTier,
   type SpellSlots,
 } from './data/spell-slots';
@@ -518,6 +519,9 @@ export function resolveGauntletTurn(
    * vedle hlavní akce (Healing Word). Léčení čerpá `healsUsed` (diminishing). Bez
    * tohoto id žádná bonus akce neproběhne. */
   bonusAbilityId?: string,
+  /** Volitelný **upcast tier** — hráč vědomě zvolí, jakým slotem hlavní akci sešle.
+   * `undefined` → auto (nejvyšší pro nuke). Server validuje; nevalidní → auto. */
+  castTier?: number,
 ): { state: GauntletRunState; events: CombatEvent[] } {
   if (state.status !== 'in_combat' || !state.enemy) return { state, events: [] };
 
@@ -611,10 +615,11 @@ export function resolveGauntletTurn(
     const abilityTier = ability.spellTier ?? 0;
     const kiCost = ability.kiCost ?? 0;
     if (abilityTier >= 1)
-      usedSlotTier = spendSlotForTier(
+      usedSlotTier = spendCastSlot(
         state.player.spellSlots,
         abilityTier,
         abilityPrefersUpcast(ability),
+        castTier,
       );
     if (kiCost > 0) state.player.kiPoints = (state.player.kiPoints ?? 0) - kiCost;
 

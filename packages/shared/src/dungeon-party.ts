@@ -48,7 +48,7 @@ import { applyDamageInteraction, damageInteraction } from './data/damage';
 import { groupEncounters } from './group';
 import { TANK_INCOMING_DAMAGE_MULT, type RaidActor, type RaidRole } from './raid';
 import { shouldCastAbility, shouldCastHeal } from './rotation';
-import { abilityPrefersUpcast, hasSlotForTier, spendSlotForTier, type SpellSlots } from './data/spell-slots';
+import { abilityPrefersUpcast, hasSlotForTier, isValidCastTier, spendCastSlot, spendSlotForTier, type SpellSlots } from './data/spell-slots';
 import { DUNGEON_BASIC_ATTACK, DUNGEON_DODGE_ACTION, isEndTurnAction, type DungeonRunDot, type DungeonRunEnemy } from './dungeon-run';
 
 /** Délka jednoho „tahu" v sekundách — převádí cooldown abilit (s) na počet tahů. */
@@ -100,6 +100,9 @@ export interface PartyRunPendingAction {
   /** Volitelná bonus-action ability (ADR 0042, Slice 3) — hráč ji vědomě zvolí
    * vedle hlavní akce (Healing Word). `undefined` = bez bonus akce. */
   bonusAbilityId?: string;
+  /** Volitelný **upcast tier** hlavní akce — hráč zvolí, jakým slotem sešle.
+   * `undefined` = auto (nejvyšší pro nuke). Validuje `submitPartyAction`. */
+  castTier?: number;
 }
 
 /** Kompletní stav živého MP tahového runu (persistovaný jako JSON). */
@@ -335,6 +338,8 @@ export function submitPartyAction(
   targetId: number,
   /** Volitelná bonus-action ability (ADR 0042, Slice 3) — vědomá volba hráče. */
   bonusAbilityId?: string,
+  /** Volitelný upcast tier hlavní akce (vědomá volba hráče) — viz `PartyRunPendingAction`. */
+  castTier?: number,
 ): { ok: boolean; ready: boolean; reason?: string } {
   if (state.status !== 'in_combat') return { ok: false, ready: false, reason: 'Run finished' };
   const member = state.members.find((m) => m.owner === characterId && m.currentHealth > 0);
@@ -359,6 +364,11 @@ export function submitPartyAction(
   const tier = ability.spellTier ?? 0;
   if (tier >= 1 && !hasSlotForTier(member.spellSlots, tier)) return { ok: false, ready: false, reason: 'No spell slot' };
   if ((ability.kiCost ?? 0) > member.kiPoints) return { ok: false, ready: false, reason: 'Not enough Ki' };
+  // Vědomý upcast (hráč zvolí tier slotu): musí být ≥ minTier a dostupný. Neplatná
+  // volba se odmítne (anti-cheat); `undefined` = auto (žádná volba, zpětně kompatibilní).
+  if (castTier != null && !isValidCastTier(member.spellSlots, tier, castTier)) {
+    return { ok: false, ready: false, reason: 'Invalid spell slot tier' };
+  }
 
   // Bonus-action volba (ADR 0042, Slice 3): ulož jen validní bonus-action ability
   // (jinak ignoruj — resolution ji stejně přeskočí). Vědomá volba hráče.
@@ -372,6 +382,7 @@ export function submitPartyAction(
     abilityId,
     targetId: Number(targetId) || 0,
     ...(bonusValid ? { bonusAbilityId } : {}),
+    ...(castTier != null ? { castTier } : {}),
   };
   const humans = livingHumans(state);
   const ready = humans.every((h) => state.pending[h.slot] !== undefined);
@@ -557,7 +568,7 @@ function takeMemberTurn(
       // Akční ekonomika (ADR 0042): „once per combat" okno (mohlo vyprchat mezi koly).
       const hasOnce = !ability.oncePerCombat || !(member.usedOncePerCombat ?? []).includes(ability.id);
       if (hasSlot && hasKi && hasOnce) {
-        applyMemberAbility(state, member, eff, ability, action.targetId, rng, t, emit, attackerDisadvantage);
+        applyMemberAbility(state, member, eff, ability, action.targetId, rng, t, emit, attackerDisadvantage, action.castTier);
         return;
       }
     }
@@ -633,9 +644,11 @@ function applyMemberAbility(
   emit: (e: CombatEvent) => void,
   /** Disadvantage na hod na zásah z conditiony útočníka (Slice 2b). */
   attackerDisadvantage = false,
+  /** Hráčem zvolený upcast tier hlavní akce (vědomá volba). `undefined` → auto. */
+  castTier?: number,
 ): void {
   const tier = ability.spellTier ?? 0;
-  const usedSlot = tier >= 1 ? spendSlotForTier(member.spellSlots, tier, abilityPrefersUpcast(ability)) : null;
+  const usedSlot = tier >= 1 ? spendCastSlot(member.spellSlots, tier, abilityPrefersUpcast(ability), castTier) : null;
   if ((ability.kiCost ?? 0) > 0) member.kiPoints -= ability.kiCost ?? 0;
   if (ability.oncePerCombat) (member.usedOncePerCombat ??= []).push(ability.id); // ADR 0042
 
